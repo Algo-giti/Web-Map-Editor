@@ -189,26 +189,6 @@ user-specific RTK coordinates.
 Download or clone the repository and open `index.html` in a browser. A web
 server is not required.
 
-## GitHub Pages
-
-1. Create a repository on GitHub.
-2. Upload the files from this release.
-3. Open **Settings → Pages**.
-4. Under **Build and deployment**, select `Deploy from a branch`.
-5. Select branch `main` and folder `/ (root)`.
-6. Save.
-
-## Suggested GitHub description
-
-> Standalone browser-based GeoJSON & RTK map editor for Ardumower/Sunray and
-> compatible maps, with point editing, lasso/rectangle selection, grid
-> snapping, mower preview, validation, undo/redo and map merge.
-
-## Suggested GitHub topics
-
-`geojson` · `rtk` · `ardumower` · `sunray` · `map-editor` · `robotics` ·
-`javascript` · `html` · `browser-app`
-
 ## License
 
 MIT License. See [LICENSE](LICENSE).
