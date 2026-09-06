@@ -2352,6 +2352,41 @@
         </div>
       </details>
 
+      <details class="section sidebar-collapsible section-accent-cyan">
+        <summary class="sidebar-collapsible-summary"><span>Koordinatenbezug</span></summary>
+        <div class="sidebar-collapsible-body">
+          <div class="measurement-panel">
+
+          <label class="field-label" for="originLatInput">
+            RTK-Basis Breite (lat)
+            <input id="originLatInput" class="grid-input" type="text" inputmode="decimal"
+                   value="0" autocomplete="off" spellcheck="false" aria-describedby="originStatus">
+          </label>
+
+          <label class="field-label" for="originLonInput">
+            RTK-Basis Länge (lon)
+            <div class="field-row">
+              <input id="originLonInput" class="grid-input" type="text" inputmode="decimal"
+                     value="0" autocomplete="off" spellcheck="false" aria-describedby="originStatus">
+              <button id="applyOriginBtn" type="button">Übernehmen</button>
+            </div>
+          </label>
+
+          <label class="field-label" for="exportFrameSelect">
+            Koordinaten beim Speichern
+            <select id="exportFrameSelect" class="grid-select">
+              <option value="loaded" selected>wie geladen</option>
+              <option value="absolute">absolut WGS84 (CaSSAndRA)</option>
+            </select>
+          </label>
+
+          <div id="originStatus" class="grid-status" aria-live="polite">
+            Kein Bezugspunkt gesetzt.
+          </div>
+          </div>
+        </div>
+      </details>
+
 
     </aside>
 
@@ -2774,7 +2809,8 @@ const mapSlots = {
     filename:null,
     originalFilename:null,
     dirty:false,
-    selectedVertex:null
+    selectedVertex:null,
+    convertedFromAbsolute:false
   },
   B:{
     id:"B",
@@ -2783,7 +2819,8 @@ const mapSlots = {
     filename:null,
     originalFilename:null,
     dirty:false,
-    selectedVertex:null
+    selectedVertex:null,
+    convertedFromAbsolute:false
   }
 };
 
@@ -3618,11 +3655,7 @@ function resetValidationUi() {
  * Erkennung des Search-Wire-Features.
  */
 function isSearchWireFeature(feature) {
-  const name = String(feature?.properties?.name ?? "")
-    .toLowerCase()
-    .trim();
-
-  return name === "search wire" || name === "searchwire";
+  return getFeatureType(feature) === "searchwire";
 }
 
 
@@ -3677,11 +3710,7 @@ function createSearchWireFeatureFromWorldPoints(points) {
  * Sunray-Karten verwenden dafür üblicherweise properties.name = "dockpoints".
  */
 function isDockFeature(feature) {
-  const name = String(feature?.properties?.name ?? "")
-    .toLowerCase()
-    .trim();
-
-  return name === "dockpoints" || name === "dock points";
+  return getFeatureType(feature) === "dockpoints";
 }
 
 
@@ -5430,6 +5459,8 @@ function toWorldForData(point, featureCollection) {
 
 /** Aktualisiert die Karten-A/B-Schaltflächen und den Dateinamen im Header. */
 function updateMapSlotUi() {
+  updateOriginUi();
+
   const slotA = mapSlots.A;
   const slotB = mapSlots.B;
 
@@ -5559,7 +5590,7 @@ function activateMap(mapId, options = {}) {
 /**
  * Lädt eine FeatureCollection als neue Baseline in einen Kartenslot.
  */
-function setMapSlotData(mapId, featureCollection, fileName) {
+function setMapSlotData(mapId, featureCollection, fileName, options = {}) {
   const slot = mapSlots[mapId];
 
   /*
@@ -5576,12 +5607,66 @@ function setMapSlotData(mapId, featureCollection, fileName) {
   slot.originalFilename = fileName;
   slot.dirty = false;
   slot.selectedVertex = null;
+  slot.convertedFromAbsolute = options.convertedFromAbsolute === true;
 }
 
 
 /* ==========================================================================
    3. KOORDINATEN- UND SUNRAY-HILFSFUNKTIONEN
    ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   CaSSAndRA-Kompatibilität: Typ-Bezeichner
+   --------------------------------------------------------------------------
+   CaSSAndRA legt den Feature-Typ in properties.name ab. Der Editor verwendet
+   dieselben Bezeichner, akzeptiert beim Import zusätzlich verbreitete
+   Schreibvarianten und normalisiert beim Export wieder auf die kanonische
+   CaSSAndRA-Schreibweise.
+
+   properties.name trägt damit ausschließlich den Typ. Ein abweichender
+   Anzeigename gehört nach properties.label und wird nie exportiert überschrieben.
+   -------------------------------------------------------------------------- */
+
+/** Interner Typ -> kanonischer CaSSAndRA-Bezeichner für properties.name. */
+const CASSANDRA_NAME_BY_TYPE = {
+  perimeter:"perimeter",
+  exclusion:"exclusion",
+  searchwire:"search wire",
+  dockpoints:"dockpoints"
+};
+
+/** Beim Import akzeptierte Schreibvarianten -> interner Typ. */
+const FEATURE_TYPE_BY_NAME = {
+  "perimeter":"perimeter",
+  "exclusion":"exclusion",
+  "search wire":"searchwire",
+  "searchwire":"searchwire",
+  "dockpoints":"dockpoints",
+  "dock points":"dockpoints"
+};
+
+/**
+ * Einzige Stelle, an der der Feature-Typ bestimmt wird.
+ * Liefert "perimeter", "exclusion", "searchwire", "dockpoints" oder "other".
+ */
+function getFeatureType(feature) {
+  const name = String(feature?.properties?.name ?? "").toLowerCase().trim();
+  return FEATURE_TYPE_BY_NAME[name] || "other";
+}
+
+
+/**
+ * Kanonischer CaSSAndRA-Bezeichner eines Features.
+ * Unbekannte Typen behalten ihren Rohwert, damit fremde Features beim
+ * Speichern nicht stillschweigend umbenannt werden.
+ */
+function cassandraNameForFeature(feature) {
+  const type = getFeatureType(feature);
+
+  return CASSANDRA_NAME_BY_TYPE[type] ??
+         String(feature?.properties?.name ?? "").trim();
+}
+
 
 /**
  * Durchläuft eine beliebig tief verschachtelte GeoJSON-Koordinatenstruktur.
@@ -5670,6 +5755,17 @@ function setModeFromData() {
     return;
   }
 
+  /*
+   * Aus absolutem WGS84 umgerechnete Karten liegen bereits in der kanonischen
+   * Relativdarstellung vor. Ihre Werte sind aber keine exakten
+   * Zentimeter-Vielfachen mehr, weshalb die Heuristik hier nicht greifen darf.
+   */
+  if (activeSlot.convertedFromAbsolute) {
+    coordMode = "sunray-relative";
+    scaleFactor = DEGREE_METERS;
+    return;
+  }
+
   const detection = detectSunray(data);
 
   coordMode =
@@ -5693,6 +5789,241 @@ function toWorld(point) {
 /** Wandelt Meter-/Weltkoordinaten zurück in das GeoJSON-Dateiformat. */
 function fromWorld(x, y) {
   return [x / scaleFactor, y / scaleFactor];
+}
+
+
+/* --------------------------------------------------------------------------
+   CaSSAndRA-Kompatibilität: Koordinatenbezug (relativ <-> absolut WGS84)
+   --------------------------------------------------------------------------
+   CaSSAndRA verwendet dieselbe Näherung wie die Sunray-Firmware
+   (src/backend/data/mapdata.py, coords_rel_to_abs / coords_abs_to_rel):
+
+     lat = north / 111111            + lat0
+     lon = east  / (111111*cos(lat0)) + lon0
+
+   lat0/lon0 ist die RTK-Basisposition. Sie steht in CaSSAndRA unter
+   Settings -> Robot und ist NICHT Bestandteil der GeoJSON-Datei. Deshalb muss
+   sie hier separat gepflegt werden; ohne sie ist keine Umrechnung möglich.
+
+   Wichtig: mit lat0 = lon0 = 0 ist cos(lat0) = 1, und die Formel entspricht
+   exakt dem bisherigen scaleFactor-Verhalten des Editors. Bestehende
+   Relativkarten verhalten sich dadurch unverändert.
+   -------------------------------------------------------------------------- */
+
+/** Grad-zu-Meter-Näherung; identisch zu CaSSAndRA und Sunray. */
+const DEGREE_METERS = SUNRAY_FACTOR;
+
+/**
+ * Ab diesem Betrag kann eine Koordinate keine relative Karte mehr sein
+ * (0.05 Grad sind gut 5 km) und wird als absolutes WGS84 gewertet.
+ */
+const ABSOLUTE_WGS84_THRESHOLD = 0.05;
+
+/* RTK-Basisposition für die Umrechnung relativ <-> absolut. */
+let referenceOrigin = {lat:0, lon:0};
+
+/* Merkt, ob die aktive Karte als absolutes WGS84 geladen wurde. */
+let loadedAsAbsolute = false;
+
+
+/** Meter pro Längengrad auf der Breite des Bezugspunktes. */
+function originLonScale(lat0) {
+  return DEGREE_METERS * Math.cos(lat0 * Math.PI / 180);
+}
+
+
+/** Prüft, ob ein Bezugspunkt gesetzt und numerisch brauchbar ist. */
+function hasReferenceOrigin(origin = referenceOrigin) {
+  return Number.isFinite(origin?.lat) &&
+         Number.isFinite(origin?.lon) &&
+         (origin.lat !== 0 || origin.lon !== 0);
+}
+
+
+/** Lokale Meter (East/North) -> absolutes WGS84 als [lon, lat]. */
+function metersToAbsolute(east, north, origin = referenceOrigin) {
+  const scale = originLonScale(origin.lat);
+
+  return [
+    scale === 0 ? origin.lon : east / scale + origin.lon,
+    north / DEGREE_METERS + origin.lat
+  ];
+}
+
+
+/** Absolutes WGS84 [lon, lat] -> lokale Meter (East/North). */
+function absoluteToMeters(lon, lat, origin = referenceOrigin) {
+  return [
+    (lon - origin.lon) * originLonScale(origin.lat),
+    (lat - origin.lat) * DEGREE_METERS
+  ];
+}
+
+
+/**
+ * Heuristik zur Erkennung absoluter WGS84-Karten.
+ *
+ * Relative Karten liegen dicht um den lokalen Nullpunkt, absolute Karten
+ * praktisch nie (0/0 läge im Golf von Guinea).
+ */
+function isAbsoluteWgs84Collection(featureCollection) {
+  const points = collectCoords(featureCollection);
+
+  return points.some(([lon, lat]) =>
+    Math.abs(lon) > ABSOLUTE_WGS84_THRESHOLD ||
+    Math.abs(lat) > ABSOLUTE_WGS84_THRESHOLD
+  );
+}
+
+
+/**
+ * Wandelt alle Koordinaten einer FeatureCollection an Ort und Stelle um.
+ * convert erhält [x, y] und liefert das neue Zahlenpaar.
+ */
+function convertCollectionCoordinates(featureCollection, convert) {
+  for (const feature of (featureCollection?.features || [])) {
+    walkCoordinates(feature.geometry?.coordinates, point => {
+      const [first, second] = convert(point[0], point[1]);
+      point[0] = first;
+      point[1] = second;
+    });
+  }
+
+  return featureCollection;
+}
+
+
+/**
+ * Absolute Karte -> interne Relativdarstellung.
+ *
+ * Intern wird immer relativ gerechnet. Die kanonische Relativdarstellung ist
+ * Meter/111111, also genau das Format, das CaSSAndRA mit lat0 = lon0 = 0
+ * exportiert.
+ */
+function absoluteCollectionToRelative(featureCollection, origin = referenceOrigin) {
+  return convertCollectionCoordinates(featureCollection, (lon, lat) => {
+    const [east, north] = absoluteToMeters(lon, lat, origin);
+    return [east / DEGREE_METERS, north / DEGREE_METERS];
+  });
+}
+
+
+/** Schlüssel für den im Browser gemerkten Bezugspunkt. */
+const REFERENCE_ORIGIN_STORAGE_KEY = "webMapEditor.referenceOrigin";
+
+
+/**
+ * Liest einen Bezugspunkt aus beliebigen Rohwerten.
+ * Liefert null, wenn die Werte keine gültige WGS84-Position ergeben.
+ */
+function parseOrigin(rawLat, rawLon) {
+  const lat = Number(rawLat);
+  const lon = Number(rawLon);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+
+  return {lat, lon};
+}
+
+
+/** Übernimmt einen neuen Bezugspunkt und merkt ihn im Browser. */
+function setReferenceOrigin(origin) {
+  referenceOrigin = {lat:origin.lat, lon:origin.lon};
+
+  try {
+    localStorage.setItem(
+      REFERENCE_ORIGIN_STORAGE_KEY,
+      JSON.stringify(referenceOrigin)
+    );
+  } catch {
+    /* Privater Modus oder blockierter Speicher: nur die Sitzung nutzen. */
+  }
+}
+
+
+/** Stellt den zuletzt verwendeten Bezugspunkt wieder her. */
+function restoreReferenceOrigin() {
+  let stored = null;
+
+  try {
+    stored = JSON.parse(localStorage.getItem(REFERENCE_ORIGIN_STORAGE_KEY));
+  } catch {
+    stored = null;
+  }
+
+  const origin = stored ? parseOrigin(stored.lat, stored.lon) : null;
+  if (origin) referenceOrigin = origin;
+}
+
+
+/**
+ * Liest einen in der Datei hinterlegten Bezugspunkt.
+ *
+ * `referenceOrigin` ist ein zusätzliches Feld auf der FeatureCollection. Es
+ * ist kein Standard-GeoJSON, wird von CaSSAndRAs Import aber ignoriert, weil
+ * dieser ausschließlich `features` auswertet.
+ */
+function readEmbeddedOrigin(featureCollection) {
+  const origin = featureCollection?.referenceOrigin;
+  if (!origin) return null;
+
+  return parseOrigin(origin.lat, origin.lon);
+}
+
+
+/**
+ * Bereitet eine frisch geladene Karte für die interne Bearbeitung auf.
+ *
+ * Intern wird immer relativ gerechnet. Absolute WGS84-Karten werden deshalb
+ * beim Laden einmalig umgerechnet; der dabei verwendete Bezugspunkt wird
+ * übernommen, damit der Export wieder exakt dorthin zurückführt.
+ */
+function prepareImportedCollection(featureCollection) {
+  const embeddedOrigin = readEmbeddedOrigin(featureCollection);
+  if (embeddedOrigin) setReferenceOrigin(embeddedOrigin);
+
+  if (!isAbsoluteWgs84Collection(featureCollection)) {
+    return {absolute:false, derivedOrigin:false};
+  }
+
+  let derivedOrigin = false;
+
+  /*
+   * Ohne bekannten Bezugspunkt dient der erste Kartenpunkt als Nullpunkt.
+   * Der Rundlauf bleibt dadurch exakt; die angezeigten Meterwerte beziehen
+   * sich dann aber auf diesen Punkt und nicht auf die echte RTK-Basis.
+   */
+  if (!hasReferenceOrigin()) {
+    const [lon, lat] = collectCoords(featureCollection)[0] || [0, 0];
+    const derived = parseOrigin(lat, lon);
+
+    if (derived) {
+      setReferenceOrigin(derived);
+      derivedOrigin = true;
+    }
+  }
+
+  absoluteCollectionToRelative(featureCollection);
+
+  return {absolute:true, derivedOrigin};
+}
+
+
+/**
+ * Interne Relativdarstellung -> absolute WGS84-Karte.
+ *
+ * factor ist der Umrechnungsfaktor der geladenen Datei (scaleFactor), damit
+ * auch Karten korrekt exportiert werden, die nicht im Relativformat vorliegen.
+ */
+function relativeCollectionToAbsolute(
+  featureCollection,
+  origin = referenceOrigin,
+  factor = scaleFactor
+) {
+  return convertCollectionCoordinates(featureCollection, (x, y) =>
+    metersToAbsolute(x * factor, y * factor, origin)
+  );
 }
 
 
@@ -5835,21 +6166,27 @@ function sameVertex(a, b) {
 function describeFeature(feature) {
   if (!feature) return "Unbekanntes Feature";
 
-  const rawName = String(feature.properties?.name ?? "").trim();
-  const normalizedName = rawName.toLowerCase();
+  /*
+   * properties.name trägt den CaSSAndRA-Typ. Ein davon abweichender
+   * Anzeigename steht in properties.label und hat Vorrang.
+   */
+  const label = String(feature.properties?.label ?? "").trim();
+  if (label) return label;
 
-  if (normalizedName === "exclusion") {
+  const type = getFeatureType(feature);
+
+  if (type === "exclusion") {
     const idx = feature.idx ?? feature.properties?.idx;
     return idx !== undefined
       ? `Exclusion #${idx}`
       : "Exclusion";
   }
 
-  if (normalizedName === "perimeter") return "Perimeter";
-  if (normalizedName === "dockpoints" || normalizedName === "dock points") return "Dockpoints";
-  if (normalizedName === "search wire" || normalizedName === "searchwire") return "Search wire";
+  if (type === "perimeter") return "Perimeter";
+  if (type === "dockpoints") return "Dockpoints";
+  if (type === "searchwire") return "Search wire";
 
-  return rawName || "Unbenanntes Feature";
+  return String(feature.properties?.name ?? "").trim() || "Unbenanntes Feature";
 }
 
 
@@ -6307,16 +6644,12 @@ function zoomAt(clientX, clientY, factor) {
    5. GEOMETRIE-RENDERING
    ========================================================================== */
 
-/** Ordnet ein Feature einer visuellen Ebene zu. */
+/**
+ * Ordnet ein Feature einer visuellen Ebene zu.
+ * Die Ebenennamen entsprechen bewusst den internen Typbezeichnern.
+ */
 function layerName(feature) {
-  const name = String(feature.properties?.name ?? "").toLowerCase().trim();
-
-  if (name === "perimeter") return "perimeter";
-  if (name === "exclusion") return "exclusion";
-  if (name === "dockpoints" || name === "dock points") return "dockpoints";
-  if (name === "search wire" || name === "searchwire") return "searchwire";
-
-  return "other";
+  return getFeatureType(feature);
 }
 
 
@@ -6423,7 +6756,7 @@ function geometryToPathsWithFactor(geometry, factor) {
 /** Zeigt Feature-Informationen beim Überfahren einer Linie/Fläche an. */
 function bindFeatureTooltip(element, feature, featureIndex) {
   element.addEventListener("pointermove", event => {
-    const name = feature.properties?.name ?? "(ohne Name)";
+    const name = describeFeature(feature);
     const index = feature.idx ?? feature.properties?.idx ?? featureIndex;
 
     tip.innerHTML =
@@ -7857,9 +8190,7 @@ function deleteExclusionFeature(featureIndex) {
     return;
   }
 
-  const name = String(feature.properties?.name ?? "").toLowerCase();
-
-  if (name !== "exclusion") {
+  if (getFeatureType(feature) !== "exclusion") {
     setEditStatus("Nur komplette Exclusions können mit dieser Funktion gelöscht werden.", "error");
     return;
   }
@@ -8811,7 +9142,7 @@ function renderGrid() {
 /** Sucht das Perimeter-Feature einer FeatureCollection. */
 function findPerimeterFeature(featureCollection) {
   return (featureCollection?.features || []).find(feature =>
-    String(feature.properties?.name ?? "").toLowerCase() === "perimeter"
+    getFeatureType(feature) === "perimeter"
   ) || null;
 }
 
@@ -8951,8 +9282,7 @@ function renumberExclusionsInCollection(featureCollection) {
   let index = 0;
 
   for (const feature of (featureCollection?.features || [])) {
-    const name = String(feature.properties?.name ?? "").toLowerCase();
-    if (name !== "exclusion") continue;
+    if (getFeatureType(feature) !== "exclusion") continue;
 
     feature.idx = index;
 
@@ -9051,7 +9381,7 @@ function mergeMapSlots() {
    */
   const bAdditionalFeatures = structuredClone(
     (bSlot.data.features || []).filter(feature =>
-      String(feature.properties?.name ?? "").toLowerCase() !== "perimeter"
+      getFeatureType(feature) !== "perimeter"
     )
   );
 
@@ -9086,7 +9416,8 @@ function mergeMapSlots() {
     filename:null,
     originalFilename:null,
     dirty:false,
-    selectedVertex:null
+    selectedVertex:null,
+    convertedFromAbsolute:false
   };
 
   selectionBaselinesByMap.B = [];
@@ -9666,7 +9997,7 @@ function updateStats() {
   const height = bounds.maxY - bounds.minY;
 
   const perimeter = (data.features || []).find(feature =>
-    String(feature.properties?.name || "").toLowerCase() === "perimeter"
+    getFeatureType(feature) === "perimeter"
   );
 
   const area = perimeter ? polygonAreaMeters(perimeter) : 0;
@@ -9715,6 +10046,105 @@ function syncVisibility() {
    11. DATEI LADEN / EXPORTIEREN / ZURÜCKSETZEN
    ========================================================================== */
 
+/**
+ * Entscheidet, ob beim Speichern in absolutes WGS84 umgerechnet wird.
+ *
+ * "wie geladen" gibt eine ursprünglich absolute Karte wieder absolut aus und
+ * lässt eine Relativkarte unverändert.
+ */
+function shouldExportAbsolute() {
+  const choice = document.getElementById("exportFrameSelect")?.value;
+
+  if (choice === "absolute") return true;
+
+  return getActiveSlot()?.convertedFromAbsolute === true;
+}
+
+
+/**
+ * Baut die zu speichernde FeatureCollection.
+ *
+ * Die Typ-Bezeichner werden dabei immer auf die kanonische
+ * CaSSAndRA-Schreibweise normalisiert; das Koordinatensystem folgt der
+ * Auswahl im Speicherbereich.
+ */
+function buildExportCollection(absolute) {
+  const exported = structuredClone(data);
+
+  for (const feature of (exported.features || [])) {
+    const canonicalName = cassandraNameForFeature(feature);
+    if (!canonicalName) continue;
+
+    feature.properties = {
+      ...(feature.properties || {}),
+      name:canonicalName
+    };
+  }
+
+  if (absolute) {
+    relativeCollectionToAbsolute(exported, referenceOrigin, scaleFactor);
+  }
+
+  if (hasReferenceOrigin()) {
+    exported.referenceOrigin = {
+      lat:referenceOrigin.lat,
+      lon:referenceOrigin.lon
+    };
+  } else {
+    delete exported.referenceOrigin;
+  }
+
+  return exported;
+}
+
+
+/** Zeigt Bezugspunkt und Koordinatensystem der aktiven Karte an. */
+function updateOriginUi() {
+  const status = document.getElementById("originStatus");
+  if (!status) return;
+
+  /* Eine laufende Eingabe darf nicht überschrieben werden. */
+  const latInput = document.getElementById("originLatInput");
+  const lonInput = document.getElementById("originLonInput");
+
+  if (latInput && document.activeElement !== latInput) {
+    latInput.value = String(referenceOrigin.lat);
+  }
+
+  if (lonInput && document.activeElement !== lonInput) {
+    lonInput.value = String(referenceOrigin.lon);
+  }
+
+  if (!hasReferenceOrigin()) {
+    status.textContent =
+      "Kein Bezugspunkt gesetzt. Absolute Ausgabe entspricht dann der Relativkarte.";
+    return;
+  }
+
+  status.textContent = getActiveSlot()?.convertedFromAbsolute
+    ? "Karte wurde aus absolutem WGS84 umgerechnet. Ein geänderter Bezugspunkt verschiebt die Ausgabe."
+    : "Bezugspunkt gesetzt. Relativkarte kann absolut gespeichert werden.";
+}
+
+
+/** Übernimmt die eingegebene RTK-Basisposition. */
+function applyOriginFromInputs() {
+  const origin = parseOrigin(
+    document.getElementById("originLatInput")?.value.replace(",", "."),
+    document.getElementById("originLonInput")?.value.replace(",", ".")
+  );
+
+  if (!origin) {
+    setEditStatus("Ungültige Bezugsposition.", "error");
+    return;
+  }
+
+  setReferenceOrigin(origin);
+  updateOriginUi();
+  setEditStatus("Bezugspunkt aktualisiert.", "ok");
+}
+
+
 /** Exportiert die aktuelle Arbeitskopie als neue GeoJSON-Datei. */
 function exportGeoJson() {
   const slot = getActiveSlot();
@@ -9742,7 +10172,7 @@ function exportGeoJson() {
   }
 
   const blob = new Blob(
-    [JSON.stringify(data, null, 2)],
+    [JSON.stringify(buildExportCollection(shouldExportAbsolute()), null, 2)],
     {type:"application/geo+json"}
   );
 
@@ -9849,19 +10279,19 @@ async function parseGeoJsonFile(file) {
     throw new Error("Keine gültige GeoJSON FeatureCollection.");
   }
 
-  return parsed;
+  return {collection:parsed, frame:prepareImportedCollection(parsed)};
 }
 
 
 /** Lädt eine Datei in den aktuell aktiven Slot. */
 async function loadGeoJsonFile(file) {
-  const parsed = await parseGeoJsonFile(file);
+  const {collection, frame} = await parseGeoJsonFile(file);
 
   const historySnapshot =
     createWorkspaceSnapshot("Karte A öffnen/ersetzen");
 
   syncActiveSlotFromGlobals();
-  setMapSlotData("A", parsed, file.name);
+  setMapSlotData("A", collection, file.name, {convertedFromAbsolute:frame.absolute});
   activateMap("A", {fit:true, skipSync:true});
   commitHistorySnapshot(historySnapshot);
 
@@ -9875,7 +10305,7 @@ async function loadGeoJsonFile(file) {
 
 /** Lädt bzw. ersetzt die optionale zweite Karte B. */
 async function loadSecondGeoJsonFile(file) {
-  const parsed = await parseGeoJsonFile(file);
+  const {collection, frame} = await parseGeoJsonFile(file);
 
   const historySnapshot =
     createWorkspaceSnapshot("Karte B öffnen/ersetzen");
@@ -9885,7 +10315,7 @@ async function loadSecondGeoJsonFile(file) {
    * Zustand gesichert und erst danach der Slot ersetzt werden.
    */
   syncActiveSlotFromGlobals();
-  setMapSlotData("B", parsed, file.name);
+  setMapSlotData("B", collection, file.name, {convertedFromAbsolute:frame.absolute});
 
   /*
    * Nach dem Öffnen wird B direkt aktiv, damit sie sofort mit denselben
@@ -9929,7 +10359,8 @@ function removeSecondMap() {
     filename:null,
     originalFilename:null,
     dirty:false,
-    selectedVertex:null
+    selectedVertex:null,
+    convertedFromAbsolute:false
   };
 
   selectionBaselinesByMap.B = [];
@@ -10547,6 +10978,21 @@ document.getElementById("applyGridBtn").addEventListener(
   applyGridStepFromInput
 );
 
+/* Bezugspunkt für die Umrechnung relativ <-> absolut. */
+document.getElementById("applyOriginBtn").addEventListener(
+  "click",
+  applyOriginFromInputs
+);
+
+["originLatInput", "originLonInput"].forEach(id => {
+  document.getElementById(id).addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      applyOriginFromInputs();
+    }
+  });
+});
+
 document.getElementById("gridStepInput").addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
@@ -10633,6 +11079,8 @@ function initialize() {
   clearHistory();
   selectedVertices = [];
   selectionTool = "pointer";
+  restoreReferenceOrigin();
+  updateOriginUi();
   showEmptyEditor("A");
   setModeFromData();
   updateSelectionDeltaInfo();
@@ -10671,7 +11119,7 @@ viewerResizeObserver.observe(viewer);
  * erneut als Quelle verwendet werden.
  */
 let currentLanguage = "de";
-const I18N_EN = new Map(Object.entries({"Bedienung":"Controls","Einpassen":"Fit","↶ Zurück":"↶ Undo","↷ Vor":"↷ Redo","Hilfe":"Help","GeoJSON speichern":"Save GeoJSON","Aktive zurücksetzen":"Reset active","Keine Karte geladen":"No map loaded","Keine Karte geladen.":"No map loaded.","Karten":"Maps","Karte A · nicht geladen":"Map A · not loaded","Karte B · nicht geladen":"Map B · not loaded","Karte A öffnen":"Open map A","Karte B öffnen":"Open map B","Karte B schließen":"Close map B","Karten verbinden":"Merge maps","Beide Karten müssen dieselbe RTK-Basis / dasselbe lokale Koordinatensystem verwenden.":"Both maps must use the same RTK base / the same local coordinate system.","Karte A ist nicht geladen.":"Map A is not loaded.","Karte B ist nicht geladen.":"Map B is not loaded.","Verbindungsvorschau anzeigen":"Show merge preview","Zweite Karte laden, dann Start-/Endpunkt beider Perimeter festlegen.":"Load the second map, then define the start/end points of both perimeters.","Karte A + B verbinden":"Merge map A + B","Feature-Navigation":"Feature navigation","Keine Features vorhanden.":"No features available.","Features erstellen":"Create features","Exclusion zeichnen":"Draw exclusion","Search Wire zeichnen":"Draw Search Wire","Search Wire verlängern":"Extend Search Wire","Search Wire löschen":"Delete Search Wire","Docking-Point erstellen":"Create docking point","Docking-Point löschen":"Delete docking point","Letzten Punkt entfernen":"Remove last point","Zeichnung abschließen":"Finish drawing","Abbrechen":"Cancel","Kein Zeichenwerkzeug aktiv.":"No drawing tool active.","Exclusion:":"Exclusion:","mindestens 3 Punkte setzen und anschließend schließen.":"set at least 3 points and then close the polygon.","Search Wire:":"Search Wire:","offene Linie mit mindestens 2 Punkten; eine vorhandene Linie kann am Ende verlängert werden.":"open line with at least 2 points; an existing line can be extended at its end.","Docking-Point:":"Docking point:","darf nur einmal existieren und besteht immer aus exakt 3 Punkten.":"may exist only once and always consists of exactly 3 points.","Ebenen":"Layers","Ausschlussflächen":"Exclusion areas","Dockpoints":"Dock points","Sonstiges":"Other","Punkte anzeigen / bearbeiten":"Show / edit points","Punkteditor":"Point editor","Noch kein Punkt ausgewählt.":"No point selected yet.","Klicke einen weißen Kartenpunkt an.":"Click a white map point.","Punkt davor einfügen":"Insert point before","Punkt danach einfügen":"Insert point after","Als Startpunkt setzen":"Set as start point","Als Endpunkt setzen":"Set as end point","Punkt löschen":"Delete point","Geschlossene Polygone:":"Closed polygons:","Beim Ziehen am Raster einrasten":"Snap to grid while dragging","Verschiebungen bleiben bis zum Speichern als Vergleich sichtbar.":"Moved original positions remain visible for comparison until saving.","Punkte lassen sich anklicken und anschließend ziehen.":"Points can be clicked and then dragged.","Mähroboter-Vorschau":"Mower preview","Mäher am ausgewählten Punkt anzeigen":"Show mower at selected point","Länge (m)":"Length (m)","Breite (m)":"Width (m)","Mähergröße übernehmen":"Apply mower size","Punkt auswählen, um die Fahrtrichtung anzuzeigen.":"Select a point to show the travel direction.","Raster":"Grid","Raster anzeigen":"Show grid","Schnellwahl":"Preset","Eigener Wert":"Custom value","Eigener Rasterabstand in Metern":"Custom grid spacing in metres","Übernehmen":"Apply","Rasterabstand:":"Grid spacing:","Messen & Prüfen":"Measure & validate","Distanz messen":"Measure distance","Messung löschen":"Clear measurement","Zwei Positionen auf der Karte wählen.":"Select two positions on the map.","Karte prüfen":"Validate map","Vor dem Speichern automatisch prüfen":"Validate automatically before saving","Noch keine Prüfung durchgeführt.":"No validation performed yet.","Öffne links Karte A oder Karte B.":"Open map A or map B on the left.","Web Map Editor – Kurzüberblick":"Web Map Editor – Quick overview","Hilfe schließen":"Close help","Einsatzbereich":"Scope","Primär für Ardumower / Sunray:":"Primarily for Ardumower / Sunray:","Der Editor wurde mit Blick auf deren GeoJSON-/RTK-Karten und lokale East/North-Koordinaten entwickelt.":"The editor was designed with their GeoJSON/RTK maps and local East/North coordinates in mind.","Er kann auch für andere Anwendungen mit kompatiblen GeoJSON-Strukturen nützlich sein. Eine vollständige Unterstützung beliebiger Fremdformate wird jedoch nicht vorausgesetzt.":"It can also be useful for other applications with compatible GeoJSON structures. Full support for arbitrary third-party formats is not assumed.","Karte A / B öffnen:":"Open map A / B:","lokale GeoJSON-/RTK-Karten laden. Zwischen geladenen Karten kann umgeschaltet und jeweils vollständig bearbeitet werden.":"load local GeoJSON/RTK maps. You can switch between loaded maps and edit each one fully.","Karten verbinden:":"Merge maps:","Start/Ende beider Perimeter festlegen. Der Editor verbindet A Ende → B Start und B Ende → A Start zu einem geschlossenen Perimeter.":"Define start/end of both perimeters. The editor connects A end → B start and B end → A start into one closed perimeter.","Punkte bearbeiten":"Edit points","Punkt auswählen:":"Select point:","anklicken, ziehen oder East/North numerisch ändern.":"click, drag or change East/North numerically.","Start / Ende:":"Start / end:","ausgewählten Polygonpunkt als neuen Start- oder Endpunkt setzen; Reihenfolge wird neu nummeriert und der Ring bleibt geschlossen.":"set the selected polygon point as the new start or end point; order is renumbered and the ring remains closed.","Punkte hinzufügen:":"Add points:","vor/nach einem Punkt oder über die Feature-Navigation auf einer bestehenden Kante einfügen.":"insert before/after a point or via feature navigation on an existing edge.","Punkte löschen:":"Delete points:","einzeln oder als Mehrfachauswahl. Mindestpunktzahlen werden automatisch geprüft. Sind alle Eckpunkte einer Exclusion per Rechteck, Lasso oder Strg+Klick ausgewählt, löscht der Papierkorb die komplette Exclusion.":"individually or as a multi-selection. Minimum point counts are validated automatically. If all vertices of an exclusion are selected by rectangle, lasso or Ctrl+click, the trash button deletes the entire exclusion.","einzeln oder als Mehrfachauswahl. Mindestpunktzahlen werden automatisch geprüft.":"individually or as a multi-selection. Minimum point counts are validated automatically.","Exclusions & Features":"Exclusions & features","Exclusion zeichnen:":"Draw exclusion:","mindestens 3 Eckpunkte setzen und das Polygon anschließend schließen.":"set at least 3 vertices and then close the polygon.","offene Linie mit mindestens 2 Punkten neu zeichnen, bestehende Linie am Ende verlängern oder vollständig löschen. Beim Verlängern bleiben die vorhandenen Punkte geschützt.":"draw a new open line with at least 2 points, extend an existing line at its end, or delete it completely. Existing points are protected while extending.","genau ein Docking-Feature pro Karte; es besteht immer aus exakt 3 Punkten und wird nach dem dritten Punkt automatisch fertiggestellt.":"exactly one docking feature per map; it always consists of exactly 3 points and is completed automatically after the third point.","Docking-Point löschen:":"Delete docking point:","entfernt das komplette 3-Punkte-Feature; einzelne Dock-Punkte können nicht separat gelöscht werden.":"removes the complete 3-point feature; individual docking points cannot be deleted separately.","Exclusion löschen:":"Delete exclusion:","komplette Exclusion entfernen; verbleibende Exclusions werden neu nummeriert.":"remove the complete exclusion; remaining exclusions are renumbered.","Ganzes Feature verschieben:":"Move entire feature:","Exclusion, Search Wire oder Docking-Point über die Feature-Navigation auswählen oder direkt an der Geometrie ziehen. Alle Punkte werden gemeinsam verschoben.":"select an exclusion, Search Wire or docking point via feature navigation or drag it directly on the geometry. All points move together.","Exclusion duplizieren:":"Duplicate exclusion:","erstellt eine identische Kopie und versetzt sie zur besseren Sichtbarkeit um einen Rasterabstand nach East und North. Anschließend ist die Kopie komplett ausgewählt und kann direkt weiter verschoben werden.":"creates an identical copy and offsets it by one grid step in East and North for visibility. The copy is then fully selected and can be moved immediately.","Feature-Navigation:":"Feature navigation:","einklappen/aufklappen und einzelne Features sowie Punkte gezielt auswählen.":"collapse/expand and select individual features and points.","Mehrfachauswahl":"Multi-selection","Strg + Klick:":"Ctrl + click:","einzelne Punkte hinzufügen oder entfernen.":"add or remove individual points.","Rechteck / Lasso:":"Rectangle / lasso:","mehrere Punkte räumlich auswählen. Danach auf „Punkt / Verschieben“ wechseln und einen markierten Punkt ziehen, um alle gemeinsam zu verschieben.":"select multiple points spatially. Then switch to “Point / Move” and drag a selected point to move them together.","Entf / Backspace:":"Delete / Backspace:","Auswahl löschen.":"delete selection.","Auswahlwerkzeug abbrechen oder Auswahl aufheben.":"cancel the selection tool or clear the selection.","Pfeiltasten:":"Arrow keys:","ausgewählte Punkte exakt um einen Schritt der aktuell eingestellten Rasterweite verschieben. ←/→ = East, ↑/↓ = North. Funktioniert auch für Mehrfachauswahl.":"move selected points by exactly one step of the current grid spacing. ←/→ = East, ↑/↓ = North. Also works for multi-selection.","Der ausgewählte Punkt kann durch einen maßstäblichen Mäher ersetzt werden. Länge und Breite sind einstellbar. Die Ausrichtung wird aus der Punktfolge abgeleitet.":"The selected point can be replaced by a to-scale mower. Length and width are adjustable. Orientation is derived from the point sequence.","Distanz messen:":"Measure distance:","zwei Positionen wählen. Angezeigt werden Strecke, ΔEast, ΔNorth und Winkel (0° = East, 90° = North).":"select two positions. Distance, ΔEast, ΔNorth and angle are shown (0° = East, 90° = North).","Exclusion-Fläche:":"Exclusion area:","bei einem ausgewählten Punkt einer Exclusion wird deren Fläche angezeigt.":"when a point of an exclusion is selected, its area is shown.","Karte prüfen:":"Validate map:","kontrolliert Perimeter, Exclusions, Docking-Point, leere Features, doppelte Nachbarpunkte und auffällig große Segmente.":"checks perimeter, exclusions, docking point, empty features, duplicate adjacent points and unusually large segments.","Vergleich & Historie":"Comparison & history","Vorher-Ghosts:":"Previous-position ghosts:","verschobene Ausgangspositionen und alte Mäher bleiben bis zum Speichern sichtbar.":"moved original positions and previous mower previews remain visible until saving.","Zurück / Vor:":"Undo / Redo:","Änderungen per Button oder Ctrl/Cmd+Z bzw. Ctrl+Y / Ctrl/Cmd+Shift+Z rückgängig machen oder wiederholen.":"undo or redo changes using the buttons or Ctrl/Cmd+Z and Ctrl+Y / Ctrl/Cmd+Shift+Z.","Mobil / Android":"Mobile / Android","Bedienung:":"Controls:","auf kleinen Displays blendet der Button oben die Werkzeugleiste ein. „Karte anzeigen“ schließt sie wieder.":"on small displays, the button at the top opens the control panel. “Show map” closes it again.","Die Seite darf auf Android normal vertikal scrollen; die Kartenfläche bleibt separat touchfähig für Zoom, Pan, Auswahl und Verschieben.":"On Android the page can scroll vertically normally; the map remains independently touch-enabled for zoom, pan, selection and moving.","Ansicht & Speichern":"View & saving","Karteninfo:":"Map info:","Abmessungen und Hinweise zur Koordinatendarstellung liegen jetzt als eigenes einklappbares Fenster direkt auf der Karte.":"Dimensions and coordinate-display notes are available in a separate collapsible window directly on the map.","Auswahl-Werkzeugleiste:":"Selection toolbar:","Mauszeiger, Rechteck, Lasso, Verschieben, Löschen und Auswahl aufheben liegen jetzt direkt auf der Karte. Beim Mouseover erklärt ein Tooltip die jeweilige Funktion.":"Pointer, rectangle, lasso, move, delete and clear selection are now directly on the map. Hovering shows a tooltip explaining each function.","Sidebar:":"Sidebar:","Direkt unter „Karten“ folgt „Karten verbinden“. „Messen & Prüfen“ befindet sich ganz unten. Der bisherige Menüpunkt „Mehrfachauswahl“ wurde entfernt.":"“Merge maps” is directly below “Maps”. “Measure & validate” is at the bottom. The previous “Multi-selection” menu section has been removed.","Karteninfo & Legende:":"Map info & legend:","liegen direkt untereinander und lassen sich unabhängig aufklappen.":"are stacked vertically and can be expanded independently.","Raster:":"Grid:","Schrittweite frei einstellen; Snap-to-Grid kann beim Ziehen verwendet werden.":"set the spacing freely; snap-to-grid can be used while dragging.","Einpassen / Zoom:":"Fit / zoom:","Kartenansicht anpassen.":"adjust the map view.","GeoJSON speichern:":"Save GeoJSON:","aktuelle Karte exportieren. Die Vorher-Ghosts dieser Karte werden gelöscht und der aktuelle Stand wird neuer Vergleichs-/Reset-Checkpoint.":"export the current map. Previous-position ghosts for this map are cleared and the current state becomes the new comparison/reset checkpoint.","0 ausgewählt":"0 selected","Strg + Klick, Rechteck oder Lasso.":"Ctrl + click, rectangle or lasso.","Karteninfo":"Map info","Abmessungen":"Dimensions","Ost–West":"East–West","Nord–Süd":"North–South","Perimeterfläche":"Perimeter area","Editierbare Punkte":"Editable points","Darstellung":"Display","Geladene Rohkoordinaten werden intern unverändert beibehalten. Wenn ein unterstütztes RTK-Relativformat erkannt wird, erfolgt die Anzeige und Bearbeitung in lokalen East/North-Metern. Beim Export bleiben die GeoJSON-Rohwerte im geladenen Koordinatensystem erhalten.":"Loaded raw coordinates are retained unchanged internally. When a supported relative RTK format is detected, display and editing use local East/North metres. On export, the GeoJSON raw values remain in the loaded coordinate system.","Punkt anklicken → Mäher oder Punkt ziehen, E/N ändern oder bei Polygonen Start/Ende neu vergeben → GeoJSON speichern.":"Click a point → drag mower or point, change E/N or reassign polygon start/end → save GeoJSON.","Legende":"Legend","Startpunkt":"Start point","Endpunkt":"End point","Ausgewählter Mäher":"Selected mower","Sprache wechseln / Change language":"Change language / Sprache wechseln","Sprache Deutsch oder Englisch":"Language German or English","Keine Änderung zum Rückgängigmachen":"No change to undo","Keine Änderung zum Wiederholen":"No change to redo","Mauszeiger: Punkte auswählen und markierte Punkte bzw. ganze Features verschieben.":"Pointer: select points and move selected points or entire features.","Rechteckauswahl: Rahmen um Punkte ziehen. Mit Strg wird zur bestehenden Auswahl ergänzt.":"Rectangle selection: drag a box around points. Hold Ctrl to add to the existing selection.","Lasso: freie Form um Punkte ziehen. Mit Strg wird zur bestehenden Auswahl ergänzt.":"Lasso: draw a free shape around points. Hold Ctrl to add to the existing selection.","Verschieben: aktiviert den Mauszeiger. Danach einen ausgewählten Punkt oder ein ausgewähltes Feature ziehen.":"Move: activates the pointer. Then drag a selected point or selected feature.","Löschen: entfernt alle aktuell ausgewählten Punkte. Mit Undo rückgängig.":"Delete: removes all currently selected points. Undo is available.","Auswahl aufheben: entfernt alle Markierungen, ohne Punkte zu löschen.":"Clear selection: removes all selections without deleting points.","RTK Karte":"RTK map","Start und Ende sind zwei benachbarte echte Eckpunkte. Danach wiederholt GeoJSON intern den Startpunkt, damit der Ring geschlossen bleibt. Beim Neuvergeben werden die Punkte zyklisch neu nummeriert. Neue Punkte werden zunächst auf einer bestehenden Kante eingesetzt, damit sich die Polygonform beim Einfügen nicht unbeabsichtigt verändert.":"Start and end are two adjacent real vertices. GeoJSON then repeats the start point internally so the ring remains closed. When reassigned, points are renumbered cyclically. New points are initially inserted on an existing edge so the polygon shape does not change unintentionally."}));
+const I18N_EN = new Map(Object.entries({"Bedienung":"Controls","Einpassen":"Fit","↶ Zurück":"↶ Undo","↷ Vor":"↷ Redo","Hilfe":"Help","GeoJSON speichern":"Save GeoJSON","Aktive zurücksetzen":"Reset active","Keine Karte geladen":"No map loaded","Keine Karte geladen.":"No map loaded.","Karten":"Maps","Karte A · nicht geladen":"Map A · not loaded","Karte B · nicht geladen":"Map B · not loaded","Karte A öffnen":"Open map A","Karte B öffnen":"Open map B","Karte B schließen":"Close map B","Karten verbinden":"Merge maps","Beide Karten müssen dieselbe RTK-Basis / dasselbe lokale Koordinatensystem verwenden.":"Both maps must use the same RTK base / the same local coordinate system.","Karte A ist nicht geladen.":"Map A is not loaded.","Karte B ist nicht geladen.":"Map B is not loaded.","Verbindungsvorschau anzeigen":"Show merge preview","Zweite Karte laden, dann Start-/Endpunkt beider Perimeter festlegen.":"Load the second map, then define the start/end points of both perimeters.","Karte A + B verbinden":"Merge map A + B","Feature-Navigation":"Feature navigation","Keine Features vorhanden.":"No features available.","Features erstellen":"Create features","Exclusion zeichnen":"Draw exclusion","Search Wire zeichnen":"Draw Search Wire","Search Wire verlängern":"Extend Search Wire","Search Wire löschen":"Delete Search Wire","Docking-Point erstellen":"Create docking point","Docking-Point löschen":"Delete docking point","Letzten Punkt entfernen":"Remove last point","Zeichnung abschließen":"Finish drawing","Abbrechen":"Cancel","Kein Zeichenwerkzeug aktiv.":"No drawing tool active.","Exclusion:":"Exclusion:","mindestens 3 Punkte setzen und anschließend schließen.":"set at least 3 points and then close the polygon.","Search Wire:":"Search Wire:","offene Linie mit mindestens 2 Punkten; eine vorhandene Linie kann am Ende verlängert werden.":"open line with at least 2 points; an existing line can be extended at its end.","Docking-Point:":"Docking point:","darf nur einmal existieren und besteht immer aus exakt 3 Punkten.":"may exist only once and always consists of exactly 3 points.","Ebenen":"Layers","Ausschlussflächen":"Exclusion areas","Dockpoints":"Dock points","Sonstiges":"Other","Punkte anzeigen / bearbeiten":"Show / edit points","Punkteditor":"Point editor","Noch kein Punkt ausgewählt.":"No point selected yet.","Klicke einen weißen Kartenpunkt an.":"Click a white map point.","Punkt davor einfügen":"Insert point before","Punkt danach einfügen":"Insert point after","Als Startpunkt setzen":"Set as start point","Als Endpunkt setzen":"Set as end point","Punkt löschen":"Delete point","Geschlossene Polygone:":"Closed polygons:","Beim Ziehen am Raster einrasten":"Snap to grid while dragging","Verschiebungen bleiben bis zum Speichern als Vergleich sichtbar.":"Moved original positions remain visible for comparison until saving.","Punkte lassen sich anklicken und anschließend ziehen.":"Points can be clicked and then dragged.","Mähroboter-Vorschau":"Mower preview","Mäher am ausgewählten Punkt anzeigen":"Show mower at selected point","Länge (m)":"Length (m)","Breite (m)":"Width (m)","Mähergröße übernehmen":"Apply mower size","Punkt auswählen, um die Fahrtrichtung anzuzeigen.":"Select a point to show the travel direction.","Raster":"Grid","Raster anzeigen":"Show grid","Schnellwahl":"Preset","Eigener Wert":"Custom value","Eigener Rasterabstand in Metern":"Custom grid spacing in metres","Übernehmen":"Apply","Rasterabstand:":"Grid spacing:","Messen & Prüfen":"Measure & validate","Distanz messen":"Measure distance","Messung löschen":"Clear measurement","Zwei Positionen auf der Karte wählen.":"Select two positions on the map.","Koordinatenbezug":"Coordinate reference","RTK-Basis Breite (lat)":"RTK base latitude (lat)","RTK-Basis Länge (lon)":"RTK base longitude (lon)","Koordinaten beim Speichern":"Coordinates on save","wie geladen":"as loaded","absolut WGS84 (CaSSAndRA)":"absolute WGS84 (CaSSAndRA)","Kein Bezugspunkt gesetzt.":"No reference point set.","Kein Bezugspunkt gesetzt. Absolute Ausgabe entspricht dann der Relativkarte.":"No reference point set. Absolute output then equals the relative map.","Bezugspunkt gesetzt. Relativkarte kann absolut gespeichert werden.":"Reference point set. The relative map can be saved as absolute coordinates.","Karte wurde aus absolutem WGS84 umgerechnet. Ein geänderter Bezugspunkt verschiebt die Ausgabe.":"Map was converted from absolute WGS84. Changing the reference point shifts the output.","Ungültige Bezugsposition.":"Invalid reference position.","Bezugspunkt aktualisiert.":"Reference point updated.","Karte prüfen":"Validate map","Vor dem Speichern automatisch prüfen":"Validate automatically before saving","Noch keine Prüfung durchgeführt.":"No validation performed yet.","Öffne links Karte A oder Karte B.":"Open map A or map B on the left.","Web Map Editor – Kurzüberblick":"Web Map Editor – Quick overview","Hilfe schließen":"Close help","Einsatzbereich":"Scope","Primär für Ardumower / Sunray:":"Primarily for Ardumower / Sunray:","Der Editor wurde mit Blick auf deren GeoJSON-/RTK-Karten und lokale East/North-Koordinaten entwickelt.":"The editor was designed with their GeoJSON/RTK maps and local East/North coordinates in mind.","Er kann auch für andere Anwendungen mit kompatiblen GeoJSON-Strukturen nützlich sein. Eine vollständige Unterstützung beliebiger Fremdformate wird jedoch nicht vorausgesetzt.":"It can also be useful for other applications with compatible GeoJSON structures. Full support for arbitrary third-party formats is not assumed.","Karte A / B öffnen:":"Open map A / B:","lokale GeoJSON-/RTK-Karten laden. Zwischen geladenen Karten kann umgeschaltet und jeweils vollständig bearbeitet werden.":"load local GeoJSON/RTK maps. You can switch between loaded maps and edit each one fully.","Karten verbinden:":"Merge maps:","Start/Ende beider Perimeter festlegen. Der Editor verbindet A Ende → B Start und B Ende → A Start zu einem geschlossenen Perimeter.":"Define start/end of both perimeters. The editor connects A end → B start and B end → A start into one closed perimeter.","Punkte bearbeiten":"Edit points","Punkt auswählen:":"Select point:","anklicken, ziehen oder East/North numerisch ändern.":"click, drag or change East/North numerically.","Start / Ende:":"Start / end:","ausgewählten Polygonpunkt als neuen Start- oder Endpunkt setzen; Reihenfolge wird neu nummeriert und der Ring bleibt geschlossen.":"set the selected polygon point as the new start or end point; order is renumbered and the ring remains closed.","Punkte hinzufügen:":"Add points:","vor/nach einem Punkt oder über die Feature-Navigation auf einer bestehenden Kante einfügen.":"insert before/after a point or via feature navigation on an existing edge.","Punkte löschen:":"Delete points:","einzeln oder als Mehrfachauswahl. Mindestpunktzahlen werden automatisch geprüft. Sind alle Eckpunkte einer Exclusion per Rechteck, Lasso oder Strg+Klick ausgewählt, löscht der Papierkorb die komplette Exclusion.":"individually or as a multi-selection. Minimum point counts are validated automatically. If all vertices of an exclusion are selected by rectangle, lasso or Ctrl+click, the trash button deletes the entire exclusion.","einzeln oder als Mehrfachauswahl. Mindestpunktzahlen werden automatisch geprüft.":"individually or as a multi-selection. Minimum point counts are validated automatically.","Exclusions & Features":"Exclusions & features","Exclusion zeichnen:":"Draw exclusion:","mindestens 3 Eckpunkte setzen und das Polygon anschließend schließen.":"set at least 3 vertices and then close the polygon.","offene Linie mit mindestens 2 Punkten neu zeichnen, bestehende Linie am Ende verlängern oder vollständig löschen. Beim Verlängern bleiben die vorhandenen Punkte geschützt.":"draw a new open line with at least 2 points, extend an existing line at its end, or delete it completely. Existing points are protected while extending.","genau ein Docking-Feature pro Karte; es besteht immer aus exakt 3 Punkten und wird nach dem dritten Punkt automatisch fertiggestellt.":"exactly one docking feature per map; it always consists of exactly 3 points and is completed automatically after the third point.","Docking-Point löschen:":"Delete docking point:","entfernt das komplette 3-Punkte-Feature; einzelne Dock-Punkte können nicht separat gelöscht werden.":"removes the complete 3-point feature; individual docking points cannot be deleted separately.","Exclusion löschen:":"Delete exclusion:","komplette Exclusion entfernen; verbleibende Exclusions werden neu nummeriert.":"remove the complete exclusion; remaining exclusions are renumbered.","Ganzes Feature verschieben:":"Move entire feature:","Exclusion, Search Wire oder Docking-Point über die Feature-Navigation auswählen oder direkt an der Geometrie ziehen. Alle Punkte werden gemeinsam verschoben.":"select an exclusion, Search Wire or docking point via feature navigation or drag it directly on the geometry. All points move together.","Exclusion duplizieren:":"Duplicate exclusion:","erstellt eine identische Kopie und versetzt sie zur besseren Sichtbarkeit um einen Rasterabstand nach East und North. Anschließend ist die Kopie komplett ausgewählt und kann direkt weiter verschoben werden.":"creates an identical copy and offsets it by one grid step in East and North for visibility. The copy is then fully selected and can be moved immediately.","Feature-Navigation:":"Feature navigation:","einklappen/aufklappen und einzelne Features sowie Punkte gezielt auswählen.":"collapse/expand and select individual features and points.","Mehrfachauswahl":"Multi-selection","Strg + Klick:":"Ctrl + click:","einzelne Punkte hinzufügen oder entfernen.":"add or remove individual points.","Rechteck / Lasso:":"Rectangle / lasso:","mehrere Punkte räumlich auswählen. Danach auf „Punkt / Verschieben“ wechseln und einen markierten Punkt ziehen, um alle gemeinsam zu verschieben.":"select multiple points spatially. Then switch to “Point / Move” and drag a selected point to move them together.","Entf / Backspace:":"Delete / Backspace:","Auswahl löschen.":"delete selection.","Auswahlwerkzeug abbrechen oder Auswahl aufheben.":"cancel the selection tool or clear the selection.","Pfeiltasten:":"Arrow keys:","ausgewählte Punkte exakt um einen Schritt der aktuell eingestellten Rasterweite verschieben. ←/→ = East, ↑/↓ = North. Funktioniert auch für Mehrfachauswahl.":"move selected points by exactly one step of the current grid spacing. ←/→ = East, ↑/↓ = North. Also works for multi-selection.","Der ausgewählte Punkt kann durch einen maßstäblichen Mäher ersetzt werden. Länge und Breite sind einstellbar. Die Ausrichtung wird aus der Punktfolge abgeleitet.":"The selected point can be replaced by a to-scale mower. Length and width are adjustable. Orientation is derived from the point sequence.","Distanz messen:":"Measure distance:","zwei Positionen wählen. Angezeigt werden Strecke, ΔEast, ΔNorth und Winkel (0° = East, 90° = North).":"select two positions. Distance, ΔEast, ΔNorth and angle are shown (0° = East, 90° = North).","Exclusion-Fläche:":"Exclusion area:","bei einem ausgewählten Punkt einer Exclusion wird deren Fläche angezeigt.":"when a point of an exclusion is selected, its area is shown.","Karte prüfen:":"Validate map:","kontrolliert Perimeter, Exclusions, Docking-Point, leere Features, doppelte Nachbarpunkte und auffällig große Segmente.":"checks perimeter, exclusions, docking point, empty features, duplicate adjacent points and unusually large segments.","Vergleich & Historie":"Comparison & history","Vorher-Ghosts:":"Previous-position ghosts:","verschobene Ausgangspositionen und alte Mäher bleiben bis zum Speichern sichtbar.":"moved original positions and previous mower previews remain visible until saving.","Zurück / Vor:":"Undo / Redo:","Änderungen per Button oder Ctrl/Cmd+Z bzw. Ctrl+Y / Ctrl/Cmd+Shift+Z rückgängig machen oder wiederholen.":"undo or redo changes using the buttons or Ctrl/Cmd+Z and Ctrl+Y / Ctrl/Cmd+Shift+Z.","Mobil / Android":"Mobile / Android","Bedienung:":"Controls:","auf kleinen Displays blendet der Button oben die Werkzeugleiste ein. „Karte anzeigen“ schließt sie wieder.":"on small displays, the button at the top opens the control panel. “Show map” closes it again.","Die Seite darf auf Android normal vertikal scrollen; die Kartenfläche bleibt separat touchfähig für Zoom, Pan, Auswahl und Verschieben.":"On Android the page can scroll vertically normally; the map remains independently touch-enabled for zoom, pan, selection and moving.","Ansicht & Speichern":"View & saving","Karteninfo:":"Map info:","Abmessungen und Hinweise zur Koordinatendarstellung liegen jetzt als eigenes einklappbares Fenster direkt auf der Karte.":"Dimensions and coordinate-display notes are available in a separate collapsible window directly on the map.","Auswahl-Werkzeugleiste:":"Selection toolbar:","Mauszeiger, Rechteck, Lasso, Verschieben, Löschen und Auswahl aufheben liegen jetzt direkt auf der Karte. Beim Mouseover erklärt ein Tooltip die jeweilige Funktion.":"Pointer, rectangle, lasso, move, delete and clear selection are now directly on the map. Hovering shows a tooltip explaining each function.","Sidebar:":"Sidebar:","Direkt unter „Karten“ folgt „Karten verbinden“. „Messen & Prüfen“ befindet sich ganz unten. Der bisherige Menüpunkt „Mehrfachauswahl“ wurde entfernt.":"“Merge maps” is directly below “Maps”. “Measure & validate” is at the bottom. The previous “Multi-selection” menu section has been removed.","Karteninfo & Legende:":"Map info & legend:","liegen direkt untereinander und lassen sich unabhängig aufklappen.":"are stacked vertically and can be expanded independently.","Raster:":"Grid:","Schrittweite frei einstellen; Snap-to-Grid kann beim Ziehen verwendet werden.":"set the spacing freely; snap-to-grid can be used while dragging.","Einpassen / Zoom:":"Fit / zoom:","Kartenansicht anpassen.":"adjust the map view.","GeoJSON speichern:":"Save GeoJSON:","aktuelle Karte exportieren. Die Vorher-Ghosts dieser Karte werden gelöscht und der aktuelle Stand wird neuer Vergleichs-/Reset-Checkpoint.":"export the current map. Previous-position ghosts for this map are cleared and the current state becomes the new comparison/reset checkpoint.","0 ausgewählt":"0 selected","Strg + Klick, Rechteck oder Lasso.":"Ctrl + click, rectangle or lasso.","Karteninfo":"Map info","Abmessungen":"Dimensions","Ost–West":"East–West","Nord–Süd":"North–South","Perimeterfläche":"Perimeter area","Editierbare Punkte":"Editable points","Darstellung":"Display","Geladene Rohkoordinaten werden intern unverändert beibehalten. Wenn ein unterstütztes RTK-Relativformat erkannt wird, erfolgt die Anzeige und Bearbeitung in lokalen East/North-Metern. Beim Export bleiben die GeoJSON-Rohwerte im geladenen Koordinatensystem erhalten.":"Loaded raw coordinates are retained unchanged internally. When a supported relative RTK format is detected, display and editing use local East/North metres. On export, the GeoJSON raw values remain in the loaded coordinate system.","Punkt anklicken → Mäher oder Punkt ziehen, E/N ändern oder bei Polygonen Start/Ende neu vergeben → GeoJSON speichern.":"Click a point → drag mower or point, change E/N or reassign polygon start/end → save GeoJSON.","Legende":"Legend","Startpunkt":"Start point","Endpunkt":"End point","Ausgewählter Mäher":"Selected mower","Sprache wechseln / Change language":"Change language / Sprache wechseln","Sprache Deutsch oder Englisch":"Language German or English","Keine Änderung zum Rückgängigmachen":"No change to undo","Keine Änderung zum Wiederholen":"No change to redo","Mauszeiger: Punkte auswählen und markierte Punkte bzw. ganze Features verschieben.":"Pointer: select points and move selected points or entire features.","Rechteckauswahl: Rahmen um Punkte ziehen. Mit Strg wird zur bestehenden Auswahl ergänzt.":"Rectangle selection: drag a box around points. Hold Ctrl to add to the existing selection.","Lasso: freie Form um Punkte ziehen. Mit Strg wird zur bestehenden Auswahl ergänzt.":"Lasso: draw a free shape around points. Hold Ctrl to add to the existing selection.","Verschieben: aktiviert den Mauszeiger. Danach einen ausgewählten Punkt oder ein ausgewähltes Feature ziehen.":"Move: activates the pointer. Then drag a selected point or selected feature.","Löschen: entfernt alle aktuell ausgewählten Punkte. Mit Undo rückgängig.":"Delete: removes all currently selected points. Undo is available.","Auswahl aufheben: entfernt alle Markierungen, ohne Punkte zu löschen.":"Clear selection: removes all selections without deleting points.","RTK Karte":"RTK map","Start und Ende sind zwei benachbarte echte Eckpunkte. Danach wiederholt GeoJSON intern den Startpunkt, damit der Ring geschlossen bleibt. Beim Neuvergeben werden die Punkte zyklisch neu nummeriert. Neue Punkte werden zunächst auf einer bestehenden Kante eingesetzt, damit sich die Polygonform beim Einfügen nicht unbeabsichtigt verändert.":"Start and end are two adjacent real vertices. GeoJSON then repeats the start point internally so the ring remains closed. When reassigned, points are renumbered cyclically. New points are initially inserted on an existing edge so the polygon shape does not change unintentionally."}));
 const I18N_PATTERNS = [
   [/^(\d+) ausgewählt$/, "$1 selected"],
   [/^(\d+) Punkte ausgewählt$/, "$1 points selected"],

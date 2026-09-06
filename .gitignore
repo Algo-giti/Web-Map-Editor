@@ -1,0 +1,3 @@
+# Lokale Testkarten. Enthalten echte RTK-/Kartendaten und dürfen das
+# Repository niemals erreichen (siehe Privacy-Abschnitt in AGENTS.md).
+test/

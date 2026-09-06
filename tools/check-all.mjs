@@ -5,7 +5,12 @@
 
 import { execFileSync } from "node:child_process";
 
-const checks = ["check-syntax.mjs", "check-dom-ids.mjs", "check-privacy.mjs"];
+const checks = [
+  "check-syntax.mjs",
+  "check-dom-ids.mjs",
+  "check-privacy.mjs",
+  "test-cassandra.mjs",
+];
 
 let failed = false;
 for (const check of checks) {

@@ -8,12 +8,16 @@
 // This is a heuristic, not a proof: it cannot detect private data hidden
 // under a renamed key. Always eyeball a diff before release too.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { join, relative } from "node:path";
 
+const repoRoot = new URL("..", import.meta.url).pathname;
 const indexPath = new URL("../index.html", import.meta.url);
 const html = readFileSync(indexPath, "utf8");
 
 const problems = [];
+const warnings = [];
 
 const coordinatesKeyMatches = [...html.matchAll(/"coordinates"\s*:/g)];
 if (coordinatesKeyMatches.length > 0) {
@@ -42,8 +46,53 @@ if (featureCollectionLiterals.length > 1) {
   );
 }
 
+// Map files anywhere in the working tree are real user data. They are fine to
+// keep locally for testing, but must never end up in a commit.
+function findMapFiles(directory) {
+  const found = [];
+
+  for (const entry of readdirSync(directory)) {
+    if (entry === ".git" || entry === "node_modules") continue;
+
+    const fullPath = join(directory, entry);
+
+    if (statSync(fullPath).isDirectory()) {
+      found.push(...findMapFiles(fullPath));
+      continue;
+    }
+
+    if (!/\.(geojson|json)$/i.test(entry)) continue;
+    if (readFileSync(fullPath, "utf8").includes("FeatureCollection")) {
+      found.push(relative(repoRoot, fullPath));
+    }
+  }
+
+  return found;
+}
+
+let trackedFiles = new Set();
+try {
+  trackedFiles = new Set(
+    execFileSync("git", ["ls-files"], { cwd: repoRoot, encoding: "utf8" })
+      .split("\n")
+      .filter(Boolean)
+  );
+} catch {
+  // Not a git repository (or git unavailable) - skip the tracked/untracked split.
+}
+
+for (const mapFile of findMapFiles(repoRoot)) {
+  if (trackedFiles.has(mapFile)) {
+    problems.push(`map file "${mapFile}" is tracked by git - map data must never be committed.`);
+  } else {
+    warnings.push(`map file "${mapFile}" is present but untracked - keep it out of commits.`);
+  }
+}
+
+for (const warning of warnings) console.warn(`check-privacy: warning - ${warning}`);
+
 if (problems.length > 0) {
-  console.error("check-privacy: FAILED - possible embedded private map data:");
+  console.error("check-privacy: FAILED - possible private map data:");
   for (const p of problems) console.error(`  - ${p}`);
   process.exitCode = 1;
 } else {
