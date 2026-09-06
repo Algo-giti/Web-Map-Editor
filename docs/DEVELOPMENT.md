@@ -25,12 +25,12 @@ Supporting repository files may include:
 - `DISCLAIMER.md`
 - `CHANGELOG.md`
 - `CHANGELOG_EN.md`
-- `.nojekyll`
-- `docs/code-documentation.md`
-- `docs/code-documentation-en.md`
 - `docs/DEVELOPMENT.md`
+- `CLAUDE.md` - agent working instructions, including the `tools/` test setup
+- `tools/` - zero-dependency Node scripts for automated checks (development
+  only, does not ship with or affect `index.html`; see `CLAUDE.md`)
 
-No build system or framework is required.
+No build system or framework is required for the application itself.
 
 The editor should remain usable by opening `index.html` directly in a browser or
 by publishing the repository with GitHub Pages.
@@ -58,7 +58,8 @@ For each release:
 2. update documentation where relevant
 3. update the changelog
 4. run syntax and consistency checks
-5. create a release ZIP if distributing a packaged build
+5. tag the release commit and attach a release ZIP to a GitHub Release if
+   distributing a packaged build - do not commit ZIP archives into the repo
 
 ---
 
@@ -384,6 +385,11 @@ Important principles:
 
 Do not rely on syntax checking alone.
 
+The syntax, DOM-ID and privacy checks below are automated as zero-dependency
+Node scripts in `tools/`. Run `node tools/check-all.mjs` to execute all of
+them in one step; see `CLAUDE.md` for the full test setup, including an
+optional real-browser smoke test.
+
 ### JavaScript syntax
 
 Extract the application script and run:
@@ -431,8 +437,7 @@ When behavior changes, update the relevant documentation:
 - `README_EN.md`
 - `CHANGELOG.md`
 - `CHANGELOG_EN.md`
-- `docs/code-documentation.md`
-- `docs/code-documentation-en.md`
+- `CLAUDE.md`
 
 German and English documentation should remain aligned.
 

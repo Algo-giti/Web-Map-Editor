@@ -9,13 +9,12 @@ Read this file before making changes.
 
 Also read:
 
+- `CLAUDE.md`
 - `docs/DEVELOPMENT.md`
 - `README.md`
 - `README_EN.md`
 - `CHANGELOG.md`
 - `CHANGELOG_EN.md`
-- `docs/code-documentation.md`
-- `docs/code-documentation-en.md`
 - `DISCLAIMER.md`
 
 ---
@@ -59,6 +58,13 @@ The project should remain:
 
 Do not introduce dependencies, frameworks, bundlers, or server components unless
 explicitly requested.
+
+This restriction applies to the shipped application (`index.html`) itself.
+Development-only helper scripts that do not affect `index.html` or the
+deployed app - such as the zero-dependency Node scripts under `tools/` used
+for automated verification (see `CLAUDE.md`) - are not subject to it. Keep
+such tooling dependency-free where practical, and never let the shipped app
+come to depend on it.
 
 ---
 
@@ -351,9 +357,8 @@ Potentially affected files:
 - `README_EN.md`
 - `CHANGELOG.md`
 - `CHANGELOG_EN.md`
-- `docs/code-documentation.md`
-- `docs/code-documentation-en.md`
 - `docs/DEVELOPMENT.md`
+- `CLAUDE.md`
 
 Update `AGENTS.md` only when persistent development rules or architecture change.
 
@@ -363,16 +368,19 @@ Do not place temporary feature requests or one-off implementation notes here.
 
 ## Release packaging
 
-For the next substantial release create:
+Release archives (e.g. `web-map-editor-release-048.zip`) are build
+artifacts. Do not commit them, or a `web-map-editor-release-048/` staging
+directory, into the git repository.
 
-```text
-web-map-editor-release-048/
-web-map-editor-release-048.zip
-```
+For the next substantial release:
 
-Future releases continue sequentially.
+1. tag the corresponding commit (e.g. `v048`)
+2. attach a `web-map-editor-release-048.zip` (containing at minimum
+   `index.html`) to a GitHub Release created from that tag
 
-Each release should preserve the previous release as a rollback point.
+Future releases continue sequentially. Using tags and GitHub Releases keeps
+every previous release downloadable as a rollback point without storing
+binary archives in the repository's git history.
 
 ---
 
