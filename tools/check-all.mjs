@@ -10,6 +10,7 @@ const checks = [
   "check-dom-ids.mjs",
   "check-privacy.mjs",
   "test-cassandra.mjs",
+  "test-geometry.mjs",
 ];
 
 let failed = false;
