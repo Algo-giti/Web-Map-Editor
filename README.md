@@ -139,6 +139,34 @@ Docking ist **optional**.
 - Winkel in Grad
 - Winkelkonvention: 0° = East, 90° = North
 
+### Koordinatenbezug und CaSSAndRA
+
+Der Editor liest und schreibt Karten im Format von
+[CaSSAndRA](https://github.com/EinEinfach/CaSSAndRA) – sowohl in der relativen
+Sunray-Darstellung als auch in absolutem WGS84.
+
+- Feature-Typen werden im CaSSAndRA-Vokabular geführt (`perimeter`,
+  `exclusion`, `search wire`, `dockpoints`); ein abweichender Anzeigename in
+  `properties.label` bleibt beim Speichern erhalten
+- **Koordinatenbezug:** RTK-Basisposition (lat/lon) in der Seitenleiste
+  eintragen. Sie steht in CaSSAndRA unter *Settings → Robot* und ist nicht Teil
+  der GeoJSON-Datei
+- **Koordinaten beim Speichern:** wahlweise *wie geladen* oder
+  *absolut WGS84 (CaSSAndRA)*
+- absolute Karten werden beim Laden automatisch erkannt und in lokale
+  East/North-Meter umgerechnet
+- der Bezugspunkt wird im Browser gemerkt und zusätzlich in der Datei
+  hinterlegt, ohne CaSSAndRAs Import zu stören
+
+Nennt eine geladene Karte einen anderen RTK-Bezugspunkt als den aktiven,
+behält der Editor den aktiven bei, weist deutlich darauf hin und sperrt
+Verbinden sowie Speichern, bis der Widerspruch aufgelöst ist. So entsteht
+keine Datei, die auf dem Roboter um den Abstand beider Basispunkte daneben
+liegt.
+
+Ohne eingetragenen Bezugspunkt verhält sich der Editor exakt wie zuvor: die
+Umrechnung entspricht dann der reinen Relativdarstellung.
+
 ### Kartenprüfung
 
 Die aktive Karte kann vor dem Export geprüft werden. Unter anderem werden
@@ -338,6 +366,31 @@ Docking is **optional**.
 - ΔEast and ΔNorth
 - angle in degrees
 - angle convention: 0° = East, 90° = North
+
+### Coordinate reference and CaSSAndRA
+
+The editor reads and writes maps in the format used by
+[CaSSAndRA](https://github.com/EinEinfach/CaSSAndRA), both in the relative
+Sunray representation and in absolute WGS84.
+
+- feature types use CaSSAndRA's vocabulary (`perimeter`, `exclusion`,
+  `search wire`, `dockpoints`); a different display name in
+  `properties.label` is preserved when saving
+- **Coordinate reference:** enter the RTK base position (lat/lon) in the
+  sidebar. In CaSSAndRA it lives under *Settings → Robot* and is not part of
+  the GeoJSON file
+- **Coordinates on save:** either *as loaded* or *absolute WGS84 (CaSSAndRA)*
+- absolute maps are detected on load and converted to local East/North metres
+- the reference point is remembered in the browser and additionally stored in
+  the file without disturbing CaSSAndRA's import
+
+If a loaded map declares an RTK reference point that differs from the active
+one, the editor keeps the active point, says so clearly, and blocks both
+merging and saving until the contradiction is resolved. This prevents writing
+a file that would sit on the robot off by the distance between the two bases.
+
+With no reference point configured the editor behaves exactly as before: the
+conversion then equals the plain relative representation.
 
 ### Map validation
 

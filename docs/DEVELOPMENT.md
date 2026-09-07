@@ -100,6 +100,54 @@ Do not duplicate conversion logic in unrelated functions.
 Do not assume that a scale factor observed in one RTK map is universally valid
 for every Ardumower / Sunray map.
 
+### Relative and absolute coordinates
+
+Maps may arrive either in the relative Sunray representation or as absolute
+WGS84, as exported by CaSSAndRA with a configured RTK base. Both use the same
+approximation:
+
+```
+lat = north / 111111             + lat0
+lon = east  / (111111*cos(lat0)) + lon0
+```
+
+Internally the editor always works in relative metres; absolute maps are
+converted once on import and back on export. `lat0`/`lon0` is not part of the
+GeoJSON file - it is maintained in the sidebar under "Koordinatenbezug",
+remembered in `localStorage` and additionally written to the FeatureCollection
+as a non-standard `referenceOrigin` field, which CaSSAndRA's import ignores.
+
+With `lat0 = lon0 = 0` the formula degenerates to the previous relative
+behaviour, so older maps are unaffected.
+
+Because a converted map is computed against the reference point that was
+active when it was imported, changing that point re-bases such maps. The
+displayed East/North values then run against a new origin.
+
+### Conflicting reference points
+
+Two loaded maps can declare different RTK bases. In that case the editor keeps
+the active reference point rather than silently adopting the new one, shows a
+warning, and blocks merging as well as **every** export mode.
+
+Both export modes are blocked deliberately. A relative export is not the
+safer path but the quieter one: a map computed against base X sits on a robot
+with base Y off by X-Y, and the file contains nothing that would reveal it -
+the error only surfaces on real hardware.
+
+---
+
+## CaSSAndRA type identifiers
+
+`properties.name` carries the feature type only, using CaSSAndRA's vocabulary
+(`perimeter`, `exclusion`, `search wire`, `dockpoints`). Display names belong
+in `properties.label`. Exclusion indices live in `idx` at feature level.
+
+`getFeatureType()` is the single place where `properties.name` is interpreted.
+Import accepts the additional spellings `searchwire` and `dock points`; export
+normalises through `cassandraNameForFeature()`. Features with unknown names
+keep their raw value and are never renamed silently.
+
 ---
 
 ## Ardumower / Sunray context

@@ -106,6 +106,53 @@ Preserve raw coordinate semantics for export whenever possible.
 
 ---
 
+## CaSSAndRA compatibility
+
+The editor is compatible with maps exported by
+[CaSSAndRA](https://github.com/EinEinfach/CaSSAndRA), verified against its
+`export_geojson` implementation.
+
+### Type identifiers
+
+`properties.name` carries the feature **type only**, in CaSSAndRA's
+vocabulary: `perimeter`, `exclusion`, `search wire`, `dockpoints`. A
+different display name belongs in `properties.label` and is never overwritten
+on export. Exclusion indices live in `idx` at feature level.
+
+Determine the type exclusively through `getFeatureType()`. Do not introduce
+ad-hoc comparisons against `properties.name` elsewhere - inconsistent alias
+lists were exactly how earlier bugs arose. Import additionally accepts the
+spellings `searchwire` and `dock points`; export normalises back through
+`cassandraNameForFeature()`.
+
+### Coordinate reference
+
+CaSSAndRA and the Sunray firmware place maps relative to the RTK base:
+
+```
+lat = north / 111111             + lat0
+lon = east  / (111111*cos(lat0)) + lon0
+```
+
+`lat0`/`lon0` is not part of the GeoJSON file, so the editor maintains it
+separately under "Koordinatenbezug" in the sidebar and can save either
+relative or absolute WGS84 coordinates.
+
+Internally the editor always computes in relative metres. Convert only on
+import and export, through the existing helpers - do not spread conversion
+logic further.
+
+If a loaded file declares a reference point that contradicts the active one,
+the editor keeps the active point, warns, and blocks both merging and
+**every** export mode until the conflict is resolved. Do not weaken these
+locks: a map written against the wrong RTK base is off by the difference of
+the two bases on real hardware, and in the relative export nothing in the
+file reveals it.
+
+See `CLAUDE.md` sections 5a and 5b for the full rules.
+
+---
+
 ## Polygon semantics
 
 Closed polygon rings contain a technical duplicate of the first coordinate at

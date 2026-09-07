@@ -38,35 +38,30 @@ Abschnitt 5 (Domänenregeln) und `DISCLAIMER.md`.
 ## 2. Architektur
 
 Das gesamte Projekt ist **eine einzige Datei**: [`index.html`](index.html)
-(~11.000 Zeilen: HTML, `<style>`-CSS, ein einziger inline `<script>`-Block).
-Es gibt bewusst **keine** weiteren Build-Artefakte, kein `package.json` für
-die App selbst, keine externen `<script src>`/`<link>`-Referenzen und keine
-`fetch()`/`XMLHttpRequest`-Aufrufe – die Datei ist vollständig autark und
-funktioniert auch über `file://`.
+(gut elftausend Zeilen: HTML, `<style>`-CSS, ein einziger inline
+`<script>`-Block). Es gibt bewusst **keine** weiteren Build-Artefakte, kein
+`package.json` für die App selbst, keine externen `<script src>`/`<link>`-
+Referenzen und keine `fetch()`/`XMLHttpRequest`-Aufrufe – die Datei ist
+vollständig autark und funktioniert auch über `file://`.
 
-Der Script-Block (`index.html:2551` bis `index.html:11002`) ist intern in
-nummerierte Abschnitte gegliedert (Kommentar-Header `N. TITEL`):
+### Orientierung in der Datei
 
-| Nr. | Abschnitt | Inhalt |
-|---|---|---|
-| 1 | Konfiguration und Anwendungszustand | globale `let`/`const`, DOM-Referenzen |
-| 2 | Karten-Slots und Koordinaten-Hilfsfunktionen | Map A/B, Laden in Slot |
-| 3 | Koordinaten- und Sunray-Hilfsfunktionen | `toWorld()`, `fromWorld()`, Sunray-Skalenerkennung |
-| 4 | Kartenansicht / Zoom / Pan | `view`-Zustand, Fit, Zoom |
-| 5 | Geometrie-Rendering | SVG-Gruppen zeichnen |
-| 6 | Punkteditor | Auswahl, Verschieben, Einfügen/Löschen von Punkten |
-| 7 | Raster | Snap-to-Grid, Rasterdarstellung |
-| 8 | Zwei-Karten-Verbindung | Merge A+B |
-| 9 | Feature-Navigation | Sidebar-Baum für Features/Punkte |
-| 10 | Statistik und Ebenen | Flächen, Layer-Sichtbarkeit |
-| 11 | Datei laden / exportieren / zurücksetzen | GeoJSON-Import/-Export |
-| 12 | Event-Handler und Initialisierung | Maus/Touch/Keyboard-Bindings, Startup |
-| 18 | Sprache / Language | i18n (siehe unten) |
+Der Script-Block ist in nummerierte Abschnitte mit Kommentar-Headern der Form
+`N. TITEL` gegliedert. **Das maßgebliche Inhaltsverzeichnis steht im
+Scriptkopf von `index.html`**, direkt über Abschnitt 1. Dort ist es
+zusammen mit den Headern gepflegt und kann nicht auseinanderlaufen; eine
+zweite Kopie hier würde beim nächsten Umbau wieder veralten.
 
-Hinweis: Die Nummerierung springt von 12 auf 18 – Abschnitte 13–17 wurden im
-Lauf der Zeit offenbar entfernt/verschoben, ohne die Nummerierung
-anzupassen. Funktional unproblematisch, aber beim Navigieren per
-Abschnittsnummer beachten.
+Zum Finden einer Stelle nicht nach Zeilennummern suchen, sondern nach dem
+Header-Titel (`6. PUNKTEDITOR`) oder direkt nach dem Funktionsnamen. Aus
+demselben Grund nennt diese Datei durchgehend Bezeichner statt Zeilen:
+`index.html` ist eine einzige große Datei, in der jede Änderung sämtliche
+nachfolgenden Zeilennummern verschiebt.
+
+Zwei Eigenheiten der Nummerierung sind bekannt und beabsichtigt stehen
+gelassen: Abschnitt `2A` (Undo/Redo, Messen, Kartenprüfung, Auswahlmodell)
+steht physisch vor Abschnitt `2`, und nach `12` folgt `18`. Der Scriptkopf
+erklärt beides.
 
 ### Zentrale Konzepte
 
@@ -78,10 +73,11 @@ Abschnittsnummer beachten.
   geladenen Rohwerte.
 - **Auswahlmodell:** Es existieren `selectedVertex` (einzelner Punkt) und
   `selectedVertices` (Mehrfachauswahl) parallel. Wenn Code eine einheitliche
-  Quelle braucht, `getEffectiveSelectedVertices()` (`index.html:4577`)
-  verwenden – sonst drohen Inkonsistenzen zwischen Anzeige und Lösch-Logik
+  Quelle braucht, `getEffectiveSelectedVertices()` verwenden – sonst drohen
+  Inkonsistenzen zwischen Anzeige und Lösch-Logik
   (siehe `CHANGELOG_EN.md`, Release 045/046: genau dieser Bug wurde zweimal
-  gefixt).
+  gefixt). Nicht verwechseln mit `getSelectedVertices()`: das liefert nur
+  `selectedVertices` und fällt **nicht** auf `selectedVertex` zurück.
 - **Feature-Typen (CaSSAndRA-kompatibel):** `properties.name` trägt
   **ausschließlich** den Typ im CaSSAndRA-Vokabular. Ein davon abweichender
   Anzeigename gehört nach `properties.label`. Details in Abschnitt 5a.
@@ -89,12 +85,14 @@ Abschnittsnummer beachten.
   absolutes WGS84 wird nur beim Import/Export umgerechnet. Details in
   Abschnitt 5b.
 - **i18n:** Deutsch ist Quellsprache und Default. Übersetzung läuft über
-  einen Snapshot-Mechanismus (`I18N_EN`-Map + `I18N_PATTERNS`-Regex-Liste,
-  ab `index.html:10676`), `translateGermanText()`,
+  einen Snapshot-Mechanismus (`I18N_EN`-Map + `I18N_PATTERNS`-Regex-Liste
+  in Abschnitt 18), `translateGermanText()`,
   `translateDynamicElement()`, `setLanguage()`. Neuer sichtbarer Text muss
   **immer** in beiden Sprachen funktionieren (siehe Abschnitt 5).
 - **Undo/Redo:** History-Snapshots pro abgeschlossener Operation (nicht pro
-  `pointermove`-Event). Ein zusammenhängender Drag = ein Undo-Schritt.
+  `pointermove`-Event). Ein zusammenhängender Drag = ein Undo-Schritt. Der
+  Snapshot enthält neben beiden Kartenslots auch den `referenceOrigin`, weil
+  umgerechnete Karten gegen ihn gerechnet sind (siehe Abschnitt 5b).
 
 ---
 
@@ -128,11 +126,19 @@ node tools/check-all.mjs
 
 ## 4. Testumgebung
 
-Vor dieser Session gab es **keine** automatisierte Testinfrastruktur, nur
-manuell in `AGENTS.md`/`docs/DEVELOPMENT.md` beschriebene Prüfschritte. Im
-Verzeichnis [`tools/`](tools/) wurden diese Schritte als eigenständige,
-**abhängigkeitsfreie** Node-Skripte automatisiert. Vor jeder Rückmeldung
-"Änderung fertig" an den Nutzer sollten diese Prüfungen laufen.
+Die früher nur in `AGENTS.md`/`docs/DEVELOPMENT.md` beschriebenen Prüfschritte
+liegen im Verzeichnis [`tools/`](tools/) als eigenständige Node-Skripte.
+
+Sie zerfallen in **zwei Stufen**, und diese Trennung ist beabsichtigt:
+
+| Stufe | Skripte | Abhängigkeiten | Status |
+|---|---|---|---|
+| statisch | `check-all.mjs` (4.1) | keine | **Pflicht** vor jeder Rückmeldung "fertig" |
+| Browser | `smoke-test.mjs`, `test-origin-conflict.mjs` (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
+
+`check-all.mjs` läuft mit Node-Bordmitteln und muss das bleiben – es ist die
+Stufe, die in **jeder** Umgebung ohne Vorbereitung durchläuft. Die
+Browsertests sind bewusst **nicht** darin eingehängt.
 
 ### 4.1 Statische Prüfungen (immer ausführbar, keine Abhängigkeiten)
 
@@ -159,8 +165,10 @@ Führt nacheinander aus:
   Typ-Bezeichner und deren Aliasse, Label-Vorrang bei der Anzeige,
   `cos(lat)`-Skalierung, verlustfreier Rundlauf relativ → absolut → relativ
   bei mehreren Breitengraden, Identität bei `lat0 = lon0 = 0`, Import- und
-  Export-Pfad. Liegt lokal eine Karte unter `test/` (nicht im Repository),
-  wird zusätzlich ein Rundlauf damit gefahren.
+  Export-Pfad. Dazu die Bezugspunkt-Konflikte aus Abschnitt 5b: Toleranz,
+  Adoptionsregel und die Exportsperre in beiden Modi. Liegt lokal eine Karte
+  unter `test/` (nicht im Repository), wird zusätzlich ein Rundlauf damit
+  gefahren; fehlt der Ordner, überspringt das Skript den Fall.
 
 Die Skripte sind einzeln aufrufbar (`node tools/check-syntax.mjs` etc.),
 `check-all.mjs` bündelt sie nur.
@@ -168,57 +176,115 @@ Die Skripte sind einzeln aufrufbar (`node tools/check-syntax.mjs` etc.),
 `tools/test-cassandra.mjs` nutzt `tools/extract-script.mjs`, um einzelne reine
 Hilfsfunktionen aus dem Inline-Script von `index.html` zu extrahieren und in
 Node auszuführen. Damit sind Unit-Tests möglich, ohne ein Build-System oder
-Modulsystem in die Anwendung einzuführen. **Wichtig:** Wird eine dort
-getestete Funktion umbenannt, muss der Name in der `NAMES`-Liste von
-`test-cassandra.mjs` mitgezogen werden – sonst bricht der Test mit
-"Deklaration nicht gefunden" ab.
+Modulsystem in die Anwendung einzuführen.
 
-### 4.2 Browser-Smoke-Test (optional, real gerendert)
+Zwei Fallstricke dabei:
 
-**`tools/smoke-test.mjs`** öffnet `index.html` in einem echten Chromium via
-[Playwright](https://playwright.dev) (`playwright-core`), prüft Titel,
-Sichtbarkeit von `#svg`, Initial-Text von `#filename` ("Keine Karte
-geladen"), dass der Sprachumschalter (`#languageToggle`) den Text tatsächlich
-übersetzt, und dass keine `console.error`/uncaught page errors auftreten.
-Zusätzlich lädt er eine **synthetische** absolute WGS84-Karte über
-`#fileInput` und prüft, dass sie als ~40 × 50 m ankommt – damit ist die
-`cos(lat)`-Umrechnung über den kompletten UI-Pfad abgedeckt.
+- Wird eine dort getestete Funktion umbenannt, muss der Name in der
+  `NAMES`-Liste von `test-cassandra.mjs` mitgezogen werden – sonst bricht der
+  Test mit "Deklaration nicht gefunden" ab. Nur **reine** Funktionen sind so
+  testbar: greift eine Funktion auf `mapSlots` oder das DOM zu, gehört ihre
+  Prüfung in einen Browsertest (Abschnitt 4.2). Deshalb sind
+  `originConflict()` und `originsMatch()` parametrisiert, während die
+  Slot-Varianten `getSlotOriginConflict()`/`getActiveOriginConflict()` es
+  nicht sind.
+- Das zurückgegebene Sandkasten-Objekt hält **Werte**, keine lebenden
+  Bindungen. Eine mit `let` deklarierte Variable wie `referenceOrigin` zeigt
+  dort weiterhin den Stand vom Zeitpunkt der Erzeugung, auch nachdem ein
+  Setter sie neu zugewiesen hat. Für Zusicherungen über den aktuellen Stand
+  den Accessor `app.getOrigin()` benutzen, nicht `app.referenceOrigin`.
 
-Hinweis für eigene Erweiterungen: Werte in eingeklappten `<details>`-Bereichen
-(z. B. `#widthStat`, `#originStatus`) müssen mit `textContent` gelesen werden,
-`innerText` liefert dort einen leeren String.
+### 4.2 Browsertests (optional, real gerendert)
 
-Das ist der automatisierte Ersatz für den in AGENTS.md geforderten
-"Browser-Laufzeittest" bei strukturellen UI-Änderungen.
+Zwei Skripte öffnen `index.html` in einem echten Browser über eine
+`file://`-URL – die Datei hat keine externen Ressourcen und keine
+`fetch()`-Aufrufe, ein Webserver ist also nicht nötig.
+
+**`tools/smoke-test.mjs`** – der breite Grundcheck: Titel, Sichtbarkeit von
+`#svg`, Initial-Text von `#filename` ("Keine Karte geladen"), dass der
+Sprachumschalter (`#languageToggle`) den Text tatsächlich übersetzt, und dass
+keine `console.error`/uncaught page errors auftreten. Zusätzlich lädt er eine
+**synthetische** absolute WGS84-Karte über `#fileInput` und prüft, dass sie
+als ~40 × 50 m ankommt – damit ist die `cos(lat)`-Umrechnung über den
+kompletten UI-Pfad abgedeckt.
+
+**`tools/test-origin-conflict.mjs`** – das Szenario mit zwei Kartenslots und
+widersprüchlichen RTK-Bezugspunkten (Abschnitt 5b): Warnanzeige, aufgeklappter
+Bereich "Koordinatenbezug", unveränderter aktiver Bezugspunkt, Merge-Sperre,
+Exportsperre in **beiden** Ausgabemodi, danach Auflösen über die
+Eingabefelder und die Prüfung, dass der Export die ursprüngliche RTK-Basis
+wieder exakt trifft. Diese Kette lässt sich ohne echtes DOM nicht sinnvoll
+nachbilden, deshalb Browser statt Unit-Test.
+
+**`tools/browser-harness.mjs`** ist kein Test, sondern der gemeinsame
+Unterbau beider: es findet `playwright-core` und einen startbaren Browser.
+Neue Browsertests binden diese Datei ein, statt die Suche zu duplizieren.
+
+Zusammen sind die beiden der automatisierte Ersatz für den in `AGENTS.md`
+geforderten "Browser-Laufzeittest" bei strukturellen UI-Änderungen.
+
+#### Einrichtung
 
 `playwright-core` ist **bewusst keine Abhängigkeit im Repo** (kein
-`package.json`), um die Build-/Framework-Freiheit der Anwendung nicht zu
-verletzen. Es wird nur benötigt, wenn du dieses Skript ausführst, und einmal
-pro Umgebung separat installiert – z. B. im Scratchpad-Verzeichnis, **nicht**
-im Projekt:
+`package.json`, kein `node_modules`), um die Build- und Frameworkfreiheit der
+Anwendung nicht zu verletzen. Es wird einmal pro Umgebung **außerhalb** des
+Projekts installiert:
 
 ```bash
-# einmalig, außerhalb des Repos, z. B. im Scratchpad:
-npm init -y && npm install playwright-core
-npx --yes playwright install chromium   # lädt einen passenden Chromium-Build
-
-# danach aus dem Repo-Root heraus (NODE_PATH auf die obige Installation zeigen
-# lassen, oder das Skript aus einem Ordner mit installiertem playwright-core
-# ausführen):
-CHROME_PATH=/pfad/zu/chrome node tools/smoke-test.mjs
+cd "$SCRATCH" && npm init -y && npm install playwright-core
 ```
 
-Wenn `playwright-core` nicht verfügbar ist oder kein Browser startet, bricht
-das Skript **nicht** mit Fehler ab, sondern gibt eine Anleitung aus und
-beendet sich mit Exit-Code 0 (es ist ein optionaler Zusatz-Check, kein
-Pflichtbestandteil von `check-all.mjs`).
+Danach aus dem Repo-Root, mit `PLAYWRIGHT_CORE_PATH` auf das Verzeichnis, das
+`node_modules` enthält:
 
-In dieser Entwicklungsumgebung wurde verifiziert, dass ein bereits
-gecachter Chromium-Build unter `~/.cache/ms-playwright/chromium-1208/`
-funktioniert (`CHROME_PATH=~/.cache/ms-playwright/chromium-1208/chrome-linux64/chrome`).
-Das ist umgebungsspezifisch und nicht garantiert in jeder zukünftigen
-Session identisch – ggf. neu prüfen mit
-`ls ~/.cache/ms-playwright/`.
+```bash
+PLAYWRIGHT_CORE_PATH="$SCRATCH" node tools/smoke-test.mjs
+PLAYWRIGHT_CORE_PATH="$SCRATCH" node tools/test-origin-conflict.mjs
+```
+
+Die Variable ist nötig, weil ESM-Importe `NODE_PATH` ignorieren. Sie erspart
+den naheliegenden, aber falschen Ausweg, ein `node_modules` oder einen
+Symlink ins Repository zu legen. Liegt `playwright-core` ohnehin im
+Auflösungspfad, wird sie nicht gebraucht.
+
+#### Browsersuche
+
+**Konkrete Pfade und Versionsnummern gehören nicht in diese Datei** – sie
+unterscheiden sich pro Rechner und veralten sofort. Die Suchreihenfolge steht
+stattdessen als ausführbarer Code in `tools/browser-harness.mjs`:
+
+1. `$CHROME_PATH`, falls gesetzt
+2. ein installierter System-Browser (Chrome/Chromium, über `$PATH` und die
+   üblichen festen Orte)
+3. ein Build im `ms-playwright`-Cache, **ohne feste Versionsnummer**
+4. der von `playwright-core` selbst verwaltete Browser
+
+Fehlt alles, hilft `npx --yes playwright install chromium`.
+
+**Wichtig:** Ein vorhandenes `ms-playwright`-Verzeichnis ist **keine**
+Garantie für eine nutzbare Binary. Genau dieser Fall trat hier auf – das
+Verzeichnis eines Chromium-Builds existierte, enthielt aber keine
+ausführbare Datei, während gleichzeitig ein System-Chrome verfügbar war.
+`browser-harness.mjs` prüft deshalb jeden Kandidaten wirklich auf
+Ausführbarkeit, statt sich auf die Existenz eines Verzeichnisses zu
+verlassen. Verlass dich beim Debuggen auf dieselbe Prüfung, nicht auf ein
+`ls`.
+
+Wenn `playwright-core` fehlt oder kein Browser startet, brechen beide
+Skripte **nicht** mit Fehler ab, sondern geben eine Anleitung aus und beenden
+sich mit Exit-Code 0. Fehlende Testinfrastruktur ist kein Testfehler – aber
+sie ist auch kein bestandener Test: wenn du einen Browserlauf nicht wirklich
+durchführen konntest, sag das ausdrücklich dazu, statt die Änderung als
+getestet zu melden.
+
+#### Hinweis für eigene Erweiterungen
+
+Werte in eingeklappten `<details>`-Bereichen (z. B. `#widthStat`,
+`#originStatus`) müssen mit `textContent` gelesen werden, `innerText` liefert
+dort einen leeren String.
+
+Testkarten erzeugen die Skripte immer selbst und synthetisch. Es liegt keine
+Kartendatei im Repository und es wird keine gelesen.
 
 ### 4.3 Was NICHT automatisiert getestet werden kann
 
@@ -271,6 +337,10 @@ nicht stillschweigend als vollständig getestet ausgeben.
 Vollständige Details stehen in [`AGENTS.md`](AGENTS.md) und
 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md); hier die für die tägliche
 Arbeit wichtigste Zusammenfassung.
+
+Die zweisprachige Dokumentation wird **paarweise** gepflegt: `README.md` mit
+[`README_EN.md`](README_EN.md), `CHANGELOG.md` mit `CHANGELOG_EN.md`. Eine
+Änderung nur auf einer Seite gilt als unvollständig.
 
 **Privatsphäre:** Niemals private GeoJSON-Karten, RTK-Koordinaten,
 Dateinamen oder persönliche Testdaten in versionierte Dateien einbetten. Die
@@ -335,6 +405,13 @@ Regeln:
   wieder auf die kanonische Schreibweise.
 - Features mit unbekanntem Namen behalten ihren Rohwert und werden nicht
   stillschweigend umbenannt.
+- **`idx` steht auf Feature-Ebene**, nicht in `properties` – so liegt es auch
+  in den vorhandenen Sunray-Dateien. `renumberExclusionsInCollection()`
+  schreibt deshalb immer `feature.idx` und pflegt `properties.idx`
+  **nur dann** mit, wenn der Schlüssel dort bereits vorhanden ist. Eine Karte,
+  die den Index nur auf Feature-Ebene führt, bekommt also kein zusätzliches
+  Feld in `properties`; eine Karte, die beides führt, bleibt konsistent.
+  Beim Lesen gilt entsprechend `feature.idx ?? feature.properties?.idx`.
 - **Anzeige** immer über `describeFeature()`: `properties.label` hat Vorrang,
   sonst wird der Name aus dem Typ abgeleitet ("Perimeter", "Exclusion #0", …).
   Ein Label wird nicht übersetzt, abgeleitete Namen schon.
@@ -379,6 +456,19 @@ lon = east  / (111111·cos(lat0)) + lon0
 - **Erkennung:** `isAbsoluteWgs84Collection()` wertet Koordinaten mit einem
   Betrag > 0,05° als absolut. Relative Karten liegen dicht um den Nullpunkt,
   absolute praktisch nie (0/0 läge im Golf von Guinea).
+- **Plausibilitätsprüfung:** `parseOrigin()` ist die einzige Stelle, an der
+  ein Bezugspunkt aus Rohwerten entsteht – aus dem Eingabefeld, aus dem
+  `localStorage` und aus dem Feld in der Datei. Sie verwirft alles, was nicht
+  endlich ist oder außerhalb von ±90° Breite bzw. ±180° Länge liegt, und
+  liefert dann `null`. Neue Quellen für Bezugspunkte müssen ebenfalls durch
+  diese Funktion.
+- **Eigenheit bei 0/0:** `hasReferenceOrigin()` wertet `lat = lon = 0` als
+  *nicht gesetzt*. Das ist Absicht – es ist derselbe Zustand, den eine
+  unkonfigurierte CaSSAndRA-Basis erzeugt, und die Umrechnung degeneriert dort
+  zur Identität. Die Kehrseite: eine echte RTK-Basis exakt auf 0°/0° lässt
+  sich nicht ausdrücken. Da dieser Punkt im Golf von Guinea liegt, ist das
+  praktisch folgenlos, aber beim Lesen des Codes verwirrend genug, um es hier
+  festzuhalten.
 - **Import:** Absolute Karten werden einmalig in die interne
   Relativdarstellung umgerechnet. Ein in der Datei hinterlegter Bezugspunkt
   wird übernommen und **überschreibt die aktuelle Einstellung** (sonst wäre
@@ -394,9 +484,84 @@ lon = east  / (111111·cos(lat0)) + lon0
   (Standard) und *absolut WGS84 (CaSSAndRA)*. "wie geladen" gibt eine
   ursprünglich absolute Karte wieder absolut aus. Die **Bezeichner-
   Normalisierung läuft dagegen immer**, ohne Modus.
-- **Bekannte Einschränkung:** Wird der Bezugspunkt geändert, während eine aus
-  absolutem WGS84 umgerechnete Karte geladen ist, verschiebt sich deren
-  Ausgabe. Die Statuszeile unter "Koordinatenbezug" weist darauf hin.
+- **Bezugspunkt ändern basiert umgerechnete Karten neu.** Eine aus absolutem
+  WGS84 importierte Karte liegt intern gegen den beim Import gültigen
+  Bezugspunkt gerechnet vor. `rebaseConvertedMaps()` rechnet sie bei jeder
+  Änderung über den absoluten Zwischenschritt exakt auf den neuen Punkt um –
+  beide Umrechnungen sind zueinander invers und behandeln die
+  unterschiedliche `cos(lat)`-Skalierung beider Punkte korrekt. Betroffen sind
+  `slot.data` **und** `slot.originalData`; die Vergleichs-Ghosts des Slots
+  werden verworfen, weil sie Weltkoordinaten des alten Rahmens festhalten.
+  **Folge für die Anzeige:** die East/North-Werte laufen danach gegen einen
+  neuen Nullpunkt, ändern sich also sichtbar, obwohl die Geometrie unverändert
+  ist. Die Statuszeile unter "Koordinatenbezug" sagt das.
+- Weil umgerechnete Karten gegen den Bezugspunkt gerechnet sind, steckt
+  `referenceOrigin` im Undo-Snapshot (`createWorkspaceSnapshot()`). Sonst
+  holte ein Undo die Geometrie zurück, aber nicht den Rahmen.
+
+### Widersprüchliche Bezugspunkte
+
+`referenceOrigin` ist global, nicht pro Slot – richtig so, denn er beschreibt
+die physische RTK-Basis, und der Merge setzt dieselbe Basis ohnehin voraus.
+Das Problem war nie die Globalität, sondern das **stille Überschreiben**.
+
+**Toleranz.** Zwei Bezugspunkte gelten als derselbe Standort, wenn sie weniger
+als `ORIGIN_MATCH_TOLERANCE_METERS` (1 cm) auseinanderliegen. Verglichen wird
+in **Metern, nicht in Grad**: ein Längengrad ist je nach Breite unterschiedlich
+lang, zwei Gradschwellen wären deshalb in Ost-West-Richtung zu streng oder in
+Nord-Süd-Richtung zu lasch. `originDistanceMeters()` nutzt dafür das
+vorhandene `absoluteToMeters()` – keine eigene Trigonometrie – und liefert
+nebenbei die Zahl für die Meldungstexte. 1 cm liegt unter der Genauigkeit
+eines RTK-Fix und unter der Anzeigeauflösung des Editors, kann also keinen
+echten Basiswechsel verschlucken; nach oben deckt es Rundungsrauschen aus
+JSON-Rundläufen (~1e-5 m) und unterschiedlich genau eingetippte Basiswerte
+(~1e-4 m) um Größenordnungen ab.
+
+**Adoptionsregel.** Entscheidend ist nicht, *ob* ein Bezugspunkt gesetzt ist –
+beim Start kommt er aus dem `localStorage` und ist womöglich veraltet –
+sondern ob gerade etwas geladen ist, das sich durch eine Änderung verschieben
+würde. `prepareImportedCollection()` bekommt das als `options.keepActiveOrigin`
+vom Aufrufer; `parseGeoJsonFile()` setzt es auf "der *andere* Slot hält
+Daten", weil der Zielslot von dieser Datei ohnehin überschrieben wird.
+
+| Situation | Verhalten |
+|---|---|
+| Karte laden, anderer Slot leer | Bezugspunkt der Datei wird übernommen |
+| Karte laden, anderer Slot geladen | aktiver Bezugspunkt bleibt, Warnung, Sperren |
+
+**Abgeleitet, nicht gespeichert.** Der Konflikt wird bei jedem Aufruf neu aus
+`slot.fileOrigin` gegen `referenceOrigin` berechnet (`originConflict()`,
+`getSlotOriginConflict()`, `getActiveOriginConflict()`) und nirgends
+zwischengespeichert. Dadurch bewertet er sich beim Umschalten der aktiven
+Karte und nach jeder Änderung des Bezugspunktes automatisch neu – es gibt
+keinen Aufräumpfad, der vergessen werden könnte. `slot.fileOrigin` merkt sich
+den Bezugspunkt der Datei auch dann, wenn er *nicht* übernommen wurde; nur so
+ist der Widerspruch später überhaupt erkennbar.
+
+**Sperren.** Solange ein Widerspruch besteht:
+
+- **Merge** ist gesperrt, sobald *einer* der beiden Slots dem aktiven
+  Bezugspunkt widerspricht (`getMergeOriginIssue()`). Zwei Karten mit
+  tatsächlich verschiedenen RTK-Basen bleiben damit dauerhaft gesperrt – egal
+  welchen Wert man einträgt, der jeweils andere widerspricht dann. Das ist
+  beabsichtigt: solche Karten lassen sich physisch nicht sinnvoll verbinden.
+- **Export ist in beiden Ausgabemodi gesperrt**, nicht nur im absoluten. Der
+  relative Pfad ist dabei nicht der harmlosere, sondern der **leisere**: eine
+  gegen X gerechnete Relativkarte liegt auf einem Roboter mit Basis Y um X−Y
+  daneben, und die Datei enthält keine einzige Zahl, an der sich das erkennen
+  ließe – der Fehler fällt erst auf echter Hardware auf. Beim absoluten Export
+  steckt die Basis wenigstens in den Koordinaten. `buildExportCollection()`
+  liefert deshalb `null`, statt zu schreiben.
+
+**Auflösen.** Der Nutzer trägt den in der Warnung genannten Bezugspunkt der
+Datei in die Felder unter "Koordinatenbezug" ein und klickt "Übernehmen".
+Weil der Konflikt abgeleitet ist, verschwinden Warnung und Sperren dadurch von
+selbst – und tauchen ebenso von selbst wieder auf, wenn der Wert erneut
+abweicht. Für umgerechnete Karten greift dabei `rebaseConvertedMaps()`; ohne
+diese Neubasierung wäre der Export nach dem "Auflösen" um die Differenz beider
+Punkte verschoben gewesen, also still falsch trotz gefallener Sperre.
+
+`tools/test-origin-conflict.mjs` fährt genau diese Kette im echten Browser ab.
 
 ---
 
@@ -434,12 +599,16 @@ als Rollback-Punkte erhalten. Bei jedem Release beide Changelogs
 (`CHANGELOG.md` und `CHANGELOG_EN.md`) pflegen.
 
 **Vor jedem Release, mindestens:**
-1. `node tools/check-syntax.mjs`
-2. `node tools/check-dom-ids.mjs`
-3. manuelle Stale-Reference-Suche (siehe oben)
-4. `node tools/check-privacy.mjs` + Diff gegenlesen
-5. echter Browser-/Laufzeittest bei strukturellen UI-Änderungen
-   (`tools/smoke-test.mjs`, falls verfügbar, sonst manuell)
+1. `node tools/check-all.mjs` (Syntax, DOM-IDs, Privacy, CaSSAndRA-Unit-Tests)
+2. manuelle Stale-Reference-Suche (siehe oben) – `check-dom-ids.mjs` findet
+   verwaiste Variablen- und Funktionsnamen nicht
+3. `git diff` gegenlesen, insbesondere auf versehentlich eingebettete
+   Kartendaten
+4. echter Browser-/Laufzeittest bei strukturellen UI-Änderungen
+   (`tools/smoke-test.mjs` und `tools/test-origin-conflict.mjs`, siehe
+   Abschnitt 4.2; falls nicht durchführbar, ausdrücklich als ungetestet melden)
+5. beide Changelogs (`CHANGELOG.md` **und** `CHANGELOG_EN.md`) sowie bei
+   sichtbaren Funktionsänderungen `README.md` **und** `README_EN.md` pflegen
 
 ---
 
@@ -471,31 +640,41 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
 ## 7. Bekannte offene Punkte
 
-- **Abschnittsnummerierung im Script springt von 12 auf 18** (Abschnitte
-  13–17 fehlen) – rein kosmetisch, aber verwirrend bei Navigation per
-  Abschnittsnummer.
-- **Vor dieser Session gab es keinerlei automatisierte Tests/CI.** Die in
-  Abschnitt 4 beschriebene Testumgebung (`tools/*.mjs`) ist neu und wurde in
-  dieser Session eingerichtet und gegen den aktuellen `index.html`-Stand
-  verifiziert (alle drei statischen Checks sowie der optionale
-  Playwright-Smoke-Test liefen erfolgreich durch).
+- **Abschnitt `2A` steht physisch vor Abschnitt `2`, und nach `12` folgt
+  `18`.** Rein kosmetisch; ein Umnummerieren würde jeden Abschnitt anfassen,
+  ohne etwas zu verbessern. Der Scriptkopf erklärt beides – deshalb dort
+  nachsehen und nicht nach Abschnittsnummern raten.
+- **Abschnitt `2A` enthält deutlich mehr als Undo/Redo** – unter anderem
+  Messwerkzeug, Kartenprüfung, Feature-Erstellung und das komplette
+  Auswahlmodell. Der Titel führt in die Irre; eine Aufteilung wäre sinnvoll,
+  ist aber ein großer Diff ohne Funktionsgewinn.
 - **`tools/check-privacy.mjs` ist nur heuristisch** – erkennt keine privaten
   Daten unter untypischen Schlüsselnamen. Ersetzt keine manuelle
   Diff-Prüfung vor einem Release.
+- **`tools/check-dom-ids.mjs` prüft nur IDs, keine Variablen- oder
+  Funktionsnamen.** Verwaister Code nach dem Entfernen eines UI-Elements
+  bleibt dadurch unentdeckt – genau so hatte `deleteSelectedExclusion()` den
+  in Ausgabe 043 entfernten Button um mehrere Ausgaben überlebt. Die manuelle
+  Volltextsuche aus Abschnitt 5 ("UI-Element entfernen") bleibt deshalb Pflicht.
 - **`CHANGELOG.md` (deutsch) beginnt erst bei Ausgabe 047.** Die Historie der
   Ausgaben 001–046 existiert nur in `CHANGELOG_EN.md`. Neue Einträge ab
   jetzt bitte in beiden Dateien pflegen.
 - Für das Packen eines Release-ZIPs (GitHub Release, siehe Abschnitt 5)
-  existiert noch kein Automatisierungsskript in `tools/`. Bei Bedarf
-  ergänzen, wenn Ausgabe 048 tatsächlich ansteht.
-- **Unter `test/` liegen echte private Nutzerkarten.** Der Ordner ist über
-  `.gitignore` ausgeschlossen und darf niemals committet werden;
-  `check-privacy.mjs` warnt zusätzlich, falls doch einmal eine Kartendatei
-  von git getrackt wird.
+  existiert noch kein Automatisierungsskript in `tools/`.
+- **Falls ein Ordner `test/` existiert, enthält er echte private
+  Nutzerkarten.** Er ist über `.gitignore` ausgeschlossen und darf niemals
+  committet werden; `check-privacy.mjs` warnt zusätzlich, falls doch einmal
+  eine Kartendatei von git getrackt wird. Der Ordner ist **nicht** Teil eines
+  frischen Checkouts – `tools/test-cassandra.mjs` überspringt den
+  entsprechenden Testfall dann stillschweigend, das ist kein Fehler.
 - Die CaSSAndRA-Anbindung ist gegen den Quellcode und eine reale Beispielkarte
   verifiziert, aber **nicht gegen eine echte CaSSAndRA-Instanz oder Firmware**
   getestet. Insbesondere ein Export mit gesetztem `lat0`/`lon0` wurde noch nie
   von CaSSAndRA eingelesen.
+- **Ein relativer Export schreibt weiterhin den aktiven `referenceOrigin` in
+  die Datei.** Das ist korrekt, solange kein Konflikt besteht – und ein
+  Konflikt sperrt den Export inzwischen vollständig. Bleibt als Merkposten,
+  falls die Sperre je gelockert wird.
 
 ---
 
@@ -525,6 +704,8 @@ nicht erneut aufrollen**:
    im Architecture-Abschnitt von `AGENTS.md`.
 
 5. **Lokale Testkarten bleiben aus dem Repository heraus.** Der Ordner `test/`
-   enthält echte private Nutzerkarten und ist auf Wunsch des Projektinhabers
-   über `.gitignore` ausgeschlossen. Eigene Testkarten gehören dorthin oder
-   ins Scratchpad – niemals in versionierte Dateien.
+   – falls vorhanden, er gehört nicht zum Checkout – enthält echte private
+   Nutzerkarten und ist auf Wunsch des Projektinhabers über `.gitignore`
+   ausgeschlossen. Eigene Testkarten gehören dorthin oder ins Scratchpad –
+   niemals in versionierte Dateien. Die Browsertests aus Abschnitt 4.2
+   erzeugen ihre Karten stattdessen synthetisch im Skript.
