@@ -286,6 +286,20 @@ The default vertex count for circles is 24; the chord deviation from the ideal
 circle is shown in the interface so the value can be judged against the actual
 radius rather than assumed correct.
 
+## Extended geometry validation
+
+The map validation reports exclusions outside the perimeter, overlapping
+exclusions, self-intersecting rings and lines, and corridors narrower than the
+mower. All four are warnings; none of them blocks anything.
+
+Findings are aggregated per feature or per pair and name the feature and
+segment where they were found.
+
+The corridor check uses the exact distance between two segments, not a sampled
+approximation, and only counts a spot when it lies in the area the mower
+actually drives. Its threshold is the mower width, which is a lower bound -
+no finding does not prove a corridor is passable, and the report says so.
+
 ## Point reduction
 
 Douglas-Peucker simplification with a configurable tolerance in metres,

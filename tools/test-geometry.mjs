@@ -30,6 +30,23 @@ const NAMES = [
   "circleChordDeviation",
   "circlePolygonPoints",
   "rectanglePolygonPoints",
+  "GEOMETRY_EPSILON_AREA",
+  "GEOMETRY_CHECK_PAIR_BUDGET",
+  "turnDirection",
+  "segmentsProperlyIntersect",
+  "pointInRing",
+  "closestPointOnSegment",
+  "pointSegmentDistance",
+  "segmentDistance",
+  "sequenceBounds",
+  "boundsOverlap",
+  "edgeCount",
+  "edgeAt",
+  "spendPair",
+  "ringSelfIntersections",
+  "ringRelation",
+  "narrowGaps",
+  "pointIsMowable",
 ];
 
 const source = extractDeclarations(readInlineScript(), NAMES);
@@ -336,6 +353,187 @@ check("Drehung erhaelt die Hoehe",
 
 check("Breite 0 ergibt nichts",
   app.rectanglePolygonPoints([0, 0], 0, 2, 0).length === 0);
+
+/* -------------------------------------------------------------------- */
+console.log("Streckenschnitt und Punktlage");
+
+/* Echtes Kreuz. */
+check("kreuzende Strecken werden erkannt",
+  app.segmentsProperlyIntersect([0, 0], [10, 0], [5, -5], [5, 5]));
+
+/* Beruehrung in einem Punkt ist bewusst KEINE Kreuzung. */
+check("Beruehrung zaehlt nicht",
+  !app.segmentsProperlyIntersect([0, 0], [10, 0], [5, 0], [5, 5]));
+
+/* Gemeinsamer Endpunkt - der Normalfall benachbarter Kanten. */
+check("gemeinsamer Endpunkt zaehlt nicht",
+  !app.segmentsProperlyIntersect([0, 0], [10, 0], [10, 0], [10, 10]));
+
+/* Kollineare Ueberlappung ebenfalls nicht. */
+check("kollineare Ueberlappung zaehlt nicht",
+  !app.segmentsProperlyIntersect([0, 0], [10, 0], [5, 0], [15, 0]));
+
+check("getrennte Strecken schneiden sich nicht",
+  !app.segmentsProperlyIntersect([0, 0], [1, 0], [5, 5], [6, 6]));
+
+const square = [[0, 0], [10, 0], [10, 10], [0, 10]];
+
+check("Punkt innen liegt innen", app.pointInRing([5, 5], square));
+check("Punkt aussen liegt aussen", !app.pointInRing([15, 5], square));
+check("Punkt jenseits der Ecke liegt aussen", !app.pointInRing([-1, -1], square));
+
+/* Konkave Form: die Bucht gehoert NICHT zur Flaeche. */
+const uShape = [[0, 0], [10, 0], [10, 10], [7, 10], [7, 3], [3, 3], [3, 10], [0, 10]];
+
+check("Punkt in der Bucht liegt aussen", !app.pointInRing([5, 7], uShape));
+check("Punkt im Schenkel liegt innen", app.pointInRing([1, 7], uShape));
+
+/* -------------------------------------------------------------------- */
+console.log("Abstand Punkt/Strecke und Strecke/Strecke");
+
+check("Fusspunkt innerhalb der Strecke",
+  near(app.pointSegmentDistance([5, 3], [0, 0], [10, 0]), 3));
+
+/*
+ * Der Unterschied zur Geraden: hinter dem Endpunkt zaehlt der Abstand zum
+ * Endpunkt, nicht der senkrechte Abstand zur verlaengerten Geraden.
+ */
+check("hinter dem Endpunkt zaehlt der Endpunkt",
+  near(app.pointSegmentDistance([14, 3], [0, 0], [10, 0]), 5));
+check("die Gerade wuerde hier 3 liefern",
+  near(app.perpendicularDistance([14, 3], [0, 0], [10, 0]), 3));
+
+const parallel = app.segmentDistance([0, 0], [10, 0], [0, 2], [10, 2]);
+check("parallele Strecken haben den Achsabstand", near(parallel.distance, 2));
+check("die Mitte liegt dazwischen", near(parallel.midpoint[1], 1));
+
+const apart = app.segmentDistance([0, 0], [1, 0], [4, 0], [5, 0]);
+check("hintereinander liegende Strecken", near(apart.distance, 3));
+
+/* Ueber Eck: das Minimum liegt an einem Endpunkt, nicht im Inneren. */
+const cornerGap = app.segmentDistance([0, 0], [10, 0], [12, 1], [12, 9]);
+check("ueber Eck zaehlt der naechste Endpunkt",
+  near(cornerGap.distance, Math.hypot(2, 1)), String(cornerGap.distance));
+
+/* -------------------------------------------------------------------- */
+console.log("Selbstueberschneidung");
+
+check("das Quadrat ueberschneidet sich nicht",
+  app.ringSelfIntersections(square, true).found.length === 0);
+
+/* Schleife: die klassische Sanduhr. */
+const bowtie = [[0, 0], [10, 10], [10, 0], [0, 10]];
+const knots = app.ringSelfIntersections(bowtie, true);
+
+check("die Sanduhr wird erkannt", knots.found.length === 1,
+  JSON.stringify(knots.found));
+check("die Pruefung lief zu Ende", knots.complete);
+
+/* Offene Linie mit Schleife. */
+const looped = [[0, 0], [10, 0], [10, 5], [5, 5], [5, -5]];
+check("Schleife im offenen Linienzug",
+  app.ringSelfIntersections(looped, false).found.length === 1);
+
+/* Benachbarte Kanten duerfen nie melden - auch nicht erste gegen letzte. */
+const nearlyClosed = [[0, 0], [10, 0], [10, 10], [0.001, 0.001]];
+check("benachbarte Kanten melden nicht",
+  app.ringSelfIntersections(nearlyClosed, true).found.length === 0);
+
+/* Aufgebrauchtes Budget wird gemeldet, nicht verschwiegen. */
+const exhausted = app.ringSelfIntersections(bowtie, true, {left: 0});
+check("leeres Budget meldet unvollstaendig", exhausted.complete === false);
+
+/* -------------------------------------------------------------------- */
+console.log("Lage zweier Ringe");
+
+const outer = [[0, 0], [100, 0], [100, 100], [0, 100]];
+const inner = [[10, 10], [20, 10], [20, 20], [10, 20]];
+const away = [[200, 200], [210, 200], [210, 210], [200, 210]];
+const straddling = [[90, 10], [110, 10], [110, 20], [90, 20]];
+
+check("innen wird als innen erkannt",
+  app.ringRelation(inner, outer).relation === "inside");
+check("aussen wird als aussen erkannt",
+  app.ringRelation(away, outer).relation === "disjoint");
+check("umgekehrte Richtung ergibt contains",
+  app.ringRelation(outer, inner).relation === "contains");
+check("ueberlappend ergibt crossing",
+  app.ringRelation(straddling, outer).relation === "crossing");
+
+const budgetOut = app.ringRelation(straddling, outer, {left: 0});
+check("leeres Budget liefert unknown", budgetOut.relation === "unknown");
+check("und meldet sich als unvollstaendig", budgetOut.complete === false);
+
+/* -------------------------------------------------------------------- */
+console.log("Enge Stellen");
+
+/*
+ * Zwei Quadrate mit 20 cm Abstand. Bei einer Maeherbreite von 35 cm ist das
+ * eine enge Stelle, bei 15 cm nicht.
+ */
+const left = [[0, 0], [10, 0], [10, 10], [0, 10]];
+const right = [[10.2, 0], [20, 0], [20, 10], [10.2, 10]];
+
+const tight = app.narrowGaps(
+  {points: left, closed: true},
+  {points: right, closed: true},
+  0.35
+);
+
+check("die enge Stelle wird gefunden", tight.found.length > 0,
+  String(tight.found.length));
+check("der Abstand stimmt",
+  tight.found.every((gap) => near(gap.distance, 0.2)),
+  JSON.stringify(tight.found.map((gap) => gap.distance)));
+check("die Mitte liegt im Spalt",
+  tight.found.every((gap) => gap.midpoint[0] > 10 && gap.midpoint[0] < 10.2));
+
+const loose = app.narrowGaps(
+  {points: left, closed: true},
+  {points: right, closed: true},
+  0.15
+);
+
+check("unter der Schwelle wird nichts gemeldet", loose.found.length === 0);
+
+/* Ecken derselben Form duerfen sich nicht selbst melden. */
+const selfGaps = app.narrowGaps(
+  {points: left, closed: true},
+  {points: left, closed: true},
+  0.35,
+  {sameSequence: true}
+);
+
+check("das Quadrat meldet sich nicht selbst", selfGaps.found.length === 0,
+  JSON.stringify(selfGaps.found));
+
+/* Eine echte schmale Bucht in derselben Form dagegen schon. */
+const narrowBay = [
+  [0, 0], [20, 0], [20, 20], [0, 20],
+  [0, 12], [15, 12], [15, 11.8], [0, 11.8]
+];
+
+const bay = app.narrowGaps(
+  {points: narrowBay, closed: true},
+  {points: narrowBay, closed: true},
+  0.35,
+  {sameSequence: true}
+);
+
+check("die schmale Bucht wird gefunden", bay.found.length > 0,
+  String(bay.found.length));
+
+/* -------------------------------------------------------------------- */
+console.log("Maehbarer Bereich");
+
+check("Punkt im Perimeter ist maehbar",
+  app.pointIsMowable([50, 50], [outer], [inner]));
+check("Punkt in der Exclusion ist nicht maehbar",
+  !app.pointIsMowable([15, 15], [outer], [inner]));
+check("Punkt ausserhalb des Perimeters ist nicht maehbar",
+  !app.pointIsMowable([205, 205], [outer], [inner]));
+check("ohne Perimeter ist nichts maehbar",
+  !app.pointIsMowable([50, 50], [], []));
 
 /* -------------------------------------------------------------------- */
 console.log(

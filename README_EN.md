@@ -88,6 +88,26 @@ selected vertices, provided the resulting polygon remains valid.
 - `Enter` finishes drawing
 - `Esc` cancels drawing
 
+### Extended geometry validation
+
+Map validation additionally reports:
+
+- exclusions outside the perimeter or extending beyond its boundary
+- exclusions overlapping each other or nested inside each other
+- rings and lines that intersect themselves
+- corridors narrower than the mower
+
+All four are warnings, not errors - nothing is blocked or changed. Every
+message names the feature and the segment.
+
+The docking path is exempt from the perimeter check because in many setups it
+deliberately leads to a charging station outside.
+
+The corridor check measures against the configured working width. Turning
+circle, RTK tolerance and tracking error are not included: **no finding does
+not mean a corridor is passable.** With an unknown scale the check is skipped
+and says so explicitly.
+
 ### Circle and rectangle exclusions
 
 - circle: enter radius in metres and vertex count, then click the centre

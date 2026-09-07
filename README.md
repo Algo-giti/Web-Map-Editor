@@ -102,6 +102,26 @@ ausgewählten Punkte gelöscht, sofern die Polygongeometrie gültig bleibt.
 - `Enter` beendet die Zeichnung
 - `Esc` bricht ab
 
+### Erweiterte Geometrieprüfung
+
+Die Kartenprüfung meldet zusätzlich:
+
+- Exclusions, die außerhalb des Perimeters liegen oder über seinen Rand ragen
+- Exclusions, die sich gegenseitig überlappen oder ineinander liegen
+- Ringe und Linien, die sich selbst überschneiden
+- Korridore, die schmaler als der Mäher sind
+
+Alle vier sind Warnungen, keine Fehler – nichts wird blockiert oder geändert.
+Jede Meldung nennt Feature und Segment.
+
+Der Docking-Pfad ist von der Perimeterprüfung ausgenommen, weil er in vielen
+Aufbauten bewusst zur Ladestation außerhalb führt.
+
+Die Korridorprüfung misst gegen die eingestellte Arbeitsbreite. Wendekreis,
+RTK-Toleranz und Spurabweichung sind nicht berücksichtigt: **kein Befund
+bedeutet nicht, dass ein Korridor befahrbar ist.** Bei unbekanntem Maßstab
+wird sie übersprungen und meldet das ausdrücklich.
+
 ### Kreis- und Rechteck-Exclusions
 
 - Kreis: Radius in Metern und Eckpunktanzahl eingeben, Mittelpunkt anklicken
@@ -362,6 +382,26 @@ selected vertices, provided the resulting polygon remains valid.
 - `Backspace` removes the most recently added point
 - `Enter` finishes drawing
 - `Esc` cancels drawing
+
+### Extended geometry validation
+
+Map validation additionally reports:
+
+- exclusions outside the perimeter or extending beyond its boundary
+- exclusions overlapping each other or nested inside each other
+- rings and lines that intersect themselves
+- corridors narrower than the mower
+
+All four are warnings, not errors - nothing is blocked or changed. Every
+message names the feature and the segment.
+
+The docking path is exempt from the perimeter check because in many setups it
+deliberately leads to a charging station outside.
+
+The corridor check measures against the configured working width. Turning
+circle, RTK tolerance and tracking error are not included: **no finding does
+not mean a corridor is passable.** With an unknown scale the check is skipped
+and says so explicitly.
 
 ### Circle and rectangle exclusions
 

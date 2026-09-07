@@ -134,7 +134,7 @@ Sie zerfallen in **zwei Stufen**, und diese Trennung ist beabsichtigt:
 | Stufe | Skripte | Abhängigkeiten | Status |
 |---|---|---|---|
 | statisch | `check-all.mjs` (4.1) | keine | **Pflicht** vor jeder Rückmeldung "fertig" |
-| Browser | `smoke-test.mjs`, `test-origin-conflict.mjs` (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
+| Browser | neun Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
 
 `check-all.mjs` läuft mit Node-Bordmitteln und muss das bleiben – es ist die
 Stufe, die in **jeder** Umgebung ohne Vorbereitung durchläuft. Die
@@ -196,9 +196,24 @@ Zwei Fallstricke dabei:
 
 ### 4.2 Browsertests (optional, real gerendert)
 
-Zwei Skripte öffnen `index.html` in einem echten Browser über eine
+Neun Skripte öffnen `index.html` in einem echten Browser über eine
 `file://`-URL – die Datei hat keine externen Ressourcen und keine
 `fetch()`-Aufrufe, ein Webserver ist also nicht nötig.
+
+| Skript | Gegenstand |
+|---|---|
+| `smoke-test.mjs` | Grundcheck: Start, Sprachumschalter, WGS84-Import |
+| `test-origin-conflict.mjs` | widersprüchliche RTK-Bezugspunkte (Abschnitt 5b) |
+| `test-straighten.mjs` | Linie begradigen |
+| `test-dockpath.mjs` | Docking-Pfad mit freier Punktzahl |
+| `test-reduce.mjs` | Punkte reduzieren, beide Betriebsarten |
+| `test-scale.mjs` | Maßstabserkennung, Sperren, Rundlauf |
+| `test-merge.mjs` | Verbinden, Singletons, Slot-Trennung |
+| `test-shapes.mjs` | Kreis- und Rechteck-Exclusions |
+| `test-validation.mjs` | erweiterte Geometrieprüfung |
+
+Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
+Werkzeug hängen:
 
 **`tools/smoke-test.mjs`** – der breite Grundcheck: Titel, Sichtbarkeit von
 `#svg`, Initial-Text von `#filename` ("Keine Karte geladen"), dass der
@@ -217,11 +232,11 @@ wieder exakt trifft. Diese Kette lässt sich ohne echtes DOM nicht sinnvoll
 nachbilden, deshalb Browser statt Unit-Test.
 
 **`tools/browser-harness.mjs`** ist kein Test, sondern der gemeinsame
-Unterbau beider: es findet `playwright-core` und einen startbaren Browser.
+Unterbau aller: es findet `playwright-core` und einen startbaren Browser.
 Neue Browsertests binden diese Datei ein, statt die Suche zu duplizieren.
 
-Zusammen sind die beiden der automatisierte Ersatz für den in `AGENTS.md`
-geforderten "Browser-Laufzeittest" bei strukturellen UI-Änderungen.
+Zusammen sind sie der automatisierte Ersatz für den in `AGENTS.md` geforderten
+"Browser-Laufzeittest" bei strukturellen UI-Änderungen.
 
 #### Einrichtung
 
@@ -383,6 +398,63 @@ editierbar.
   Form anschließend aus dem gerasteten Punkt berechnet wird.
 - Winkelkonvention wie beim Messen: 0° = East, gegen den Uhrzeigersinn.
 - Der Klickpunkt des Rechtecks ist wahlweise Mittelpunkt oder Ecke.
+
+**Erweiterte Geometrieprüfung:** Vier Befunde in `collectGeometryFindings()`,
+alle **Warnungen, keine Fehler** – jeder der Fälle kann gewollt sein, und der
+Editor weiß zu wenig über die Absicht des Nutzers, um eine Karte deswegen
+abzulehnen. Die Rechenarbeit liegt in reinen Funktionen des Geometrieblocks.
+
+- **Exclusion außerhalb des Perimeters.** Unterschieden werden vollständig
+  außerhalb, über den Rand ragend und den Perimeter umschließend. Bei mehreren
+  Perimetern genügt „innerhalb mindestens eines". Ausgewertet wird nur der
+  äußere Ring, wie überall sonst auch.
+
+  **Docking-Pfad und Search Wire sind ausgenommen.** Ein Docking-Pfad führt in
+  vielen Aufbauten bewusst über den Perimeterrand hinaus zur Ladestation; eine
+  Warnung, die auf normalen Karten immer erscheint, liest niemand mehr.
+- **Überlappende Exclusions.** Gemeldet wird nur, **dass** sie sich überlappen,
+  nicht um wie viel. Die Überlappungsfläche zu berechnen bräuchte echtes
+  Polygon-Clipping – Sutherland-Hodgman greift nur bei konvexem Clip-Polygon,
+  Greiner-Hormann bricht an Berührpunkten. Nicht nachrüsten, ohne dass jemand
+  den Wert wirklich braucht.
+- **Selbstüberschneidung** geschlossener Ringe und offener Linien. Gemeldet
+  werden nur **echte Kreuzungen**: Berührungen in einem Punkt und kollineare
+  Überlappungen entstehen bei RTK-Daten fast immer durch Rundung.
+  `GEOMETRY_EPSILON_AREA` ist die Rauschgrenze des Kreuzprodukts.
+- **Enge Korridore**, siehe unten.
+
+Befunde werden **je Feature bzw. je Paar zusammengefasst** – ein verhedderter
+Ring erzeugte sonst dutzende Zeilen, in denen die echten Befunde untergehen.
+Jede Meldung nennt die Fundstelle als Feature und Segment.
+
+**Enge Korridore – Verfahren und Grenze:** `segmentDistance()` liefert den
+kleinsten Abstand zweier Strecken in geschlossener Form, **nicht abgetastet**.
+Für zwei sich nicht schneidende Strecken liegt das Minimum immer an einem der
+vier Endpunkte; läge es bei beiden im Inneren, wären sie parallel oder sie
+schnitten sich. Der geometrische Wert ist damit exakt – es gibt keine
+Abtastweite, an der etwas durchrutschen könnte.
+
+Gezählt wird eine enge Stelle nur, wenn die Mitte der kürzesten Verbindung im
+**mähbaren Bereich** liegt (`pointIsMowable()`: innerhalb eines Perimeters,
+außerhalb jeder Exclusion). Ohne diesen Filter meldete jede schmale
+Ausbuchtung innerhalb einer Exclusion einen Korridor, den der Mäher nie befährt.
+
+**Die Schwelle ist `mowerWidth` und damit eine untere Schranke.** Der Mäher
+braucht real mehr: Wendekreis, RTK-Toleranz, Spurabweichung. **Kein Befund
+bedeutet nicht, dass ein Korridor befahrbar ist** – das steht so auch im
+Prüfbericht, nicht nur hier. Bei unbekanntem Maßstab ist die Prüfung gesperrt
+und meldet sich als übersprungen; die übrigen drei sind rein topologisch und
+laufen bei jedem Maßstab.
+
+**Aufwandsgrenze:** `GEOMETRY_CHECK_PAIR_BUDGET` begrenzt die Kantenpaare pro
+Prüfung. Das Budget wird **vor** dem Hüllen-Vorfilter verbraucht, sonst
+begrenzte es nur die teuren Fälle, während die Schleife selbst unbegrenzt
+weiterläuft. Der Wert ist gemessen: eine großzügige reale Karte (1000
+Perimeterpunkte, 20 Exclusions à 60 Punkte) läuft vollständig durch, nach oben
+ist der Aufwand auf rund 70 ms begrenzt. Das zählt, weil „Punkte reduzieren"
+die Kartenprüfung je Anwendung zweimal über eine Vorschaukopie laufen lässt.
+Ein Abbruch wird ausdrücklich gemeldet – ein unvollständiges Ergebnis darf
+nicht wie ein sauberes aussehen.
 
 **Verbinden und Singletons:** Docking-Pfad und Search Wire gibt es pro Karte
 nur einmal. Beim Verbinden werden aus Karte B **nur** Exclusions und Features
@@ -878,6 +950,17 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   bleibt dadurch unentdeckt – genau so hatte `deleteSelectedExclusion()` den
   in Ausgabe 043 entfernten Button um mehrere Ausgaben überlebt. Die manuelle
   Volltextsuche aus Abschnitt 5 ("UI-Element entfernen") bleibt deshalb Pflicht.
+- **Ein bereits gerenderter Prüfbericht wird beim Sprachwechsel nicht
+  nachübersetzt.** `applyI18nSnapshot()` kennt nur die Textknoten vom
+  Seitenaufbau; die Zeilen des Berichts entstehen erst beim Prüfen und werden
+  nur über den MutationObserver übersetzt – also nur, wenn sie in der bereits
+  aktiven Sprache erzeugt werden. Wer auf Deutsch prüft und danach umschaltet,
+  behält den deutschen Bericht. Das betrifft **alle** Meldungen der
+  Kartenprüfung gleichermaßen, ist älter als die erweiterte Geometrieprüfung
+  und wurde beim Bau von deren Browsertest gefunden. Eine Reparatur wäre klein
+  (den letzten Bericht nach `startI18nObserver()` neu rendern), gehört aber in
+  denselben Durchgang wie die beiden unübersetzten Historien-Titel, damit die
+  i18n-Wege nur einmal angefasst werden.
 - **Die dynamischen Titel von `undoBtn` und `redoBtn` sind unübersetzt.**
   `undoButton.title` (`Rückgängig: <Marke>`) und `redoButton.title`
   (`Wiederholen: <Marke>`) werden in `updateHistoryButtons()` zur Laufzeit

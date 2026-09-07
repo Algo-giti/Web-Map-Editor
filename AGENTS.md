@@ -308,6 +308,32 @@ same `idx` assignment, no extra properties. Do not introduce a special format.
 Snap to grid applies to the reference point, not to the generated vertices.
 Angles follow the editor convention: 0 degrees = East, counter-clockwise.
 
+## Extended geometry validation
+
+Four findings, all **warnings and never errors**: an exclusion outside the
+perimeter, overlapping exclusions, a self-intersecting ring or line, and
+corridors narrower than the mower. Each case can be intentional, so the editor
+reports them and leaves the decision to the user.
+
+The docking path and the Search Wire are exempt from the perimeter check - a
+docking path deliberately leads past the perimeter to the charging station in
+many setups.
+
+Overlaps are reported as a fact, not quantified; computing the overlap area
+would require real polygon clipping. Only proper crossings count as
+self-intersections; touchings and collinear overlaps are rounding artefacts in
+RTK data.
+
+The narrow-corridor check measures the exact closed-form distance between two
+segments and keeps a finding only when the midpoint of the shortest connection
+lies in the mowable area. Its threshold is the mower width and therefore a
+lower bound: turning circle, RTK tolerance and tracking error are not included,
+so no finding does not mean a corridor is passable. The check is skipped and
+reported as skipped when the scale is unknown.
+
+A pair budget bounds the quadratic cost; an abort is always reported so an
+incomplete result cannot look like a clean one.
+
 ## Merging and singletons
 
 Docking path and Search Wire exist at most once per map. When merging, only
