@@ -647,6 +647,28 @@ kommt, und wer sie verpasst, kann sie nicht wiederholen. Der Auswahlzähler und
 die Cursor-Koordinaten beschreiben, was gerade passiert; sie sind ohne die
 Zeile gar nicht zu haben. Deshalb weicht immer das Nachschlagbare zuerst.
 
+**Der Umbau ist ein Ordnungsgewinn, kein Flächengewinn.** Dieser Satz steht
+hier, damit ihn niemand noch einmal nachrechnet und das Ergebnis für einen
+Fehler des Umbaus hält. Gemessen, nicht geschätzt:
+
+| Fenster | vor dem Umbau | Etappe 3b, Leiste offen | Etappe 3b, Leiste zu |
+|---|---|---|---|
+| 1920 × 1080 | 1 485 120 px² | 1 347 456 px² (−9,3 %) | 1 455 872 px² (−2,0 %) |
+| 1440 × 900 | 833 760 px² | 718 656 px² (−13,8 %) | 806 912 px² (−3,2 %) |
+| 1280 × 800 | 618 240 px² | 517 376 px² (−16,3 %) | 594 432 px² (−3,9 %) |
+
+Die Kartenfläche kostet: 64 px Höhe für Legende und Statuszeile, 168 px Breite
+für die ausgeklappte Werkzeugleiste. Zurückgeholt wurden 16 px Höhe (Kopfzeile
+von 64 auf 48) und 112 px Breite (Leiste einklappbar). Was der Umbau
+tatsächlich gewinnt, ist **Überdeckung**: die schwebenden Fenster auf der Karte
+sind von 25 950 px² auf 21 870 px² geschrumpft, und was übrig ist, verschwindet
+mit Etappe 5 weitgehend.
+
+Nach Etappe 6 kommen noch 40 px Breite dazu, wenn der 360 px breite
+Seitenleistenbereich dem 320 px breiten Inspektor weicht. Mit eingeklappter
+Leiste liegt die Fläche dann bei 1920 × 1080 knapp über dem Ausgangswert. **Wer
+mehr erwartet, erwartet das Falsche vom Umbau.**
+
 **Werkzeugleiste:** Senkrecht links neben der Karte, Icon **und** Text. Drei
 Gruppen, und die Trennung trägt die nützlichste Information, die eine
 Werkzeugleiste überhaupt transportieren kann: **was die Karte verändert und was
@@ -703,14 +725,27 @@ Leiste, „Zeichnung abschließen" und „Abbrechen" liegen aber noch dort – u
 Abschnitt ist eingeklappt. Der Behelf entfällt mit Etappe 5, wenn diese Knöpfe
 in den Inspektor ziehen.
 
-**Flächenbilanz (gemessen, 1920 × 1080, Sidebar 360 px):** vor dem Umbau
-1560 × 952 = 1,49 Mio px², nach Etappe 3 1392 × 952 = 1,33 Mio px², also
-**−10,8 %**. Bei 1440 × 900 sind es −15,6 %, bei 1280 × 800 −18,3 %. Der Umbau
-kostet Kartenfläche: 64 px Höhe für Legende und Statuszeile, 168 px Breite für
-die Leiste. Zurückgewonnen wird bis Etappe 6 nur der Unterschied zwischen
-Seitenleiste (360 px) und Inspektor (320 px). **Wer die Fläche wirklich
-vergrößern will, muss die Leiste einklappbar machen und die Kopfzeile kürzen** –
-beides ist bisher nicht beschlossen.
+**Einklappen:** Der Umschalter oben in der Leiste schaltet zwischen 168 und
+56 px; der Wunsch steht in `localStorage` unter
+`webMapEditor.toolRailCollapsed`. **Denselben Zustand erzwingt ein Fenster
+unter 1000 px**, und beide Wege laufen über dieselbe Klasse `.is-collapsed` –
+es gibt deshalb nur eine Beschreibung des eingeklappten Aussehens und nicht
+zwei, die auseinanderlaufen. Gesetzt wird sie in `applyToolRailState()`, nicht
+per Medienregel.
+
+Bei erzwungener Enge ist der Umschalter **gesperrt statt wirkungslos**, mit dem
+Grund im Tooltip: ein Knopf, der sich drücken lässt und nichts tut, ist
+schlimmer als einer, der sagt, warum er gerade nicht geht.
+
+**Die Tooltips bleiben in jedem Zustand.** Verschwinden darf der Platz der
+Erklärung, nicht die Erklärung.
+
+**Zoom und Einpassen liegen bewusst in einer eigenen Leiste** an der Karte, nicht
+zusammen mit Begradigen/Löschen/Auswahl-aufheben: die eine Gruppe ändert die
+Karte, die andere nur den Bildausschnitt – dieselbe Trennung, die in der
+Werkzeugleiste die Gruppen bildet. Dazu verschwindet die Auswahlleiste mit
+Etappe 5 ganz von der Karte; eine Zusammenlegung wäre dann wieder
+aufzutrennen. Sie trägt stattdessen nur noch Symbole.
 
 **Legende:** Eine Reihe über die volle Breite, direkt über der Statuszeile,
 **immer offen und kein `<details>`**. Vorher lag sie eingeklappt über der Karte

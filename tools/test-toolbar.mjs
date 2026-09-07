@@ -177,12 +177,55 @@ try {
   check("eng: die Leiste ist schmal", eng.breite === 56, JSON.stringify(eng));
 
   /* Die Erklärung darf dabei nicht verschwinden, nur ihr Platz. */
-  check("die Symbole behalten ihren Tooltip",
-    (await page.locator("#drawCircleBtn").getAttribute("title")).includes("Mittelpunkt"),
-    await page.locator("#drawCircleBtn").getAttribute("title"));
+  for (const id of ["drawCircleBtn", "measureBtn", "validateMapBtn"]) {
+    const title = await page.locator(`#${id}`).getAttribute("title");
+    check(`#${id} behält eingeklappt seinen Tooltip`,
+      !!title && title.length > 20, `${id}: ${title}`);
+  }
+
+  check("bei erzwungener Enge ist der Umschalter gesperrt",
+    await page.locator("#toolRailToggle").isDisabled());
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.waitForTimeout(250);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Einklappen von Hand");
+
+  check("breit ist der Umschalter freigegeben",
+    await page.locator("#toolRailToggle").isEnabled());
+
+  const railWidth = () =>
+    page.evaluate(() =>
+      Math.round(document.getElementById("toolRail").getBoundingClientRect().width));
+
+  check("ausgeklappt 168 px", (await railWidth()) === 168, String(await railWidth()));
+
+  await page.locator("#toolRailToggle").click();
+  await page.waitForTimeout(250);
+
+  check("eingeklappt 56 px", (await railWidth()) === 56, String(await railWidth()));
+  check("die Werkzeuge sind weiterhin da",
+    (await page.locator("#toolRail .tool-button").count()) === 10,
+    String(await page.locator("#toolRail .tool-button").count()));
+  check("und behalten ihren Tooltip",
+    (await page.locator("#drawCircleBtn").getAttribute("title")).includes("Mittelpunkt"));
+
+  /* Der Zustand muss den Neuaufbau der Seite überleben. */
+  await page.reload({ waitUntil: "load" });
+  await page.waitForTimeout(300);
+
+  check("der Zustand wird gemerkt", (await railWidth()) === 56, String(await railWidth()));
+
+  await page.locator("#toolRailToggle").click();
+  await page.waitForTimeout(250);
+
+  check("wieder ausklappen geht", (await railWidth()) === 168, String(await railWidth()));
+
+  await page.reload({ waitUntil: "load" });
+  await page.waitForTimeout(300);
+
+  check("und wird ebenfalls gemerkt", (await railWidth()) === 168, String(await railWidth()));
 
   /* ---------------------------------------------------------------- */
   console.log("Übersetzung");
