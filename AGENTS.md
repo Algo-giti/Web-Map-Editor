@@ -140,6 +140,29 @@ non-editable. Keep that distinction in `featureTypeState()` alone.
 A validation error does not hard-block the export - `exportGeoJson()` only
 asks for confirmation.
 
+### Coordinate scale
+
+The editor decides how to read a file's numbers from their **extent**, not
+their magnitude: a WGS84 mower map is necessarily tiny in extent (200 m =
+0.0018 degrees) while a metric map is necessarily large. Magnitude then only
+separates absolute from relative.
+
+`classifyCoordinateScale()` is the single place this is decided. Do not add
+further heuristics elsewhere.
+
+A `coordinateScale` field (`{metersPerUnit: …}`) on the FeatureCollection
+overrides the heuristic. Like `referenceOrigin` it is a non-standard extension
+that CaSSAndRA's import ignores; it is written only when the scale is known.
+
+When the scale is unknown, snapping to grid and absolute export are locked and
+neither `referenceOrigin` nor `coordinateScale` is written. **Never write an
+assertion the file does not honour.** Lengths then carry "units" instead of
+"m", and validation says which checks it could not perform - a skipped check
+is not a passed check.
+
+The mode "metric-assumed" is named that way on purpose: a large extent proves
+only that the numbers are not degrees, not that they are metres.
+
 ### Coordinate reference
 
 CaSSAndRA and the Sunray firmware place maps relative to the RTK base:

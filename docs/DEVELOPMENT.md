@@ -127,6 +127,18 @@ Because a converted map is computed against the reference point that was
 active when it was imported, changing that point re-bases such maps. The
 displayed East/North values then run against a new origin.
 
+### Coordinate scale
+
+How a file's numbers are read is decided from their extent, not their
+magnitude - a WGS84 mower map is tiny in extent, a metric map is not.
+`classifyCoordinateScale()` is the only place this is decided, and it yields
+one of `sunray-relative`, `absolute`, `metric-assumed` or `ambiguous`.
+
+A `coordinateScale` field on the FeatureCollection overrides the heuristic and
+is written back on export when the scale is known. In the ambiguous case
+nothing is converted, snapping and absolute export are locked, no assertion is
+written into the file, and lengths carry no unit.
+
 ### Conflicting reference points
 
 Two loaded maps can declare different RTK bases. In that case the editor keeps

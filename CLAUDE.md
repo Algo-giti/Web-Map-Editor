@@ -430,13 +430,34 @@ zwei ausgewählten Punkten oder auf einem ganzen Feature. Die Auswahl kommt aus
   Linie), wird **nicht angewendet**, sondern abgelehnt. Bei 3 Punkten
   anzuhalten wäre eine stille Korrektur der eingegebenen Toleranz.
 
-**Achtung, vorbestehende Eigenheit:** Toleranz, Rasterweite und Begradigen
-rechnen in Weltkoordinaten. Die sind nur dann Meter, wenn `detectSunray()` die
-Karte als RTK-Relativformat erkannt hat (Zentimeter-Vielfache). Bei einer als
-`raw` eingestuften Karte sind Weltkoordinaten die Rohwerte, und eine „Toleranz
-in Metern" bedeutet dort etwas anderes. Das betrifft alle drei Werkzeuge
-gleichermaßen und ist nicht neu – beim Schreiben synthetischer Testkarten
-deshalb immer auf Zentimeter runden.
+**Maßstab und Metermaße:** Toleranz, Rasterweite, Begradigen, Messen und die
+Mäher-Vorschau rechnen in Weltkoordinaten. Die sind nur dann Meter, wenn der
+Maßstab bekannt ist – `hasKnownScale()` beantwortet das. Bei `"ambiguous"`
+gelten folgende Regeln:
+
+- **Gesperrt**, weil keine Umrechnung sie rettet: Rasterfang
+  (`snapWorldCoordinate()` bleibt untätig, der Schalter ist deaktiviert),
+  absolutes Speichern, und das Schreiben von `referenceOrigin` bzw.
+  `coordinateScale` in die Datei. **Eine Zusicherung, die die Datei nicht
+  einlöst, wird nicht geschrieben.**
+- **Nur gekennzeichnet**, weil dort höchstens Fehlalarme entstehen:
+  Reduzieren-Toleranz, Begradigen-Schwellwert, Mäher-Vorschau. Längenangaben
+  tragen dann „Einheiten" statt „m" (`scaleUnitLabel()`).
+- Ein dauerhaft sichtbarer Hinweis liegt **im Kartenbereich**, nicht in einem
+  einklappbaren Seitenleistenabschnitt – dort war er beim Koordinatenbezug
+  schon einmal übersehen worden. Er nennt beide Lesarten mit ihrer konkreten
+  Größe, damit sofort erkennbar ist, welche stimmt.
+
+**In der Kartenprüfung gilt: eine übersprungene Prüfung ist nicht bestanden.**
+Bei unbekanntem Maßstab meldet die Flächenangabe „konnte nicht berechnet
+werden" statt einer Zahl, und die Segmentprüfung sagt, dass nur ihr relativer
+Anteil (75 % der Kartendiagonale) angewendet wurde – die absolute Untergrenze
+von 50 m setzt Meter voraus und lief vorher still ins Leere.
+
+Eine vollständige Durchsicht von `validateMapData()` hat genau diese beiden
+maßstabsabhängigen Stellen ergeben. Alle übrigen Prüfungen sind strukturell
+(Geometrietyp, Ringschluss, Punktzahlen, Duplikate, `idx`) oder vergleichen
+nur gegen null (`Fläche ist 0 oder ungültig`) und gelten bei jedem Maßstab.
 
 ---
 
@@ -544,6 +565,13 @@ lon = east  / (111111·cos(lat0)) + lon0
   Editier-Logik arbeiten in lokalen Metern; ein Umstieg auf Grad hätte all das
   gebrochen und der Vorgabe "Rohkoordinaten beim Export erhalten"
   widersprochen.
+- **Der Maßstab steht optional in der Datei.** `coordinateScale`
+  (`{metersPerUnit: 111111 | 1}`) ist ein Nicht-Standard-Feld auf der
+  FeatureCollection, gleiche Machart wie `referenceOrigin`. **Ein Wert in der
+  Datei schlägt jede Heuristik**, damit der Editor seine eigene Ausgabe immer
+  wiedererkennt. Gelesen über `readEmbeddedScale()`, geprüft über
+  `parseScale()` (endlich, > 0) analog zu `parseOrigin()`. Geschrieben wird das
+  Feld nur bei bekanntem Maßstab.
 - **Der Bezugspunkt musste neu eingeführt werden** – im Projekt gab es vorher
   keinerlei WGS84-Bezug, der Ursprung war hart E=0/N=0. Er wird in der
   Sidebar unter "Koordinatenbezug" gepflegt, in `localStorage`
@@ -556,9 +584,52 @@ lon = east  / (111111·cos(lat0)) + lon0
   bisherigen `scaleFactor`-Verhalten. Die vorliegende Beispielkarte ist genau
   so entstanden (CaSSAndRA-Export mit unkonfigurierter Basis) – deshalb sah
   sie bisher wie ein reines "Sunray-Relativformat" aus.
-- **Erkennung:** `isAbsoluteWgs84Collection()` wertet Koordinaten mit einem
-  Betrag > 0,05° als absolut. Relative Karten liegen dicht um den Nullpunkt,
-  absolute praktisch nie (0/0 läge im Golf von Guinea).
+- **Erkennung:** `classifyCoordinateScale()` entscheidet in einem Durchgang
+  zwischen vier Lesarten. **Maßgeblich ist die Ausdehnung, nicht der Betrag:**
+  eine WGS84-Mähkarte ist zwangsläufig winzig ausgedehnt (200 m = 0,0018°),
+  eine Meterkarte zwangsläufig groß. Der Betrag trennt danach nur noch absolut
+  von relativ – beide sind klein ausgedehnt und unterscheiden sich im Versatz.
+
+  ```
+  Ausdehnung ≥ 1                → "metric-assumed"  (keine Grad möglich)
+  0,14 ≤ Ausdehnung < 1         → "ambiguous"       (keine Lesart plausibel)
+  Ausdehnung < 0,14, Betrag > 0,05 → "absolute"
+  Ausdehnung < 0,14, Betrag ≤ 0,05 → "sunray-relative"
+  ```
+
+  Die untere Schwelle liegt bei **0,14 statt 0,05**, damit eine Relativkarte
+  von 5 km Ausdehnung (0,064) sicher erkannt bleibt; der Zweifelsfall beginnt
+  dadurch erst bei etwa 15 km Kartengröße.
+
+- **`"metric-assumed"` heißt bewusst „angenommen".** Eine Ausdehnung ≥ 1
+  beweist nur, dass die Zahlen keine Grad sind – nicht, dass es Meter sind. Es
+  könnten Fuß, Zentimeter oder ein lokales Gitter sein. Der Modus wird deshalb
+  überall als Annahme benannt, nie als Feststellung.
+
+- **Bewusst in Kauf genommene Blindstelle: Golf von Guinea.** Eine echte
+  WGS84-Karte nahe 0°/0° ist von einer Relativkarte **numerisch nicht
+  unterscheidbar** – beide haben kleine Beträge und kleine Ausdehnung. Sie wird
+  als relativ gelesen und dadurch mit 111111 multipliziert.
+
+  Das ist eine Entscheidung, keine Lücke. Vorher lag derselbe Fall im
+  `raw`-Modus und wurde gar nicht gerechnet, was nominell harmloser war. Der
+  Tausch wurde angenommen, weil der Punkt mitten im Atlantik liegt (nächste
+  Landmasse São Tomé) und die Erwartung „Relativkarte" um Größenordnungen
+  wahrscheinlicher ist als „Mähkarte im Golf von Guinea". Wer das ändern will,
+  muss dafür jede normale Relativkarte in den Zweifelsfall schicken – das wurde
+  geprüft und verworfen. Ein `coordinateScale` in der Datei löst den Fall
+  ohnehin.
+
+- **Der frühere Präzisionstest ist ersetzt.** `detectSunray()` prüfte, ob jeder
+  Wert nach Multiplikation mit 111111 ein Zentimeter-Vielfaches ergibt, und
+  erkannte ab 98 % Treffern. Das war ein Genauigkeitstest, der als Einheitentest
+  benutzt wurde: **zwei frei gesetzte Punkte auf einer 100-Punkte-Karte kippten
+  ihn** (Score 0,98), bei kleinen Karten genügte einer. Der Editor erkannte
+  damit seine eigene Ausgabe nicht wieder. Die Funktion ist ersatzlos entfallen.
+
+- **Der Modus wird beim Laden einmal bestimmt** und in `slot.scaleMode`
+  gespeichert, nicht bei jedem Aufruf neu abgeleitet. Bearbeiten kann ihn damit
+  strukturell nicht mehr kippen.
 - **Plausibilitätsprüfung:** `parseOrigin()` ist die einzige Stelle, an der
   ein Bezugspunkt aus Rohwerten entsteht – aus dem Eingabefeld, aus dem
   `localStorage` und aus dem Feld in der Datei. Sie verwirft alles, was nicht
@@ -790,7 +861,10 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 - Die CaSSAndRA-Anbindung ist gegen den Quellcode und eine reale Beispielkarte
   verifiziert, aber **nicht gegen eine echte CaSSAndRA-Instanz oder Firmware**
   getestet. Insbesondere ein Export mit gesetztem `lat0`/`lon0` wurde noch nie
-  von CaSSAndRA eingelesen.
+  von CaSSAndRA eingelesen. Dasselbe gilt für die beiden Nicht-Standard-Felder
+  `referenceOrigin` und `coordinateScale`: dass CaSSAndRAs Import sie ignoriert,
+  ist am Quelltext belegt (er greift ausschließlich auf `features` zu), aber
+  nicht gegen eine laufende Instanz geprüft.
 - **Ein relativer Export schreibt weiterhin den aktiven `referenceOrigin` in
   die Datei.** Das ist korrekt, solange kein Konflikt besteht – und ein
   Konflikt sperrt den Export inzwischen vollständig. Bleibt als Merkposten,

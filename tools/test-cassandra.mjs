@@ -25,7 +25,12 @@ const NAMES = [
   "isDockFeature",
   "isSearchWireFeature",
   "layerName",
-  "detectSunray",
+  "collectionExtent",
+  "classifyCoordinateScale",
+  "hasKnownScale",
+  "scaleUnitLabel",
+  "SCALE_METRIC_MIN_EXTENT",
+  "SCALE_RELATIVE_MAX_EXTENT",
   "scaleFactorForData",
   "toWorld",
   "polygonAreaMeters",
@@ -53,6 +58,9 @@ const NAMES = [
   "parseOrigin",
   "setReferenceOrigin",
   "readEmbeddedOrigin",
+  "parseScale",
+  "readEmbeddedScale",
+  "scaleModeForFactor",
   "prepareImportedCollection",
   "buildExportCollection"
 ];
@@ -65,6 +73,13 @@ const sandbox = {
   },
   data: null,
   scaleFactor: 111111,
+
+  /*
+   * validateMapData() entscheidet anhand des Modus, ob es Meterangaben machen
+   * darf. Der Modus ist eine globale Variable und wird deshalb - wie data und
+   * scaleFactor - als Parameter in den Sandkasten gereicht.
+   */
+  coordMode: "sunray-relative",
 };
 
 const source = extractDeclarations(readInlineScript(), NAMES);
@@ -72,10 +87,11 @@ const factory = new Function(
   "localStorage",
   "data",
   "scaleFactor",
-  `${source}\nreturn {${NAMES.join(",")}, setData:(value)=>{data=value;}, setScale:(value)=>{scaleFactor=value;}, getOrigin:()=>referenceOrigin};`
+  "coordMode",
+  `${source}\nreturn {${NAMES.join(",")}, setData:(value)=>{data=value;}, setScale:(value)=>{scaleFactor=value;}, setCoordMode:(value)=>{coordMode=value;}, getOrigin:()=>referenceOrigin};`
 );
 
-const app = factory(sandbox.localStorage, sandbox.data, sandbox.scaleFactor);
+const app = factory(sandbox.localStorage, sandbox.data, sandbox.scaleFactor, sandbox.coordMode);
 
 let failures = 0;
 
@@ -248,6 +264,195 @@ check("leeres label wird ignoriert",
   app.describeFeature(feature("perimeter", [], { properties: { name: "perimeter", label: "  " } })) === "Perimeter");
 
 /* -------------------------------------------------------------------- */
+console.log("Massstabserkennung");
+
+/*
+ * Entscheidend ist die AUSDEHNUNG, nicht der Betrag. Eine WGS84-Mähkarte ist
+ * zwangsläufig winzig ausgedehnt (200 m = 0,0018 Grad), eine Meterkarte
+ * zwangsläufig gross. Der Betrag trennt danach nur noch absolut von relativ.
+ */
+const DEG = 111111;
+
+function box(sizeMetres, divisor, offset = 0) {
+  const s = sizeMetres / divisor;
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: { name: "perimeter" },
+        geometry: {
+          type: "Polygon",
+          coordinates: [[
+            [offset, offset], [offset + s, offset],
+            [offset + s, offset + s], [offset, offset + s],
+            [offset, offset],
+          ]],
+        },
+      },
+    ],
+  };
+}
+
+const modeOf = (map) => app.classifyCoordinateScale(map).mode;
+
+check("Sunray relativ, 200 m", modeOf(box(200, DEG)) === "sunray-relative",
+  modeOf(box(200, DEG)));
+check("Sunray relativ, kleiner Garten 8 m",
+  modeOf(box(8, DEG)) === "sunray-relative");
+check("Sunray relativ, 5 km bleibt erkannt",
+  modeOf(box(5000, DEG)) === "sunray-relative", modeOf(box(5000, DEG)));
+
+check("absolutes WGS84 bei Berlin",
+  modeOf(box(200, DEG, 13.4)) === "absolute", modeOf(box(200, DEG, 13.4)));
+
+/*
+ * Der eigentliche Fix: eine Karte, deren Zahlen schlicht Meter sind, wurde
+ * früher als absolutes WGS84 gelesen und beim Import mit 111111 multipliziert.
+ */
+check("Meterkarte 200 m ist keine Gradkarte",
+  modeOf(box(200, 1)) === "metric-assumed", modeOf(box(200, 1)));
+check("Meterkarte 8 m ist keine Gradkarte",
+  modeOf(box(8, 1)) === "metric-assumed", modeOf(box(8, 1)));
+check("Meterkarte mit Versatz bleibt metrisch",
+  modeOf(box(200, 1, 1000)) === "metric-assumed", modeOf(box(200, 1, 1000)));
+
+/* Zweifelsfall: keine Lesart plausibel. */
+check("winziges Feld von 0,5 m ist ein Zweifelsfall",
+  modeOf(box(0.5, 1)) === "ambiguous", modeOf(box(0.5, 1)));
+check("Relativkarte von 15 km ist ein Zweifelsfall",
+  modeOf(box(15000, DEG)) === "ambiguous", modeOf(box(15000, DEG)));
+
+/*
+ * Die frühere Erkennung prüfte auf Zentimeter-Genauigkeit und kippte, sobald
+ * Punkte frei gesetzt wurden. Die Ausdehnung ändert sich dadurch nicht.
+ */
+const edited = box(200, DEG);
+edited.features[0].geometry.coordinates[0][1] = [200.001234 / DEG, 0.0007891 / DEG];
+edited.features[0].geometry.coordinates[0][2] = [200.004321 / DEG, 200.001111 / DEG];
+check("frei gesetzte Punkte kippen den Modus nicht",
+  modeOf(edited) === "sunray-relative", modeOf(edited));
+
+/* Der Faktor folgt dem Modus. */
+check("Faktor relativ", app.classifyCoordinateScale(box(200, DEG)).metersPerUnit === DEG);
+check("Faktor metrisch", app.classifyCoordinateScale(box(200, 1)).metersPerUnit === 1);
+check("Faktor Zweifelsfall", app.classifyCoordinateScale(box(0.5, 1)).metersPerUnit === 1);
+
+/* Beide Lesarten werden für die Meldung mitgeliefert. */
+const doubt = app.classifyCoordinateScale(box(0.5, 1));
+check("Zweifelsfall nennt die metrische Grösse",
+  near(doubt.metricSizeMeters, Math.hypot(0.5, 0.5), 1e-9), String(doubt.metricSizeMeters));
+check("Zweifelsfall nennt die relative Grösse",
+  near(doubt.relativeSizeMeters, Math.hypot(0.5, 0.5) * DEG, 1e-3),
+  String(doubt.relativeSizeMeters));
+
+/* Randfälle. */
+check("leere Karte", app.classifyCoordinateScale({ type: "FeatureCollection", features: [] }).empty === true);
+check("Schwellen sind geordnet",
+  app.SCALE_RELATIVE_MAX_EXTENT < app.SCALE_METRIC_MIN_EXTENT);
+
+/* isAbsoluteWgs84Collection folgt jetzt derselben Klassifikation. */
+check("Meterkarte gilt nicht mehr als absolut",
+  app.isAbsoluteWgs84Collection(box(200, 1)) === false);
+check("echte Gradkarte gilt weiterhin als absolut",
+  app.isAbsoluteWgs84Collection(box(200, DEG, 13.4)) === true);
+
+console.log("Massstab in der Datei");
+
+check("gueltiger Massstab", app.parseScale(111111)?.metersPerUnit === 111111);
+check("Massstab 1 ist gueltig", app.parseScale(1)?.metersPerUnit === 1);
+check("null wird abgelehnt", app.parseScale(0) === null);
+check("negativ wird abgelehnt", app.parseScale(-5) === null);
+check("keine Zahl wird abgelehnt", app.parseScale("abc") === null);
+check("fehlendes Feld", app.readEmbeddedScale({}) === null);
+check("Feld wird gelesen",
+  app.readEmbeddedScale({ coordinateScale: { metersPerUnit: 1 } })?.metersPerUnit === 1);
+
+check("Faktor 111111 ist relativ", app.scaleModeForFactor(111111) === "sunray-relative");
+check("Faktor 1 ist metrisch (angenommen)", app.scaleModeForFactor(1) === "metric-assumed");
+
+/*
+ * Der eigentliche Zweck: der Wert in der Datei schlaegt jede Heuristik. Eine
+ * Karte, die die Groessenordnungspruefung als metrisch einstufen wuerde, wird
+ * mit hinterlegtem Massstab als relativ gelesen.
+ */
+const declared = box(200, 1);
+declared.coordinateScale = { metersPerUnit: 111111 };
+check("Heuristik wuerde metrisch sagen",
+  app.classifyCoordinateScale(declared).mode === "metric-assumed");
+check("Datei-Massstab schlaegt Heuristik",
+  app.prepareImportedCollection(declared, {}).scaleMode === "sunray-relative",
+  app.prepareImportedCollection(declared, {}).scaleMode);
+
+/* -------------------------------------------------------------------- */
+console.log("Zusicherungen im Export");
+
+app.setData({
+  type: "FeatureCollection",
+  features: [feature("perimeter", [[0, 0], [0.00001, 0], [0.00001, 0.00001], [0, 0]])],
+});
+app.setReferenceOrigin({ lat: 52.5, lon: 13.4 });
+
+app.setCoordMode("sunray-relative");
+app.setScale(111111);
+const known = app.buildExportCollection(false, null);
+check("bei bekanntem Massstab wird der Bezugspunkt geschrieben",
+  known.referenceOrigin?.lat === 52.5);
+check("bei bekanntem Massstab wird der Massstab geschrieben",
+  known.coordinateScale?.metersPerUnit === 111111,
+  JSON.stringify(known.coordinateScale));
+
+/*
+ * Bei unbekanntem Massstab darf keine Zusicherung in die Datei, die sie nicht
+ * einloest - weder ein Bezugspunkt noch ein Massstab.
+ */
+app.setCoordMode("unknown");
+const unknown = app.buildExportCollection(false, null);
+check("bei unbekanntem Massstab kein Bezugspunkt",
+  unknown.referenceOrigin === undefined, JSON.stringify(unknown.referenceOrigin));
+check("bei unbekanntem Massstab kein Massstab",
+  unknown.coordinateScale === undefined, JSON.stringify(unknown.coordinateScale));
+check("absoluter Export bei unbekanntem Massstab verweigert",
+  app.buildExportCollection(true, null) === null);
+
+/* -------------------------------------------------------------------- */
+console.log("Kartenpruefung bei unbekanntem Massstab");
+
+const mapForCheck = {
+  type: "FeatureCollection",
+  features: [
+    {
+      type: "Feature",
+      properties: { name: "perimeter" },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[[0, 0], [0.7, 0], [0.7, 0.7], [0, 0.7], [0, 0]]],
+      },
+    },
+  ],
+};
+
+app.setCoordMode("unknown");
+const unknownReport = app.validateMapData(mapForCheck);
+
+check("keine Flaeche wird behauptet",
+  !unknownReport.info.some((m) => /Perimeterfläche: [\d.]+ m²/.test(m)),
+  JSON.stringify(unknownReport.info));
+check("stattdessen wird gesagt, dass nicht gerechnet werden konnte",
+  unknownReport.info.some((m) => m.includes("konnte nicht berechnet werden")),
+  JSON.stringify(unknownReport.info));
+check("die Segmentpruefung meldet ihre Einschraenkung",
+  unknownReport.info.some((m) => m.includes("Segmentprüfung")),
+  JSON.stringify(unknownReport.info));
+
+app.setCoordMode("sunray-relative");
+const knownReport = app.validateMapData(mapForCheck);
+check("bei bekanntem Massstab wird die Flaeche genannt",
+  knownReport.info.some((m) => m.startsWith("Perimeterfläche:") && m.includes("m²")),
+  JSON.stringify(knownReport.info));
+check("und die Segmentpruefung meldet keine Einschraenkung",
+  !knownReport.info.some((m) => m.includes("Segmentprüfung")));
+
 console.log("Koordinatenbezug");
 
 check("cos(lat)-Skalierung",
