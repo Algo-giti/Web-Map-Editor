@@ -192,7 +192,7 @@ Sie zerfallen in **zwei Stufen**, und diese Trennung ist beabsichtigt:
 | Stufe | Skripte | Abhängigkeiten | Status |
 |---|---|---|---|
 | statisch | `check-all.mjs` (4.1) | keine | **Pflicht** vor jeder Rückmeldung "fertig" |
-| Browser | dreizehn Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
+| Browser | vierzehn Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
 
 `check-all.mjs` läuft mit Node-Bordmitteln und muss das bleiben – es ist die
 Stufe, die in **jeder** Umgebung ohne Vorbereitung durchläuft. Die
@@ -257,7 +257,7 @@ Zwei Fallstricke dabei:
 
 ### 4.2 Browsertests (optional, real gerendert)
 
-Dreizehn Skripte öffnen `index.html` in einem echten Browser über eine
+Vierzehn Skripte öffnen `index.html` in einem echten Browser über eine
 `file://`-URL – die Datei hat keine externen Ressourcen und keine
 `fetch()`-Aufrufe, ein Webserver ist also nicht nötig.
 
@@ -276,6 +276,7 @@ Dreizehn Skripte öffnen `index.html` in einem echten Browser über eine
 | `test-map-switch.mjs` | Wechsel zwischen Karte A und B |
 | `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten |
 | `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
+| `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -645,6 +646,71 @@ flüchtige Meldung ist nirgends nachschlagbar – sie ist weg, sobald die nächs
 kommt, und wer sie verpasst, kann sie nicht wiederholen. Der Auswahlzähler und
 die Cursor-Koordinaten beschreiben, was gerade passiert; sie sind ohne die
 Zeile gar nicht zu haben. Deshalb weicht immer das Nachschlagbare zuerst.
+
+**Werkzeugleiste:** Senkrecht links neben der Karte, Icon **und** Text. Drei
+Gruppen, und die Trennung trägt die nützlichste Information, die eine
+Werkzeugleiste überhaupt transportieren kann: **was die Karte verändert und was
+nicht.**
+
+| Gruppe | Inhalt |
+|---|---|
+| Auswählen | Zeiger, Rahmen, Lasso |
+| Zeichnen | Exclusion, Kreis, Rechteck, Search Wire, Dockpfad |
+| Prüfen | Messen, Karte prüfen |
+
+„Prüfen" bleibt eine eigene Gruppe, auch mit nur zwei Einträgen – Messen gehört
+nicht zu „Zeichnen", weil es die Karte nicht anfasst. Die Gruppe füllt sich,
+sobald die Mähbahnen-Vorschau kommt.
+
+**Die Beschriftungen sind kurz, weil die Gruppenüberschrift das Verb trägt:**
+unter „Zeichnen" heißt der Knopf „Exclusion", nicht „Exclusion zeichnen". Der
+vollständige Satz steht weiterhin im `title`. Das ist die eine Umbenennung mit
+Gewinn; sonst gilt weiterhin, dass Beschriftungen beim Umzug wortgleich
+bleiben.
+
+**Nicht in der Leiste:** Begradigen, Reduzieren und Rechtwinklig. Sie hängen an
+der Auswahl und gehören in den Inspektor. Bis Etappe 5 liegen die drei
+vorhandenen Knöpfe weiter auf der Karte – ein Zwischenstand muss benutzbar
+bleiben.
+
+**Breitenstufen, und warum sie so aussehen:** Eine senkrechte Leiste ist immer
+so breit wie ihre **längste Beschriftung**. Einer einzelnen Gruppe den Text zu
+nehmen spart deshalb keine Breite, sondern Höhe. Daraus folgen drei Stufen:
+
+| ab | Verhalten | Breite |
+|---|---|---|
+| 1100 px | alles mit Text | 168 px |
+| 1000 px | Auswahlwerkzeuge als waagerechte Dreierreihe ohne Text | 168 px |
+| darunter | alles nur Symbole | 56 px |
+
+Die Auswahlwerkzeuge verlieren ihren Text zuerst, weil sie **Modi** sind, die
+man dauerhaft sieht und schnell wechselt – die kennt man nach einer Woche am
+Symbol. Die Zeichenwerkzeuge benutzt man selten und muss sie treffen. Der
+`title` bleibt in jeder Stufe erhalten: verschwinden darf der Platz der
+Erklärung, nicht die Erklärung.
+
+**Nie `button.textContent` auf einem Knopf mit Symbol.** Das löscht das SVG
+mitsamt der Beschriftung. `updateMeasurementUi()` tat genau das und hat den
+Knopf beim Umzug entkernt; geschrieben wird jetzt in `.tool-label`. Gefunden
+hat es der Browsertest, nicht die Syntaxprüfung.
+
+**Entfallen:** der Knopf „Verschieben" auf der Karte. Er rief nur
+`setSelectionTool("pointer")` und war damit reine Doppelung des Zeigers.
+
+**Behelf mit Ablaufdatum:** `startFeatureDrawing()` klappt den Seitenleisten-
+abschnitt „Features erstellen" auf. Die Zeichnung startet seit Etappe 3 aus der
+Leiste, „Zeichnung abschließen" und „Abbrechen" liegen aber noch dort – und der
+Abschnitt ist eingeklappt. Der Behelf entfällt mit Etappe 5, wenn diese Knöpfe
+in den Inspektor ziehen.
+
+**Flächenbilanz (gemessen, 1920 × 1080, Sidebar 360 px):** vor dem Umbau
+1560 × 952 = 1,49 Mio px², nach Etappe 3 1392 × 952 = 1,33 Mio px², also
+**−10,8 %**. Bei 1440 × 900 sind es −15,6 %, bei 1280 × 800 −18,3 %. Der Umbau
+kostet Kartenfläche: 64 px Höhe für Legende und Statuszeile, 168 px Breite für
+die Leiste. Zurückgewonnen wird bis Etappe 6 nur der Unterschied zwischen
+Seitenleiste (360 px) und Inspektor (320 px). **Wer die Fläche wirklich
+vergrößern will, muss die Leiste einklappbar machen und die Kopfzeile kürzen** –
+beides ist bisher nicht beschlossen.
 
 **Legende:** Eine Reihe über die volle Breite, direkt über der Statuszeile,
 **immer offen und kein `<details>`**. Vorher lag sie eingeklappt über der Karte
@@ -1170,8 +1236,12 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   - „Karteninfo: … liegen jetzt als eigenes einklappbares Fenster direkt auf
     der Karte." – stimmt noch, wird aber mit dem Inspektor hinfällig.
-  - „Auswahl-Werkzeugleiste: … liegen jetzt direkt auf der Karte." – wird mit
-    Etappe 3 falsch.
+  - **„Auswahl-Werkzeugleiste: Mauszeiger, Rechteck, Lasso, Verschieben,
+    Löschen und Auswahl aufheben liegen jetzt direkt auf der Karte." – seit
+    Etappe 3 falsch.** Nur noch Begradigen, Löschen und Auswahl aufheben liegen
+    dort; „Verschieben" gibt es nicht mehr.
+  - **„Einpassen / Zoom: Kartenansicht anpassen." – der Ort stimmt nicht mehr**,
+    beides liegt seit Etappe 3 an der Karte statt in der Kopfzeile.
   - „Sidebar: Direkt unter ‚Karten' folgt ‚Karten verbinden' …" – wird mit
     Etappe 6 falsch.
   - **„Karteninfo & Legende: liegen direkt untereinander und lassen sich

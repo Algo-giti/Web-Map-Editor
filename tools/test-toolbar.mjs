@@ -1,0 +1,208 @@
+#!/usr/bin/env node
+// Browsertest für die Werkzeugleiste links.
+//
+// Geprüft wird die Gliederung (drei Gruppen, getrennt nach "verändert die
+// Karte" und "verändert sie nicht"), dass die Werkzeuge von dort aus wirklich
+// arbeiten, und das Verhalten in den drei Breitenstufen.
+//
+// Die Stufen sind der unintuitive Teil: eine senkrechte Leiste ist immer so
+// breit wie ihre längste Beschriftung. Einzelnen Gruppen den Text zu nehmen
+// spart deshalb Höhe, nicht Breite - erst wenn alle ihn verlieren, wird die
+// Leiste schmal.
+//
+// Einrichtung und Browsersuche siehe tools/browser-harness.mjs. Wie die
+// übrigen Browsertests bewusst NICHT Teil von check-all.mjs.
+//
+// Alle Karten werden synthetisch erzeugt.
+//
+// Aufruf aus dem Repository-Wurzelverzeichnis:
+//   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-toolbar.mjs
+
+import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+
+const TOOL = "test-toolbar";
+
+const browser = await launchBrowser(TOOL);
+if (!browser) process.exit(0);
+
+const MAP = JSON.stringify({
+  type: "FeatureCollection",
+  features: [{
+    type: "Feature",
+    properties: { name: "perimeter" },
+    geometry: { type: "Polygon", coordinates: [[
+      [0, 0], [40, 0], [40, 40], [0, 40], [0, 0],
+    ]] },
+  }],
+});
+
+const { check, finish } = createChecker(TOOL);
+const consoleErrors = [];
+
+try {
+  const page = await browser.newPage();
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
+  page.on("pageerror", (error) => consoleErrors.push(String(error)));
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(indexUrl(), { waitUntil: "load" });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "load" });
+
+  const rail = page.locator("#toolRail");
+
+  /* ---------------------------------------------------------------- */
+  console.log("Gliederung");
+
+  check("die Leiste ist da", await rail.isVisible());
+
+  const groups = await page.locator("#toolRail .tool-group-title").allTextContents();
+  check("drei Gruppen in der geplanten Reihenfolge",
+    JSON.stringify(groups.map((t) => t.trim())) ===
+      JSON.stringify(["Auswählen", "Zeichnen", "Prüfen"]),
+    JSON.stringify(groups));
+
+  check("Prüfen bleibt eigene Gruppe mit zwei Einträgen",
+    (await page.locator("#toolRail .tool-group").nth(2).locator("button").count()) === 2,
+    String(await page.locator("#toolRail .tool-group").nth(2).locator("button").count()));
+
+  /* Die Umformwerkzeuge gehören nicht hierher - sie hängen an der Auswahl. */
+  for (const id of ["straightenSelectionBtn", "reduceApplyBtn", "rectifyApplyBtn"]) {
+    check(`#${id} steht nicht in der Leiste`,
+      await page.evaluate((x) =>
+        !document.getElementById("toolRail").contains(document.getElementById(x)), id));
+  }
+
+  /* Der Verschieben-Knopf war reine Doppelung des Zeigers und ist entfallen. */
+  check("der doppelte Verschieben-Knopf ist weg",
+    (await page.locator("#mapMoveSelectionBtn").count()) === 0);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Zoom und Einpassen liegen an der Karte");
+
+  for (const id of ["fitBtn", "zoomInBtn", "zoomOutBtn"]) {
+    check(`#${id} liegt im Kartenbereich`,
+      await page.evaluate((x) =>
+        document.getElementById("viewer").contains(document.getElementById(x)), id));
+    check(`#${id} steht nicht mehr in der Kopfzeile`,
+      await page.evaluate((x) =>
+        !document.querySelector("header").contains(document.getElementById(x)), id));
+  }
+
+  /* ---------------------------------------------------------------- */
+  console.log("Die Werkzeuge arbeiten von dort aus");
+
+  await page.locator("#fileInput").setInputFiles({
+    name: "rail.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(MAP),
+  });
+  await page.waitForTimeout(400);
+
+  const activeTools = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll("#toolRail .tool-button.active")]
+        .map((b) => b.dataset.selectionTool || b.id));
+
+  await page.locator('[data-selection-tool="lasso"]').click();
+  await page.waitForTimeout(200);
+
+  check("das Lasso wird als aktiv markiert",
+    (await activeTools()).includes("lasso"), JSON.stringify(await activeTools()));
+
+  await page.locator('[data-selection-tool="pointer"]').click();
+  await page.waitForTimeout(200);
+
+  check("und der Zeiger löst es wieder ab",
+    (await activeTools()).includes("pointer") &&
+    !(await activeTools()).includes("lasso"),
+    JSON.stringify(await activeTools()));
+
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(250);
+
+  check("das Zeichenwerkzeug startet",
+    (await activeTools()).includes("drawExclusionBtn"),
+    JSON.stringify(await activeTools()));
+  check("und meldet sich in der Statuszeile",
+    (await page.locator("#editStatus").textContent()).includes("Exclusion"),
+    await page.locator("#editStatus").textContent());
+
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(250);
+
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(400);
+
+  check("die Kartenprüfung läuft von der Leiste aus",
+    (await page.locator("#validationShort").textContent()).trim() !== "nicht geprüft",
+    await page.locator("#validationShort").textContent());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Drei Breitenstufen");
+
+  const measure = async (width) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(300);
+
+    return page.evaluate(() => {
+      const visible = (el) => el.getClientRects().length > 0;
+      const labels = (scope) =>
+        [...document.querySelectorAll(`${scope} .tool-label`)].filter(visible).length;
+
+      return {
+        breite: Math.round(document.getElementById("toolRail").getBoundingClientRect().width),
+        auswahl: labels("#toolGroupSelect"),
+        uebrige: labels("#toolRail") - labels("#toolGroupSelect"),
+      };
+    });
+  };
+
+  const weit = await measure(1440);
+  check("breit: alle Beschriftungen sichtbar",
+    weit.auswahl === 3 && weit.uebrige === 7, JSON.stringify(weit));
+  check("breit: 168 px", weit.breite === 168, JSON.stringify(weit));
+
+  const mittel = await measure(1050);
+  check("mittel: die Auswahlwerkzeuge verlieren den Text zuerst",
+    mittel.auswahl === 0 && mittel.uebrige === 7, JSON.stringify(mittel));
+  check("mittel: die Breite bleibt - sie hängt an der längsten Beschriftung",
+    mittel.breite === weit.breite, JSON.stringify(mittel));
+
+  const eng = await measure(960);
+  check("eng: keine Beschriftung mehr",
+    eng.auswahl === 0 && eng.uebrige === 0, JSON.stringify(eng));
+  check("eng: die Leiste ist schmal", eng.breite === 56, JSON.stringify(eng));
+
+  /* Die Erklärung darf dabei nicht verschwinden, nur ihr Platz. */
+  check("die Symbole behalten ihren Tooltip",
+    (await page.locator("#drawCircleBtn").getAttribute("title")).includes("Mittelpunkt"),
+    await page.locator("#drawCircleBtn").getAttribute("title"));
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(250);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Übersetzung");
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(400);
+
+  const english = await page.locator("#toolRail").textContent();
+
+  check("die Gruppennamen sind übersetzt",
+    english.includes("Select") && english.includes("Draw") && english.includes("Validate"),
+    english.slice(0, 120));
+  check("kein deutscher Rest in der Leiste",
+    !english.includes("Auswählen") && !english.includes("Zeichnen"),
+    english.slice(0, 120));
+
+  check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
+    consoleErrors.join(" | "));
+} finally {
+  await browser.close();
+}
+
+finish("Die Werkzeugleiste gliedert nach Wirkung und verhält sich in drei Stufen.");
