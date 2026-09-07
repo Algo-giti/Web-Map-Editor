@@ -404,7 +404,33 @@ Regeln:
   `dock points`; **Export** normalisiert über `cassandraNameForFeature()`
   wieder auf die kanonische Schreibweise.
 - Features mit unbekanntem Namen behalten ihren Rohwert und werden nicht
-  stillschweigend umbenannt.
+  stillschweigend umbenannt. **Sie sind aber nicht bearbeitbar**: der Editor
+  unterstützt ausschließlich die vier oben genannten Typen. Solche Features
+  werden weiterhin angezeigt und beim Export unverändert zurückgeschrieben –
+  sie bekommen nur keine Punktmarker, sind räumlich nicht auswählbar und
+  liefern in jedem Werkzeug denselben Ablehnungsgrund
+  (`unsupportedFeatureText()`).
+- **`featureTypeState()` unterscheidet zwei Fälle**, und die Validierung
+  behandelt sie verschieden:
+  - `"unknown-name"` – ein Name ist gesetzt, gehört aber zu keinem der vier
+    Typen. Jemand hat etwas behauptet, das nicht stimmt → **Fehler**, mit dem
+    gefundenen Namen im Text.
+  - `"missing-name"` – `properties` oder `properties.name` fehlt ganz. Es
+    wurde nichts Falsches behauptet, es fehlt nur eine Angabe → **Warnung**,
+    und alle betroffenen Features werden zu **einer** Meldung mit Anzahl
+    zusammengefasst, damit echte Befunde nicht in Dutzenden identischer Zeilen
+    untergehen.
+
+  Beide Fälle sind gleichermaßen nicht bearbeitbar. Die Unterscheidung steht
+  nur in `featureTypeState()`; `isSupportedFeature()` ist der dünne Wrapper
+  darüber. Nicht an den Werkzeugstellen nachbilden.
+- Ein Validierungs**fehler** blockiert den Export nicht hart: `exportGeoJson()`
+  fragt lediglich per `confirm()` nach. Der Roh-Durchreichen-Pfad bleibt damit
+  intakt – niemand verliert ein Feature, nur weil sein Typ unbekannt ist.
+- Die Ebene „Sonstiges" (`#tOther`) **bleibt bestehen**. Sie zeigt die nicht
+  unterstützten Features – und das Ursprungskreuz der Karte trägt
+  `dataset.layer = "other"`, hängt also mit an dieser Checkbox. Wer die Ebene
+  entfernt, blendet unbemerkt auch das Ursprungskreuz dauerhaft aus.
 - **`idx` steht auf Feature-Ebene**, nicht in `properties` – so liegt es auch
   in den vorhandenen Sunray-Dateien. `renumberExclusionsInCollection()`
   schreibt deshalb immer `feature.idx` und pflegt `properties.idx`
@@ -412,6 +438,16 @@ Regeln:
   die den Index nur auf Feature-Ebene führt, bekommt also kein zusätzliches
   Feld in `properties`; eine Karte, die beides führt, bleibt konsistent.
   Beim Lesen gilt entsprechend `feature.idx ?? feature.properties?.idx`.
+
+  **Der Export vergibt Indizes nicht neu.** Geladene `idx`-Werte werden
+  unverändert zurückgeschrieben, **einschließlich Lücken** – eine Karte mit
+  den Indizes 0 und 7 wird auch wieder mit 0 und 7 gespeichert. Umnummeriert
+  wird ausschließlich nach strukturellen Änderungen, also aus
+  `deleteExclusionFeature()`, `duplicateExclusionFeature()` und
+  `mergeMapSlots()` heraus. Das ist Absicht: Speichern soll nichts still
+  verändern, was der Nutzer nicht angefasst hat. Beim Umnummeriern zählt der
+  Index nur über Exclusions hoch; dazwischenliegende Features anderer Typen
+  werden übersprungen und bekommen kein `idx`.
 - **Anzeige** immer über `describeFeature()`: `properties.label` hat Vorrang,
   sonst wird der Name aus dem Typ abgeleitet ("Perimeter", "Exclusion #0", …).
   Ein Label wird nicht übersetzt, abgeleitete Namen schon.

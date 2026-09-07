@@ -15,6 +15,8 @@ const NAMES = [
   "CASSANDRA_NAME_BY_TYPE",
   "FEATURE_TYPE_BY_NAME",
   "getFeatureType",
+  "featureTypeState",
+  "isSupportedFeature",
   "cassandraNameForFeature",
   "walkCoordinates",
   "collectCoords",
@@ -107,6 +109,42 @@ check("perimeter bleibt", app.cassandraNameForFeature(feature("perimeter", [])) 
 check("exclusion bleibt", app.cassandraNameForFeature(feature("exclusion", [])) === "exclusion");
 check("fremder Name bleibt erhalten",
   app.cassandraNameForFeature(feature("mow path", [])) === "mow path");
+
+console.log("Unterstuetzte und nicht unterstuetzte Typen");
+
+for (const name of ["perimeter", "exclusion", "search wire", "dockpoints", "searchwire", "dock points"]) {
+  check(`"${name}" ist bearbeitbar`, app.isSupportedFeature(feature(name, [])));
+  check(`"${name}" gilt als unterstuetzt`,
+    app.featureTypeState(feature(name, [])) === "supported");
+}
+
+/*
+ * Zwei fachlich verschiedene Faelle: ein gesetzter, aber unbekannter Name ist
+ * eine falsche Behauptung (Fehler in der Validierung); ein fehlender Name ist
+ * nur eine fehlende Angabe (Warnung). Beide sind gleichermassen nicht
+ * bearbeitbar.
+ */
+const namedUnknown = feature("mow path", []);
+check("unbekannter Name ist nicht bearbeitbar", !app.isSupportedFeature(namedUnknown));
+check("unbekannter Name wird als solcher erkannt",
+  app.featureTypeState(namedUnknown) === "unknown-name",
+  app.featureTypeState(namedUnknown));
+
+const noProperties = { type: "Feature", geometry: { type: "LineString", coordinates: [] } };
+check("Feature ohne properties ist nicht bearbeitbar",
+  !app.isSupportedFeature(noProperties));
+check("Feature ohne properties gilt als fehlende Angabe",
+  app.featureTypeState(noProperties) === "missing-name",
+  app.featureTypeState(noProperties));
+
+check("leerer Name gilt als fehlende Angabe",
+  app.featureTypeState(feature("   ", [])) === "missing-name");
+check("fehlender Name wird NICHT als unbekannter Name gemeldet",
+  app.featureTypeState({ type: "Feature", properties: {} }) === "missing-name");
+
+/* Nicht bearbeitbar heisst nicht "wird veraendert". */
+check("fehlender Name wird beim Export nicht erfunden",
+  app.cassandraNameForFeature(noProperties) === "");
 
 console.log("Anzeigename (label)");
 

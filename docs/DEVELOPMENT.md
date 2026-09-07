@@ -151,6 +151,14 @@ Import accepts the additional spellings `searchwire` and `dock points`; export
 normalises through `cassandraNameForFeature()`. Features with unknown names
 keep their raw value and are never renamed silently.
 
+Editing is restricted to those four types. Anything else is displayed and
+written back unchanged, but receives no vertex markers and is rejected by
+every tool with one shared reason. `featureTypeState()` distinguishes a set
+but unknown name (validation error, names the value found) from a missing
+`properties.name` (validation warning, aggregated into a single message with a
+count). A validation error does not hard-block saving; the export only asks
+for confirmation, so no feature is ever lost by opening and saving a map.
+
 ---
 
 ## Ardumower / Sunray context

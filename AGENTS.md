@@ -125,6 +125,21 @@ lists were exactly how earlier bugs arose. Import additionally accepts the
 spellings `searchwire` and `dock points`; export normalises back through
 `cassandraNameForFeature()`.
 
+Only these four types are editable. Features with any other name keep their
+raw value and are never renamed silently, but they get no vertex markers, are
+not spatially selectable, and every tool rejects them with the same reason
+(`unsupportedFeatureText()`). They remain visible and are written back
+unchanged - opening and saving a map must never lose a feature.
+
+`featureTypeState()` separates two cases, and validation treats them
+differently: a name that is set but unknown is an **error** (someone asserted
+something wrong), while a missing `properties.name` is a **warning** (only an
+omission), aggregated into one message with a count. Both are equally
+non-editable. Keep that distinction in `featureTypeState()` alone.
+
+A validation error does not hard-block the export - `exportGeoJson()` only
+asks for confirmation.
+
 ### Coordinate reference
 
 CaSSAndRA and the Sunray firmware place maps relative to the RTK base:
