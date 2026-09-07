@@ -134,7 +134,7 @@ Sie zerfallen in **zwei Stufen**, und diese Trennung ist beabsichtigt:
 | Stufe | Skripte | Abhängigkeiten | Status |
 |---|---|---|---|
 | statisch | `check-all.mjs` (4.1) | keine | **Pflicht** vor jeder Rückmeldung "fertig" |
-| Browser | neun Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
+| Browser | zehn Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
 
 `check-all.mjs` läuft mit Node-Bordmitteln und muss das bleiben – es ist die
 Stufe, die in **jeder** Umgebung ohne Vorbereitung durchläuft. Die
@@ -196,7 +196,7 @@ Zwei Fallstricke dabei:
 
 ### 4.2 Browsertests (optional, real gerendert)
 
-Neun Skripte öffnen `index.html` in einem echten Browser über eine
+Zehn Skripte öffnen `index.html` in einem echten Browser über eine
 `file://`-URL – die Datei hat keine externen Ressourcen und keine
 `fetch()`-Aufrufe, ein Webserver ist also nicht nötig.
 
@@ -211,6 +211,7 @@ Neun Skripte öffnen `index.html` in einem echten Browser über eine
 | `test-merge.mjs` | Verbinden, Singletons, Slot-Trennung |
 | `test-shapes.mjs` | Kreis- und Rechteck-Exclusions |
 | `test-validation.mjs` | erweiterte Geometrieprüfung |
+| `test-rectify.mjs` | Ecken rechtwinklig |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -455,6 +456,48 @@ ist der Aufwand auf rund 70 ms begrenzt. Das zählt, weil „Punkte reduzieren"
 die Kartenprüfung je Anwendung zweimal über eine Vorschaukopie laufen lässt.
 Ein Abbruch wird ausdrücklich gemeldet – ein unvollständiges Ergebnis darf
 nicht wie ein sauberes aussehen.
+
+**Ecken rechtwinklig machen:** Arbeitet **nur auf einem ganzen Feature**.
+Ein Abschnitt wird bewusst nicht angeboten – die Vorzugsrichtung ist eine
+Eigenschaft des ganzen Umrisses und wäre aus vier Kanten geschätzt
+unzuverlässig. Die Auswahl kommt aus `getWholeFeatureTarget()`, derselben
+Funktion, die auch das Reduzieren benutzt, wenn kein Abschnitt vorliegt.
+
+- **Vorzugsrichtung** über `dominantOrientation()`. Ein einfacher Mittelwert
+  über die Kantenwinkel wäre falsch, weil sie zyklisch sind: 89° und 1° liegen
+  2° auseinander, nicht 88°. Gerechnet wird deshalb der zirkuläre Mittelwert
+  über den **vierfachen** Winkel – dadurch wird aus „modulo 90°" ein voller
+  Kreis. **Gewichtet mit der Kantenlänge**, weil die langen Kanten den Umriss
+  definieren und die kurzen Messrauschen sind.
+- **Die Länge der Resultierenden** (geteilt durch die Gesamtkantenlänge) sagt,
+  wie rechtwinklig die Form überhaupt ist: ein Rechteck liegt bei 1, ein Kreis
+  nahe 0. Der Wert steht als Prozentzahl in der Oberfläche und wird unter 50 %
+  als Warnung gefärbt. Entschieden wird trotzdem vom Nutzer – es wird nichts
+  gesperrt, nur gesagt, was Sache ist.
+- **Die Punkte werden über ein Gleichungssystem gesetzt**, nicht Ecke für Ecke:
+  sonst hinge das Ergebnis von der Reihenfolge ab. In den θ-Rahmen drehen, jede
+  Kante als waagerecht oder senkrecht einstufen, die betroffenen Koordinaten
+  per Union-Find gleichsetzen, Gruppenmittelwert, zurückdrehen. Zwei Fälle
+  gehen dadurch von selbst auf: zwei aufeinanderfolgende gleichgerichtete
+  Kanten landen sauber auf einer Linie, und eine Ecke, an der beide Kanten
+  übergangen wurden, bewegt sich gar nicht.
+- **Toleranz 15°** (0 bis 45 einstellbar). Kanten, die weiter von der nächsten
+  Achse abweichen, bleiben unangetastet und werden gezählt. Eine 45°-Kante ist
+  von beiden Achsen gleich weit entfernt; sie zu zwingen zerstörte die Form.
+- **Die Vorzugsrichtung ist überschreibbar.** Wer einen festen Winkel eintippt,
+  schaltet damit automatisch auf „fester Winkel" um – einen Wert einzugeben und
+  ihn dann nicht zu verwenden wäre eine Falle.
+- **Es wird kein Punkt entfernt**, auch wenn drei Punkte kollinear werden.
+  Ausdünnen ist Aufgabe von „Punkte reduzieren"; zwei Werkzeuge, die beide
+  Punkte löschen, wären eine Falle.
+- **Ausgerichtet wird auf die eigene Vorzugsrichtung, nicht auf East/North.**
+  Ein leicht schief gezeichnetes Rechteck bleibt danach leicht schief – aber
+  rechtwinklig. Wer Achsparallelität will, gibt 0° als festen Winkel vor.
+- **Maßstabsunabhängig:** Winkel bleiben unter der gleichmäßigen Skalierung von
+  `toWorld()` erhalten, das Werkzeug läuft also auch bei unklarem Maßstab. Nur
+  die gemeldete Verschiebung trägt dann „Einheiten" statt „m".
+- Wie beim Reduzieren läuft das Ergebnis vor dem Anwenden durch
+  `newValidationErrors()`. Eine Anwendung ist ein Undo-Schritt.
 
 **Verbinden und Singletons:** Docking-Pfad und Search Wire gibt es pro Karte
 nur einmal. Beim Verbinden werden aus Karte B **nur** Exclusions und Features

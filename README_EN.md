@@ -88,6 +88,18 @@ selected vertices, provided the resulting polygon remains valid.
 - `Enter` finishes drawing
 - `Esc` cancels drawing
 
+### Right-angled corners
+
+- select one point of the feature; the tool works on the whole feature
+- the preferred direction is estimated from the outline or entered by hand
+- shown are the preferred direction, the agreement in percent, the number of
+  adjusted edges and the largest displacement of a single point
+- a low agreement means the shape was never meant to be rectilinear
+- edges beyond the tolerance (default 15 degrees) are left untouched
+- alignment follows the shape's own direction; enter 0 degrees for axis alignment
+- no point is removed
+- the preview follows the selection, one undo step
+
 ### Extended geometry validation
 
 Map validation additionally reports:

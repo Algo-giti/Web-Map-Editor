@@ -47,6 +47,10 @@ const NAMES = [
   "ringRelation",
   "narrowGaps",
   "pointIsMowable",
+  "RECTIFY_DEFAULT_TOLERANCE_DEGREES",
+  "edgeAngleMod90",
+  "dominantOrientation",
+  "rectifyRightAngles",
 ];
 
 const source = extractDeclarations(readInlineScript(), NAMES);
@@ -534,6 +538,143 @@ check("Punkt ausserhalb des Perimeters ist nicht maehbar",
   !app.pointIsMowable([205, 205], [outer], [inner]));
 check("ohne Perimeter ist nichts maehbar",
   !app.pointIsMowable([50, 50], [], []));
+
+/* -------------------------------------------------------------------- */
+console.log("Kantenwinkel und Vorzugsrichtung");
+
+check("waagerechte Kante ergibt 0",
+  near(app.edgeAngleMod90([0, 0], [10, 0]), 0));
+
+/* Modulo 90: senkrecht ist derselbe Fall wie waagerecht. */
+check("senkrechte Kante ergibt ebenfalls 0",
+  near(app.edgeAngleMod90([0, 0], [0, 10]), 0));
+
+check("45 Grad bleibt 45", near(app.edgeAngleMod90([0, 0], [10, 10]), 45));
+check("135 Grad ergibt ebenfalls 45",
+  near(app.edgeAngleMod90([0, 0], [-10, 10]), 45));
+check("Nulllaenge hat keine Richtung",
+  app.edgeAngleMod90([3, 3], [3, 3]) === null);
+
+const axisSquare = [[0, 0], [10, 0], [10, 10], [0, 10]];
+const axisOrientation = app.dominantOrientation(axisSquare, true);
+
+check("achsparalleles Quadrat ergibt 0 Grad",
+  near(axisOrientation.angle, 0, 1e-6), String(axisOrientation.angle));
+check("und volle Uebereinstimmung",
+  near(axisOrientation.confidence, 1, 1e-9), String(axisOrientation.confidence));
+
+/* Dasselbe Quadrat um 30 Grad gedreht. */
+const rotate = (points, degrees) => {
+  const radians = (degrees * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  return points.map(([x, y]) => [x * cos - y * sin, x * sin + y * cos]);
+};
+
+const turnedSquare = rotate(axisSquare, 30);
+const turnedOrientation = app.dominantOrientation(turnedSquare, true);
+
+check("gedrehtes Quadrat ergibt 30 Grad",
+  near(turnedOrientation.angle, 30, 1e-6), String(turnedOrientation.angle));
+check("Uebereinstimmung bleibt voll",
+  near(turnedOrientation.confidence, 1, 1e-9));
+
+/*
+ * Ein regelmaessiges Vieleck hat keine Vorzugsrichtung. Die Uebereinstimmung
+ * muss das sagen, statt eine Richtung zu erfinden.
+ */
+const polygon = [];
+for (let index = 0; index < 24; index++) {
+  const a = (index / 24) * Math.PI * 2;
+  polygon.push([Math.cos(a) * 5, Math.sin(a) * 5]);
+}
+
+check("Vieleck hat nahezu keine Uebereinstimmung",
+  app.dominantOrientation(polygon, true).confidence < 0.05,
+  String(app.dominantOrientation(polygon, true).confidence));
+
+/*
+ * Laengengewichtung: ein langes achsparalleles Rechteck mit einer kurzen
+ * schraegen Kante. Ohne Gewichtung zoege die kurze Kante genauso stark.
+ */
+const weighted = [[0, 0], [40, 0], [40, 10], [39, 10.5], [0, 10]];
+const weightedOrientation = app.dominantOrientation(weighted, true);
+
+check("die kurze schraege Kante kippt die Richtung nicht",
+  Math.min(weightedOrientation.angle, 90 - weightedOrientation.angle) < 3,
+  String(weightedOrientation.angle));
+
+/* -------------------------------------------------------------------- */
+console.log("Ecken rechtwinklig machen");
+
+/* Leicht verzogenes Quadrat - der eigentliche Anwendungsfall. */
+const wonky = [[0, 0], [10, 0.3], [9.7, 10], [-0.2, 9.8]];
+const fixed = app.rectifyRightAngles(wonky, true);
+
+check("Punktzahl bleibt gleich", fixed.points.length === wonky.length);
+check("alle vier Kanten wurden angepasst", fixed.snapped === 4,
+  `${fixed.snapped}/${fixed.skipped}`);
+
+const edgeIsAxisAligned = (points, index, angle) => {
+  const from = points[index];
+  const to = points[(index + 1) % points.length];
+  const deviation = app.edgeAngleMod90(from, to);
+  if (deviation === null) return true;
+  const relative = ((deviation - angle) % 90 + 90) % 90;
+  return near(Math.min(relative, 90 - relative), 0, 1e-6);
+};
+
+check("danach liegen alle Kanten auf dem Raster",
+  [0, 1, 2, 3].every((index) => edgeIsAxisAligned(fixed.points, index, fixed.angle)),
+  JSON.stringify(fixed.points));
+
+check("die groesste Verschiebung wird berichtet", fixed.maxShift > 0);
+check("sie bleibt klein", fixed.maxShift < 0.5, String(fixed.maxShift));
+
+/* Ein gedrehtes, leicht verzogenes Rechteck ebenso. */
+const turnedWonky = rotate([[0, 0], [12, 0.2], [11.8, 6], [-0.1, 5.9]], 37);
+const turnedFixed = app.rectifyRightAngles(turnedWonky, true);
+
+check("auch gedreht liegen danach alle Kanten auf dem Raster",
+  [0, 1, 2, 3].every((index) =>
+    edgeIsAxisAligned(turnedFixed.points, index, turnedFixed.angle)),
+  JSON.stringify(turnedFixed.angle));
+
+/* Toleranz 0: nichts darf angefasst werden. */
+const untouched = app.rectifyRightAngles(wonky, true, {toleranceDegrees: 0});
+
+check("Toleranz 0 passt nichts an", untouched.snapped === 0);
+check("und verschiebt nichts", near(untouched.maxShift, 0));
+check("die uebergangenen Kanten werden gezaehlt", untouched.skipped === 4);
+
+/* Fester Winkel schlaegt die Schaetzung. */
+const forced = app.rectifyRightAngles(turnedWonky, true, {angleDegrees: 0});
+
+check("der feste Winkel wird verwendet", near(forced.angle, 0));
+
+/*
+ * Zwei aufeinanderfolgende gleichgerichtete Kanten: der Versatz dazwischen
+ * verschwindet, die drei Punkte werden kollinear - aber KEINER wird entfernt.
+ */
+const jog = [[0, 0], [5, 0.05], [10, 0], [10, 8], [0, 8]];
+const flattened = app.rectifyRightAngles(jog, true);
+
+check("kein Punkt wird entfernt", flattened.points.length === jog.length);
+check("die drei Punkte liegen danach auf einer Linie",
+  near(flattened.points[0][1], flattened.points[1][1], 1e-9) &&
+  near(flattened.points[1][1], flattened.points[2][1], 1e-9),
+  JSON.stringify(flattened.points.slice(0, 3)));
+
+/* Offener Linienzug: die Schlusskante zaehlt nicht mit. */
+const openLine = [[0, 0], [10, 0.2], [10.2, 6]];
+const openFixed = app.rectifyRightAngles(openLine, false);
+
+check("offener Linienzug wird ebenfalls ausgerichtet", openFixed.snapped === 2,
+  `${openFixed.snapped}/${openFixed.skipped}`);
+
+/* Zu wenige Punkte bleiben unveraendert. */
+const tiny = app.rectifyRightAngles([[0, 0], [1, 1]], false);
+check("zwei Punkte bleiben unangetastet", near(tiny.maxShift, 0));
 
 /* -------------------------------------------------------------------- */
 console.log(

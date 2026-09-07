@@ -300,6 +300,17 @@ approximation, and only counts a spot when it lies in the area the mower
 actually drives. Its threshold is the mower width, which is a lower bound -
 no finding does not prove a corridor is passable, and the report says so.
 
+## Right-angled corners
+
+Aligns the edges of a whole feature to a right-angled grid whose orientation is
+either estimated from the outline or entered by hand. The estimate is a
+length-weighted circular mean over quadrupled edge angles, and its resultant
+length is reported as an agreement percentage so a shape that is not
+rectilinear at all can be recognised before applying anything.
+
+Edges further from an axis than the tolerance are left alone, no point is
+removed, and one application is one undo step.
+
 ## Point reduction
 
 Douglas-Peucker simplification with a configurable tolerance in metres,

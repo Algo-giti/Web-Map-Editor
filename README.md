@@ -102,6 +102,18 @@ ausgewählten Punkte gelöscht, sofern die Polygongeometrie gültig bleibt.
 - `Enter` beendet die Zeichnung
 - `Esc` bricht ab
 
+### Ecken rechtwinklig machen
+
+- einen Punkt des Features auswählen, das Werkzeug arbeitet auf dem ganzen Feature
+- die Vorzugsrichtung wird aus dem Umriss geschätzt oder fest vorgegeben
+- angezeigt werden Vorzugsrichtung, Übereinstimmung in Prozent, Anzahl der
+  angepassten Kanten und die größte Verschiebung eines Punktes
+- eine niedrige Übereinstimmung heißt: die Form ist gar nicht rechtwinklig gemeint
+- Kanten jenseits der Toleranz (Vorgabe 15°) bleiben unangetastet
+- ausgerichtet wird auf die eigene Vorzugsrichtung; für achsparallel 0° fest vorgeben
+- es wird kein Punkt entfernt
+- Vorschau folgt der Auswahl, ein Undo-Schritt
+
 ### Erweiterte Geometrieprüfung
 
 Die Kartenprüfung meldet zusätzlich:
@@ -382,6 +394,18 @@ selected vertices, provided the resulting polygon remains valid.
 - `Backspace` removes the most recently added point
 - `Enter` finishes drawing
 - `Esc` cancels drawing
+
+### Right-angled corners
+
+- select one point of the feature; the tool works on the whole feature
+- the preferred direction is estimated from the outline or entered by hand
+- shown are the preferred direction, the agreement in percent, the number of
+  adjusted edges and the largest displacement of a single point
+- a low agreement means the shape was never meant to be rectilinear
+- edges beyond the tolerance (default 15 degrees) are left untouched
+- alignment follows the shape's own direction; enter 0 degrees for axis alignment
+- no point is removed
+- the preview follows the selection, one undo step
 
 ### Extended geometry validation
 

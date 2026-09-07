@@ -334,6 +334,27 @@ reported as skipped when the scale is unknown.
 A pair budget bounds the quadratic cost; an abort is always reported so an
 incomplete result cannot look like a clean one.
 
+## Right-angled corners
+
+Works on a whole feature only; a section is deliberately not offered because
+the preferred direction is a property of the entire outline.
+
+The preferred direction is the length-weighted circular mean over the
+quadrupled edge angles - a plain mean would be wrong because the angles are
+cyclic modulo 90 degrees. The length of the resultant tells how rectilinear
+the shape is at all and is shown as a percentage; a low value is coloured as a
+warning but never blocks anything.
+
+Points are placed by solving a small constraint system, not corner by corner,
+so the result does not depend on the order in which corners are visited. Edges
+deviating more than the tolerance from the nearest axis are left untouched.
+
+No point is ever removed, even when three points become collinear - thinning
+out belongs to the point reduction tool.
+
+Alignment follows the shape's own preferred direction, not East/North. Use a
+fixed angle of 0 degrees for axis alignment.
+
 ## Merging and singletons
 
 Docking path and Search Wire exist at most once per map. When merging, only
