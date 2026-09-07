@@ -2605,8 +2605,13 @@
  *
  * Funktionsbereiche dieses Scripts
  * --------------------------------
- *  1. Konfiguration und Zustandsvariablen
- *  2. Karten-Slots
+ * Die Namen entsprechen exakt den Kommentar-Headern im Script; wer eine
+ * Stelle sucht, findet sie am schnellsten über die Suche nach dem Titel
+ * (z. B. "6. PUNKTEDITOR").
+ *
+ *  1. Konfiguration und Anwendungszustand
+ * 2A. Undo/Redo und Vergleichszustand
+ *  2. Karten-Slots und Koordinaten-Hilfsfunktionen
  *  3. Koordinaten- und Sunray-Hilfsfunktionen
  *  4. Kartenansicht / Zoom / Pan
  *  5. Geometrie-Rendering
@@ -2616,8 +2621,21 @@
  *  9. Feature-Navigation
  * 10. Statistik und Ebenen
  * 11. Datei laden / exportieren / zurücksetzen
- * 12. Undo/Redo und Vergleichszustand
- * 13. Event-Handler und Initialisierung
+ * 12. Event-Handler und Initialisierung
+ * 18. Sprache / Language
+ *
+ * Zwei Eigenheiten der Nummerierung, die beim Navigieren auffallen:
+ *
+ * - Abschnitt 2A steht physisch VOR Abschnitt 2. Undo/Redo wurde einmal aus
+ *   der Nummernfolge herausgelöst und vorgezogen, ohne den Rest neu zu
+ *   nummerieren. Der Abschnitt enthält inzwischen mehr als Undo/Redo, unter
+ *   anderem Messwerkzeug, Kartenprüfung und das Auswahlmodell.
+ * - Nach 12 folgt 18. Die Sprachumschaltung kam in Ausgabe 037 als eigener
+ *   Block hinzu und bekam eine freie Nummer; die Abschnitte 13 bis 17 hat es
+ *   nie gegeben.
+ *
+ * Beides ist rein kosmetisch. Ein Umnummerieren würde jeden Abschnitt
+ * anfassen, ohne etwas zu verbessern, und wurde deshalb bewusst unterlassen.
  * ============================================================================
  */
 
@@ -2787,12 +2805,6 @@ const redoStack = [];
 const HISTORY_LIMIT = 80;
 
 /*
- * Während eines Punkt-Drags wird der Zustand nur einmal vorgemerkt. Erst bei
- * der ersten tatsächlichen Koordinatenänderung entsteht ein Undo-Schritt.
- */
-let pendingDragHistory = null;
-
-/*
  * Zwei getrennte Karten-Slots.
  *
  * Die vorhandenen Editorfunktionen arbeiten weiterhin mit den bewährten
@@ -2916,7 +2928,6 @@ function commitHistorySnapshot(snapshot) {
 function clearHistory() {
   undoStack.length = 0;
   redoStack.length = 0;
-  pendingDragHistory = null;
   updateHistoryButtons();
 }
 
@@ -2968,7 +2979,6 @@ function restoreWorkspaceSnapshot(snapshot) {
   }
 
   vertexDrag = null;
-  pendingDragHistory = null;
 
   setModeFromData();
   worldBounds = computeWorldBounds();
@@ -5438,7 +5448,6 @@ function showEmptyEditor(preferredMapId = "A") {
   selectedVertex = null;
   selectedVertices = [];
   vertexDrag = null;
-  pendingDragHistory = null;
   clearAllSelectionBaselines();
   drag = null;
   coordMode = "raw";
@@ -5461,13 +5470,6 @@ function showEmptyEditor(preferredMapId = "A") {
 function scaleFactorForData(featureCollection) {
   if (!featureCollection) return 1;
   return detectSunray(featureCollection).detected ? SUNRAY_FACTOR : 1;
-}
-
-
-/** Wandelt eine Koordinate einer beliebigen Karte in Weltmeter um. */
-function toWorldForData(point, featureCollection) {
-  const factor = scaleFactorForData(featureCollection);
-  return [point[0] * factor, point[1] * factor];
 }
 
 
@@ -5576,7 +5578,6 @@ function activateMap(mapId, options = {}) {
   selectedVertices = selectedVertex ? [{...selectedVertex}] : [];
 
   vertexDrag = null;
-  pendingDragHistory = null;
   selectionBaseline = selectedVertex
     ? findSelectionBaseline(selectedVertex)
     : null;
@@ -5860,9 +5861,6 @@ const ORIGIN_MATCH_TOLERANCE_METERS = 0.01;
 
 /* RTK-Basisposition für die Umrechnung relativ <-> absolut. */
 let referenceOrigin = {lat:0, lon:0};
-
-/* Merkt, ob die aktive Karte als absolutes WGS84 geladen wurde. */
-let loadedAsAbsolute = false;
 
 
 /** Meter pro Längengrad auf der Breite des Bezugspunktes. */
@@ -7677,7 +7675,8 @@ function updateSelectionPanel() {
   const setStartButton = document.getElementById("setStartPointBtn");
   const setEndButton = document.getElementById("setEndPointBtn");
   const deleteButton = document.getElementById("deletePointBtn");
-const selectionCount = selectedVertices.length;
+
+  const selectionCount = selectedVertices.length;
 
   if (selectionCount > 1) {
     meta.innerHTML =
@@ -7693,7 +7692,8 @@ const selectionCount = selectedVertices.length;
     setStartButton.disabled = true;
     setEndButton.disabled = true;
     deleteButton.disabled = true;
-updateMowerOrientationInfo();
+
+    updateMowerOrientationInfo();
     updateSelectionDeltaInfo();
     updateMultiSelectionUi();
     updateMeasurementUi();
@@ -7714,7 +7714,8 @@ updateMowerOrientationInfo();
     setStartButton.disabled = true;
     setEndButton.disabled = true;
     deleteButton.disabled = true;
-updateMowerOrientationInfo();
+
+    updateMowerOrientationInfo();
     updateSelectionDeltaInfo();
     updateMultiSelectionUi();
     updateMeasurementUi();
@@ -8361,13 +8362,6 @@ function deleteExclusionFeature(featureIndex) {
     `${label} wurde vollständig gelöscht. Verbleibende Exclusions wurden neu nummeriert.`,
     "ok"
   );
-}
-
-
-/** Löscht die Exclusion des aktuell ausgewählten Punktes. */
-function deleteSelectedExclusion() {
-  if (!selectedVertex) return;
-  deleteExclusionFeature(selectedVertex.featureIndex);
 }
 
 
@@ -10932,7 +10926,6 @@ function stopPointerInteraction(event) {
 
   if (vertexDrag && event.pointerId === vertexDrag.pointerId) {
     vertexDrag = null;
-    pendingDragHistory = null;
     renderGeometry();
     updateSelectionPanel();
     renderFeatureNavigator();
