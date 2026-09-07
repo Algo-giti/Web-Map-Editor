@@ -78,6 +78,20 @@ erklärt beides.
   (siehe `CHANGELOG_EN.md`, Release 045/046: genau dieser Bug wurde zweimal
   gefixt). Nicht verwechseln mit `getSelectedVertices()`: das liefert nur
   `selectedVertices` und fällt **nicht** auf `selectedVertex` zurück.
+
+  **Beide gehören zum Kartenslot, nicht nur zum globalen Zustand.** `mapSlots`
+  führt `selectedVertex` *und* `selectedVertices`; wer eine der beiden Größen
+  irgendwo sichert oder zurückholt, muss die andere mitziehen. Vorher hielt der
+  Slot nur den einzelnen Punkt, und `activateMap()` baute die Gruppe daraus neu
+  auf – eine Auswahl von zwölf Punkten kam nach einem Wechsel auf Karte B und
+  zurück als ein einzelner Punkt wieder. Betroffen sind sieben Stellen: die
+  beiden Slot-Literale, das Merge-Ergebnis, `syncActiveSlotFromGlobals()`,
+  `activateMap()`, der Ladepfad, der Checkpoint nach dem Speichern und das
+  Zurücksetzen. `tools/test-map-switch.mjs` deckt das ab.
+
+  Ein einfacher Klick auf einen bereits markierten Punkt **hebt die Gruppe
+  nicht auf** – sie bleibt bestehen, damit man sie ziehen kann. Das ist
+  gewolltes Verhalten und beim Schreiben von Tests leicht zu übersehen.
 - **Feature-Typen (CaSSAndRA-kompatibel):** `properties.name` trägt
   **ausschließlich** den Typ im CaSSAndRA-Vokabular. Ein davon abweichender
   Anzeigename gehört nach `properties.label`. Details in Abschnitt 5a.
@@ -134,7 +148,7 @@ Sie zerfallen in **zwei Stufen**, und diese Trennung ist beabsichtigt:
 | Stufe | Skripte | Abhängigkeiten | Status |
 |---|---|---|---|
 | statisch | `check-all.mjs` (4.1) | keine | **Pflicht** vor jeder Rückmeldung "fertig" |
-| Browser | zehn Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
+| Browser | elf Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
 
 `check-all.mjs` läuft mit Node-Bordmitteln und muss das bleiben – es ist die
 Stufe, die in **jeder** Umgebung ohne Vorbereitung durchläuft. Die
@@ -196,7 +210,7 @@ Zwei Fallstricke dabei:
 
 ### 4.2 Browsertests (optional, real gerendert)
 
-Zehn Skripte öffnen `index.html` in einem echten Browser über eine
+Elf Skripte öffnen `index.html` in einem echten Browser über eine
 `file://`-URL – die Datei hat keine externen Ressourcen und keine
 `fetch()`-Aufrufe, ein Webserver ist also nicht nötig.
 
@@ -212,6 +226,7 @@ Zehn Skripte öffnen `index.html` in einem echten Browser über eine
 | `test-shapes.mjs` | Kreis- und Rechteck-Exclusions |
 | `test-validation.mjs` | erweiterte Geometrieprüfung |
 | `test-rectify.mjs` | Ecken rechtwinklig |
+| `test-map-switch.mjs` | Wechsel zwischen Karte A und B |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:

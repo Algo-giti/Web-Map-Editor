@@ -3005,6 +3005,7 @@ const mapSlots = {
     originalFilename:null,
     dirty:false,
     selectedVertex:null,
+    selectedVertices:[],
     convertedFromAbsolute:false,
     fileOrigin:null,
     scaleMode:null,
@@ -3018,6 +3019,7 @@ const mapSlots = {
     originalFilename:null,
     dirty:false,
     selectedVertex:null,
+    selectedVertices:[],
     convertedFromAbsolute:false,
     fileOrigin:null,
     scaleMode:null,
@@ -6171,6 +6173,14 @@ function syncActiveSlotFromGlobals() {
   slot.dirty = dataDirty;
   slot.selectedVertex =
     selectedVertex ? structuredClone(selectedVertex) : null;
+
+  /*
+   * Die Mehrfachauswahl gehört genauso zum Slot wie der einzelne Punkt. Ohne
+   * sie ging beim Umschalten zwischen Karte A und B alles bis auf den zuletzt
+   * einzeln gewählten Punkt verloren - eine Gruppe von zwölf Punkten kam als
+   * ein Punkt zurück.
+   */
+  slot.selectedVertices = structuredClone(selectedVertices);
 }
 
 
@@ -6315,7 +6325,15 @@ function activateMap(mapId, options = {}) {
   dataDirty = target.dirty;
   selectedVertex =
     target.selectedVertex ? structuredClone(target.selectedVertex) : null;
-  selectedVertices = selectedVertex ? [{...selectedVertex}] : [];
+
+  /*
+   * Gespeicherte Mehrfachauswahl zurückholen. Der Rückfall auf den einzelnen
+   * Punkt gilt nur für Slots, die vor dieser Reparatur gesichert wurden oder
+   * gar keine Gruppe hatten.
+   */
+  selectedVertices = Array.isArray(target.selectedVertices) && target.selectedVertices.length
+    ? structuredClone(target.selectedVertices)
+    : selectedVertex ? [{...selectedVertex}] : [];
 
   vertexDrag = null;
   selectionBaseline = selectedVertex
@@ -6362,6 +6380,7 @@ function setMapSlotData(mapId, featureCollection, fileName, options = {}) {
   slot.originalFilename = fileName;
   slot.dirty = false;
   slot.selectedVertex = null;
+  slot.selectedVertices = [];
   slot.convertedFromAbsolute = options.convertedFromAbsolute === true;
 
   /*
@@ -13030,6 +13049,7 @@ function mergeMapSlots() {
     originalFilename:mergedName,
     dirty:true,
     selectedVertex:null,
+    selectedVertices:[],
 
     /*
      * Das Ergebnis liegt weiterhin im Koordinatenrahmen von Karte A. Ohne
@@ -13055,6 +13075,7 @@ function mergeMapSlots() {
     originalFilename:null,
     dirty:false,
     selectedVertex:null,
+    selectedVertices:[],
     convertedFromAbsolute:false,
     fileOrigin:null,
     scaleMode:null,
@@ -14037,6 +14058,7 @@ function exportGeoJson() {
   slot.selectedVertex = selectedVertex
     ? structuredClone(selectedVertex)
     : null;
+  slot.selectedVertices = structuredClone(selectedVertices);
 
   dataDirty = false;
 
@@ -14075,6 +14097,7 @@ function resetToOriginal() {
   slot.filename = slot.originalFilename;
   slot.dirty = false;
   slot.selectedVertex = null;
+  slot.selectedVertices = [];
 
   data = slot.data;
   currentFilename = slot.filename;
@@ -14248,6 +14271,7 @@ function removeSecondMap() {
     originalFilename:null,
     dirty:false,
     selectedVertex:null,
+    selectedVertices:[],
     convertedFromAbsolute:false,
     fileOrigin:null,
     scaleMode:null,
