@@ -20,6 +20,18 @@ const NAMES = [
   "cassandraNameForFeature",
   "walkCoordinates",
   "collectCoords",
+  "coordinatesEqual",
+  "getAtPath",
+  "isDockFeature",
+  "isSearchWireFeature",
+  "layerName",
+  "detectSunray",
+  "scaleFactorForData",
+  "toWorld",
+  "polygonAreaMeters",
+  "geometryCoordinateSequences",
+  "computeBoundsForData",
+  "validateMapData",
   "describeFeature",
   "DEGREE_METERS",
   "ABSOLUTE_WGS84_THRESHOLD",
@@ -145,6 +157,82 @@ check("fehlender Name wird NICHT als unbekannter Name gemeldet",
 /* Nicht bearbeitbar heisst nicht "wird veraendert". */
 check("fehlender Name wird beim Export nicht erfunden",
   app.cassandraNameForFeature(noProperties) === "");
+
+console.log("Docking-Pfad: freie Punktzahl");
+
+/*
+ * Weder CaSSAndRA noch die Sunray-Firmware schreiben eine Punktzahl vor
+ * (Belege in CLAUDE.md, Abschnitt 5). Geprueft wird deshalb die echte
+ * validateMapData(), nicht eine Nachbildung der Regel.
+ */
+function mapWithDock(pointCount) {
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: { name: "perimeter" },
+        geometry: {
+          type: "Polygon",
+          coordinates: [[[0, 0], [0.0001, 0], [0.0001, 0.0001], [0, 0]]],
+        },
+      },
+      feature(
+        "dockpoints",
+        Array.from({ length: pointCount }, (_, index) => [index * 0.00001, 0])
+      ),
+    ],
+  };
+}
+
+function dockMessages(pointCount) {
+  const result = app.validateMapData(mapWithDock(pointCount));
+  const relevant = (list) => list.filter((message) => message.includes("Docking-Pfad"));
+
+  return {
+    errors: relevant(result.errors),
+    warnings: relevant(result.warnings),
+  };
+}
+
+/* Die Testkarte darf ausser dem Dockpfad keine Befunde erzeugen. */
+const baseline = app.validateMapData(mapWithDock(3));
+check("Testkarte ist ansonsten fehlerfrei",
+  baseline.errors.length === 0, JSON.stringify(baseline.errors));
+
+const emptyDock = dockMessages(0);
+check("leerer Dockpfad ist nur eine Warnung",
+  emptyDock.errors.length === 0 && emptyDock.warnings.length === 1,
+  JSON.stringify(emptyDock));
+
+const singleDock = dockMessages(1);
+check("ein einzelner Punkt ist ein Fehler",
+  singleDock.errors.length === 1 && singleDock.warnings.length === 0,
+  JSON.stringify(singleDock));
+check("der Fehler nennt die Mindestanzahl",
+  singleDock.errors[0].includes("mindestens 2"), singleDock.errors[0]);
+
+const twoDock = dockMessages(2);
+check("zwei Punkte sind gueltig", twoDock.errors.length === 0, JSON.stringify(twoDock));
+check("zwei Punkte erzeugen den Praxis-Hinweis",
+  twoDock.warnings.length === 1 && twoDock.warnings[0].includes("üblicherweise"),
+  JSON.stringify(twoDock));
+
+/* Der Fall, der bestehende Nutzer betrifft: unveraendertes Verhalten bei 3. */
+const threeDock = dockMessages(3);
+check("drei Punkte sind gueltig und ohne Warnung",
+  threeDock.errors.length === 0 && threeDock.warnings.length === 0,
+  JSON.stringify(threeDock));
+
+const fiveDock = dockMessages(5);
+check("fuenf Punkte sind gueltig", fiveDock.errors.length === 0, JSON.stringify(fiveDock));
+check("fuenf Punkte erzeugen eine Warnung, keinen Fehler",
+  fiveDock.warnings.length === 1 && fiveDock.warnings[0].includes("5 Punkte"),
+  JSON.stringify(fiveDock));
+
+/* Keine Obergrenze: auch ein sehr langer Pfad bleibt gueltig. */
+const longDock = dockMessages(40);
+check("keine Obergrenze", longDock.errors.length === 0, JSON.stringify(longDock));
 
 console.log("Anzeigename (label)");
 

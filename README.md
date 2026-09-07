@@ -117,9 +117,12 @@ Docking ist **optional**.
 
 - kein Docking-Pfad erforderlich
 - leerer Docking-Platzhalter ist zulässig und erzeugt nur eine Warnung
-- wenn ein Docking-Pfad verwendet wird, besteht er aus exakt 3 Punkten
+- ein einzelner Punkt ist ein Fehler; ab 2 Punkten ist der Pfad gültig
+- keine Obergrenze für die Punktzahl
+- 3 Punkte (Anfahrt, Ausrichtung, Endpunkt) sind die übliche Praxis, keine
+  Vorgabe – eine andere Anzahl erzeugt nur einen Hinweis
 - maximal ein Docking-Feature pro Karte
-- automatische Fertigstellung nach dem dritten Punkt
+- vorhandenen Pfad am Ende verlängern
 - kompletter Docking-Pfad kann entfernt werden
 
 ### Mähroboter-Vorschau
@@ -346,9 +349,12 @@ Docking is **optional**.
 
 - no docking path is required
 - an empty docking placeholder is allowed and produces only a warning
-- if a docking path is used, it must contain exactly 3 points
+- a single point is an error; from 2 points on the path is valid
+- no upper limit on the number of points
+- 3 points (approach, alignment, end point) are common practice, not a
+  requirement - a different count only produces a note
 - at most one docking feature per map
-- automatic completion after the third point
+- extend an existing path at its end
 - delete the complete docking path
 
 ### Mower preview

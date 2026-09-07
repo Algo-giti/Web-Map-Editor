@@ -103,9 +103,12 @@ Docking is **optional**.
 
 - no docking path is required
 - an empty docking placeholder is allowed and produces only a warning
-- if a docking path is used, it must contain exactly 3 points
+- a single point is an error; from 2 points on the path is valid
+- no upper limit on the number of points
+- 3 points (approach, alignment, end point) are common practice, not a
+  requirement - a different count only produces a note
 - at most one docking feature per map
-- automatic completion after the third point
+- extend an existing path at its end
 - delete the complete docking path
 
 ### Mower preview

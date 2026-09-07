@@ -366,9 +366,33 @@ Docking (Ziehen direkt an der Geometrie). Der komplette Perimeter ist
 absichtlich **nicht** direkt draggable, um versehentliches Verschieben zu
 vermeiden – nicht ohne explizite Anfrage ändern.
 
-**Docking:** Optional. Kein Docking-Feature oder leere Docking-LineString →
-nur Warnung, kein Fehler. Nicht-leeres Docking mit 1, 2 oder >3 Punkten →
-Fehler. Gültig = exakt 3 Punkte. Maximal ein Docking-Feature pro Karte.
+**Docking-Pfad:** Optional, offener `LineString`, maximal einer pro Karte.
+Kein Docking-Feature oder leerer Platzhalter → nur Warnung. **Ein einzelner
+Punkt → Fehler. Ab 2 Punkten gültig, ohne Obergrenze.** Eine Punktzahl
+ungleich 3 erzeugt lediglich einen Hinweis auf die übliche Praxis, keinen
+Fehler – die Karte ist nicht mangelhaft. Ein vorhandener Pfad kann wie die
+Search Wire am Ende verlängert werden; einzelne Punkte lassen sich wie bei
+jeder anderen Linie löschen, solange 2 übrig bleiben.
+
+Die frühere Regel „exakt 3 Punkte" war eine **Eigenerfindung des Editors**.
+Sie ist gegen beide Quellen widerlegt:
+
+- **CaSSAndRA**, `CaSSAndRA/src/backend/data/mapdata.py` (Branch `master`):
+  Import und Export reichen den Dockpfad als einfachen `LineString` mit allen
+  Koordinaten durch, ohne Zählung. `check_dockpoints()` verlangt ausdrücklich
+  nur **mindestens 2** Punkte (`if len(dockpoints) < 2: … adjustment not
+  possible`) und rechnet ausschließlich mit den letzten beiden. Beim Löschen
+  eines Punktes nimmt CaSSAndRA Dockpoints sogar **von der 3-Punkte-Regel für
+  Figuren aus** (`… <= 2 and self.selected_name != 'dockpoints'`).
+- **Sunray**, `sunray/map.cpp`: `getDockingPos()` und `setIsDocked()`
+  verweigern das Andocken bei `dockPoints.numPoints < 2`. Eine Annahme „genau
+  3" existiert nirgends; `retryDocking()` vergleicht gegen
+  `dockPoints.numPoints-3`, was nur bei **mehr** als drei Punkten überhaupt
+  Sinn ergibt.
+
+Eine Obergrenze gibt es in keiner der beiden Quellen – keine einbauen und
+keine behaupten. **Nicht gegen laufende Firmware oder echte Hardware
+getestet**, nur gegen den Quelltext.
 
 **Search Wire:** Offene `LineString`. Gültige Zustände: leerer Platzhalter
 oder nicht-leere Linie mit ≥2 Punkten.
@@ -379,7 +403,9 @@ oder nicht-leere Linie mit ≥2 Punkten.
 
 Verifiziert gegen den CaSSAndRA-Quellcode
 ([`EinEinfach/CaSSAndRA`](https://github.com/EinEinfach/CaSSAndRA),
-`src/backend/data/mapdata.py`, Funktion `export_geojson`).
+Datei `CaSSAndRA/src/backend/data/mapdata.py` auf dem Default-Branch
+`master` – beachte das zusätzliche Verzeichnis `CaSSAndRA/` und dass der
+Branch nicht `main` heißt, Funktion `export_geojson`).
 
 `properties.name` trägt **ausschließlich** den Typ. Ein abweichender
 Anzeigename gehört nach `properties.label` und wird beim Export nie

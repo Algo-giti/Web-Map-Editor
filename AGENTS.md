@@ -262,9 +262,21 @@ Validation rules:
 
 - no Docking feature → warning only
 - empty Docking LineString → warning only
-- non-empty Docking with 1, 2, or more than 3 points → error
-- valid Docking → exactly 3 points
+- exactly 1 point → error (Sunray refuses to dock below 2 points)
+- 2 or more points → valid, with no upper limit
+- a count other than 3 → note about common practice, not an error
 - maximum one Docking feature per map
+
+The former "exactly 3 points" rule was an invention of this editor and is
+refuted by both sources: CaSSAndRA's `check_dockpoints()`
+(`CaSSAndRA/src/backend/data/mapdata.py`, branch `master`) requires only 2 and
+exempts dockpoints from the 3-point rule applied to figures, while Sunray's
+`sunray/map.cpp` rejects only `dockPoints.numPoints < 2` and `retryDocking()`
+compares against `numPoints-3`, which only makes sense above three points.
+
+Do not reintroduce a fixed point count and do not add an upper limit. An
+existing path can be extended at its end like the Search Wire, and individual
+points can be deleted as long as 2 remain.
 
 Do not make missing Docking a fatal validation error.
 

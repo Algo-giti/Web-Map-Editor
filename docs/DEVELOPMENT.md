@@ -312,11 +312,19 @@ Validation semantics:
 
 - no Docking feature → warning only
 - empty Docking LineString → warning only
-- non-empty Docking with 1, 2, or more than 3 points → error
-- valid Docking → exactly 3 points
+- exactly 1 point → error
+- 2 or more points → valid, no upper limit
+- a count other than 3 → note about common practice, not an error
 - maximum one Docking feature per map
 
-Individual Docking points should not normally be deleted separately.
+Three points (approach, alignment, end point) are the customary layout, not a
+requirement. Verified against CaSSAndRA
+(`CaSSAndRA/src/backend/data/mapdata.py`, branch `master`) and the Sunray
+firmware (`sunray/map.cpp`); both require at least 2 points and neither
+assumes exactly 3.
+
+A docking path can be extended at its end like the Search Wire. Individual
+points can be deleted like on any other line, as long as 2 remain.
 
 ---
 
