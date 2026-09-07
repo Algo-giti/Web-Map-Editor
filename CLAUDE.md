@@ -663,6 +663,18 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   bleibt dadurch unentdeckt – genau so hatte `deleteSelectedExclusion()` den
   in Ausgabe 043 entfernten Button um mehrere Ausgaben überlebt. Die manuelle
   Volltextsuche aus Abschnitt 5 ("UI-Element entfernen") bleibt deshalb Pflicht.
+- **Die dynamischen Titel von `undoBtn` und `redoBtn` sind unübersetzt.**
+  `undoButton.title` (`Rückgängig: <Marke>`) und `redoButton.title`
+  (`Wiederholen: <Marke>`) werden in `updateHistoryButtons()` zur Laufzeit
+  gesetzt und haben kein `I18N_PATTERNS`-Muster; im englischen Modus bleiben
+  sie deutsch. Nur die statischen Fälle ("Keine Änderung zum
+  Rückgängigmachen") sind übersetzt. Ein Muster `^Rückgängig: (.+)$` allein
+  hilft nicht: es würde die deutsche Historienmarke unverändert einsetzen.
+  Nötig wäre zusätzlich, dass **alle** Marken aus `createWorkspaceSnapshot()`
+  übersetzbar sind - also eine Inventur über sämtliche Aufrufstellen, kein
+  Nachtrag von einer Zeile. Wird beim UI-Umbau in Ausgabe 050 miterledigt,
+  wo die Beschriftungen ohnehin angefasst werden. Es sind die einzigen beiden
+  dynamisch gesetzten `title`-Attribute ohne Muster.
 - **`CHANGELOG.md` (deutsch) beginnt erst bei Ausgabe 047.** Die Historie der
   Ausgaben 001–046 existiert nur in `CHANGELOG_EN.md`. Neue Einträge ab
   jetzt bitte in beiden Dateien pflegen.
