@@ -275,6 +275,17 @@ After deleting a complete Exclusion:
 
 ---
 
+## Circle and rectangle exclusions
+
+Generated shapes are ordinary exclusions produced through the same creation
+path as drawn ones; there is no special format and no additional properties.
+A single click sets the reference point and snapping applies to that point
+only, not to the generated vertices.
+
+The default vertex count for circles is 24; the chord deviation from the ideal
+circle is shown in the interface so the value can be judged against the actual
+radius rather than assumed correct.
+
 ## Point reduction
 
 Douglas-Peucker simplification with a configurable tolerance in metres,

@@ -88,6 +88,18 @@ selected vertices, provided the resulting polygon remains valid.
 - `Enter` finishes drawing
 - `Esc` cancels drawing
 
+### Circle and rectangle exclusions
+
+- circle: enter radius in metres and vertex count, then click the centre
+- the actual deviation from the ideal circle is displayed
+- rectangle: enter width, height and rotation, then click the reference point
+- the click point is either the centre or a corner
+- angle convention 0 degrees = East, 90 degrees = North
+- the preview follows the mouse pointer
+- snap to grid applies to the reference point, not to the vertices
+- the result is an ordinary exclusion and remains fully editable
+- one undo step
+
 ### Search Wire
 
 - draw a new open Search Wire

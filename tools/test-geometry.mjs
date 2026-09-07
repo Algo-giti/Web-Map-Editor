@@ -25,6 +25,11 @@ const NAMES = [
   "douglasPeuckerThresholds",
   "douglasPeuckerKeepIndices",
   "largestToleranceKeeping",
+  "CIRCLE_DEFAULT_VERTICES",
+  "CIRCLE_MIN_VERTICES",
+  "circleChordDeviation",
+  "circlePolygonPoints",
+  "rectanglePolygonPoints",
 ];
 
 const source = extractDeclarations(readInlineScript(), NAMES);
@@ -265,6 +270,72 @@ check("leere Folge", sameList(app.douglasPeuckerKeepIndices([], 1), []));
 check("ein Punkt", sameList(app.douglasPeuckerKeepIndices([[0, 0]], 1), [0]));
 check("zwei Punkte bleiben beide",
   sameList(app.douglasPeuckerKeepIndices([[0, 0], [1, 1]], 99), [0, 1]));
+
+/* -------------------------------------------------------------------- */
+console.log("Kreis- und Rechteck-Exclusions");
+
+const circle = app.circlePolygonPoints([10, 5], 2, 24);
+
+check("Eckpunktanzahl stimmt", circle.length === 24, String(circle.length));
+check("alle Punkte liegen auf dem Kreis",
+  circle.every(([e, n]) => near(Math.hypot(e - 10, n - 5), 2, 1e-9)));
+check("erster Punkt zeigt nach East",
+  near(circle[0][0], 12) && near(circle[0][1], 5), JSON.stringify(circle[0]));
+check("Drehsinn gegen den Uhrzeigersinn", circle[1][1] > circle[0][1]);
+check("Ring wird NICHT geschlossen",
+  !(near(circle[0][0], circle[23][0]) && near(circle[0][1], circle[23][1])));
+
+/* Bei 24 Ecken liegt ein Punkt exakt auf jeder Achsenrichtung. */
+check("Punkt exakt nach North", circle.some(([e, n]) => near(e, 10) && near(n, 7)));
+
+check("zu wenige Ecken ergeben nichts",
+  app.circlePolygonPoints([0, 0], 1, 2).length === 0);
+check("Radius 0 ergibt nichts",
+  app.circlePolygonPoints([0, 0], 0, 12).length === 0);
+
+/*
+ * Die Abweichung vom idealen Kreis ist die Grundlage der Vorgabe von 24 Ecken:
+ * bei 1 m Radius rund 8 mm, bei 2 m rund 17 mm - beides unter dem RTK-Rauschen.
+ */
+check("Abweichung bei 1 m und 24 Ecken unter 1 cm",
+  app.circleChordDeviation(1, app.CIRCLE_DEFAULT_VERTICES) < 0.01,
+  String(app.circleChordDeviation(1, 24)));
+check("Abweichung bei 2 m und 24 Ecken unter 2 cm",
+  app.circleChordDeviation(2, 24) < 0.02, String(app.circleChordDeviation(2, 24)));
+check("mehr Ecken verringern die Abweichung",
+  app.circleChordDeviation(2, 48) < app.circleChordDeviation(2, 24));
+check("Abweichung waechst mit dem Radius",
+  app.circleChordDeviation(4, 24) > app.circleChordDeviation(2, 24));
+
+/* Rechteck, ungedreht, um den Mittelpunkt. */
+const rect = app.rectanglePolygonPoints([0, 0], 4, 2, 0, "center");
+check("vier Ecken", rect.length === 4);
+check("Mittelpunkt-Bezug ist zentriert",
+  near(rect[0][0], -2) && near(rect[0][1], -1), JSON.stringify(rect[0]));
+check("Breite stimmt", near(rect[1][0] - rect[0][0], 4));
+check("Hoehe stimmt", near(rect[2][1] - rect[1][1], 2));
+
+/* Ecken-Bezug: der Klickpunkt liegt auf der Ecke. */
+const corner = app.rectanglePolygonPoints([10, 20], 4, 2, 0, "corner");
+check("Ecken-Bezug beginnt am Klickpunkt",
+  near(corner[0][0], 10) && near(corner[0][1], 20), JSON.stringify(corner[0]));
+check("Ecken-Bezug spannt nach East und North auf",
+  near(corner[2][0], 14) && near(corner[2][1], 22), JSON.stringify(corner[2]));
+
+/* Drehung: 90 Grad vertauscht East und North. */
+const turned = app.rectanglePolygonPoints([0, 0], 4, 2, 90, "center");
+check("90 Grad dreht gegen den Uhrzeigersinn",
+  near(turned[0][0], 1) && near(turned[0][1], -2), JSON.stringify(turned[0]));
+
+/* Die Drehung erhaelt die Seitenlaengen. */
+const oblique = app.rectanglePolygonPoints([0, 0], 4, 2, 37, "center");
+check("Drehung erhaelt die Breite",
+  near(Math.hypot(oblique[1][0] - oblique[0][0], oblique[1][1] - oblique[0][1]), 4));
+check("Drehung erhaelt die Hoehe",
+  near(Math.hypot(oblique[2][0] - oblique[1][0], oblique[2][1] - oblique[1][1]), 2));
+
+check("Breite 0 ergibt nichts",
+  app.rectanglePolygonPoints([0, 0], 0, 2, 0).length === 0);
 
 /* -------------------------------------------------------------------- */
 console.log(

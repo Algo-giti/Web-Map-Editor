@@ -102,6 +102,18 @@ ausgewählten Punkte gelöscht, sofern die Polygongeometrie gültig bleibt.
 - `Enter` beendet die Zeichnung
 - `Esc` bricht ab
 
+### Kreis- und Rechteck-Exclusions
+
+- Kreis: Radius in Metern und Eckpunktanzahl eingeben, Mittelpunkt anklicken
+- die tatsächliche Abweichung vom idealen Kreis wird angezeigt
+- Rechteck: Breite, Höhe und Drehwinkel eingeben, Bezugspunkt anklicken
+- Klickpunkt wahlweise Mittelpunkt oder Ecke
+- Winkelkonvention 0° = East, 90° = North
+- Vorschau folgt dem Mauszeiger
+- Snap-to-Grid wirkt auf den Bezugspunkt, nicht auf die Eckpunkte
+- das Ergebnis ist eine gewöhnliche Exclusion und danach normal editierbar
+- ein Undo-Schritt
+
 ### Search Wire
 
 - neue offene Search Wire zeichnen
@@ -350,6 +362,18 @@ selected vertices, provided the resulting polygon remains valid.
 - `Backspace` removes the most recently added point
 - `Enter` finishes drawing
 - `Esc` cancels drawing
+
+### Circle and rectangle exclusions
+
+- circle: enter radius in metres and vertex count, then click the centre
+- the actual deviation from the ideal circle is displayed
+- rectangle: enter width, height and rotation, then click the reference point
+- the click point is either the centre or a corner
+- angle convention 0 degrees = East, 90 degrees = North
+- the preview follows the mouse pointer
+- snap to grid applies to the reference point, not to the vertices
+- the result is an ordinary exclusion and remains fully editable
+- one undo step
 
 ### Search Wire
 

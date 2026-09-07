@@ -295,6 +295,19 @@ Do not make the whole perimeter directly draggable unless explicitly requested.
 Exclusion duplication should remain undoable and should renumber Exclusions
 correctly.
 
+## Circle and rectangle exclusions
+
+A single click sets the reference point; the geometry follows from the entered
+dimensions. Both run through the existing drawing machinery so that cancelling,
+Escape, the status line and the undo boundary apply unchanged. Preview and
+creation take their points from the same function.
+
+The result is an ordinary exclusion - same creation path, same ring closure,
+same `idx` assignment, no extra properties. Do not introduce a special format.
+
+Snap to grid applies to the reference point, not to the generated vertices.
+Angles follow the editor convention: 0 degrees = East, counter-clockwise.
+
 ## Merging and singletons
 
 Docking path and Search Wire exist at most once per map. When merging, only

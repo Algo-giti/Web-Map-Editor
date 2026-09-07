@@ -361,6 +361,29 @@ Exclusions neu nummerieren, Undo muss funktionieren. Der frühere separate
 "Exclusion löschen"-Button im Punkteditor wurde entfernt – nicht ohne
 explizite Anfrage wiederherstellen.
 
+**Kreis- und Rechteck-Exclusions:** Ein Klick setzt den Bezugspunkt, die
+Geometrie folgt aus den eingestellten Maßen. Beide laufen über dieselbe
+Zeichenmechanik wie Exclusion und Search Wire (`SHAPE_MODES`,
+`isShapeMode()`), damit Abbrechen, Escape, Statuszeile und Undo-Grenze
+unverändert gelten. Vorschau und Erzeugung holen die Punkte aus derselben
+Funktion `shapePointsAt()` – sie können nicht auseinanderlaufen.
+
+Das Ergebnis ist eine **gewöhnliche Exclusion**: derselbe Erzeugungsweg über
+`createExclusionFeatureFromWorldPoints()`, also gleicher Ringschluss, gleiche
+`idx`-Vergabe, keine zusätzlichen `properties`. Danach wie jede andere
+editierbar.
+
+- **Vorgabe 24 Ecken.** Die Sehnenabweichung eines n-Ecks vom Kreis ist
+  `r·(1−cos(π/n))` – bei 24 Ecken 8 mm für 1 m Radius und 17 mm für 2 m, also
+  unter dem RTK-Rauschen. Weil der passende Wert vom Radius abhängt, zeigt die
+  Oberfläche die tatsächliche Abweichung an, statt die Vorgabe als richtig
+  auszugeben. Grenzen: 3 bis 720 Ecken.
+- **Snap-to-Grid wirkt auf den Bezugspunkt, nicht auf die Eckpunkte.** Das
+  ergibt sich von selbst, weil `addFeatureDrawPoint()` den Klick rastet und die
+  Form anschließend aus dem gerasteten Punkt berechnet wird.
+- Winkelkonvention wie beim Messen: 0° = East, gegen den Uhrzeigersinn.
+- Der Klickpunkt des Rechtecks ist wahlweise Mittelpunkt oder Ecke.
+
 **Verbinden und Singletons:** Docking-Pfad und Search Wire gibt es pro Karte
 nur einmal. Beim Verbinden werden aus Karte B **nur** Exclusions und Features
 unbekannten Typs angehängt; die beiden Singletons laufen über
