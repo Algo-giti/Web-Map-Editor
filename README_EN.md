@@ -88,6 +88,14 @@ selected vertices, provided the resulting polygon remains valid.
 - `Enter` finishes drawing
 - `Esc` cancels drawing
 
+### Straighten line
+
+- select exactly two points of the same line
+- the points in between are projected perpendicularly onto the connecting line
+- the two selected points stay where they are
+- on closed rings the shorter of the two ways is used
+- preview before applying, one undo step
+
 ### Right-angled corners
 
 - select one point of the feature; the tool works on the whole feature

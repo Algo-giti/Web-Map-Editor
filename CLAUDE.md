@@ -919,8 +919,8 @@ Status-Update-Referenzen. Reine Syntaxprüfung erkennt diese Fehlerklasse
 manuelle Grep-Suche nach Variablennamen bleibt zusätzlich nötig, da das
 Skript nur IDs, keine Variablennamen prüft.
 
-**Release-Nummerierung und -Packaging:** Baseline aktuell **Ausgabe 048**,
-nächstes substantielles Release **Ausgabe 049**. Ausgabe 049 nicht anlegen,
+**Release-Nummerierung und -Packaging:** Baseline aktuell **Ausgabe 049**,
+nächstes substantielles Release **Ausgabe 050**. Ausgabe 050 nicht anlegen,
 bevor eine substantielle Änderung tatsächlich angefragt wurde.
 
 **Es gibt keine Release-ZIPs.** Kein Archiv bauen, keines einchecken, keines
@@ -932,7 +932,7 @@ Ein Release besteht damit aus: Versionsnummer in `index.html` hochziehen,
 beide Changelogs (`CHANGELOG.md` **und** `CHANGELOG_EN.md`) pflegen, die
 Baseline in `AGENTS.md`, `docs/DEVELOPMENT.md` und dieser Datei nachziehen,
 Prüfungen aus Abschnitt 4 laufen lassen, committen und den Commit taggen
-(`v048`, `v049`, …). Die Tags sind der Rollback-Mechanismus – jeder frühere
+(`v049`, `v050`, …). Die Tags sind der Rollback-Mechanismus – jeder frühere
 Stand bleibt auscheckbar, ohne Binärdateien in der Git-Historie.
 
 **Vor jedem Release, mindestens:**
@@ -1003,7 +1003,10 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   und wurde beim Bau von deren Browsertest gefunden. Eine Reparatur wäre klein
   (den letzten Bericht nach `startI18nObserver()` neu rendern), gehört aber in
   denselben Durchgang wie die beiden unübersetzten Historien-Titel, damit die
-  i18n-Wege nur einmal angefasst werden.
+  i18n-Wege nur einmal angefasst werden. **Beides ist als erster Schritt des
+  Oberflächenumbaus eingeplant** (Branch `ui-redesign`), weil der dortige
+  Inspektor seine Inhalte vollständig zur Laufzeit aufbaut und ohne diese
+  Reparatur beim Sprachwechsel komplett deutsch bliebe.
 - **Die dynamischen Titel von `undoBtn` und `redoBtn` sind unübersetzt.**
   `undoButton.title` (`Rückgängig: <Marke>`) und `redoButton.title`
   (`Wiederholen: <Marke>`) werden in `updateHistoryButtons()` zur Laufzeit
@@ -1013,9 +1016,10 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   hilft nicht: es würde die deutsche Historienmarke unverändert einsetzen.
   Nötig wäre zusätzlich, dass **alle** Marken aus `createWorkspaceSnapshot()`
   übersetzbar sind - also eine Inventur über sämtliche Aufrufstellen, kein
-  Nachtrag von einer Zeile. Wird beim UI-Umbau in Ausgabe 050 miterledigt,
-  wo die Beschriftungen ohnehin angefasst werden. Es sind die einzigen beiden
-  dynamisch gesetzten `title`-Attribute ohne Muster.
+  Nachtrag von einer Zeile. Wird zusammen mit dem Punkt darüber im ersten
+  Schritt des Oberflächenumbaus erledigt, wo die Beschriftungen ohnehin
+  angefasst werden. Es sind die einzigen beiden dynamisch gesetzten
+  `title`-Attribute ohne Muster.
 - **`CHANGELOG.md` (deutsch) beginnt erst bei Ausgabe 047.** Die Historie der
   Ausgaben 001–046 existiert nur in `CHANGELOG_EN.md`. Neue Einträge ab
   jetzt bitte in beiden Dateien pflegen.
@@ -1032,6 +1036,10 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `referenceOrigin` und `coordinateScale`: dass CaSSAndRAs Import sie ignoriert,
   ist am Quelltext belegt (er greift ausschließlich auf `features` zu), aber
   nicht gegen eine laufende Instanz geprüft.
+- **Die Mähbahnen-Vorschau ist geplant, aber nicht gebaut.** Sie war für
+  Ausgabe 049 vorgesehen und wurde herausgenommen, um den Release nicht
+  aufzuhalten; sie kommt in einer späteren Ausgabe. In der Anwendung gibt es
+  dazu bisher nichts – weder Schalter noch Platzhalter.
 - **Ein relativer Export schreibt weiterhin den aktiven `referenceOrigin` in
   die Datei.** Das ist korrekt, solange kein Konflikt besteht – und ein
   Konflikt sperrt den Export inzwischen vollständig. Bleibt als Merkposten,

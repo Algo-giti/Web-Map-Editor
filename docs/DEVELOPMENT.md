@@ -43,11 +43,11 @@ Substantial changes should increment the release number sequentially.
 
 Current baseline:
 
-- Ausgabe 048
+- Ausgabe 049
 
 Next substantial release:
 
-- Ausgabe 049
+- Ausgabe 050
 
 Previous releases stay reachable through their git tags.
 
@@ -57,7 +57,7 @@ For each release:
 2. update documentation where relevant
 3. update both changelogs
 4. run the checks (see `CLAUDE.md` section 4)
-5. tag the release commit (`v048`, `v049`, ...)
+5. tag the release commit (`v049`, `v050`, ...)
 
 **There are no release archives.** Do not build a ZIP, do not commit one, and
 do not attach one to a GitHub Release. The application is a single

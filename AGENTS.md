@@ -27,14 +27,14 @@ Project name:
 
 Current baseline:
 
-**Ausgabe 048**
+**Ausgabe 049**
 
 Next substantial release:
 
-**Ausgabe 049**
+**Ausgabe 050**
 
 Substantial releases are numbered sequentially. Each release commit is
-tagged (`v048`, `v049`, ...); those tags are the rollback mechanism.
+tagged (`v049`, `v050`, ...); those tags are the rollback mechanism.
 
 There are no release archives. Do not build one.
 
@@ -567,7 +567,7 @@ A release therefore consists of:
 2. update `CHANGELOG.md` **and** `CHANGELOG_EN.md`
 3. update the baseline in `AGENTS.md`, `docs/DEVELOPMENT.md` and `CLAUDE.md`
 4. run the checks (see `CLAUDE.md` section 4)
-5. commit and tag it (`v048`, `v049`, ...)
+5. commit and tag it (`v049`, `v050`, ...)
 
 The tags are the rollback mechanism: every previous state stays checkoutable
 without storing binaries in the git history.
@@ -624,8 +624,8 @@ Before implementing a requested change:
 
 For the current repository:
 
-**Do not create Ausgabe 049 until a substantive change is requested.**
+**Do not create Ausgabe 050 until a substantive change is requested.**
 
 When the next substantive change is implemented, release it as:
 
-# Ausgabe 049
+# Ausgabe 050

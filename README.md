@@ -102,6 +102,14 @@ ausgewählten Punkte gelöscht, sofern die Polygongeometrie gültig bleibt.
 - `Enter` beendet die Zeichnung
 - `Esc` bricht ab
 
+### Linie begradigen
+
+- genau zwei Punkte desselben Linienzugs auswählen
+- die Punkte dazwischen werden senkrecht auf die Verbindungsgerade projiziert
+- die beiden ausgewählten Punkte bleiben liegen
+- bei geschlossenen Ringen wird der kürzere der beiden Wege genommen
+- Vorschau vor dem Anwenden, ein Undo-Schritt
+
 ### Ecken rechtwinklig machen
 
 - einen Punkt des Features auswählen, das Werkzeug arbeitet auf dem ganzen Feature
@@ -394,6 +402,14 @@ selected vertices, provided the resulting polygon remains valid.
 - `Backspace` removes the most recently added point
 - `Enter` finishes drawing
 - `Esc` cancels drawing
+
+### Straighten line
+
+- select exactly two points of the same line
+- the points in between are projected perpendicularly onto the connecting line
+- the two selected points stay where they are
+- on closed rings the shorter of the two ways is used
+- preview before applying, one undo step
 
 ### Right-angled corners
 
