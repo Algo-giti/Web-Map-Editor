@@ -263,6 +263,25 @@ After deleting a complete Exclusion:
 
 ---
 
+## Point reduction
+
+Douglas-Peucker simplification with a configurable tolerance in metres,
+applicable to a whole feature or to the section between two selected points.
+Selection detection is shared with the straighten tool via
+`getSelectedSection()`.
+
+Closed rings are treated as the open sequence `[0 … n-1, 0]`, which keeps the
+ring closed and preserves the start/end semantics; point 0 is never removed.
+
+Before the change is applied, `validateMapData()` runs over a preview copy and
+the findings are compared - not merely counted. New errors abort the operation.
+
+For exclusions the area change is reported when it exceeds 1 % or the square of
+the configured mower width, whichever comes first. Only shrinking areas are
+flagged as a warning; they release area the mower is meant to avoid.
+
+---
+
 ## Whole-feature operations
 
 Whole-feature movement is supported for:

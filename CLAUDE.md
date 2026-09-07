@@ -397,6 +397,47 @@ getestet**, nur gegen den Quelltext.
 **Search Wire:** Offene `LineString`. Gültige Zustände: leerer Platzhalter
 oder nicht-leere Linie mit ≥2 Punkten.
 
+**Punkte reduzieren (Douglas-Peucker):** Arbeitet auf dem Abschnitt zwischen
+zwei ausgewählten Punkten oder auf einem ganzen Feature. Die Auswahl kommt aus
+`getSelectedSection()` – derselben Funktion, die das Begradigen benutzt.
+
+- Kernfunktion ist `douglasPeuckerThresholds()`: sie liefert je Punkt die
+  Toleranz, ab der er verschwindet. `douglasPeuckerKeepIndices()` filtert nur
+  noch. Die `min`-Fortpflanzung entlang der Rekursion ist dabei zwingend, sonst
+  entspricht das Filtern nicht mehr dem klassischen Verfahren.
+- Dadurch ist auch die Frage „welche Toleranz hätte noch funktioniert?" exakt
+  beantwortbar (`largestToleranceKeeping()`) – ohne Toleranzen durchzuprobieren.
+- **Geschlossene Ringe** werden als offene Folge `[0 … n-1, 0]` behandelt.
+  Das hält den Ring geschlossen und erhält die Start-/Endpunkt-Semantik.
+  **Punkt 0 bleibt dadurch immer erhalten** – eine bewusste Einschränkung, auf
+  die auch die Oberfläche hinweist.
+- Vor dem Anwenden läuft `validateMapData()` über eine **Vorschaukopie**.
+  Verglichen werden die Befunde selbst, nicht ihre Anzahl – sonst bliebe
+  unbemerkt, wenn ein Fehler verschwindet und dafür ein anderer entsteht.
+  Neue Fehler brechen die Reduktion ab. Jede künftige Validierungsregel gilt
+  damit automatisch auch hier.
+- Vorgabetoleranz **0,02 m**: Größenordnung des RTK-Rauschens. Darüber beginnt
+  man, echte Form wegzuwerfen statt Messrauschen.
+- **Flächenänderung bei Exclusions** wird gemeldet, wenn sie 1 % **oder** ein
+  Quadrat der eingestellten Arbeitsbreite (`mowerWidth²`, Vorgabe 0,12 m²)
+  überschreitet. Das ODER ist nötig, weil eine rein relative Schwelle große
+  Flächen übersieht: 1 % von 200 m² sind knapp 2 m². Nur **schrumpfende**
+  Flächen werden als Warnung gefärbt – sie geben Fläche frei, die der Mäher
+  meiden soll. Wachsende werden gemeldet, aber neutral.
+- Die Fläche kommt aus `polygonAreaMeters()`, derselben Funktion wie in der
+  Kartenprüfung. Es gibt bewusst keine zweite Flächenformel.
+- Unterschreitet das Ergebnis die Mindestpunktzahl (3 im Ring, 2 auf der
+  Linie), wird **nicht angewendet**, sondern abgelehnt. Bei 3 Punkten
+  anzuhalten wäre eine stille Korrektur der eingegebenen Toleranz.
+
+**Achtung, vorbestehende Eigenheit:** Toleranz, Rasterweite und Begradigen
+rechnen in Weltkoordinaten. Die sind nur dann Meter, wenn `detectSunray()` die
+Karte als RTK-Relativformat erkannt hat (Zentimeter-Vielfache). Bei einer als
+`raw` eingestuften Karte sind Weltkoordinaten die Rohwerte, und eine „Toleranz
+in Metern" bedeutet dort etwas anderes. Das betrifft alle drei Werkzeuge
+gleichermaßen und ist nicht neu – beim Schreiben synthetischer Testkarten
+deshalb immer auf Zentimeter runden.
+
 ---
 
 ## 5a. CaSSAndRA-Bezeichner und Anzeigename

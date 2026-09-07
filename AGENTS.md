@@ -168,6 +168,26 @@ See `CLAUDE.md` sections 5a and 5b for the full rules.
 
 ---
 
+## Point reduction
+
+Douglas-Peucker simplification, applied either to the section between two
+selected points or to a whole feature. Selection detection is shared with the
+straighten tool through `getSelectedSection()` - do not duplicate it.
+
+- Closed rings are processed as the open sequence `[0 … n-1, 0]`. Ring closure
+  and the start/end semantics are preserved; point 0 is therefore never
+  removed.
+- Before applying, the result is validated by running `validateMapData()` on a
+  preview copy and comparing the findings themselves, not their count. New
+  errors abort the reduction, so every future validation rule applies here
+  automatically.
+- Areas come from `polygonAreaMeters()`, the same function the validation uses.
+- The default tolerance is 0.02 m, the magnitude of RTK noise.
+- Falling below the minimum vertex count aborts with a message instead of
+  silently stopping at the minimum.
+
+---
+
 ## Polygon semantics
 
 Closed polygon rings contain a technical duplicate of the first coordinate at

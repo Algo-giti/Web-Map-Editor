@@ -21,6 +21,10 @@ const NAMES = [
   "projectOntoLine",
   "interiorIndicesBetween",
   "analyzeStraighten",
+  "perpendicularDistance",
+  "douglasPeuckerThresholds",
+  "douglasPeuckerKeepIndices",
+  "largestToleranceKeeping",
 ];
 
 const source = extractDeclarations(readInlineScript(), NAMES);
@@ -160,6 +164,107 @@ check("entartete Gerade wird gemeldet",
 check("Toleranz liegt unter der Anzeigeauflaesung",
   app.STRAIGHTEN_COINCIDENT_METERS < 0.01,
   String(app.STRAIGHTEN_COINCIDENT_METERS));
+
+/* -------------------------------------------------------------------- */
+console.log("Punkte reduzieren (Douglas-Peucker)");
+
+check("Abstand zur Geraden", near(app.perpendicularDistance([4, 3], [0, 0], [10, 0]), 3));
+check("Abstand bei entarteter Strecke",
+  near(app.perpendicularDistance([3, 4], [0, 0], [0, 0]), 5));
+
+/* Eine exakte Gerade: alles zwischen den Enden ist entbehrlich. */
+const straightLine = [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]];
+check("Gerade wird auf zwei Punkte reduziert",
+  sameList(app.douglasPeuckerKeepIndices(straightLine, 0.01), [0, 4]),
+  JSON.stringify(app.douglasPeuckerKeepIndices(straightLine, 0.01)));
+
+/* Eine Spitze muss erhalten bleiben, solange sie ueber der Toleranz liegt. */
+const spike = [[0, 0], [1, 0], [2, 1], [3, 0], [4, 0]];
+check("Spitze bleibt bei kleiner Toleranz erhalten",
+  app.douglasPeuckerKeepIndices(spike, 0.1).includes(2));
+check("Spitze faellt bei grosser Toleranz weg",
+  !app.douglasPeuckerKeepIndices(spike, 2).includes(2));
+
+/* Endpunkte bleiben immer. */
+for (const tolerance of [0, 0.5, 5, 1000]) {
+  const kept = app.douglasPeuckerKeepIndices(spike, tolerance);
+  check(`Endpunkte bleiben bei Toleranz ${tolerance}`,
+    kept[0] === 0 && kept[kept.length - 1] === spike.length - 1,
+    JSON.stringify(kept));
+}
+
+/* Monotonie: eine groessere Toleranz darf nie mehr Punkte behalten. */
+let previousCount = Infinity;
+let monotone = true;
+for (const tolerance of [0.01, 0.05, 0.2, 0.5, 1, 2]) {
+  const count = app.douglasPeuckerKeepIndices(spike, tolerance).length;
+  if (count > previousCount) monotone = false;
+  previousCount = count;
+}
+check("mehr Toleranz behaelt nie mehr Punkte", monotone);
+
+/*
+ * Die Schwellen sind der Kern: ein Punkt ueberlebt genau dann, wenn seine
+ * Schwelle groesser als die Toleranz ist. Das muss mit dem Filterergebnis
+ * uebereinstimmen, sonst weicht das Verfahren vom klassischen ab.
+ */
+const zigzag = [[0, 0], [1, 0.5], [2, -0.4], [3, 0.9], [4, -0.2], [5, 0]];
+const thresholds = app.douglasPeuckerThresholds(zigzag);
+
+check("Endpunkte haben unendliche Schwelle",
+  thresholds[0] === Infinity && thresholds[zigzag.length - 1] === Infinity);
+
+let consistent = true;
+for (const tolerance of [0, 0.1, 0.3, 0.45, 0.6, 1.2]) {
+  const filtered = thresholds
+    .map((value, index) => (value > tolerance ? index : -1))
+    .filter((index) => index >= 0);
+
+  if (!sameList(app.douglasPeuckerKeepIndices(zigzag, tolerance), filtered)) {
+    consistent = false;
+  }
+}
+check("Filtern der Schwellen entspricht dem Verfahren", consistent);
+
+/* Schwellen fallen entlang der Rekursion nie an - sonst waere das Filtern falsch. */
+check("Schwellen sind nach unten fortgepflanzt",
+  thresholds.every((value) => value >= 0));
+
+/*
+ * Groesste noch funktionierende Toleranz: exakt der n-groesste Schwellwert,
+ * nicht durch Probieren ermittelt.
+ */
+const boundary = app.largestToleranceKeeping(zigzag, 4);
+check("Grenztoleranz liefert einen endlichen Wert",
+  boundary !== null && Number.isFinite(boundary), String(boundary));
+check("knapp unter der Grenze bleiben genug Punkte",
+  app.douglasPeuckerKeepIndices(zigzag, boundary - 1e-9).length >= 4,
+  String(app.douglasPeuckerKeepIndices(zigzag, boundary - 1e-9).length));
+check("knapp darueber sind es zu wenige",
+  app.douglasPeuckerKeepIndices(zigzag, boundary + 1e-9).length < 4,
+  String(app.douglasPeuckerKeepIndices(zigzag, boundary + 1e-9).length));
+
+check("Grenztoleranz ist null, wenn jede Toleranz genuegt",
+  app.largestToleranceKeeping(zigzag, 2) === null);
+check("Grenztoleranz ist null bei zu wenigen Punkten",
+  app.largestToleranceKeeping(zigzag, 99) === null);
+
+/*
+ * Geschlossener Ring: als offene Folge [0 … n-1, 0] behandelt. Index 0 taucht
+ * zweimal auf und ist damit an beiden Enden verankert - er bleibt also immer.
+ */
+const ring = [[0, 0], [4, 0], [4.01, 2], [4, 4], [0, 4], [0, 0]];
+const ringKept = app.douglasPeuckerKeepIndices(ring, 0.05);
+check("Ringstart bleibt am Anfang erhalten", ringKept.includes(0));
+check("Ringschluss bleibt am Ende erhalten", ringKept.includes(ring.length - 1));
+check("nahezu kollinearer Punkt faellt weg", !ringKept.includes(2),
+  JSON.stringify(ringKept));
+
+/* Randfaelle. */
+check("leere Folge", sameList(app.douglasPeuckerKeepIndices([], 1), []));
+check("ein Punkt", sameList(app.douglasPeuckerKeepIndices([[0, 0]], 1), [0]));
+check("zwei Punkte bleiben beide",
+  sameList(app.douglasPeuckerKeepIndices([[0, 0], [1, 1]], 99), [0, 1]));
 
 /* -------------------------------------------------------------------- */
 console.log(

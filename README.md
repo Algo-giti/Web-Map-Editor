@@ -170,6 +170,23 @@ liegt.
 Ohne eingetragenen Bezugspunkt verhält sich der Editor exakt wie zuvor: die
 Umrechnung entspricht dann der reinen Relativdarstellung.
 
+### Punkte reduzieren
+
+Zu dicht liegende Punkte lassen sich mit dem Douglas-Peucker-Verfahren
+ausdünnen.
+
+- anwendbar auf ein ganzes Feature oder auf den Abschnitt zwischen zwei
+  ausgewählten Punkten
+- Toleranz in Metern frei einstellbar, Vorgabe 0,02 m (Größenordnung des
+  RTK-Rauschens)
+- Vorschau der neuen Geometrie und der wegfallenden Punkte auf der Karte
+- Punktzahl vorher/nachher direkt in der Seitenleiste
+- Perimeter, Exclusion, Search Wire und Docking-Pfad
+- geschlossene Ringe bleiben geschlossen; Polygone behalten mindestens 3
+  Eckpunkte, offene Linien mindestens 2
+- bei Exclusions wird eine nennenswerte Flächenänderung gemeldet
+- ein Undo-Schritt
+
 ### Kartenprüfung
 
 Die aktive Karte kann vor dem Export geprüft werden. Unter anderem werden
@@ -397,6 +414,22 @@ a file that would sit on the robot off by the distance between the two bases.
 
 With no reference point configured the editor behaves exactly as before: the
 conversion then equals the plain relative representation.
+
+### Reduce points
+
+Points that sit too closely together can be thinned out using the
+Douglas-Peucker algorithm.
+
+- applies to a whole feature or to the section between two selected points
+- tolerance in metres is freely configurable, default 0.02 m (the magnitude of
+  RTK noise)
+- preview of the new geometry and of the points that would be dropped
+- point count before/after directly in the sidebar
+- perimeter, exclusion, Search Wire and docking path
+- closed rings stay closed; polygons keep at least 3 vertices, open lines at
+  least 2
+- a notable area change on exclusions is reported
+- one undo step
 
 ### Map validation
 

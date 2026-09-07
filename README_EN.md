@@ -152,6 +152,22 @@ a file that would sit on the robot off by the distance between the two bases.
 With no reference point configured the editor behaves exactly as before: the
 conversion then equals the plain relative representation.
 
+### Reduce points
+
+Points that sit too closely together can be thinned out using the
+Douglas-Peucker algorithm.
+
+- applies to a whole feature or to the section between two selected points
+- tolerance in metres is freely configurable, default 0.02 m (the magnitude of
+  RTK noise)
+- preview of the new geometry and of the points that would be dropped
+- point count before/after directly in the sidebar
+- perimeter, exclusion, Search Wire and docking path
+- closed rings stay closed; polygons keep at least 3 vertices, open lines at
+  least 2
+- a notable area change on exclusions is reported
+- one undo step
+
 ### Map validation
 
 The active map can be validated before export. Checks include:
