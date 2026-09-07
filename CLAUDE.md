@@ -275,7 +275,7 @@ Dreizehn Skripte öffnen `index.html` in einem echten Browser über eine
 | `test-rectify.mjs` | Ecken rechtwinklig |
 | `test-map-switch.mjs` | Wechsel zwischen Karte A und B |
 | `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten |
-| `test-statusbar.mjs` | Statuszeile: Zonen und Verdrängungsregel |
+| `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -645,6 +645,16 @@ flüchtige Meldung ist nirgends nachschlagbar – sie ist weg, sobald die nächs
 kommt, und wer sie verpasst, kann sie nicht wiederholen. Der Auswahlzähler und
 die Cursor-Koordinaten beschreiben, was gerade passiert; sie sind ohne die
 Zeile gar nicht zu haben. Deshalb weicht immer das Nachschlagbare zuerst.
+
+**Legende:** Eine Reihe über die volle Breite, direkt über der Statuszeile,
+**immer offen und kein `<details>`**. Vorher lag sie eingeklappt über der Karte
+und war damit genau dann nicht da, wenn man die Farben braucht.
+
+Feste Höhe (30 px), damit eine schmale Ansicht das Kartenfeld nicht
+verschiebt. Wird es zu eng, **schiebt sich die Reihe waagerecht statt
+umzubrechen** – ein Umbruch würde die Karte um eine weitere Zeile
+verkleinern, und zwar dauerhaft, nicht nur solange man hinsieht. Zusammen mit
+der Statuszeile kostet der untere Rand 64 px.
 
 **Verbinden und Singletons:** Docking-Pfad und Search Wire gibt es pro Karte
 nur einmal. Beim Verbinden werden aus Karte B **nur** Exclusions und Features
@@ -1152,6 +1162,24 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   bleibt dadurch unentdeckt – genau so hatte `deleteSelectedExclusion()` den
   in Ausgabe 043 entfernten Button um mehrere Ausgaben überlebt. Die manuelle
   Volltextsuche aus Abschnitt 5 ("UI-Element entfernen") bleibt deshalb Pflicht.
+- **Das Hilfe-Overlay beschreibt die Anordnung in Prosa und veraltet mit
+  jeder Etappe des Oberflächenumbaus.** Es wird in Etappe 9 vollständig neu
+  geschrieben, wenn die Anordnung feststeht – vorher wäre es zweimal Arbeit.
+  Damit dort keine Neulektüre nötig ist, hier die Sätze, die **jetzt schon
+  falsch** sind:
+
+  - „Karteninfo: … liegen jetzt als eigenes einklappbares Fenster direkt auf
+    der Karte." – stimmt noch, wird aber mit dem Inspektor hinfällig.
+  - „Auswahl-Werkzeugleiste: … liegen jetzt direkt auf der Karte." – wird mit
+    Etappe 3 falsch.
+  - „Sidebar: Direkt unter ‚Karten' folgt ‚Karten verbinden' …" – wird mit
+    Etappe 6 falsch.
+  - **„Karteninfo & Legende: liegen direkt untereinander und lassen sich
+    unabhängig aufklappen." – seit Etappe 2 falsch.** Die Legende ist ein
+    fester Streifen und lässt sich nicht mehr aufklappen.
+
+  Die Liste beim Fortschreiten der Etappen ergänzen, statt am Ende alles neu
+  zu lesen.
 - **31 Statustexte haben keine englische Fassung.** Sie wurden beim Umzug der
   Ausgaben in die Statuszeile systematisch erfasst: literale Argumente von
   `setEditStatus()`, `setMultiSelectionStatus()`, `setReduceStatus()`,

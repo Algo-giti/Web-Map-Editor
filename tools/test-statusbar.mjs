@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Browsertest für die Statuszeile.
+// Browsertest für die beiden Streifen am unteren Rand: Legende und
+// Statuszeile.
 //
 // Sie fasst sieben bisher verstreute Ausgaben zusammen, zehn davon lagen in
 // einklappbaren Bereichen. Geprüft wird die Gliederung nach Beständigkeit:
@@ -268,6 +269,41 @@ try {
 
   check("und kommen zurück",
     (await text("scaleStatus")).includes("angenommen"), await text("scaleStatus"));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Legende");
+
+  const legend = page.locator("#mapLegend");
+
+  check("die Legende ist sichtbar", await legend.isVisible());
+  check("sie steckt in keinem aufklappbaren Bereich",
+    await page.evaluate(() => !document.getElementById("mapLegend").closest("details")));
+  check("alle sieben Einträge sind da",
+    (await page.locator("#mapLegend .legend").count()) === 7,
+    String(await page.locator("#mapLegend .legend").count()));
+  check("jeder Eintrag hat ein Farbfeld",
+    (await page.locator("#mapLegend .legend .swatch").count()) === 7);
+
+  /* Waagerecht heißt: alle Einträge auf derselben Höhe. */
+  const rows = await page.evaluate(() =>
+    new Set([...document.querySelectorAll("#mapLegend .legend")]
+      .map((el) => Math.round(el.getBoundingClientRect().top))).size);
+
+  check("sie steht in einer Reihe", rows === 1, `${rows} Zeilen`);
+
+  /* Und sie liegt über der Statuszeile, nicht darunter. */
+  const order = await page.evaluate(() => {
+    const l = document.getElementById("mapLegend").getBoundingClientRect();
+    const s = document.getElementById("statusBar").getBoundingClientRect();
+    return {legende:Math.round(l.top), status:Math.round(s.top)};
+  });
+
+  check("die Legende liegt über der Statuszeile",
+    order.legende < order.status, JSON.stringify(order));
+
+  check("sie ist übersetzt",
+    (await legend.textContent()).includes("Legend"),
+    (await legend.textContent()).slice(0, 80));
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

@@ -1259,33 +1259,35 @@
   .empty-map-text { color:var(--muted); font-size:12px; line-height:1.45; }
 
   /* Legende direkt auf der Kartenfläche, ebenfalls einklappbar. */
-  .map-legend {
-    position:absolute;
-    right:12px;
-    top:102px;
-    z-index:6;
-    min-width:112px;
-    border:1px solid var(--line);
-    border-radius:9px;
+  /* -----------------------------------------------------------------------
+     Legende
+     -----------------------------------------------------------------------
+     Eine Reihe über die volle Breite, direkt über der Statuszeile. Feste Höhe,
+     damit eine schmale Ansicht das Kartenfeld nicht verschiebt; wird es zu
+     eng, schiebt sich die Reihe waagerecht, statt umzubrechen.
+     ----------------------------------------------------------------------- */
+  .map-legend-bar {
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    height:30px;
+    padding:0 14px;
+    border-top:1px solid var(--line);
     background:rgba(10,15,24,.9);
-    overflow:hidden;
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:thin;
   }
-  .map-legend summary {
-    padding:8px 10px;
-    cursor:pointer;
-    color:var(--muted);
-    font-size:12px;
-    font-weight:700;
-    user-select:none;
+  .map-legend-bar::-webkit-scrollbar { height:6px; }
+  .map-legend-bar::-webkit-scrollbar-thumb {
+    background:#24354f; border-radius:3px;
   }
-  .map-legend-body {
-    display:grid;
-    gap:5px;
-    padding:0 10px 9px;
+  .map-legend-bar .legend {
+    margin:0; font-size:11px; flex:0 0 auto; white-space:nowrap;
   }
-  .map-legend .legend { margin:0; font-size:11px; }
-  .map-legend .legend span:last-child { color:var(--text); }
-  .map-legend .swatch { width:11px; height:11px; }
+  .map-legend-bar .legend span:last-child { color:var(--text); }
+  .map-legend-bar .swatch { width:11px; height:11px; }
 
   .map-selection-toolbar {
     position:absolute;
@@ -1401,10 +1403,6 @@
   .map-info-window .stat { padding:6px 0; font-size:12px; }
   .map-info-text { color:var(--muted); font-size:11px; line-height:1.5; }
   .map-info-text strong { color:var(--text); }
-
-  .viewer:has(.map-info-window[open]) .map-legend {
-    top:min(560px, 72vh);
-  }
 
   .help-overlay {
     position:absolute;
@@ -2022,12 +2020,7 @@
       margin:4px 0;
     }
 
-    .map-legend {
-      left:8px;
-      right:auto;
-      top:50px;
-      max-width:calc(100% - 16px);
-    }
+    .map-legend-bar { gap:12px; padding:0 8px; }
     .map-selection-toolbar {
       left:8px;
       right:8px;
@@ -2094,12 +2087,6 @@
       top:8px;
       width:calc(100% - 16px);
       max-width:calc(100% - 16px);
-    }
-
-    .map-legend {
-      left:8px;
-      right:auto;
-      top:50px;
     }
 
     .toolbar {
@@ -2806,22 +2793,25 @@
         </div>
       </details>
 
-      <details class="map-legend">
-        <summary>Legende</summary>
-        <div class="map-legend-body">
-          <div class="legend" style="color:var(--green)"><span class="swatch"></span><span>Perimeter</span></div>
-          <div class="legend" style="color:var(--red)"><span class="swatch"></span><span>Exclusion</span></div>
-          <div class="legend" style="color:var(--yellow)"><span class="swatch"></span><span>Dockpoints</span></div>
-          <div class="legend" style="color:#ba8cff"><span class="swatch"></span><span>Search wire</span></div>
-          <div class="legend" style="color:#5ee58a"><span class="swatch"></span><span>Startpunkt</span></div>
-          <div class="legend" style="color:#ff7474"><span class="swatch"></span><span>Endpunkt</span></div>
-          <div class="legend" style="color:#ffd166"><span class="swatch"></span><span>Ausgewählter Mäher</span></div>
-        </div>
-      </details>
-
       <div id="tip" class="tip"></div>
     </section>
   </main>
+
+  <!--
+    Legende: waagerecht, volle Breite, IMMER OFFEN. Als Reihe braucht sie kaum
+    Höhe und ist trotzdem dauerhaft sichtbar - vorher lag sie eingeklappt über
+    der Karte und war damit genau dann nicht da, wenn man die Farben braucht.
+  -->
+  <div id="mapLegend" class="map-legend-bar">
+    <span class="status-label">Legende</span>
+    <div class="legend" style="color:var(--green)"><span class="swatch"></span><span>Perimeter</span></div>
+    <div class="legend" style="color:var(--red)"><span class="swatch"></span><span>Exclusion</span></div>
+    <div class="legend" style="color:var(--yellow)"><span class="swatch"></span><span>Dockpoints</span></div>
+    <div class="legend" style="color:#ba8cff"><span class="swatch"></span><span>Search wire</span></div>
+    <div class="legend" style="color:#5ee58a"><span class="swatch"></span><span>Startpunkt</span></div>
+    <div class="legend" style="color:#ff7474"><span class="swatch"></span><span>Endpunkt</span></div>
+    <div class="legend" style="color:#ffd166"><span class="swatch"></span><span>Ausgewählter Mäher</span></div>
+  </div>
 
   <footer id="statusBar" class="status-bar">
 
