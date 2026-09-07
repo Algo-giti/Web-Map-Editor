@@ -125,6 +125,16 @@ erklärt beides.
   steckte im ersten Entwurf und wurde erst vom Browsertest gefunden – die
   Reihenfolge nicht umdrehen.
 
+  **In `I18N_PATTERNS` steht das speziellere Muster vor dem allgemeineren.**
+  Die Liste wird von oben nach unten durchsucht und beim ersten Treffer
+  abgebrochen. Stand `/^(\d+) Fehler$/` vor `/^1 Fehler$/`, wurde aus „1
+  Fehler" ein „1 errors" – an der sichtbarsten Stelle der englischen
+  Oberfläche. `tools/test-cassandra.mjs` prüft die ganze Liste jetzt
+  automatisch darauf: für jedes Muster wird ein Beispieltext erzeugt und
+  gesucht, ob ein früheres, allgemeineres ihn abfängt. 101 der 125 Muster sind
+  so erfassbar; die übrigen 24 sind lange Meldungen mit eindeutigem Präfix und
+  wurden von Hand durchgesehen.
+
   **Zusammengesetzte Texte** kann ein `I18N_PATTERNS`-Muster nicht übersetzen:
   ein Ersetzungsmuster setzt `$1` unverändert ein, der eingebettete Teil bliebe
   deutsch. Dafür gibt es `I18N_LABEL_PREFIXES` und `translateHistoryLabel()` –
@@ -553,6 +563,36 @@ Funktion, die auch das Reduzieren benutzt, wenn kein Abschnitt vorliegt.
 - Wie beim Reduzieren läuft das Ergebnis vor dem Anwenden durch
   `newValidationErrors()`. Eine Anwendung ist ein Undo-Schritt.
 
+**Abgeleitet oder flüchtig – die Kategorie jeder Statusquelle.** Bevor eine
+neue Ausgabe irgendwo eingebaut wird, gehört sie in genau eine der beiden
+Klassen. Die Entscheidung bestimmt, wie sie übersetzt und wie sie angezeigt
+wird, und sie ist an mehreren Stellen dieselbe:
+
+- **Abgeleitet** heißt: der Text lässt sich jederzeit aus dem Zustand neu
+  berechnen. Er wird typischerweise bei *jeder* Änderung neu geschrieben, auch
+  wenn sich nichts Sichtbares getan hat. Beispiele: der Zeichenstatus, der
+  Auswahlhinweis, die vier linken Felder der Statuszeile, der Prüfbericht, die
+  Feature-Navigation, die Titel von Zurück/Vor.
+
+  Für die **Übersetzung** bedeutet das: nicht zwischenspeichern, sondern beim
+  Sprachwechsel neu aufbauen (`refreshDerivedUi()`).
+  Für die **Anzeige** bedeutet es: eine abgeleitete Quelle darf einen
+  gemeinsamen Platz nicht an sich reißen – sie würde eine gerade erschienene
+  Meldung überschreiben, ohne selbst etwas Neues zu sagen.
+
+- **Flüchtig** heißt: eine Einmalmeldung, die ein Ereignis beschreibt und die
+  niemand nachrechnen kann. „3 Punkte entfernt", „Speichern abgebrochen".
+
+  Für die **Übersetzung**: über `setLocalizedText()`, das deutsche Original
+  bleibt als `data-i18n-de` am Element.
+  Für die **Anzeige**: sie gewinnt den gemeinsamen Platz, die jüngere vor der
+  älteren.
+
+Die Verwechslung der beiden ist kein Schönheitsfehler: eine abgeleitete Quelle,
+die wie eine flüchtige behandelt wird, löscht Meldungen in dem Moment, in dem
+sie erscheinen. Genau das ist beim Bau der Statuszeile zweimal passiert und
+wurde beide Male erst vom Browsertest gefunden.
+
 **Statuszeile:** Volle Breite, immer sichtbar, **nie einklappbar**. Sie fasst
 sieben zuvor verstreute Ausgaben zusammen; zehn der vierzehn Ausgabestellen des
 Editors lagen in einklappbaren Bereichen, und genau daran waren zweimal
@@ -593,6 +633,18 @@ ein Rückschritt.
 („Search Wire vorhanden (5 Punkte).") erscheinen nach der ersten
 Einmalmeldung nicht mehr in der Zeile. Sie sind Bestandsangaben, keine
 Meldungen, und ziehen mit Etappe 5 in den Inspektor.
+
+**Ausblendreihenfolge bei schmalem Fenster**, und der Grund dafür: Zuerst
+verschwinden die Beschriftungen der linken Felder (ab 1180 px), dann
+Bezugspunkt und Prüfung (ab 900 px). Zuletzt weichen würden Dateiname und
+Maßstab; die flüchtige Meldung und die beiden rechten Anzeigen bleiben immer.
+
+Maßgeblich ist die **Nachschlagbarkeit**: Bezugspunkt und Prüfergebnis stehen
+vollständig in der Seitenleiste, wer sie braucht, findet sie dort wieder. Die
+flüchtige Meldung ist nirgends nachschlagbar – sie ist weg, sobald die nächste
+kommt, und wer sie verpasst, kann sie nicht wiederholen. Der Auswahlzähler und
+die Cursor-Koordinaten beschreiben, was gerade passiert; sie sind ohne die
+Zeile gar nicht zu haben. Deshalb weicht immer das Nachschlagbare zuerst.
 
 **Verbinden und Singletons:** Docking-Pfad und Search Wire gibt es pro Karte
 nur einmal. Beim Verbinden werden aus Karte B **nur** Exclusions und Features
@@ -1110,11 +1162,6 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   sauber hin und her – es gibt nur nichts zu wechseln. Nachzutragen, wenn die
   betroffenen Bereiche im weiteren Umbau ohnehin angefasst werden; einzeln
   nachzupflegen lohnt nicht.
-- **`[/^(\d+) Fehler$/]` steht vor `[/^1 Fehler$/]`.** Die allgemeine Regel
-  greift damit auch für „1 Fehler" und liefert „1 errors". Dasselbe bei
-  „1 Warnung". Beim nächsten Anfassen der Musterliste die Sonderformen nach
-  vorn ziehen – bei den in Etappe 1 ergänzten Mustern ist die Reihenfolge
-  bereits richtig.
 - **`CHANGELOG.md` (deutsch) beginnt erst bei Ausgabe 047.** Die Historie der
   Ausgaben 001–046 existiert nur in `CHANGELOG_EN.md`. Neue Einträge ab
   jetzt bitte in beiden Dateien pflegen.

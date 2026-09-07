@@ -213,6 +213,45 @@ try {
     JSON.stringify(await visibleTransient()));
 
   /* ---------------------------------------------------------------- */
+  console.log("Das Prüfergebnis flackert nicht");
+
+  /*
+   * Nach einer Bearbeitung ist die Karte ungeprüft, und das soll sie bleiben,
+   * bis jemand erneut prüft. Ein Hin und Her zwischen "2 Warnungen" und
+   * "nicht geprüft" waere in einer dauerhaft sichtbaren Zeile unruhig.
+   */
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(350);
+
+  check("nach dem Prüfen steht ein Ergebnis",
+    (await text("validationShort")).trim() !== "nicht geprüft",
+    await text("validationShort"));
+
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(200);
+
+  const box = await page.locator("#svg").boundingBox();
+  const seen = [];
+
+  for (const [dx, dy] of [[0.3, 0.3], [0.45, 0.3], [0.45, 0.45], [0.3, 0.45]]) {
+    await page.mouse.click(box.x + box.width * dx, box.y + box.height * dy);
+    await page.waitForTimeout(120);
+    seen.push((await text("validationShort")).trim());
+  }
+
+  await page.locator("#finishDrawBtn").click();
+  await page.waitForTimeout(400);
+  seen.push((await text("validationShort")).trim());
+
+  check("das Ergebnis wechselt höchstens einmal",
+    new Set(seen).size <= 2, JSON.stringify(seen));
+  check("und endet bei ungeprüft",
+    seen[seen.length - 1] === "nicht geprüft", JSON.stringify(seen));
+
+  await page.locator("#undoBtn").click();
+  await page.waitForTimeout(300);
+
+  /* ---------------------------------------------------------------- */
   console.log("Sprachwechsel");
 
   await page.locator("#languageToggle").click();

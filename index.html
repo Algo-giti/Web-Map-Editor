@@ -15513,8 +15513,14 @@ const I18N_PATTERNS = [
   [/^Kartenprüfung: (\d+) Fehler gefunden\.$/, "Map validation: $1 errors found."],
   [/^Kartenprüfung: (\d+) Warnungen\.$/, "Map validation: $1 warnings."],
   [/^Kartenprüfung: keine Fehler oder Warnungen\.$/, "Map validation: no errors or warnings."],
-  [/^(\d+) Fehler$/, "$1 errors"], [/^1 Fehler$/, "1 error"],
-  [/^(\d+) Warnungen$/, "$1 warnings"], [/^1 Warnung$/, "1 warning"],
+  /*
+   * Reihenfolge: das SPEZIELLERE Muster zuerst. Die Liste wird von oben nach
+   * unten durchsucht und beim ersten Treffer abgebrochen; stünde die
+   * allgemeine Form vorn, griffe sie auch für die Einzahl und lieferte
+   * "1 errors". Genau das war hier der Fall.
+   */
+  [/^1 Fehler$/, "1 error"], [/^(\d+) Fehler$/, "$1 errors"],
+  [/^1 Warnung$/, "1 warning"], [/^(\d+) Warnungen$/, "$1 warnings"],
   [/^Keine Fehler$/, "No errors"], [/^Prüfung OK$/, "Validation OK"],
   [/^keine Fehler oder Warnungen$/, "no errors or warnings"],
   [/^Kein Docking-\/Ladepunkt vorhanden\.$/, "No docking/charging point present."],
@@ -15794,6 +15800,14 @@ function captureI18nSnapshot() {
  */
 function setLocalizedText(element, german) {
   if (!element) return;
+
+  /*
+   * Unveränderten Text nicht neu schreiben. updateStatusBar() läuft an vielen
+   * Stellen, teils mehrfach je Bearbeitung; jede Zuweisung erzeugt sonst einen
+   * neuen Textknoten und weckt den Übersetzungsbeobachter, ohne dass sich
+   * etwas ändert.
+   */
+  if (element.dataset.i18nDe === german) return;
 
   element.dataset.i18nDe = german;
   element.textContent =

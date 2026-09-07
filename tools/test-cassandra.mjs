@@ -57,6 +57,12 @@ const NAMES = [
   "getUniqueOuterRing",
   "mowerWidth",
   "collectGeometryFindings",
+  "I18N_EN",
+  "I18N_PATTERNS",
+  "I18N_LABEL_PREFIXES",
+  "normalizeI18nText",
+  "translateHistoryLabel",
+  "translateGermanText",
   "describeFeature",
   "DEGREE_METERS",
   "ABSOLUTE_WGS84_THRESHOLD",
@@ -804,6 +810,92 @@ if (existsSync(sampleMap)) {
 } else {
   console.log("Rundlauf mit lokaler Beispielkarte: uebersprungen (keine Datei unter test/)");
 }
+
+/* -------------------------------------------------------------------- */
+console.log("Uebersetzungsmuster: Reihenfolge");
+
+/*
+ * I18N_PATTERNS wird von oben nach unten durchsucht und beim ERSTEN Treffer
+ * abgebrochen. Steht ein allgemeines Muster vor einem spezielleren, greift das
+ * falsche: "1 Fehler" traf lange auf /^(\d+) Fehler$/ und wurde zu
+ * "1 errors" - an der sichtbarsten Stelle der englischen Oberflaeche.
+ *
+ * Die konkreten Faelle:
+ */
+check('"1 Fehler" wird zur Einzahl',
+  app.translateGermanText("1 Fehler") === "1 error",
+  app.translateGermanText("1 Fehler"));
+check('"3 Fehler" bleibt Mehrzahl',
+  app.translateGermanText("3 Fehler") === "3 errors",
+  app.translateGermanText("3 Fehler"));
+check('"1 Warnung" wird zur Einzahl',
+  app.translateGermanText("1 Warnung") === "1 warning",
+  app.translateGermanText("1 Warnung"));
+check('"2 Warnungen" bleibt Mehrzahl',
+  app.translateGermanText("2 Warnungen") === "2 warnings",
+  app.translateGermanText("2 Warnungen"));
+check("die Kurzform der Statuszeile stimmt",
+  app.translateGermanText("1 Fehler, 1 Warnung") === "1 error, 1 warning",
+  app.translateGermanText("1 Fehler, 1 Warnung"));
+
+/*
+ * Und die Liste als Ganzes: fuer jedes Muster wird ein Beispieltext erzeugt
+ * und geprueft, ob ein FRUEHERES, ALLGEMEINERES Muster ihn abfaengt.
+ * Umgekehrt - speziell vor allgemein - ist die richtige Reihenfolge und wird
+ * nicht gemeldet. Muster, aus denen sich kein Beispiel erzeugen laesst,
+ * bleiben ungeprueft; sie haben durchweg eindeutige Praefixe.
+ */
+function patternSamples(source) {
+  const body = source.replace(/^\^/, "").replace(/\$$/, "");
+  const variants = [];
+
+  for (const digits of ["1", "3"]) {
+    let text = body
+      .replace(/\(\\d\+\)/g, digits)
+      .replace(/\(\[\\d\.,\]\+\)/g, digits === "1" ? "1,00" : "3,50")
+      .replace(/\(\.\+\??\)/g, "X")
+      .replace(/\(\[AB\]\)/g, "A")
+      .replace(/\(\?:e\)\?/g, "e")
+      .replace(/\(\?:s\)\?/g, "s")
+      .replace(/\\d\+/g, digits)
+      .replace(/(\w)\?/g, "$1")
+      .replace(/\\([.\/(){}\[\]|?*+^$-])/g, "$1");
+
+    if (/[\\()\[\]|*+?]/.test(text)) continue;
+    variants.push(text);
+  }
+
+  return [...new Set(variants)];
+}
+
+const patternList = app.I18N_PATTERNS;
+const patternExamples = patternList.map(([pattern]) =>
+  patternSamples(pattern.source).filter((text) => pattern.test(text)));
+
+const shadowing = [];
+
+patternList.forEach(([pattern], index) => {
+  for (const text of patternExamples[index]) {
+    const winner = patternList.findIndex(([other]) => other.test(text));
+    if (winner === -1 || winner >= index) continue;
+
+    /* Nur ein ALLGEMEINERES frueheres Muster ist ein Fehler. */
+    const earlierIsBroader =
+      patternExamples[index].every((t) => patternList[winner][0].test(t)) &&
+      patternExamples[winner].some((t) => !pattern.test(t));
+
+    if (earlierIsBroader) {
+      shadowing.push(`"${text}" -> #${winner} statt #${index}`);
+    }
+  }
+});
+
+check("kein allgemeines Muster verdeckt ein spezielleres",
+  shadowing.length === 0, shadowing.join(" | "));
+
+const checkedPatterns = patternExamples.filter((s) => s.length).length;
+console.log(
+  `  ${checkedPatterns} von ${patternList.length} Mustern automatisch geprueft`);
 
 /* -------------------------------------------------------------------- */
 console.log(
