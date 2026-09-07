@@ -182,7 +182,7 @@ Sie zerfallen in **zwei Stufen**, und diese Trennung ist beabsichtigt:
 | Stufe | Skripte | Abhängigkeiten | Status |
 |---|---|---|---|
 | statisch | `check-all.mjs` (4.1) | keine | **Pflicht** vor jeder Rückmeldung "fertig" |
-| Browser | zwölf Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
+| Browser | dreizehn Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
 
 `check-all.mjs` läuft mit Node-Bordmitteln und muss das bleiben – es ist die
 Stufe, die in **jeder** Umgebung ohne Vorbereitung durchläuft. Die
@@ -247,7 +247,7 @@ Zwei Fallstricke dabei:
 
 ### 4.2 Browsertests (optional, real gerendert)
 
-Zwölf Skripte öffnen `index.html` in einem echten Browser über eine
+Dreizehn Skripte öffnen `index.html` in einem echten Browser über eine
 `file://`-URL – die Datei hat keine externen Ressourcen und keine
 `fetch()`-Aufrufe, ein Webserver ist also nicht nötig.
 
@@ -265,6 +265,7 @@ Zwölf Skripte öffnen `index.html` in einem echten Browser über eine
 | `test-rectify.mjs` | Ecken rechtwinklig |
 | `test-map-switch.mjs` | Wechsel zwischen Karte A und B |
 | `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten |
+| `test-statusbar.mjs` | Statuszeile: Zonen und Verdrängungsregel |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -551,6 +552,47 @@ Funktion, die auch das Reduzieren benutzt, wenn kein Abschnitt vorliegt.
   die gemeldete Verschiebung trägt dann „Einheiten" statt „m".
 - Wie beim Reduzieren läuft das Ergebnis vor dem Anwenden durch
   `newValidationErrors()`. Eine Anwendung ist ein Undo-Schritt.
+
+**Statuszeile:** Volle Breite, immer sichtbar, **nie einklappbar**. Sie fasst
+sieben zuvor verstreute Ausgaben zusammen; zehn der vierzehn Ausgabestellen des
+Editors lagen in einklappbaren Bereichen, und genau daran waren zweimal
+Meldungen unsichtbar geworden. Gegliedert wird nach **Beständigkeit**, nicht
+nach Herkunft:
+
+| Zone | Inhalt | Verhalten |
+|---|---|---|
+| links, feste Plätze | Dateiname, Maßstab, Bezugspunkt, Prüfergebnis | ändert sich selten, immer da |
+| Mitte, ein Platz | `editStatus`, `drawFeatureStatus`, `multiSelectionStatus` | genau eine davon sichtbar |
+| rechts außen | Auswahlzähler, Cursor-Koordinaten | ändert sich ständig, fester Ort |
+
+**Die vier linken Angaben sind Kurzformen, und das ist wörtlich gemeint.** Wird
+eine länger als eine Zeile, ist es keine Kurzform mehr – der ausführliche Text
+bleibt, wo er hingehört: der Prüfbericht in der Seitenleiste, der
+Maßstabshinweis im Kartenfeld, der Bezugspunkt unter „Koordinatenbezug".
+`tools/test-statusbar.mjs` prüft die Länge mit.
+
+**Der gemeinsame Platz: die jüngere Meldung gewinnt – mit einer Ausnahme.**
+Zwei der drei Quellen sind nämlich gar nicht flüchtig, sondern **abgeleitet**:
+
+- `drawFeatureStatus` wird bei **jeder** Geometrieänderung neu geschrieben,
+  auch wenn nicht gezeichnet wird. Ohne Sonderregel überschriebe sein
+  Leerlauftext jede Erfolgsmeldung genau in dem Moment, in dem sie erscheint –
+  `setEditStatus()` schreibt, unmittelbar danach läuft `afterGeometryEdit()`.
+- Der Auswahlhinweis aus `resetMultiSelectionStatus()` („1 Punkt ausgewählt.")
+  wird bei jeder Auswahländerung neu geschrieben und sagt nichts, was der
+  Zähler rechts nicht schon zeigt. Er verdrängte damit die Beschreibung des
+  gerade gewählten Punktes.
+
+`showTransientStatus(id, {derived, force})` löst beides: eine abgeleitete
+Quelle nimmt den Platz nur, wenn sie ihn ohnehin schon hält oder `force`
+gesetzt ist. Für den Zeichenstatus heißt `force`: es wird tatsächlich
+gezeichnet. **Nicht vereinfachen** – ohne diese Regel ist die Zusammenlegung
+ein Rückschritt.
+
+**Bewusst in Kauf genommen:** die Bestandsmeldungen des Zeichenbereichs
+(„Search Wire vorhanden (5 Punkte).") erscheinen nach der ersten
+Einmalmeldung nicht mehr in der Zeile. Sie sind Bestandsangaben, keine
+Meldungen, und ziehen mit Etappe 5 in den Inspektor.
 
 **Verbinden und Singletons:** Docking-Pfad und Search Wire gibt es pro Karte
 nur einmal. Beim Verbinden werden aus Karte B **nur** Exclusions und Features
@@ -1058,12 +1100,21 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   bleibt dadurch unentdeckt – genau so hatte `deleteSelectedExclusion()` den
   in Ausgabe 043 entfernten Button um mehrere Ausgaben überlebt. Die manuelle
   Volltextsuche aus Abschnitt 5 ("UI-Element entfernen") bleibt deshalb Pflicht.
-- **Die Meldung beim Ziehen eines Punktes hat kein Übersetzungsmuster.**
-  `Perimeter · Punkt 1/4 wird verschoben.` bleibt im englischen Modus deutsch.
-  Sie läuft zwar über `setLocalizedText()` und wechselt damit sauber hin und
-  her, aber es gibt für sie keinen englischen Text. Beim Sprachwechsel während
-  eines laufenden Ziehvorgangs ist das ohnehin ein Randfall; beim Umbau der
-  Statuszeile mit erledigen.
+- **31 Statustexte haben keine englische Fassung.** Sie wurden beim Umzug der
+  Ausgaben in die Statuszeile systematisch erfasst: literale Argumente von
+  `setEditStatus()`, `setMultiSelectionStatus()`, `setReduceStatus()`,
+  `setRectifyStatus()` und `updateGridStatus()`, die weder in `I18N_EN` stehen
+  noch auf ein Muster passen. Es sind überwiegend Fehlermeldungen seltener
+  Fälle („Polygonring konnte nicht neu aufgebaut werden.") sowie zwei
+  Rastertexte. Sie laufen alle über `setLocalizedText()` und wechseln damit
+  sauber hin und her – es gibt nur nichts zu wechseln. Nachzutragen, wenn die
+  betroffenen Bereiche im weiteren Umbau ohnehin angefasst werden; einzeln
+  nachzupflegen lohnt nicht.
+- **`[/^(\d+) Fehler$/]` steht vor `[/^1 Fehler$/]`.** Die allgemeine Regel
+  greift damit auch für „1 Fehler" und liefert „1 errors". Dasselbe bei
+  „1 Warnung". Beim nächsten Anfassen der Musterliste die Sonderformen nach
+  vorn ziehen – bei den in Etappe 1 ergänzten Mustern ist die Reihenfolge
+  bereits richtig.
 - **`CHANGELOG.md` (deutsch) beginnt erst bei Ausgabe 047.** Die Historie der
   Ausgaben 001–046 existiert nur in `CHANGELOG_EN.md`. Neue Einträge ab
   jetzt bitte in beiden Dateien pflegen.
