@@ -27,16 +27,16 @@ Project name:
 
 Current baseline:
 
-**Ausgabe 047**
+**Ausgabe 048**
 
 Next substantial release:
 
-**Ausgabe 048**
+**Ausgabe 049**
 
-Substantial releases are numbered sequentially and should be preserved as
-rollback points.
+Substantial releases are numbered sequentially. Each release commit is
+tagged (`v048`, `v049`, ...); those tags are the rollback mechanism.
 
-Do not overwrite previous numbered release artifacts.
+There are no release archives. Do not build one.
 
 ---
 
@@ -413,21 +413,24 @@ Do not place temporary feature requests or one-off implementation notes here.
 
 ---
 
-## Release packaging
+## Releasing
 
-Release archives (e.g. `web-map-editor-release-048.zip`) are build
-artifacts. Do not commit them, or a `web-map-editor-release-048/` staging
-directory, into the git repository.
+**There are no release ZIPs.** Development continues directly on the
+repository; do not build a `web-map-editor-release-0XX.zip`, do not create a
+staging directory, and do not attach an archive to a GitHub Release. The
+application is a single `index.html` that runs straight from the repository
+and from GitHub Pages - an archive would only duplicate that one file.
 
-For the next substantial release:
+A release therefore consists of:
 
-1. tag the corresponding commit (e.g. `v048`)
-2. attach a `web-map-editor-release-048.zip` (containing at minimum
-   `index.html`) to a GitHub Release created from that tag
+1. bump the release number in `index.html`
+2. update `CHANGELOG.md` **and** `CHANGELOG_EN.md`
+3. update the baseline in `AGENTS.md`, `docs/DEVELOPMENT.md` and `CLAUDE.md`
+4. run the checks (see `CLAUDE.md` section 4)
+5. commit and tag it (`v048`, `v049`, ...)
 
-Future releases continue sequentially. Using tags and GitHub Releases keeps
-every previous release downloadable as a rollback point without storing
-binary archives in the repository's git history.
+The tags are the rollback mechanism: every previous state stays checkoutable
+without storing binaries in the git history.
 
 ---
 
@@ -481,8 +484,8 @@ Before implementing a requested change:
 
 For the current repository:
 
-**Do not create Ausgabe 048 until a substantive change is requested.**
+**Do not create Ausgabe 049 until a substantive change is requested.**
 
 When the next substantive change is implemented, release it as:
 
-# Ausgabe 048
+# Ausgabe 049

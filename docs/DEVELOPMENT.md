@@ -43,23 +43,26 @@ Substantial changes should increment the release number sequentially.
 
 Current baseline:
 
-- Ausgabe 047
+- Ausgabe 048
 
 Next substantial release:
 
-- Ausgabe 048
+- Ausgabe 049
 
-Previous numbered releases should be preserved as rollback points where
-possible.
+Previous releases stay reachable through their git tags.
 
 For each release:
 
 1. update the release number in the application
 2. update documentation where relevant
-3. update the changelog
-4. run syntax and consistency checks
-5. tag the release commit and attach a release ZIP to a GitHub Release if
-   distributing a packaged build - do not commit ZIP archives into the repo
+3. update both changelogs
+4. run the checks (see `CLAUDE.md` section 4)
+5. tag the release commit (`v048`, `v049`, ...)
+
+**There are no release archives.** Do not build a ZIP, do not commit one, and
+do not attach one to a GitHub Release. The application is a single
+`index.html` served directly from the repository; development simply
+continues on `main`.
 
 ---
 

@@ -589,14 +589,21 @@ Status-Update-Referenzen. Reine Syntaxprüfung erkennt diese Fehlerklasse
 manuelle Grep-Suche nach Variablennamen bleibt zusätzlich nötig, da das
 Skript nur IDs, keine Variablennamen prüft.
 
-**Release-Nummerierung und -Packaging:** Baseline aktuell **Ausgabe 047**,
-nächstes substantielles Release **Ausgabe 048**. Ausgabe 048 nicht anlegen,
-bevor eine substantielle Änderung tatsächlich angefragt wurde. Release-ZIPs
-und Release-Verzeichnisse werden **nicht** ins Git-Repository eingecheckt:
-stattdessen den Release-Commit taggen (z. B. `v048`) und das ZIP an ein
-GitHub Release hängen. Frühere Releases bleiben so über Tags/GitHub Releases
-als Rollback-Punkte erhalten. Bei jedem Release beide Changelogs
-(`CHANGELOG.md` und `CHANGELOG_EN.md`) pflegen.
+**Release-Nummerierung und -Packaging:** Baseline aktuell **Ausgabe 048**,
+nächstes substantielles Release **Ausgabe 049**. Ausgabe 049 nicht anlegen,
+bevor eine substantielle Änderung tatsächlich angefragt wurde.
+
+**Es gibt keine Release-ZIPs.** Kein Archiv bauen, keines einchecken, keines
+an ein GitHub Release hängen. Die Anwendung ist eine einzige `index.html`, die
+direkt aus dem Repository und über GitHub Pages läuft – ein Archiv enthielte
+dieselbe Datei nur ein zweites Mal. Entwickelt wird laufend auf `main` weiter.
+
+Ein Release besteht damit aus: Versionsnummer in `index.html` hochziehen,
+beide Changelogs (`CHANGELOG.md` **und** `CHANGELOG_EN.md`) pflegen, die
+Baseline in `AGENTS.md`, `docs/DEVELOPMENT.md` und dieser Datei nachziehen,
+Prüfungen aus Abschnitt 4 laufen lassen, committen und den Commit taggen
+(`v048`, `v049`, …). Die Tags sind der Rollback-Mechanismus – jeder frühere
+Stand bleibt auscheckbar, ohne Binärdateien in der Git-Historie.
 
 **Vor jedem Release, mindestens:**
 1. `node tools/check-all.mjs` (Syntax, DOM-IDs, Privacy, CaSSAndRA-Unit-Tests)
@@ -659,8 +666,6 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 - **`CHANGELOG.md` (deutsch) beginnt erst bei Ausgabe 047.** Die Historie der
   Ausgaben 001–046 existiert nur in `CHANGELOG_EN.md`. Neue Einträge ab
   jetzt bitte in beiden Dateien pflegen.
-- Für das Packen eines Release-ZIPs (GitHub Release, siehe Abschnitt 5)
-  existiert noch kein Automatisierungsskript in `tools/`.
 - **Falls ein Ordner `test/` existiert, enthält er echte private
   Nutzerkarten.** Er ist über `.gitignore` ausgeschlossen und darf niemals
   committet werden; `check-privacy.mjs` warnt zusätzlich, falls doch einmal
@@ -694,10 +699,11 @@ nicht erneut aufrollen**:
    `package.json`, kein `playwright-core` als Projekt-Dependency.
    `tools/smoke-test.mjs` bleibt wie in Abschnitt 4.2 beschrieben: manuell
    pro Umgebung zu installieren, bricht ohne Playwright nicht fehl.
-3. **Release-ZIPs gehören nicht ins Git-Repository.** Statt eines
-   eingecheckten `web-map-editor-release-0XX/`-Verzeichnisses plus ZIP wird
-   der Release-Commit getaggt und das ZIP an ein **GitHub Release** gehängt.
-   `AGENTS.md` und `docs/DEVELOPMENT.md` wurden entsprechend angepasst.
+3. **Release-ZIPs entfallen ersatzlos.** Ursprünglich sollte das ZIP an ein
+   GitHub Release gehängt werden; seit Ausgabe 048 gibt es überhaupt kein
+   Archiv mehr. Der Release-Commit wird getaggt, und damit ist der Release
+   fertig – entwickelt wird laufend weiter. `AGENTS.md` und
+   `docs/DEVELOPMENT.md` sind entsprechend angepasst.
 4. **`tools/` ist legitimer Repo-Bestandteil.** Reine Entwicklungswerkzeuge
    ohne Einfluss auf `index.html` fallen nicht unter das
    Dependency-/Framework-Verbot. Ein klarstellender Absatz dazu steht jetzt
