@@ -103,6 +103,40 @@ erklärt beides.
   in Abschnitt 18), `translateGermanText()`,
   `translateDynamicElement()`, `setLanguage()`. Neuer sichtbarer Text muss
   **immer** in beiden Sprachen funktionieren (siehe Abschnitt 5).
+
+  **Übersetzt wird nur in eine Richtung, Deutsch nach Englisch.** Beim
+  Zurückschalten braucht es das deutsche Original. Für Text vom Seitenaufbau
+  liefert es der Schnappschuss; für Text, der erst zur Laufzeit entsteht, gibt
+  es genau zwei zulässige Wege, und die Wahl zwischen ihnen ist keine
+  Geschmacksfrage:
+
+  - **Ableitbarer Inhalt** – alles, was sich aus dem Zustand neu berechnen
+    lässt (Prüfbericht, Feature-Navigation, Buttontitel, jede Statuszeile eines
+    Werkzeugs): gehört in `refreshDerivedUi()` und wird beim Sprachwechsel
+    schlicht **neu aufgebaut**. Keine zweite Quelle, nichts, was veralten kann.
+  - **Einmalmeldungen** – Text, den niemand nachrechnen kann ("3 Punkte
+    entfernt"): über `setLocalizedText(element, deutsch)`. Die Funktion legt das
+    deutsche Original als `data-i18n-de` am Element ab; `applyI18nSnapshot()`
+    wendet es beim Wechsel in beide Richtungen wieder an.
+
+  **`refreshDerivedUi()` wird NACH `startI18nObserver()` aufgerufen.** Der
+  Neuaufbau erzeugt deutsche Knoten; übersetzt werden sie erst durch den
+  Beobachter. Läuft er noch nicht, bleibt alles deutsch. Genau dieser Fehler
+  steckte im ersten Entwurf und wurde erst vom Browsertest gefunden – die
+  Reihenfolge nicht umdrehen.
+
+  **Zusammengesetzte Texte** kann ein `I18N_PATTERNS`-Muster nicht übersetzen:
+  ein Ersetzungsmuster setzt `$1` unverändert ein, der eingebettete Teil bliebe
+  deutsch. Dafür gibt es `I18N_LABEL_PREFIXES` und `translateHistoryLabel()` –
+  der Rest hinter dem Präfix wird noch einmal durch die Übersetzung geschickt.
+  Alle Historienmarken aus `createWorkspaceSnapshot()` sind deshalb einzeln
+  übersetzbar; wer eine neue Marke einführt, trägt sie in `I18N_EN` nach.
+
+  **`value`-Attribute werden bewusst nicht übersetzt.** Dort stehen Zahlen,
+  keine Sprache. `translateDynamicElement()` fasst nur `title`, `aria-label` und
+  `placeholder` an. Nicht ergänzen – sonst versucht der Mechanismus, „0,02" zu
+  übersetzen. `<option>`-Beschriftungen laufen dagegen über den normalen Weg
+  und funktionieren; beides ist in `tools/test-i18n-dynamic.mjs` festgehalten.
 - **Undo/Redo:** History-Snapshots pro abgeschlossener Operation (nicht pro
   `pointermove`-Event). Ein zusammenhängender Drag = ein Undo-Schritt. Der
   Snapshot enthält neben beiden Kartenslots auch den `referenceOrigin`, weil
@@ -148,7 +182,7 @@ Sie zerfallen in **zwei Stufen**, und diese Trennung ist beabsichtigt:
 | Stufe | Skripte | Abhängigkeiten | Status |
 |---|---|---|---|
 | statisch | `check-all.mjs` (4.1) | keine | **Pflicht** vor jeder Rückmeldung "fertig" |
-| Browser | elf Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
+| Browser | zwölf Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
 
 `check-all.mjs` läuft mit Node-Bordmitteln und muss das bleiben – es ist die
 Stufe, die in **jeder** Umgebung ohne Vorbereitung durchläuft. Die
@@ -164,9 +198,12 @@ Führt nacheinander aus:
 
 - **`tools/check-syntax.mjs`** – extrahiert den inline `<script>`-Block aus
   `index.html` und lässt `node --check` darüber laufen (JS-Syntaxprüfung).
-- **`tools/check-dom-ids.mjs`** – sammelt alle `id="..."`-Attribute im HTML
-  und alle Literal-`document.getElementById("...")`-Aufrufe im Script und
-  meldet Referenzen auf nicht existierende IDs. Deckt genau die Bug-Klasse
+- **`tools/check-dom-ids.mjs`** – sammelt alle `id`-Literale der Datei (im
+  Markup, in Vorlagen und aus `element.id = "..."`) sowie alle
+  Literal-`document.getElementById("...")`-Aufrufe im Script und meldet
+  Referenzen auf nicht existierende IDs. Zusätzlich meldet es **jede aus einer
+  Variablen gebildete `id`** als Fehler, weil eine solche für die Textsuche
+  unsichtbar wäre – siehe die Regel in Abschnitt 6. Deckt genau die Bug-Klasse
   ab, die laut `AGENTS.md`/Changelog wiederholt Laufzeitfehler verursacht
   hat (stale Referenzen nach Entfernen von UI-Elementen).
 - **`tools/check-privacy.mjs`** – heuristische Prüfung auf eingebettete
@@ -210,7 +247,7 @@ Zwei Fallstricke dabei:
 
 ### 4.2 Browsertests (optional, real gerendert)
 
-Elf Skripte öffnen `index.html` in einem echten Browser über eine
+Zwölf Skripte öffnen `index.html` in einem echten Browser über eine
 `file://`-URL – die Datei hat keine externen Ressourcen und keine
 `fetch()`-Aufrufe, ein Webserver ist also nicht nötig.
 
@@ -227,6 +264,7 @@ Elf Skripte öffnen `index.html` in einem echten Browser über eine
 | `test-validation.mjs` | erweiterte Geometrieprüfung |
 | `test-rectify.mjs` | Ecken rechtwinklig |
 | `test-map-switch.mjs` | Wechsel zwischen Karte A und B |
+| `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -983,6 +1021,18 @@ dokumentiert, aber im Code konsistent sichtbar):
   benutzt werden).
 - Klare Undo-Grenzen: Operationen werden als eine Einheit ins
   Undo-/Redo-System eingetragen, nicht pro Zwischenevent.
+- **Jede `id` ist ein Zeichenketten-Literal.** Zulässig sind drei
+  Schreibweisen: `id="..."` im Markup, `id="..."` in einer Vorlage im Skript,
+  und `element.id = "..."` bzw. `setAttribute("id", "...")` für programmatisch
+  erzeugte SVG-Gruppen, die kein Markup haben. **Nicht zulässig ist eine aus
+  einer Variablen oder per Zeichenkettenkette gebildete `id`.**
+
+  Der Grund ist die Prüfbarkeit: `tools/check-dom-ids.mjs` durchsucht den
+  Dateitext, nicht das aufgebaute DOM. Ein Literal findet es überall – auch in
+  dynamisch erzeugtem Markup, das der Oberflächenumbau in großer Menge
+  erzeugen wird. Eine zusammengesetzte `id` steht dagegen nirgends im Text; der
+  Abgleich hielte eine später verwaiste Referenz dann für gültig, weil er sie
+  gar nicht kennt. Das Skript meldet diesen Fall seit Ausgabe 049 als Fehler.
 
 **Vermeiden** (explizit aus AGENTS.md): duplizierte Koordinatenumrechnung,
 unerklärte globale Zustandsänderungen, verwaiste DOM-Referenzen, unnötige
@@ -1008,33 +1058,12 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   bleibt dadurch unentdeckt – genau so hatte `deleteSelectedExclusion()` den
   in Ausgabe 043 entfernten Button um mehrere Ausgaben überlebt. Die manuelle
   Volltextsuche aus Abschnitt 5 ("UI-Element entfernen") bleibt deshalb Pflicht.
-- **Ein bereits gerenderter Prüfbericht wird beim Sprachwechsel nicht
-  nachübersetzt.** `applyI18nSnapshot()` kennt nur die Textknoten vom
-  Seitenaufbau; die Zeilen des Berichts entstehen erst beim Prüfen und werden
-  nur über den MutationObserver übersetzt – also nur, wenn sie in der bereits
-  aktiven Sprache erzeugt werden. Wer auf Deutsch prüft und danach umschaltet,
-  behält den deutschen Bericht. Das betrifft **alle** Meldungen der
-  Kartenprüfung gleichermaßen, ist älter als die erweiterte Geometrieprüfung
-  und wurde beim Bau von deren Browsertest gefunden. Eine Reparatur wäre klein
-  (den letzten Bericht nach `startI18nObserver()` neu rendern), gehört aber in
-  denselben Durchgang wie die beiden unübersetzten Historien-Titel, damit die
-  i18n-Wege nur einmal angefasst werden. **Beides ist als erster Schritt des
-  Oberflächenumbaus eingeplant** (Branch `ui-redesign`), weil der dortige
-  Inspektor seine Inhalte vollständig zur Laufzeit aufbaut und ohne diese
-  Reparatur beim Sprachwechsel komplett deutsch bliebe.
-- **Die dynamischen Titel von `undoBtn` und `redoBtn` sind unübersetzt.**
-  `undoButton.title` (`Rückgängig: <Marke>`) und `redoButton.title`
-  (`Wiederholen: <Marke>`) werden in `updateHistoryButtons()` zur Laufzeit
-  gesetzt und haben kein `I18N_PATTERNS`-Muster; im englischen Modus bleiben
-  sie deutsch. Nur die statischen Fälle ("Keine Änderung zum
-  Rückgängigmachen") sind übersetzt. Ein Muster `^Rückgängig: (.+)$` allein
-  hilft nicht: es würde die deutsche Historienmarke unverändert einsetzen.
-  Nötig wäre zusätzlich, dass **alle** Marken aus `createWorkspaceSnapshot()`
-  übersetzbar sind - also eine Inventur über sämtliche Aufrufstellen, kein
-  Nachtrag von einer Zeile. Wird zusammen mit dem Punkt darüber im ersten
-  Schritt des Oberflächenumbaus erledigt, wo die Beschriftungen ohnehin
-  angefasst werden. Es sind die einzigen beiden dynamisch gesetzten
-  `title`-Attribute ohne Muster.
+- **Die Meldung beim Ziehen eines Punktes hat kein Übersetzungsmuster.**
+  `Perimeter · Punkt 1/4 wird verschoben.` bleibt im englischen Modus deutsch.
+  Sie läuft zwar über `setLocalizedText()` und wechselt damit sauber hin und
+  her, aber es gibt für sie keinen englischen Text. Beim Sprachwechsel während
+  eines laufenden Ziehvorgangs ist das ohnehin ein Randfall; beim Umbau der
+  Statuszeile mit erledigen.
 - **`CHANGELOG.md` (deutsch) beginnt erst bei Ausgabe 047.** Die Historie der
   Ausgaben 001–046 existiert nur in `CHANGELOG_EN.md`. Neue Einträge ab
   jetzt bitte in beiden Dateien pflegen.
