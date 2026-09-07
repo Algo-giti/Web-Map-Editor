@@ -7,15 +7,12 @@
 // framework-free/build-free/dependency-free) - it only requires
 // `playwright-core` to be available in the environment you run it from.
 //
-// Setup (once per machine, outside the repo - e.g. in your scratch dir):
-//   npm init -y && npm install playwright-core
-//   npx --yes playwright install chromium   # or point CHROME_PATH at an
-//                                            # already-cached Chrome/Chromium
+// Playwright and browser discovery live in tools/browser-harness.mjs, so this
+// script and tools/test-origin-conflict.mjs share one implementation and no
+// concrete path or version number has to be documented anywhere.
 //
-// Then run from the repo root:
-//   CHROME_PATH=/path/to/chrome node tools/smoke-test.mjs
-// (CHROME_PATH is optional; if unset, playwright-core's own managed
-// browser is used if installed.)
+// Run from the repo root:
+//   node tools/smoke-test.mjs
 //
 // index.html has no fetch()/XHR/external resources, so it is loaded
 // directly via a file:// URL - no dev server needed.
@@ -25,39 +22,12 @@
 //   - real touch input on an Android device (only synthetic taps)
 //   - the native file picker (the file input is filled programmatically)
 //   - the actual download of an exported file (export content is covered by
-//     tools/test-cassandra.mjs instead)
+//     tools/test-cassandra.mjs and tools/test-origin-conflict.mjs instead)
 
-import { readFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+import { indexUrl, launchBrowser } from "./browser-harness.mjs";
 
-let chromium;
-try {
-  ({ chromium } = await import("playwright-core"));
-} catch {
-  console.error(
-    "smoke-test: playwright-core is not installed in this environment.\n" +
-      "This check is optional and skipped by check-all.mjs on purpose.\n" +
-      "See the setup instructions at the top of tools/smoke-test.mjs."
-  );
-  process.exit(0);
-}
-
-const indexUrl = pathToFileURL(new URL("../index.html", import.meta.url).pathname).href;
-
-const launchOptions = {};
-if (process.env.CHROME_PATH) launchOptions.executablePath = process.env.CHROME_PATH;
-
-let browser;
-try {
-  browser = await chromium.launch(launchOptions);
-} catch (err) {
-  console.error(
-    "smoke-test: could not launch a browser (" + err.message + ").\n" +
-      "Set CHROME_PATH to a cached Chrome/Chromium executable, or run:\n" +
-      "  npx --yes playwright install chromium"
-  );
-  process.exit(0);
-}
+const browser = await launchBrowser("smoke-test");
+if (!browser) process.exit(0);
 
 const consoleErrors = [];
 const pageErrors = [];
@@ -70,7 +40,7 @@ try {
   });
   page.on("pageerror", (err) => pageErrors.push(String(err)));
 
-  await page.goto(indexUrl, { waitUntil: "load" });
+  await page.goto(indexUrl(), { waitUntil: "load" });
 
   const title = await page.title();
   if (title !== "Web Map Editor") {

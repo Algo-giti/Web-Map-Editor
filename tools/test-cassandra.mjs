@@ -21,11 +21,16 @@ const NAMES = [
   "describeFeature",
   "DEGREE_METERS",
   "ABSOLUTE_WGS84_THRESHOLD",
+  "ORIGIN_MATCH_TOLERANCE_METERS",
   "referenceOrigin",
   "originLonScale",
   "hasReferenceOrigin",
   "metersToAbsolute",
   "absoluteToMeters",
+  "originDistanceMeters",
+  "originsMatch",
+  "formatOrigin",
+  "originConflict",
   "isAbsoluteWgs84Collection",
   "convertCollectionCoordinates",
   "absoluteCollectionToRelative",
@@ -53,7 +58,7 @@ const factory = new Function(
   "localStorage",
   "data",
   "scaleFactor",
-  `${source}\nreturn {${NAMES.join(",")}, setData:(value)=>{data=value;}, setScale:(value)=>{scaleFactor=value;}};`
+  `${source}\nreturn {${NAMES.join(",")}, setData:(value)=>{data=value;}, setScale:(value)=>{scaleFactor=value;}, getOrigin:()=>referenceOrigin};`
 );
 
 const app = factory(sandbox.localStorage, sandbox.data, sandbox.scaleFactor);
@@ -233,6 +238,152 @@ check("erster Punkt liegt im Ursprung",
   near(importedPoints[0][0], 0, 1e-12) && near(importedPoints[0][1], 0, 1e-12));
 check("Karte liegt nach dem Import relativ vor",
   !app.isAbsoluteWgs84Collection(absoluteImport));
+
+/* -------------------------------------------------------------------- */
+console.log("Bezugspunkt-Konflikt");
+
+const baseOrigin = { lat: 52.5, lon: 13.4 };
+
+check("identische Bezugspunkte passen zusammen",
+  app.originsMatch(baseOrigin, { lat: 52.5, lon: 13.4 }));
+
+/*
+ * Knapp unterhalb der Toleranz: 0.005 m nach Norden. Ein Grad Breite sind
+ * DEGREE_METERS Meter, also ist 0.005 / DEGREE_METERS ein halber Zentimeter.
+ */
+const halfCentimetreNorth = {
+  lat: 52.5 + 0.005 / app.DEGREE_METERS,
+  lon: 13.4,
+};
+
+check("Rundungsrauschen gilt als derselbe Standort",
+  app.originsMatch(baseOrigin, halfCentimetreNorth));
+check("Abstand unter der Toleranz",
+  app.originDistanceMeters(baseOrigin, halfCentimetreNorth) < app.ORIGIN_MATCH_TOLERANCE_METERS);
+
+/* Knapp oberhalb: 2 cm nach Norden. */
+const twoCentimetresNorth = {
+  lat: 52.5 + 0.02 / app.DEGREE_METERS,
+  lon: 13.4,
+};
+
+check("2 cm gelten als abweichender Standort",
+  !app.originsMatch(baseOrigin, twoCentimetresNorth));
+
+/*
+ * Ost-West muss die cos(lat)-Skalierung berücksichtigen: ein Längengrad ist
+ * auf 52.5 Grad Breite nur cos(52.5) so lang wie ein Breitengrad.
+ */
+const oneMetreEast = {
+  lat: 52.5,
+  lon: 13.4 + 1 / app.originLonScale(52.5),
+};
+
+check("Ost-West-Abstand nutzt cos(lat)",
+  near(app.originDistanceMeters(baseOrigin, oneMetreEast), 1, 1e-6),
+  String(app.originDistanceMeters(baseOrigin, oneMetreEast)));
+
+check("kein Konflikt ohne Datei-Bezugspunkt",
+  app.originConflict(null, baseOrigin) === null);
+check("kein Konflikt bei passendem Bezugspunkt",
+  app.originConflict(halfCentimetreNorth, baseOrigin) === null);
+
+const conflict = app.originConflict(twoCentimetresNorth, baseOrigin);
+check("Konflikt bei abweichendem Bezugspunkt", conflict !== null);
+check("Konflikt nennt den Abstand",
+  conflict && near(conflict.distance, 0.02, 1e-6), String(conflict?.distance));
+check("Konflikt nennt beide Bezugspunkte",
+  conflict?.fileOrigin.lat === twoCentimetresNorth.lat &&
+  conflict?.activeOrigin.lat === baseOrigin.lat);
+
+check("formatOrigin ist stabil",
+  app.formatOrigin({ lat: 52.5, lon: 13.4 }) === "52.500000 / 13.400000");
+
+/* -------------------------------------------------------------------- */
+console.log("Import mit widersprechendem Bezugspunkt");
+
+/* Ausgangslage: aktiver Bezugspunkt ist die RTK-Basis der ersten Karte. */
+app.setReferenceOrigin(baseOrigin);
+
+function absoluteMapAt(origin) {
+  return {
+    type: "FeatureCollection",
+    referenceOrigin: { lat: origin.lat, lon: origin.lon },
+    features: [feature("perimeter", [[origin.lon, origin.lat]])],
+  };
+}
+
+/* Eine zweite Karte nennt eine deutlich andere Basis (rund 1.1 km noerdlich). */
+const otherBase = { lat: 52.51, lon: 13.4 };
+
+const guarded = absoluteMapAt(otherBase);
+const guardedFrame = app.prepareImportedCollection(guarded, { keepActiveOrigin: true });
+
+check("abweichender Bezugspunkt wird gemeldet", guardedFrame.conflict !== null);
+check("Datei-Bezugspunkt bleibt am Ergebnis haengen",
+  guardedFrame.fileOrigin?.lat === otherBase.lat);
+check("aktiver Bezugspunkt wurde NICHT ueberschrieben",
+  app.getOrigin().lat === baseOrigin.lat,
+  `referenceOrigin.lat=${app.getOrigin().lat}`);
+check("gemeldeter Abstand stimmt",
+  near(guardedFrame.conflict.distance, 0.01 * app.DEGREE_METERS, 1e-3),
+  String(guardedFrame.conflict?.distance));
+
+/* Ohne Schutz - kein anderer Slot geladen - wird weiterhin uebernommen. */
+app.setReferenceOrigin(baseOrigin);
+
+const unguarded = absoluteMapAt(otherBase);
+const unguardedFrame = app.prepareImportedCollection(unguarded, { keepActiveOrigin: false });
+
+check("ohne geladene Zweitkarte kein Konflikt", unguardedFrame.conflict === null);
+check("ohne geladene Zweitkarte wird uebernommen",
+  app.getOrigin().lat === otherBase.lat);
+
+/* Passender Bezugspunkt erzeugt auch mit Schutz keinen Konflikt. */
+app.setReferenceOrigin(baseOrigin);
+
+const matching = absoluteMapAt(halfCentimetreNorth);
+const matchingFrame = app.prepareImportedCollection(matching, { keepActiveOrigin: true });
+
+check("passender Bezugspunkt ist kein Konflikt", matchingFrame.conflict === null);
+
+/* -------------------------------------------------------------------- */
+console.log("Exportsperre bei Bezugspunkt-Konflikt");
+
+app.setData({
+  type: "FeatureCollection",
+  features: [feature("perimeter", [[0, 0], [0.00001, 0.00001]])],
+});
+
+app.setReferenceOrigin(baseOrigin);
+
+check("Export ohne Datei-Bezugspunkt laeuft",
+  app.buildExportCollection(true, null) !== null);
+check("Export bei passendem Bezugspunkt laeuft",
+  app.buildExportCollection(true, halfCentimetreNorth) !== null);
+check("absoluter Export bei Konflikt wird verweigert",
+  app.buildExportCollection(true, otherBase) === null);
+
+/*
+ * Der relative Pfad ist nicht der harmlosere, sondern der leisere: eine gegen
+ * X gerechnete Relativkarte liegt auf einem Roboter mit Basis Y um X-Y daneben,
+ * ohne dass die Datei irgendeinen Hinweis darauf enthielte. Deshalb ebenfalls
+ * gesperrt.
+ */
+check("relativer Export bei Konflikt wird ebenfalls verweigert",
+  app.buildExportCollection(false, otherBase) === null);
+check("relativer Export ohne Konflikt laeuft",
+  app.buildExportCollection(false, null) !== null);
+
+/* Nutzer traegt den Bezugspunkt der Datei ein - danach laeuft der Export. */
+app.setReferenceOrigin(otherBase);
+
+check("absoluter Export nach Aufloesen wieder moeglich",
+  app.buildExportCollection(true, otherBase) !== null);
+check("relativer Export nach Aufloesen wieder moeglich",
+  app.buildExportCollection(false, otherBase) !== null);
+check("Export schreibt danach den aufgeloesten Bezugspunkt",
+  app.buildExportCollection(true, otherBase).referenceOrigin?.lat === otherBase.lat);
 
 /* -------------------------------------------------------------------- */
 console.log("Export");

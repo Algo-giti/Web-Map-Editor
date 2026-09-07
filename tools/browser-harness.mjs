@@ -1,0 +1,256 @@
+#!/usr/bin/env node
+// Gemeinsamer Unterbau für die optionalen Browsertests (smoke-test.mjs und
+// test-origin-conflict.mjs).
+//
+// Zweck: Die Suche nach Playwright und nach einem startbaren Browser steht
+// genau hier - nicht dupliziert in jedem Testskript und vor allem nicht als
+// hartkodierter Pfad in der Dokumentation. Konkrete Verzeichnisse und
+// Versionsnummern unterscheiden sich pro Rechner und veralten in der Doku
+// sofort; dieser Code prüft sie stattdessen zur Laufzeit.
+//
+// Beide Tests sind bewusst KEIN Bestandteil von check-all.mjs. check-all ist
+// die abhängigkeitsfreie Stufe und soll das bleiben; `playwright-core` ist
+// keine Projekt-Abhängigkeit und wird einmalig pro Umgebung AUSSERHALB des
+// Repositories installiert (kein package.json im Repo):
+//
+//   cd "$SCRATCH" && npm init -y && npm install playwright-core
+//   PLAYWRIGHT_CORE_PATH="$SCRATCH" node tools/smoke-test.mjs
+//
+// PLAYWRIGHT_CORE_PATH zeigt auf das Verzeichnis, das node_modules enthält.
+// Damit bleibt die Installation ausserhalb des Repositories, ohne dass dort
+// ein node_modules-Verzeichnis oder ein Symlink angelegt werden muss. Liegt
+// playwright-core ohnehin im Auflösungspfad, wird die Variable nicht gebraucht.
+//
+// Ein Browser wird in dieser Reihenfolge gesucht:
+//   1. $CHROME_PATH, falls gesetzt
+//   2. ein bereits installierter System-Browser (Chrome/Chromium)
+//   3. ein Build im ms-playwright-Cache, ohne feste Versionsnummer
+//   4. der von playwright-core selbst verwaltete Browser
+//
+// Fehlt alles, geben die Tests eine Anleitung aus und enden mit Exit-Code 0.
+
+import { accessSync, constants, readdirSync } from "node:fs";
+import { createRequire } from "node:module";
+import { homedir, platform } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+
+/** Ist der Pfad eine ausführbare Datei? */
+function isExecutable(candidate) {
+  try {
+    accessSync(candidate, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Sucht einen Programmnamen in $PATH. */
+function resolveOnPath(name) {
+  const entries = (process.env.PATH || "").split(platform() === "win32" ? ";" : ":");
+
+  for (const entry of entries) {
+    if (!entry) continue;
+    const candidate = join(entry, name);
+    if (isExecutable(candidate)) return candidate;
+  }
+
+  return null;
+}
+
+/** Übliche Namen und Orte eines bereits installierten Chrome/Chromium. */
+function findSystemBrowser() {
+  const names = [
+    "google-chrome",
+    "google-chrome-stable",
+    "chromium",
+    "chromium-browser",
+    "chrome",
+  ];
+
+  for (const name of names) {
+    const found = resolveOnPath(name);
+    if (found) return found;
+  }
+
+  const fixedLocations = [
+    "/opt/google/chrome/chrome",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+  ];
+
+  for (const candidate of fixedLocations) {
+    if (isExecutable(candidate)) return candidate;
+  }
+
+  return null;
+}
+
+/** Wurzelverzeichnis des Playwright-Browsercaches je Plattform. */
+function playwrightCacheRoots() {
+  if (process.env.PLAYWRIGHT_BROWSERS_PATH) {
+    return [process.env.PLAYWRIGHT_BROWSERS_PATH];
+  }
+
+  const home = homedir();
+
+  switch (platform()) {
+    case "darwin":
+      return [join(home, "Library", "Caches", "ms-playwright")];
+    case "win32":
+      return [join(process.env.LOCALAPPDATA || home, "ms-playwright")];
+    default:
+      return [join(home, ".cache", "ms-playwright")];
+  }
+}
+
+/**
+ * Sucht einen Chromium-Build im Playwright-Cache.
+ *
+ * Bewusst ohne feste Versionsnummer: der Cache heißt je nach Playwright-Stand
+ * chromium-1148, chromium-1208, ... Zusätzlich wird die Binary wirklich auf
+ * Ausführbarkeit geprüft - ein vorhandenes Cache-Verzeichnis bedeutet nicht,
+ * dass der Download vollständig war.
+ */
+function findCachedBrowser() {
+  const relativeBinaries = [
+    join("chrome-linux64", "chrome"),
+    join("chrome-linux", "chrome"),
+    join("chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"),
+    join("chrome-mac-arm64", "Chromium.app", "Contents", "MacOS", "Chromium"),
+    join("chrome-win", "chrome.exe"),
+  ];
+
+  for (const root of playwrightCacheRoots()) {
+    let entries;
+    try {
+      entries = readdirSync(root);
+    } catch {
+      continue;
+    }
+
+    // Absteigend, damit der neueste Build zuerst probiert wird.
+    const builds = entries
+      .filter((entry) => entry.startsWith("chromium"))
+      .sort((a, b) => b.localeCompare(a, "en", { numeric: true }));
+
+    for (const build of builds) {
+      for (const relative of relativeBinaries) {
+        const candidate = join(root, build, relative);
+        if (isExecutable(candidate)) return candidate;
+      }
+    }
+  }
+
+  return null;
+}
+
+/** Liefert den zu verwendenden Browserpfad, oder null für Playwrights eigenen. */
+export function findBrowserExecutable() {
+  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
+
+  return findSystemBrowser() || findCachedBrowser();
+}
+
+/** file://-URL der Anwendung. */
+export function indexUrl() {
+  return pathToFileURL(new URL("../index.html", import.meta.url).pathname).href;
+}
+
+/**
+ * Lädt playwright-core - zuerst aus dem normalen Auflösungspfad, danach aus
+ * dem über PLAYWRIGHT_CORE_PATH angegebenen Verzeichnis.
+ *
+ * Der zweite Weg existiert, weil ESM-Importe NODE_PATH ignorieren. Ohne ihn
+ * bliebe nur, ein node_modules ins Repository zu legen - genau das soll die
+ * Trennung von App und Testwerkzeug verhindern.
+ */
+async function importPlaywright() {
+  try {
+    return await import("playwright-core");
+  } catch {
+    /* Nicht im Auflösungspfad; unten weitersuchen. */
+  }
+
+  const base = process.env.PLAYWRIGHT_CORE_PATH;
+  if (!base) return null;
+
+  try {
+    const requireFrom = createRequire(join(base, "package.json"));
+    const resolved = requireFrom.resolve("playwright-core");
+    const loaded = await import(pathToFileURL(resolved).href);
+
+    /*
+     * require.resolve() zeigt auf den CommonJS-Einstieg. Beim dynamischen
+     * Import landen dessen Exporte je nach Modulform unter `default` statt
+     * als benannte Exporte - deshalb beide Formen abdecken.
+     */
+    return loaded?.chromium ? loaded : loaded?.default ?? null;
+  } catch {
+    return null;
+  }
+}
+
+
+const SETUP_HINT =
+  "Dieser Test ist optional und absichtlich nicht Teil von check-all.mjs.\n" +
+  "Einmalig AUSSERHALB des Repositories einrichten (kein package.json im Repo):\n" +
+  '  cd "$SCRATCH" && npm init -y && npm install playwright-core\n' +
+  '  PLAYWRIGHT_CORE_PATH="$SCRATCH" node tools/<test>.mjs\n' +
+  "Einen Browser stellt entweder ein installiertes Chrome/Chromium bereit oder:\n" +
+  "  npx --yes playwright install chromium\n" +
+  "Mit CHROME_PATH lässt sich ein bestimmtes Programm erzwingen.";
+
+/**
+ * Startet einen Browser für einen Test.
+ *
+ * Liefert null, wenn Playwright fehlt oder kein Browser startet. Der Aufrufer
+ * beendet sich dann mit Exit-Code 0 - fehlende Testinfrastruktur ist kein
+ * Testfehler.
+ */
+export async function launchBrowser(toolName) {
+  const playwright = await importPlaywright();
+
+  if (!playwright) {
+    console.error(`${toolName}: playwright-core ist in dieser Umgebung nicht installiert.\n${SETUP_HINT}`);
+    return null;
+  }
+
+  const { chromium } = playwright;
+
+  const executablePath = findBrowserExecutable();
+  const launchOptions = executablePath ? { executablePath } : {};
+
+  try {
+    const browser = await chromium.launch(launchOptions);
+    if (executablePath) console.log(`${toolName}: Browser ${executablePath}`);
+    return browser;
+  } catch (error) {
+    console.error(`${toolName}: konnte keinen Browser starten (${error.message}).\n${SETUP_HINT}`);
+    return null;
+  }
+}
+
+/** Kleiner Zähler für Zusicherungen, gemeinsam von beiden Tests genutzt. */
+export function createChecker(toolName) {
+  let failures = 0;
+
+  return {
+    check(label, condition, detail = "") {
+      if (condition) {
+        console.log(`  ok   ${label}`);
+        return;
+      }
+
+      failures++;
+      console.error(`  FAIL ${label}${detail ? ` - ${detail}` : ""}`);
+    },
+    get failures() {
+      return failures;
+    },
+    finish(okMessage) {
+      console.log(failures ? `\n${toolName}: FEHLGESCHLAGEN (${failures})` : `\n${toolName}: ${okMessage}`);
+      process.exitCode = failures ? 1 : 0;
+    },
+  };
+}
