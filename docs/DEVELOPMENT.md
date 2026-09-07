@@ -422,6 +422,11 @@ After merge:
 - the merged result becomes Map A
 - Map B is removed
 
+Docking path and Search Wire are singletons and are not appended: an empty
+placeholder is dropped, a filled path wins, and two filled paths block the
+merge until the user deletes one. Features of unknown type are appended from
+both maps, since nothing is known about them.
+
 ---
 
 ## Undo / Redo

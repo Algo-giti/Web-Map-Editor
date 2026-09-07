@@ -295,6 +295,16 @@ Do not make the whole perimeter directly draggable unless explicitly requested.
 Exclusion duplication should remain undoable and should renumber Exclusions
 correctly.
 
+## Merging and singletons
+
+Docking path and Search Wire exist at most once per map. When merging, only
+exclusions and features of unknown type are appended from map B. Empty
+placeholders are dropped, a filled path wins regardless of which map it came
+from, and two filled paths are a conflict that blocks the merge - silently
+discarding one would be wrong. Features of unknown type are appended from both
+maps on purpose: the editor knows nothing about them, and dropping them would
+be worse than duplicating them.
+
 ---
 
 ## Docking

@@ -361,6 +361,24 @@ Exclusions neu nummerieren, Undo muss funktionieren. Der frühere separate
 "Exclusion löschen"-Button im Punkteditor wurde entfernt – nicht ohne
 explizite Anfrage wiederherstellen.
 
+**Verbinden und Singletons:** Docking-Pfad und Search Wire gibt es pro Karte
+nur einmal. Beim Verbinden werden aus Karte B **nur** Exclusions und Features
+unbekannten Typs angehängt; die beiden Singletons laufen über
+`mergeSingletonFeatures()`. Leere Platzhalter entfallen, ein befüllter Pfad
+gewinnt unabhängig davon, aus welcher Karte er stammt, und **zwei befüllte
+Pfade sind ein Konflikt**, der das Verbinden sperrt – still einen wegzuwerfen
+wäre falsch. Aufgelöst wird er, indem der Nutzer einen der beiden vorher
+löscht.
+
+„Leer" heißt dabei genau das, was die Kartenprüfung als Platzhalter durchgehen
+lässt: keine oder null Koordinaten. Ein Docking-Pfad mit einem einzigen Punkt
+ist nicht leer, sondern fehlerhaft, und geht deshalb in den Konflikt – so sieht
+der Nutzer den Fehler, statt ihn zu verlieren.
+
+Features unbekannten Typs werden bewusst aus beiden Karten angehängt statt
+zusammengeführt: der Editor weiß nichts über sie, und Wegwerfen wäre schlimmer
+als Verdoppeln.
+
 **Ganze Features verschieben:** Unterstützt für Exclusion, Search Wire,
 Docking (Ziehen direkt an der Geometrie). Der komplette Perimeter ist
 absichtlich **nicht** direkt draggable, um versehentliches Verschieben zu
