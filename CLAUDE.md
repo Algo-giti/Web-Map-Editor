@@ -1418,6 +1418,12 @@ dokumentiert, aber im Code konsistent sichtbar):
   benutzt werden).
 - Klare Undo-Grenzen: Operationen werden als eine Einheit ins
   Undo-/Redo-System eingetragen, nicht pro Zwischenevent.
+- **Eine Punktzahl ist nie `coordinates.length`.** Ein Eintrag zählt nur, wenn
+  er ein Paar endlicher Zahlen ist – dafür gibt es `isUsableCoordinate()` und
+  `countLineFeaturePoints()`. Die Abkürzung steckte an fünf Stellen; zwei davon
+  erzeugten `NaN` im SVG (`d="M NaN NaN"`, `cx="NaN"`) und blieben als stille
+  Konsolenfehler unbemerkt, bis ein Test alle Platzhalterformen durchspielte.
+  Details in Abschnitt 5 unter „Search Wire".
 - **Jede `id` ist ein Zeichenketten-Literal.** Zulässig sind drei
   Schreibweisen: `id="..."` im Markup, `id="..."` in einer Vorlage im Skript,
   und `element.id = "..."` bzw. `setAttribute("id", "...")` für programmatisch
