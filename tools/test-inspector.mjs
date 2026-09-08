@@ -78,6 +78,19 @@ try {
       })),
     });
     await page.waitForTimeout(450);
+
+    /*
+     * Die Maehervorschau ERSETZT den Marker des ausgewaehlten Punktes - mit
+     * ihr fehlt in #vertexGroup genau ein Kreis, sobald etwas ausgewaehlt
+     * ist, und jede Zaehlung darueber waere falsch.
+     */
+    await page.evaluate(() => {
+      const box = document.getElementById("showMowerPreview");
+      if (!box.checked) return;
+      box.checked = false;
+      box.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.waitForTimeout(200);
   };
 
   /** Sichtbarkeit über den berechneten Stil, nicht über das Attribut. */
@@ -174,6 +187,289 @@ try {
     (await head()).unter.includes("Linie 2 von 2"), (await head()).unter);
 
   /* ---------------------------------------------------------------- */
+  console.log("Alle Zustände");
+
+  /*
+   * Sieben Zustände, und zu jedem gehört eine Menge sichtbarer Blöcke. Die
+   * Zusicherung lautet deshalb nicht "Block X ist da", sondern "genau diese
+   * Blöcke sind da" - sonst bliebe ein liegengebliebener Block unbemerkt.
+   */
+  const BLOECKE = [
+    "inspectorEmpty", "inspectorPoint", "inspectorMulti", "inspectorMixed",
+    "inspectorFeature", "inspectorDraw", "inspectorMeasure",
+    "inspectorSelection",
+  ];
+
+  const sichtbareBloecke = () =>
+    page.evaluate((ids) => ids.filter((id) =>
+      getComputedStyle(document.getElementById(id)).display !== "none"), BLOECKE);
+
+  const text = (id) =>
+    page.evaluate((x) => document.getElementById(x).textContent.trim(), id);
+
+  /** Klickt eine Position in Weltkoordinaten auf die Karte. */
+  const clickMap = async (east, north) => {
+    const point = await page.evaluate(([e, n]) => {
+      const svg = document.getElementById("svg");
+      const rect = svg.getBoundingClientRect();
+      const box = svg.viewBox.baseVal;
+      return [
+        rect.left + (e - box.x) / box.width * rect.width,
+        rect.top + (-n - box.y) / box.height * rect.height,
+      ];
+    }, [east, north]);
+
+    await page.mouse.click(point[0], point[1]);
+    await page.waitForTimeout(170);
+  };
+
+  await load([MIT_LOCH]);
+
+  check("ohne Auswahl steht nur der leere Zustand",
+    (await sichtbareBloecke()).join(",") === "inspectorEmpty",
+    (await sichtbareBloecke()).join(","));
+
+  /* Die Auswahlleiste ist von der Karte verschwunden. */
+  check("auf der Karte liegt keine Auswahlleiste mehr",
+    (await page.locator(".map-selection-toolbar").count()) === 0);
+
+  /* --- ein Punkt ------------------------------------------------- */
+  await marks.nth(0).click();
+  await page.waitForTimeout(250);
+
+  check("ein Punkt: Punktzustand plus Auswahlaktionen",
+    (await sichtbareBloecke()).join(",") === "inspectorPoint,inspectorSelection",
+    (await sichtbareBloecke()).join(","));
+  check("die Auswahlaktionen sind bedienbar",
+    !(await page.locator("#deleteMultiSelectionBtn").isDisabled()) &&
+    !(await page.locator("#clearMultiSelectionBtn").isDisabled()));
+
+  /* --- zwei Punkte desselben Features ---------------------------- */
+  await marks.nth(1).click({ modifiers: ["Control"] });
+  await page.waitForTimeout(250);
+
+  const zwei = await head();
+
+  check("zwei Punkte: Gruppenzustand statt Punktzustand",
+    (await sichtbareBloecke()).join(",") === "inspectorMulti,inspectorSelection",
+    (await sichtbareBloecke()).join(","));
+
+  /*
+   * DER BEFUND AUS ETAPPE 4: getInspectorState() war
+   * `selectedVertex ? "single" : "empty"`, und selectedVertex haelt bei einer
+   * Gruppe weiterhin den zuletzt angeklickten Punkt. Der Kopf behauptete
+   * "Punkt 138 von 208", waehrend darunter "2 Punkte ausgewaehlt" stand.
+   */
+  check("der Kopf behauptet keinen einzelnen Punkt",
+    !/^Punkt \d+ von \d+$/.test(zwei.titel), zwei.titel);
+  check("sondern nennt die Anzahl", zwei.titel === "2 Punkte ausgewählt",
+    zwei.titel);
+  check("und das Feature", zwei.unter === "Perimeter", zwei.unter);
+  check("die Zusammenfassung nennt beides",
+    (await text("multiSummary")) === "2 Punkte in Perimeter.",
+    await text("multiSummary"));
+
+  /* --- ganzes Feature -------------------------------------------- */
+  await marks.nth(2).click({ modifiers: ["Control"] });
+  await marks.nth(3).click({ modifiers: ["Control"] });
+  await page.waitForTimeout(250);
+
+  const ganz = await head();
+
+  check("alle Punkte: der Feature-Block kommt dazu",
+    (await sichtbareBloecke()).join(",") ===
+      "inspectorMulti,inspectorFeature,inspectorSelection",
+    (await sichtbareBloecke()).join(","));
+  check("der Kopf sagt, dass es vollständig ist",
+    ganz.unter === "Perimeter · vollständig", ganz.unter);
+  check("die Punktzahl steht im Block",
+    (await text("featurePointStat")) === "4", await text("featurePointStat"));
+  check("und der Typ", (await text("featureTypeStat")) === "Perimeter",
+    await text("featureTypeStat"));
+  check("die Fläche wird beziffert",
+    /^[\d.,]+ m²$/.test(await text("featureAreaStat")),
+    await text("featureAreaStat"));
+  check("duplizieren gilt nur für Exclusions",
+    await page.locator("#duplicateFeatureBtn").isDisabled());
+
+  /* --- gemischte Auswahl ------------------------------------------ */
+  await ringe.nth(0).click({ modifiers: ["Control"] });
+  await page.waitForTimeout(250);
+
+  check("Punkte aus zwei Features: gemischter Zustand",
+    (await sichtbareBloecke()).join(",") === "inspectorMixed,inspectorSelection",
+    (await sichtbareBloecke()).join(","));
+  check("die Zusammenfassung zählt Punkte und Features",
+    (await text("mixedSummary")) === "5 Punkte aus 2 Features.",
+    await text("mixedSummary"));
+  check("der Kopf nennt die Zahl der Features",
+    (await head()).unter === "aus 2 Features", (await head()).unter);
+
+  /* --- Umformen ist immer da, mit Grund ---------------------------- */
+  const gruende = () => page.evaluate(() => ({
+    begradigen: document.getElementById("straightenReason").textContent.trim(),
+    reduzieren: document.getElementById("reduceReason").textContent.trim(),
+    rechtwinklig: document.getElementById("rectifyReason").textContent.trim(),
+  }));
+
+  const gemischt = await gruende();
+
+  check("der Umformblock steht auch bei gemischter Auswahl",
+    await visible("inspectorTransform"));
+  check("und jedes Werkzeug nennt seinen Grund",
+    gemischt.begradigen.length > 0 && gemischt.reduzieren.length > 0 &&
+    gemischt.rechtwinklig.length > 0, JSON.stringify(gemischt));
+  check("die Werkzeuge sind dabei gesperrt",
+    await page.locator("#straightenSelectionBtn").isDisabled() &&
+    await page.locator("#reduceApplyBtn").isDisabled() &&
+    await page.locator("#rectifyApplyBtn").isDisabled());
+
+  /*
+   * Zwei Punkte EINES Features geben den Abschnitt frei. Vorher aufheben:
+   * ein einfacher Klick auf einen bereits markierten Punkt hebt die Gruppe
+   * bewusst NICHT auf - sie soll ziehbar bleiben.
+   */
+  await page.locator("#clearMultiSelectionBtn").click();
+  await page.waitForTimeout(200);
+  await marks.nth(0).click();
+  await marks.nth(2).click({ modifiers: ["Control"] });
+  await page.waitForTimeout(250);
+
+  const frei = await gruende();
+
+  check("bei einem gültigen Abschnitt ändert sich der Grund",
+    frei.begradigen !== gemischt.begradigen,
+    `${frei.begradigen} / ${gemischt.begradigen}`);
+  check("und der Knopf wird frei",
+    !(await page.locator("#straightenSelectionBtn").isDisabled()),
+    frei.begradigen);
+
+  /* --- Zeichnen ---------------------------------------------------- */
+  await load();
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(200);
+
+  check("Zeichnen: nur der Zeichenblock steht",
+    (await sichtbareBloecke()).join(",") === "inspectorDraw",
+    (await sichtbareBloecke()).join(","));
+
+  await clickMap(10, 10);
+  await clickMap(20, 10);
+  await page.waitForTimeout(200);
+
+  check("der Fortschritt nennt die fehlenden Punkte",
+    (await text("drawProgress")) === "2 von mindestens 3 Punkten gesetzt.",
+    await text("drawProgress"));
+  check("abschließen geht noch nicht",
+    await page.locator("#finishDrawBtn").isDisabled());
+
+  await clickMap(20, 20);
+  await page.waitForTimeout(220);
+
+  check("nach dem dritten Punkt ist abschließen möglich",
+    !(await page.locator("#finishDrawBtn").isDisabled()));
+  check("und der Fortschritt sagt es",
+    (await text("drawProgress")) === "3 Punkte gesetzt. Abschließen ist möglich.",
+    await text("drawProgress"));
+  check("der Kopf nennt Werkzeug und Punktzahl",
+    (await head()).titel === "3 Punkte gesetzt" &&
+    (await head()).unter === "Exclusion zeichnen",
+    `${(await head()).titel} / ${(await head()).unter}`);
+
+  /* Der sichtbare Knopf schließt wirklich ab - nicht nur Enter. */
+  const vorher = await page.evaluate(() =>
+    document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length);
+
+  await page.locator("#finishDrawBtn").click();
+  await page.waitForTimeout(350);
+
+  const nachher = await page.evaluate(() =>
+    document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length);
+
+  check("„Zeichnung abschließen“ legt die Exclusion an",
+    nachher === vorher + 3, `${vorher} -> ${nachher}`);
+
+  /* --- Messen ------------------------------------------------------ */
+  await load();
+  await page.locator("#measureBtn").click();
+  await page.waitForTimeout(200);
+
+  check("Messen: nur der Messblock steht",
+    (await sichtbareBloecke()).join(",") === "inspectorMeasure",
+    (await sichtbareBloecke()).join(","));
+
+  await clickMap(5, 5);
+  await clickMap(15, 5);
+  await page.waitForTimeout(250);
+
+  check("die Messung nennt eine Distanz",
+    (await text("measureStatus")).includes("Distanz"),
+    await text("measureStatus"));
+  check("und „Messung löschen“ ist frei",
+    !(await page.locator("#clearMeasureBtn").isDisabled()));
+
+  await page.locator("#clearMeasureBtn").click();
+  await page.waitForTimeout(250);
+
+  check("löschen entfernt die Messlinie",
+    (await page.locator(".measurement-line").count()) === 0);
+  check("und der Inspektor kehrt zurück",
+    (await sichtbareBloecke()).join(",") === "inspectorEmpty",
+    (await sichtbareBloecke()).join(","));
+
+  /* --- Prüfbericht ------------------------------------------------- */
+  await load([MIT_LOCH]);
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(400);
+
+  const befunde = await page.locator("#validationReport .validation-item").count();
+
+  check("der Bericht steht im Inspektor", befunde > 0, String(befunde));
+
+  const anspringbar =
+    await page.locator("#validationReport button[data-validation-target]").count();
+
+  check("mindestens ein Befund ist anspringbar", anspringbar > 0,
+    String(anspringbar));
+
+  await page.locator("#validationReport button[data-validation-target]")
+    .first().click();
+  await page.waitForTimeout(300);
+
+  check("der Klick wählt das genannte Feature vollständig aus",
+    (await sichtbareBloecke()).includes("inspectorFeature"),
+    (await sichtbareBloecke()).join(","));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Leere Felder sagen, warum sie leer sind");
+
+  await load();
+  await marks.nth(0).click();
+  await marks.nth(1).click({ modifiers: ["Control"] });
+  await page.waitForTimeout(250);
+
+  check("bei mehreren Punkten erklären die E/N-Felder ihre Leere",
+    (await page.locator("#pointEastInput").getAttribute("placeholder")) ===
+      "mehrere Punkte ausgewählt",
+    await page.locator("#pointEastInput").getAttribute("placeholder"));
+
+  await page.locator("#clearMultiSelectionBtn").click();
+  await page.waitForTimeout(250);
+
+  check("ohne Auswahl sagen sie das",
+    (await page.locator("#pointNorthInput").getAttribute("placeholder")) ===
+      "kein Punkt ausgewählt",
+    await page.locator("#pointNorthInput").getAttribute("placeholder"));
+
+  await marks.nth(0).click();
+  await page.waitForTimeout(250);
+
+  check("mit einem Punkt steht wieder ein Wert statt einer Erklärung",
+    (await page.locator("#pointEastInput").getAttribute("placeholder")) === "" &&
+    (await page.locator("#pointEastInput").inputValue()).length > 0,
+    await page.locator("#pointEastInput").inputValue());
+
+  /* ---------------------------------------------------------------- */
   console.log("Tastaturbedienung");
 
   await load();
@@ -217,12 +513,15 @@ try {
    * ausgeblendeten tabben. Mit display:none ist das automatisch - mit
    * visibility oder Deckkraft wäre es das NICHT.
    */
-  const wegVomBlock = await page.evaluate(() => {
-    const versteckt = document.getElementById("inspectorEmpty");
-    return [...versteckt.querySelectorAll(
-      "a[href],button,input,select,textarea,summary,[tabindex]")]
+  const wegVomBlock = await page.evaluate((ids) => {
+    const versteckt = ids
+      .map((id) => document.getElementById(id))
+      .filter((el) => getComputedStyle(el).display === "none");
+
+    return versteckt.flatMap((block) => [...block.querySelectorAll(
+      "a[href],button,input,select,textarea,summary,[tabindex]")])
       .filter((el) => el.offsetParent !== null).length;
-  });
+  }, BLOECKE);
 
   check("der ausgeblendete Block hat keine erreichbaren Tabstopps",
     wegVomBlock === 0, String(wegVomBlock));
@@ -328,6 +627,36 @@ try {
 
   check("und kommt zurück",
     /^Punkt \d+ von \d+$/.test((await head()).titel), (await head()).titel);
+
+  /*
+   * Die neuen Zustaende bringen neue Muster mit. Geprueft wird an der Gruppe,
+   * weil dort Kopfblock, Zusammenfassung und Blockueberschrift zusammenkommen.
+   */
+  await marks.nth(1).click({ modifiers: ["Control"] });
+  await page.waitForTimeout(250);
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(400);
+
+  check("die Gruppe wird übersetzt",
+    (await head()).titel === "2 points selected", (await head()).titel);
+  check("und ihre Zusammenfassung",
+    (await text("multiSummary")) === "2 points in Perimeter.",
+    await text("multiSummary"));
+  check("auch die Überschrift des Umformblocks",
+    (await page.evaluate(() =>
+      document.querySelector("#inspectorTransform .inspector-section-title")
+        .textContent.trim())) === "Reshape",
+    await page.evaluate(() =>
+      document.querySelector("#inspectorTransform .inspector-section-title")
+        .textContent.trim()));
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(400);
+
+  check("und alles kommt deutsch zurück",
+    (await head()).titel === "2 Punkte ausgewählt" &&
+    (await text("multiSummary")) === "2 Punkte in Perimeter.",
+    `${(await head()).titel} | ${await text("multiSummary")}`);
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

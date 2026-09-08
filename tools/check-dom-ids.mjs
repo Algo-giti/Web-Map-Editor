@@ -49,6 +49,58 @@ const composedIds = [
   .filter((match) => !["\"", "'", "`"].includes(match[match.length - 1]))
   .map((match) => html.slice(0, match.index).split("\n").length);
 
+// Doppelte ids im MARKUP.
+//
+// Der Oberflächenumbau verschiebt Bedienelemente aus der Seitenleiste in den
+// Inspektor. Wird dabei kopiert statt verschoben, existiert dieselbe id
+// zweimal: getElementById() liefert dann das erste Vorkommen, das zweite ist
+// tot, und beide sehen im Browser gleich aus. Genau das ist beim Bau des
+// Inspektors passiert - fünf ids doppelt, und diese Prüfung sah es nicht,
+// weil sie nur fragte, ob eine referenzierte id EXISTIERT.
+//
+// Nur das Markup wird betrachtet: Vorlagen im Skript dürfen dieselbe id
+// enthalten wie das Markup, das sie ersetzen.
+const markup = html.slice(
+  html.indexOf("<body"),
+  html.indexOf("<script", html.indexOf("<body"))
+);
+
+const markupIds = [...markup.matchAll(/\bid=["']([^"']+)["']/g)].map((m) => m[1]);
+const seenInMarkup = new Set();
+const duplicateIds = [];
+
+for (const id of markupIds) {
+  if (seenInMarkup.has(id)) {
+    if (!duplicateIds.includes(id)) duplicateIds.push(id);
+  }
+  seenInMarkup.add(id);
+}
+
+// Doppelte Funktionsnamen.
+//
+// Dieselbe Falle wie bei den ids, nur im Skript: eine zweite Deklaration
+// desselben Namens ueberschreibt die erste lautlos, und die Syntaxpruefung
+// findet daran nichts. Beim Bau des Inspektors bekam
+// isWholeFeatureSelected() eine zweite Fassung mit anderer Signatur - die
+// spaetere gewann, der Zustand "ganzes Feature" wurde nie erreicht, und kein
+// Werkzeug meldete etwas.
+//
+// Betrachtet werden nur Deklarationen am Zeilenanfang: die sind im inline
+// Script alle global. Eingerueckte Funktionen stehen in einem eigenen
+// Gueltigkeitsbereich und duerfen sich wiederholen.
+const functionNames = [...html.matchAll(/^function\s+([A-Za-z0-9_$]+)\s*\(/gm)]
+  .map((m) => m[1]);
+
+const seenFunctions = new Set();
+const duplicateFunctions = [];
+
+for (const name of functionNames) {
+  if (seenFunctions.has(name) && !duplicateFunctions.includes(name)) {
+    duplicateFunctions.push(name);
+  }
+  seenFunctions.add(name);
+}
+
 const missing = [];
 const seen = new Set();
 for (const match of getByIdCalls) {
@@ -62,6 +114,28 @@ console.log(
   `check-dom-ids: ${existingIds.size} ids in markup, ${seen.size} distinct literal getElementById() references` +
     (dynamicCalls ? `, ${dynamicCalls} dynamic (non-literal) call(s) skipped - review those by hand` : "")
 );
+
+if (duplicateIds.length > 0) {
+  console.error(
+    "check-dom-ids: FAILED - these ids appear more than once in the markup:"
+  );
+  for (const id of duplicateIds) console.error(`  - ${id}`);
+  console.error(
+    "  getElementById() returns the first one; the second is dead markup."
+  );
+  process.exitCode = 1;
+}
+
+if (duplicateFunctions.length > 0) {
+  console.error(
+    "check-dom-ids: FAILED - these top-level functions are declared more than once:"
+  );
+  for (const name of duplicateFunctions) console.error(`  - ${name}()`);
+  console.error(
+    "  The later declaration silently wins; the earlier one is dead code."
+  );
+  process.exitCode = 1;
+}
 
 if (composedIds.length > 0) {
   console.error(
@@ -78,9 +152,14 @@ if (missing.length > 0) {
   console.error("check-dom-ids: FAILED - referenced ids missing from index.html:");
   for (const id of missing) console.error(`  - ${id}`);
   process.exitCode = 1;
-} else if (composedIds.length === 0) {
+} else if (
+  composedIds.length === 0 &&
+  duplicateIds.length === 0 &&
+  duplicateFunctions.length === 0
+) {
   console.log(
     "check-dom-ids: OK - every literal getElementById() reference resolves to an existing id, " +
-      "and every id is a string literal."
+      "every id is a string literal and appears once in the markup, " +
+      `and all ${seenFunctions.size} top-level function names are unique.`
   );
 }

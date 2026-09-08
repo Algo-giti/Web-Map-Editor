@@ -125,6 +125,11 @@ erklärt beides.
   steckte im ersten Entwurf und wurde erst vom Browsertest gefunden – die
   Reihenfolge nicht umdrehen.
 
+  **Kein Schlüssel steht zweimal in `I18N_EN`.** Ein Objektliteral nimmt
+  denselben Schlüssel klaglos zweimal an, und der **spätere** gewinnt; die
+  fertige Map zeigt davon nichts. Drei solche Paare standen unbemerkt in der
+  Liste. `tools/test-cassandra.mjs` liest dafür den Quelltext, nicht die Map.
+
   **In `I18N_PATTERNS` steht das speziellere Muster vor dem allgemeineren.**
   Die Liste wird von oben nach unten durchsucht und beim ersten Treffer
   abgebrochen. Stand `/^(\d+) Fehler$/` vor `/^1 Fehler$/`, wurde aus „1
@@ -216,6 +221,22 @@ Führt nacheinander aus:
   unsichtbar wäre – siehe die Regel in Abschnitt 6. Deckt genau die Bug-Klasse
   ab, die laut `AGENTS.md`/Changelog wiederholt Laufzeitfehler verursacht
   hat (stale Referenzen nach Entfernen von UI-Elementen).
+
+  Dazu zwei Prüfungen auf **stille Doppelungen**, beide aus konkreten Fehlern
+  entstanden und beide unsichtbar für die Syntaxprüfung:
+
+  - **Eine `id` darf im Markup nur einmal vorkommen.** `getElementById()`
+    liefert sonst das erste Vorkommen, das zweite ist totes Markup, und im
+    Browser sehen beide gleich aus. Beim Umzug der Knöpfe in den Inspektor
+    entstanden so fünf Doppelungen, weil kopiert statt verschoben wurde.
+    Betrachtet wird nur das Markup: eine Vorlage im Skript darf dieselbe `id`
+    tragen wie das Markup, das sie ersetzt.
+  - **Ein Funktionsname am Zeilenanfang darf nur einmal vorkommen.** Eine
+    zweite Deklaration überschreibt die erste lautlos. `isWholeFeatureSelected()`
+    bekam beim Bau des Inspektors eine zweite Fassung mit anderer Signatur –
+    die spätere gewann, der Zustand „ganzes Feature" wurde nie erreicht, und
+    kein Werkzeug meldete etwas. Geprüft werden nur Deklarationen ohne
+    Einrückung: die sind im inline Script alle global.
 - **`tools/check-privacy.mjs`** – heuristische Prüfung auf eingebettete
   private Kartendaten (`"coordinates":` als JSON-Key, hochpräzise
   Dezimalzahlen, mehrfache `FeatureCollection`-Literale). Meldet zusätzlich
@@ -278,7 +299,7 @@ Sechzehn Skripte öffnen `index.html` in einem echten Browser über eine
 | `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
 | `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen |
 | `test-placeholders.mjs` | was als leerer Platzhalter gilt |
-| `test-inspector.mjs` | Inspektor: Zustände, Behälter, Tastatur |
+| `test-inspector.mjs` | Inspektor: alle sieben Zustände, Behälter, Tastatur |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -642,6 +663,13 @@ wird, und sie ist an mehreren Stellen dieselbe:
 
   Für die **Übersetzung**: über `setLocalizedText()`, das deutsche Original
   bleibt als `data-i18n-de` am Element.
+
+  **Ein `$1` in einem Ersetzungsmuster bleibt unübersetzt** – das ist bei
+  Feature-Namen richtig so: `describeFeature()` liefert entweder etwas
+  Sprachneutrales („Perimeter", „Exclusion #0", „Dockpoints") oder ein vom
+  Nutzer vergebenes `properties.label`, und ein Label wird nicht übersetzt.
+  Für Texte, deren eingebetteter Teil wirklich deutsch ist, gibt es
+  `I18N_LABEL_PREFIXES`.
   Für die **Anzeige**: sie gewinnt den gemeinsamen Platz, die jüngere vor der
   älteren.
 
@@ -909,6 +937,56 @@ Tabstopps im ausgeblendeten Block zu.
 Zustand selbst wird bei jedem Aufruf neu berechnet, wie `getSelectedSection()`
 und `getActiveOriginConflict()`, und nirgends zwischengespeichert.
 
+**Sieben Zustände, und die Reihenfolge der Prüfungen in `getInspectorState()`
+ist die Rangfolge:** ein laufendes Werkzeug schlägt jede Auswahl.
+
+| Zustand | Bedingung | sichtbare Blöcke |
+|---|---|---|
+| `drawing` | `featureDrawState` gesetzt | `#inspectorDraw` |
+| `measuring` | Messung läuft oder hält Punkte | `#inspectorMeasure` |
+| `empty` | keine Auswahl | `#inspectorEmpty` |
+| `mixed` | Punkte aus mehreren Features | `#inspectorMixed` + `#inspectorSelection` |
+| `single` | **genau ein** Punkt | `#inspectorPoint` + `#inspectorSelection` |
+| `feature` | alle Punkte genau eines Features | `#inspectorMulti` + `#inspectorFeature` + `#inspectorSelection` |
+| `multi` | mehrere Punkte eines Features | `#inspectorMulti` + `#inspectorSelection` |
+
+`#inspectorTransform` (Umformen) und `#inspectorValidation` (Kartenprüfung)
+stehen in **jedem** Zustand. Das ist Absicht: wer die drei Umformwerkzeuge nur
+sähe, wenn sie schon gehen, erführe nie, was er dafür tun müsste. Jedes trägt
+deshalb seinen Grund in einem eigenen `.tool-reason`-Feld unter sich.
+
+**Ein Block kann zu mehreren Zuständen gehören.** `INSPECTOR_BLOCKS` ist
+deswegen eine Liste aus `{id, states}` und keine Zuordnung Zustand → Block:
+die Auswahlaktionen („Auswahl löschen", „Auswahl aufheben") gelten in allen
+vier Auswahlzuständen, und sie zu kopieren wäre eine doppelte id.
+
+**Der Kopfblock darf nie etwas anderes sagen als der Block darunter.** Bis
+Etappe 5 war `getInspectorState()` schlicht `selectedVertex ? "single" :
+"empty"` – und weil `selectedVertex` bei einer Gruppe weiterhin den zuletzt
+angeklickten Punkt hält, behauptete der Kopf „Punkt 138 von 208", während
+darunter „2 Punkte ausgewählt" stand. Deshalb gilt: **`single` heißt genau ein
+Punkt**, und die Quelle ist `getEffectiveSelectedVertices()`, nicht
+`selectedVertex`.
+
+**Ein leeres Feld sagt, warum es leer ist.** Die E/N-Felder werden bei einer
+Mehrfachauswahl bewusst geleert und gesperrt – das ist richtig, sah aber wie
+ein Fehler aus, weil der Grund nur weiter unten in `#pointMeta` stand. Sie
+tragen jetzt einen `placeholder` („mehrere Punkte ausgewählt", „kein Punkt
+ausgewählt"), der beim Auswählen eines einzelnen Punktes wieder verschwindet.
+
+**Der Prüfbericht liegt im Inspektor, die Kurzform in der Statuszeile.** Ein
+Befund, dem sich ein Feature zuordnen lässt, ist ein `<button>` und springt es
+an (`selectWholeFeature()`); die übrigen bleiben `<div>`. Knöpfe statt divs mit
+Klick-Handler, damit sie mit der Tastatur erreichbar sind.
+
+Die Zuordnung entsteht in `findValidationTarget()` **aus dem Text**, und das ist
+eine Abwägung: die Prüfung hat 49 Fundstellen, die alle Zeichenketten liefern,
+und jede um eine Feature-Nummer zu erweitern hieße, die durchgerechnete
+Geometrieprüfung für eine Anzeigefrage anzufassen. Erkannt werden die drei
+Schreibweisen, die tatsächlich vorkommen: „Feature 7: …", „Perimeter 2: …" und
+der Anzeigename aus `describeFeature()`. **Ein Anzeigename zählt nur, wenn er
+eindeutig ist** – lieber kein Sprung als der falsche.
+
 **Das Markup wird NICHT bei jedem Auswahlwechsel neu erzeugt.** Die
 Eingabefelder ziehen aus der Seitenleiste in den Inspektor um – verschoben,
 nicht kopiert, damit keine ID doppelt existiert –, und ein Neuaufbau würde sie
@@ -943,6 +1021,16 @@ hat es der Browsertest, nicht die Syntaxprüfung.
 
 **Entfallen:** der Knopf „Verschieben" auf der Karte. Er rief nur
 `setSelectionTool("pointer")` und war damit reine Doppelung des Zeigers.
+
+**Die Auswahlleiste liegt seit Etappe 5 nicht mehr auf der Karte.**
+`#straightenSelectionBtn`, `#deleteMultiSelectionBtn` und
+`#clearMultiSelectionBtn` sind in den Inspektor gezogen, `.map-selection-toolbar`
+ist ersatzlos entfallen. Auf der Karte bleibt nur die Zoom-/Einpassen-Leiste –
+die eine Gruppe ändert die Karte, die andere nur den Bildausschnitt. Ebenfalls
+umgezogen: `#finishDrawBtn`, `#undoDrawPointBtn`, `#cancelDrawBtn`,
+`#reduceApplyBtn`, `#rectifyApplyBtn`, `#clearMeasureBtn`, `#measureStatus`,
+`#validationSummary` und `#validationReport`. **Verschoben, nicht kopiert** –
+beim ersten Anlauf waren fünf ids doppelt vorhanden.
 
 **Behelf mit Ablaufdatum:** `startFeatureDrawing()` klappt den Seitenleisten-
 abschnitt „Features erstellen" auf. Die Zeichnung startet seit Etappe 3 aus der
@@ -1542,11 +1630,12 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 - **`tools/check-privacy.mjs` ist nur heuristisch** – erkennt keine privaten
   Daten unter untypischen Schlüsselnamen. Ersetzt keine manuelle
   Diff-Prüfung vor einem Release.
-- **`tools/check-dom-ids.mjs` prüft nur IDs, keine Variablen- oder
-  Funktionsnamen.** Verwaister Code nach dem Entfernen eines UI-Elements
-  bleibt dadurch unentdeckt – genau so hatte `deleteSelectedExclusion()` den
-  in Ausgabe 043 entfernten Button um mehrere Ausgaben überlebt. Die manuelle
-  Volltextsuche aus Abschnitt 5 ("UI-Element entfernen") bleibt deshalb Pflicht.
+- **`tools/check-dom-ids.mjs` prüft IDs und doppelte Funktionsnamen, aber
+  keine Variablennamen und keine verwaisten Funktionen.** Verwaister Code nach
+  dem Entfernen eines UI-Elements bleibt dadurch unentdeckt – genau so hatte
+  `deleteSelectedExclusion()` den in Ausgabe 043 entfernten Button um mehrere
+  Ausgaben überlebt. Die manuelle Volltextsuche aus Abschnitt 5 ("UI-Element
+  entfernen") bleibt deshalb Pflicht.
 - **Das Hilfe-Overlay beschreibt die Anordnung in Prosa und veraltet mit
   jeder Etappe des Oberflächenumbaus.** Es wird in Etappe 9 vollständig neu
   geschrieben, wenn die Anordnung feststeht – vorher wäre es zweimal Arbeit.
@@ -1557,8 +1646,13 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     der Karte." – stimmt noch, wird aber mit dem Inspektor hinfällig.
   - **„Auswahl-Werkzeugleiste: Mauszeiger, Rechteck, Lasso, Verschieben,
     Löschen und Auswahl aufheben liegen jetzt direkt auf der Karte." – seit
-    Etappe 3 falsch.** Nur noch Begradigen, Löschen und Auswahl aufheben liegen
-    dort; „Verschieben" gibt es nicht mehr.
+    Etappe 5 vollständig falsch.** Auf der Karte liegt keine Auswahlleiste
+    mehr; die Auswahlwerkzeuge stehen in der Werkzeugleiste, Löschen, Auswahl
+    aufheben und Begradigen im Inspektor, und „Verschieben" gibt es nicht mehr.
+  - **„Sidebar: … ‚Messen & Prüfen' befindet sich ganz unten." – seit Etappe 5
+    falsch.** Von diesem Abschnitt ist nur noch der Schalter „Vor dem Speichern
+    automatisch prüfen" übrig; Messergebnis und Prüfbericht stehen im
+    Inspektor.
   - **„Einpassen / Zoom: Kartenansicht anpassen." – der Ort stimmt nicht mehr**,
     beides liegt seit Etappe 3 an der Karte statt in der Kopfzeile.
   - „Sidebar: Direkt unter ‚Karten' folgt ‚Karten verbinden' …" – wird mit

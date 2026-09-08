@@ -901,6 +901,39 @@ const checkedPatterns = patternExamples.filter((s) => s.length).length;
 console.log(
   `  ${checkedPatterns} von ${patternList.length} Mustern automatisch geprueft`);
 
+/*
+ * Doppelte Schluessel in I18N_EN.
+ *
+ * Ein Objektliteral nimmt denselben Schluessel zweimal klaglos an - der
+ * SPAETERE gewinnt. Die fertige Map zeigt davon nichts, deshalb wird hier der
+ * Quelltext gelesen und nicht app.I18N_EN. Drei solche Paare standen unbemerkt
+ * in der Liste; sie waren zufaellig gleich uebersetzt, die naechste Doppelung
+ * muss es nicht sein.
+ */
+const dictionarySource = (() => {
+  const script = readInlineScript();
+  const start = script.indexOf("const I18N_EN");
+  const end = script.indexOf("const I18N_PATTERNS");
+  return script.slice(start, end);
+})();
+
+const dictionaryKeys = [
+  ...dictionarySource.matchAll(/"((?:[^"\\]|\\.)*)"\s*:/g),
+].map((m) => m[1]);
+
+const seenKeys = new Set();
+const duplicateKeys = [];
+
+for (const key of dictionaryKeys) {
+  if (seenKeys.has(key) && !duplicateKeys.includes(key)) duplicateKeys.push(key);
+  seenKeys.add(key);
+}
+
+check("kein Schluessel steht zweimal in I18N_EN",
+  duplicateKeys.length === 0, duplicateKeys.join(" | "));
+
+console.log(`  ${dictionaryKeys.length} Woerterbucheintraege, ${seenKeys.size} eindeutig`);
+
 /* -------------------------------------------------------------------- */
 console.log("Punktzahl einer Linie");
 

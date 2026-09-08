@@ -738,6 +738,19 @@
     background:rgba(20,31,47,.62);
   }
 
+  /*
+   * Anspringbare Befunde sind Knoepfe. Damit sie in der Liste nicht wie
+   * Bedienknoepfe der Oberflaeche aussehen, wird nur das Nutzbare uebernommen:
+   * Tastaturfokus und Zeiger, nicht Rahmen und Fuellung.
+   */
+  button.validation-item {
+    display:block; width:100%; text-align:left; cursor:pointer;
+    border:0; font:inherit; color:inherit;
+  }
+
+  button.validation-item:hover { background:rgba(38,55,80,.85); }
+  button.validation-item:focus-visible { outline:2px solid var(--blue); }
+
   .validation-item.error {
     border-left:3px solid #ff6b6b;
     color:#ffc1c1;
@@ -1413,6 +1426,22 @@
 
   .inspector .editor-actions { display:flex; flex-direction:column; gap:6px; }
   .inspector .coord-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .inspector .stat { padding:6px 0; }
+
+  /*
+   * Erklaerender Kleintext. Die Klasse gab es im Markup schon zweimal, aber
+   * ohne Regel - sie sah damit aus wie normaler Fliesstext.
+   */
+  .hint { color:var(--muted); font-size:12px; line-height:1.45; }
+
+  /*
+   * Der Grund gehoert an seinen Knopf, nicht in die Blockmitte: das
+   * Zeilenabstands-gap des Blocks wird hier zurueckgenommen.
+   */
+  .tool-reason {
+    color:var(--muted); font-size:12px; line-height:1.4; margin-top:-7px;
+  }
+  .tool-reason:empty { display:none; }
 
   /* -----------------------------------------------------------------------
      Werkzeugleiste
@@ -2643,11 +2672,6 @@
             <button id="deleteDockBtn" class="danger" type="button" disabled>Docking-Pfad löschen</button>
           </div>
 
-          <div class="editor-actions">
-            <button id="undoDrawPointBtn" type="button" disabled>Letzten Punkt entfernen</button>
-            <button id="finishDrawBtn" type="button" disabled>Zeichnung abschließen</button>
-            <button id="cancelDrawBtn" type="button" disabled>Abbrechen</button>
-          </div>
 
 
           <div class="info-box">
@@ -2718,7 +2742,6 @@
             </div>
           </label>
 
-          <button id="reduceApplyBtn" type="button" disabled>Punkte reduzieren</button>
 
           <div id="reduceStatus" class="grid-status" aria-live="polite">
             Einen Punkt auswählen (ganzes Feature) oder zwei Punkte (Abschnitt).
@@ -2764,7 +2787,6 @@
             </div>
           </label>
 
-          <button id="rectifyApplyBtn" type="button" disabled>Ecken rechtwinklig machen</button>
 
           <div id="rectifyStatus" class="grid-status" aria-live="polite">
             Ecken rechtwinklig: einen Punkt des Features auswählen.
@@ -2855,26 +2877,16 @@
       <details class="section sidebar-collapsible section-accent-cyan">
         <summary class="sidebar-collapsible-summary"><span>Messen & Prüfen</span></summary>
         <div class="sidebar-collapsible-body">
-          <div class="measurement-panel">
-          <button id="clearMeasureBtn" type="button" disabled>Messung löschen</button>
-
-          <div id="measureStatus" class="measurement-result" aria-live="polite">
-            Zwei Positionen auf der Karte wählen.
-          </div>
-</div>
-
-        <div class="validation-panel">
-
+          <div class="validation-panel">
+          <!--
+            Messung und Prüfbericht liegen seit Etappe 5 im Inspektor - dort
+            arbeitet man. Hier bleibt nur die Einstellung, die keine Ausgabe
+            ist; sie zieht mit Etappe 6 in den Einstellungsblock.
+          -->
           <label class="toggle">
             <input id="validateBeforeSave" type="checkbox" checked>
             Vor dem Speichern automatisch prüfen
           </label>
-
-          <div id="validationSummary" class="validation-summary" aria-live="polite">
-            Noch keine Prüfung durchgeführt.
-          </div>
-
-          <div id="validationReport" class="validation-report" hidden></div>
           </div>
         </div>
       </details>
@@ -3127,35 +3139,6 @@
         <button id="zoomOutBtn" class="map-tool-button" type="button" title="Verkleinern">−</button>
       </div>
 
-      <div class="map-selection-toolbar" role="toolbar" aria-label="Auswahlwerkzeuge">
-        <button id="straightenSelectionBtn" class="map-tool-button" type="button" disabled
-                title="Begradigen: genau zwei Punkte desselben Linienzugs auswählen."
-                aria-label="Linie begradigen">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M3 18L21 6"></path>
-            <circle cx="4" cy="18" r="2"></circle>
-            <circle cx="20" cy="6" r="2"></circle>
-            <path d="M9 16.5l1.5-3M14 11l1.5-3"></path>
-          </svg>
-        </button>
-
-        <button id="deleteMultiSelectionBtn" class="map-tool-button danger" type="button" disabled
-                title="Löschen: entfernt alle aktuell ausgewählten Punkte. Mit Undo rückgängig."
-                aria-label="Ausgewählte Punkte löschen">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"></path>
-            <path d="M10 10v7M14 10v7"></path>
-          </svg>
-        </button>
-
-        <button id="clearMultiSelectionBtn" class="map-tool-button" type="button" disabled
-                title="Auswahl aufheben: entfernt alle Markierungen, ohne Punkte zu löschen."
-                aria-label="Auswahl aufheben">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"></path></svg>
-        </button>
-
-      </div>
-
       <div id="tip" class="tip"></div>
     </section>
 
@@ -3251,6 +3234,107 @@
         <div id="pointMeta" class="editor-meta">
           Noch kein Punkt ausgewählt.
         </div>
+      </div>
+
+      <!--
+        Mehrere Punkte EINES Features. Der Kopfblock nennt die Anzahl; hier
+        stehen nur die Aktionen, die auf eine Gruppe passen.
+      -->
+      <div id="inspectorMulti" class="inspector-block" hidden>
+        <div class="inspector-section-title">Gruppe</div>
+        <div id="multiSummary" class="editor-meta">Mehrere Punkte ausgewählt.</div>
+        <div class="hint">
+          Einen markierten Punkt ziehen verschiebt die ganze Gruppe.
+        </div>
+      </div>
+
+      <!-- Punkte aus MEHREREN Features. -->
+      <div id="inspectorMixed" class="inspector-block" hidden>
+        <div class="inspector-section-title">Mehrere Features</div>
+        <div id="mixedSummary" class="editor-meta">Punkte aus mehreren Features.</div>
+        <div class="hint">
+          Löschen und gemeinsames Verschieben gehen weiterhin. Alles, was einen
+          einzelnen Linienzug braucht - Koordinaten, Start/Ende, Begradigen,
+          Reduzieren, Rechtwinklig - braucht eine Auswahl innerhalb EINES
+          Features.
+        </div>
+      </div>
+
+      <!-- Alle editierbaren Punkte eines Features. -->
+      <div id="inspectorFeature" class="inspector-block" hidden>
+        <div class="inspector-section-title">Feature</div>
+        <div class="stat"><span>Typ</span><strong id="featureTypeStat">–</strong></div>
+        <div class="stat"><span>Punkte</span><strong id="featurePointStat">–</strong></div>
+        <div class="stat"><span>Fläche</span><strong id="featureAreaStat">–</strong></div>
+        <div class="stat"><span>idx</span><strong id="featureIdxStat">–</strong></div>
+        <button id="duplicateFeatureBtn" type="button" disabled>Exclusion duplizieren</button>
+        <div class="hint">
+          Verschieben durch Ziehen an der Geometrie auf der Karte.
+        </div>
+      </div>
+
+      <!--
+        Zeichnen. Die Knöpfe stehen jetzt dort, wo gearbeitet wird - damit
+        entfällt der Behelf, der den Seitenleistenabschnitt aufklappte.
+      -->
+      <div id="inspectorDraw" class="inspector-block" hidden>
+        <div class="inspector-section-title">Zeichnen</div>
+        <div id="drawProgress" class="editor-meta">Punkte setzen.</div>
+        <button id="finishDrawBtn" type="button" disabled>Zeichnung abschließen</button>
+        <button id="undoDrawPointBtn" type="button" disabled>Letzten Punkt entfernen</button>
+        <button id="cancelDrawBtn" type="button">Abbrechen</button>
+        <div class="hint">
+          Enter schließt ab, Doppelklick ebenfalls. Bei einer Exclusion
+          schließt auch ein Klick auf den ersten Punkt den Ring. Esc bricht ab.
+        </div>
+      </div>
+
+      <!-- Messen. Auf der Karte liegt nur noch die Messlinie selbst. -->
+      <div id="inspectorMeasure" class="inspector-block" hidden>
+        <div class="inspector-section-title">Messen</div>
+        <div id="measureStatus" class="measurement-result" aria-live="polite">
+          Zwei Positionen auf der Karte wählen.
+        </div>
+        <button id="clearMeasureBtn" type="button" disabled>Messung löschen</button>
+      </div>
+
+      <!--
+        Aktionen, die zu JEDER Auswahl passen. Eigener Block, weil sie in vier
+        Zuständen gelten - kopieren wäre eine doppelte id.
+      -->
+      <div id="inspectorSelection" class="inspector-block" hidden>
+        <button id="deleteMultiSelectionBtn" class="danger" type="button" disabled
+                title="Löschen: entfernt alle aktuell ausgewählten Punkte. Mit Undo rückgängig.">
+          Auswahl löschen
+        </button>
+        <button id="clearMultiSelectionBtn" type="button" disabled
+                title="Auswahl aufheben: entfernt alle Markierungen, ohne Punkte zu löschen.">
+          Auswahl aufheben
+        </button>
+      </div>
+
+      <!--
+        Umformen: in JEDEM Auswahlzustand sichtbar, jedes Werkzeug mit dem
+        Grund, warum es gerade geht oder nicht. Wer die Werkzeuge nur sieht,
+        wenn sie schon gehen, erfährt nie, was er tun müsste.
+      -->
+      <div id="inspectorTransform" class="inspector-block">
+        <div class="inspector-section-title">Umformen</div>
+        <button id="straightenSelectionBtn" type="button" disabled>Linie begradigen</button>
+        <div id="straightenReason" class="tool-reason"></div>
+        <button id="reduceApplyBtn" type="button" disabled>Punkte reduzieren</button>
+        <div id="reduceReason" class="tool-reason"></div>
+        <button id="rectifyApplyBtn" type="button" disabled>Ecken rechtwinklig machen</button>
+        <div id="rectifyReason" class="tool-reason"></div>
+      </div>
+
+      <!-- Prüfbericht: die Liste gehört hierher, die Kurzform in die Statuszeile. -->
+      <div id="inspectorValidation" class="inspector-block">
+        <div class="inspector-section-title">Kartenprüfung</div>
+        <div id="validationSummary" class="validation-summary" aria-live="polite">
+          Noch keine Prüfung durchgeführt.
+        </div>
+        <div id="validationReport" class="validation-report" hidden></div>
       </div>
     </aside>
   </main>
@@ -3680,19 +3764,58 @@ function updateMapCursor() {
    dass sich diese Mechanik ändert.
    -------------------------------------------------------------------------- */
 
-/** Die Zustandsblöcke des Inspektors, in fester Reihenfolge. */
-const INSPECTOR_BLOCKS = {
-  empty:"inspectorEmpty",
-  single:"inspectorPoint"
-};
+/**
+ * Welche Blöcke gehören zu welchem Zustand.
+ *
+ * Ein Block kann in mehreren Zuständen stehen - die Auswahlaktionen etwa
+ * gelten für jede Auswahl. Kopieren wäre eine doppelte id.
+ */
+const INSPECTOR_BLOCKS = [
+  {id:"inspectorEmpty", states:["empty"]},
+  {id:"inspectorPoint", states:["single"]},
+  {id:"inspectorMulti", states:["multi", "feature"]},
+  {id:"inspectorMixed", states:["mixed"]},
+  {id:"inspectorFeature", states:["feature"]},
+  {id:"inspectorDraw", states:["drawing"]},
+  {id:"inspectorMeasure", states:["measuring"]},
+  {id:"inspectorSelection", states:["single", "multi", "mixed", "feature"]}
+];
 
 /**
  * Welchen Zustand zeigt der Inspektor gerade?
  *
- * Abgeleitet, nicht gespeichert.
+ * Abgeleitet, nicht gespeichert. Die Reihenfolge der Prüfungen ist die
+ * Rangfolge: ein laufendes Werkzeug schlägt jede Auswahl.
+ *
+ * "single" gilt nur bei GENAU EINEM Punkt. Vorher stand hier
+ * `selectedVertex ? "single" : "empty"` - und weil selectedVertex bei einer
+ * Gruppe weiterhin den zuletzt angeklickten Punkt hält, behauptete der
+ * Kopfblock "Punkt 138 von 208", während darunter "2 Punkte ausgewählt"
+ * stand. Der Kopfblock darf nie etwas anderes sagen als der Block darunter.
  */
 function getInspectorState() {
-  return selectedVertex ? "single" : "empty";
+  if (featureDrawState) return "drawing";
+  if (measurementState.active || measurementState.points.length) return "measuring";
+
+  const selection = getEffectiveSelectedVertices();
+
+  if (!selection.length) return "empty";
+
+  const featureIndices = new Set(selection.map(d => d.featureIndex));
+
+  if (featureIndices.size > 1) return "mixed";
+  if (selection.length === 1) return "single";
+
+  /*
+   * Dieselbe Frage, die schon ueber das Loeschen einer kompletten Exclusion
+   * entscheidet - und dieselbe Funktion. Eine zweite eigene Fassung stand hier
+   * kurzzeitig und wurde von der spaeteren Deklaration desselben Namens
+   * lautlos ueberschrieben; seither prueft tools/check-dom-ids.mjs auf
+   * doppelte Funktionsnamen.
+   */
+  return isWholeFeatureSelected(featureIndices.values().next().value)
+    ? "feature"
+    : "multi";
 }
 
 
@@ -3740,6 +3863,155 @@ function describeVertexContainer(descriptor) {
 }
 
 
+/** Benennt das laufende Zeichenwerkzeug im Kopfblock. */
+function describeDrawMode(mode) {
+  if (mode === "exclusion") return "Exclusion zeichnen";
+  if (mode === "circle") return "Kreis-Exclusion";
+  if (mode === "rectangle") return "Rechteck-Exclusion";
+
+  if (mode === "searchwire") {
+    return featureDrawState?.appendToExisting
+      ? "Search Wire verlängern"
+      : "Search Wire zeichnen";
+  }
+
+  return featureDrawState?.appendToExisting
+    ? "Docking-Pfad verlängern"
+    : "Docking-Pfad zeichnen";
+}
+
+
+/**
+ * Der Grund je Umformwerkzeug - abgeleitet, nicht vom Knopf abgelesen.
+ *
+ * Den title des Knopfes zu spiegeln waere naheliegend und falsch:
+ * updateSelectionPanel() ruft den Inspektor VOR updateMultiSelectionUi() auf,
+ * der Titel des Begradigens waere dort um einen Aufruf veraltet. Gerechnet
+ * wird deshalb aus denselben Zielfunktionen, die auch die Knoepfe freigeben.
+ */
+function transformToolReasons() {
+  const section = getSelectedSection();
+  const reduce = getReduceTarget();
+  const rectify = getWholeFeatureTarget();
+
+  return {
+    straightenReason: section.ok
+      ? `Legt die ${section.indices.length} Punkte dazwischen auf die Gerade.`
+      : straightenReasonText(section.reason),
+    reduceReason: reduce.ok
+      ? (reduce.mode === "section"
+          ? "Dünnt den Abschnitt zwischen den beiden Punkten aus."
+          : "Dünnt das ganze Feature aus.")
+      : reduceReasonText(reduce.reason),
+    rectifyReason: rectify.ok
+      ? "Richtet die Kanten des ganzen Features rechtwinklig aus."
+      : rectifyReasonText(rectify.reason)
+  };
+}
+
+
+/** Schreibt einen abgeleiteten Text in ein Feld des Inspektors. */
+function setInspectorText(id, text) {
+  const element = document.getElementById(id);
+  if (element) setLocalizedText(element, text);
+}
+
+
+/**
+ * Fuellt die veraenderlichen Felder der Zustandsbloecke.
+ *
+ * Das Markup steht fest, abgeleitet ist nur die Sichtbarkeit und dieser Text.
+ * Messen und Kartenpruefung schreiben ihre Felder weiterhin selbst
+ * (updateMeasurementUi(), renderValidationReport()) - eine zweite Quelle
+ * daneben koennte veralten.
+ */
+function updateInspectorBlocks(state) {
+  const reasons = transformToolReasons();
+
+  Object.entries(reasons).forEach(([id, text]) => setInspectorText(id, text));
+
+  if (state === "drawing") {
+    const points = featureDrawState.points?.length || 0;
+    const base = featureDrawState.basePointCount || 0;
+    const minimum = featureDrawState.mode === "exclusion" ? 3 : 2;
+    const missing = Math.max(0, minimum - points);
+
+    setInspectorText(
+      "drawProgress",
+      featureDrawState.appendToExisting
+        ? `${base} vorhandene + ${points - base} neue Punkte.`
+        : missing
+          ? `${points} von mindestens ${minimum} Punkten gesetzt.`
+          : `${points} Punkte gesetzt. Abschließen ist möglich.`
+    );
+
+    return;
+  }
+
+  if (state === "empty" || state === "measuring") return;
+
+  const selection = getEffectiveSelectedVertices();
+  const featureIndices = [...new Set(selection.map(d => d.featureIndex))];
+
+  if (state === "mixed") {
+    setInspectorText(
+      "mixedSummary",
+      `${selection.length} Punkte aus ${featureIndices.length} Features.`
+    );
+
+    return;
+  }
+
+  if (state === "multi" || state === "feature") {
+    const feature = data.features?.[featureIndices[0]];
+
+    setInspectorText(
+      "multiSummary",
+      state === "feature"
+        ? `Alle ${selection.length} Punkte von ${describeFeature(feature)}.`
+        : `${selection.length} Punkte in ${describeFeature(feature)}.`
+    );
+  }
+
+  if (state !== "feature") return;
+
+  const featureIndex = featureIndices[0];
+  const feature = data.features?.[featureIndex];
+  const type = getFeatureType(feature);
+  const isExclusion = type === "exclusion";
+  const area = isExclusion || type === "perimeter"
+    ? polygonAreaMeters(feature)
+    : 0;
+
+  setInspectorText("featureTypeStat", describeFeature(feature));
+  setInspectorText("featurePointStat", String(selection.length));
+
+  setInspectorText(
+    "featureAreaStat",
+    !area
+      ? "–"
+      : hasKnownScale()
+        ? `${formatMeters(area, 1)} m²`
+        : `${formatMeters(area, 1)} Einheiten²`
+  );
+
+  const idx = feature?.idx ?? feature?.properties?.idx;
+
+  setInspectorText("featureIdxStat", idx === undefined ? "–" : String(idx));
+
+  const duplicateButton = document.getElementById("duplicateFeatureBtn");
+
+  if (duplicateButton) {
+    duplicateButton.disabled = !isExclusion;
+    duplicateButton.dataset.featureIndex = String(featureIndex);
+    duplicateButton.title =
+      isExclusion
+        ? "Legt eine versetzte Kopie dieser Exclusion an."
+        : "Duplizieren gilt nur für Exclusions.";
+  }
+}
+
+
 /** Hält Kopfblock und Sichtbarkeit der Zustandsblöcke aktuell. */
 function updateInspector() {
   const title = document.getElementById("inspectorTitle");
@@ -3749,19 +4021,66 @@ function updateInspector() {
 
   const state = getInspectorState();
 
-  Object.entries(INSPECTOR_BLOCKS).forEach(([name, id]) => {
+  INSPECTOR_BLOCKS.forEach(({id, states}) => {
     const block = document.getElementById(id);
-    if (block) block.hidden = name !== state;
+    if (block) block.hidden = !states.includes(state);
   });
 
+  updateInspectorBlocks(state);
+
+  if (state === "drawing") {
+    const points = featureDrawState.points?.length || 0;
+
+    setLocalizedText(title, `${points} Punkt${points === 1 ? "" : "e"} gesetzt`);
+    setLocalizedText(subtitle, describeDrawMode(featureDrawState.mode));
+    return;
+  }
+
+  if (state === "measuring") {
+    setLocalizedText(title, "Messung");
+    setLocalizedText(
+      subtitle,
+      measurementState.points.length === 2
+        ? "Zwei Punkte gesetzt"
+        : `${measurementState.points.length} von 2 Punkten`
+    );
+    return;
+  }
+
+  const selection = getEffectiveSelectedVertices();
+
+  if (state === "multi" || state === "mixed" || state === "feature") {
+    const featureIndices = new Set(selection.map(d => d.featureIndex));
+
+    setLocalizedText(title, `${selection.length} Punkte ausgewählt`);
+
+    setLocalizedText(
+      subtitle,
+      state === "mixed"
+        ? `aus ${featureIndices.size} Features`
+        : state === "feature"
+          ? `${describeFeature(data.features?.[[...featureIndices][0]])} · vollständig`
+          : describeFeature(data.features?.[[...featureIndices][0]])
+    );
+
+    return;
+  }
+
   if (state === "single") {
-    const info = getVertexContainerInfo(selectedVertex);
-    const feature = data.features?.[selectedVertex.featureIndex];
-    const container = describeVertexContainer(selectedVertex);
+    /*
+     * Der eine Punkt kommt aus der EFFEKTIVEN Auswahl, nicht aus
+     * selectedVertex: eine Einzelauswahl kann auch in selectedVertices
+     * stehen, und selectedVertex haelt bei einer Gruppe weiterhin den zuletzt
+     * angeklickten Punkt. Genau daraus entstand der falsche Kopfblock.
+     */
+    const vertex = selection[0];
+    const info = getVertexContainerInfo(vertex);
+    const feature = data.features?.[vertex.featureIndex];
+    const container = describeVertexContainer(vertex);
 
     setLocalizedText(
       title,
-      `Punkt ${selectedVertex.pointIndex + 1} von ${Math.max(info.count, 1)}`
+      `Punkt ${vertex.pointIndex + 1} von ${Math.max(info.count, 1)}`
     );
 
     setLocalizedText(
@@ -4395,6 +4714,8 @@ function renderMeasurementOverlay() {
 
 /** Messwerte und gewählte Exclusion-Fläche anzeigen. */
 function updateMeasurementUi() {
+  updateInspector();
+
   const button = document.getElementById("measureBtn");
   const clearButton = document.getElementById("clearMeasureBtn");
   const status = document.getElementById("measureStatus");
@@ -5096,7 +5417,72 @@ function validateMapData(featureCollection = data) {
 }
 
 
-/** Prüfergebnis in der Sidebar darstellen. */
+/**
+ * Zu welchem Feature gehoert ein Befund?
+ *
+ * Abgeleitet aus dem Text, und zwar bewusst: die 49 Fundstellen der Pruefung
+ * liefern Zeichenketten, und jede davon um eine Feature-Nummer zu erweitern
+ * hiesse, die durchgerechnete Geometriepruefung fuer eine Anzeigefrage
+ * anzufassen. Erkannt werden die drei Schreibweisen, die die Pruefung
+ * tatsaechlich erzeugt:
+ *
+ *   "Feature 7: ..."          - der Index steht direkt im Text
+ *   "Perimeter 2: ..."        - das zweite Perimeter-Feature
+ *   "Exclusion #3: ..."       - der Anzeigename aus describeFeature()
+ *
+ * Ein Anzeigename zaehlt nur, wenn er EINDEUTIG ist. Zwei Features mit
+ * demselben Label wuerden sonst auf gut Glueck angesprungen - lieber kein
+ * Sprung als der falsche.
+ */
+function findValidationTarget(message) {
+  const features = data.features || [];
+
+  const direct = /(?:^|\s)Feature (\d+)\b/.exec(message);
+
+  if (direct) {
+    const index = Number(direct[1]);
+    if (features[index]) return index;
+  }
+
+  const perimeter = /^Perimeter (\d+)[:\s]/.exec(message);
+
+  if (perimeter) {
+    const nth = Number(perimeter[1]);
+    let seen = 0;
+
+    for (let index = 0; index < features.length; index += 1) {
+      if (getFeatureType(features[index]) !== "perimeter") continue;
+      seen += 1;
+      if (seen === nth) return index;
+    }
+  }
+
+  const counts = new Map();
+
+  features.forEach(feature => {
+    const label = describeFeature(feature);
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+
+  let best = -1;
+  let bestLength = 0;
+
+  features.forEach((feature, index) => {
+    const label = describeFeature(feature);
+
+    if (counts.get(label) !== 1) return;
+    if (label.length <= bestLength) return;
+    if (!message.includes(label)) return;
+
+    best = index;
+    bestLength = label.length;
+  });
+
+  return best >= 0 ? best : null;
+}
+
+
+/** Prüfergebnis im Inspektor darstellen. */
 function renderValidationResult(result) {
   lastValidationResult = result;
   updateStatusBar();
@@ -5148,9 +5534,24 @@ function renderValidationResult(result) {
   ];
 
   items.forEach(item => {
-    const div = document.createElement("div");
-    div.className =
-      `validation-item ${item.type}`;
+    const target = findValidationTarget(item.message);
+
+    /*
+     * Anspringbare Befunde sind Knoepfe, nicht divs mit Klick-Handler: nur so
+     * sind sie mit der Tastatur erreichbar und melden sich der Vorlesehilfe
+     * als bedienbar.
+     */
+    const div = document.createElement(
+      target === null ? "div" : "button"
+    );
+
+    div.className = `validation-item ${item.type}`;
+
+    if (target !== null) {
+      div.type = "button";
+      div.dataset.validationTarget = String(target);
+      div.title = `Springt zu ${describeFeature(data.features[target])}.`;
+    }
 
     const strong = document.createElement("strong");
     strong.textContent = `${item.label}: `;
@@ -5454,6 +5855,8 @@ function createDockFeatureFromWorldPoints(points) {
 
 /** UI des Zeichenwerkzeugs synchronisieren. */
 function updateFeatureDrawUi() {
+  updateInspector();
+
   const exclusionButton = document.getElementById("drawExclusionBtn");
   const searchButton = document.getElementById("drawSearchWireBtn");
   const extendSearchButton = document.getElementById("extendSearchWireBtn");
@@ -5710,6 +6113,14 @@ function updateFeatureDrawUi() {
       ? `Mindestens 2 Punkte erforderlich.`
       : `Mit „Zeichnung abschließen“ oder Enter übernehmen.`);
 }
+
+
+/*
+ * Der Inspektor haengt am Zeichen- und am Messzustand, nicht nur an der
+ * Auswahl. Beide Werkzeuge aktualisieren ihre eigene Oberflaeche bei jedem
+ * gesetzten Punkt - ohne diesen Nachzug bliebe der Kopfblock dort stehen,
+ * wo die Zeichnung begonnen hat.
+ */
 
 
 /** Feature-Zeichnung starten. */
@@ -10149,6 +10560,15 @@ function updateSelectionPanel() {
 
     eastInput.value = "";
     northInput.value = "";
+
+    /*
+     * Ein leeres Feld ohne Erklaerung sieht aus wie ein Fehler. Der Grund
+     * stand bisher nur weiter unten in #pointMeta - hier steht er dort, wo
+     * die Leere auffaellt.
+     */
+    eastInput.placeholder = "mehrere Punkte ausgewählt";
+    northInput.placeholder = "mehrere Punkte ausgewählt";
+
     eastInput.disabled = true;
     northInput.disabled = true;
     insertBeforeButton.disabled = true;
@@ -10171,6 +10591,8 @@ function updateSelectionPanel() {
 
     eastInput.value = "";
     northInput.value = "";
+    eastInput.placeholder = "kein Punkt ausgewählt";
+    northInput.placeholder = "kein Punkt ausgewählt";
     eastInput.disabled = true;
     northInput.disabled = true;
     insertBeforeButton.disabled = true;
@@ -10205,6 +10627,8 @@ function updateSelectionPanel() {
 
   eastInput.value = formatMeters(east, 2);
   northInput.value = formatMeters(north, 2);
+  eastInput.placeholder = "";
+  northInput.placeholder = "";
 
   eastInput.disabled = false;
   northInput.disabled = false;
@@ -15973,6 +16397,25 @@ document.getElementById("deleteMultiSelectionBtn").addEventListener(
   deleteSelectedVertices
 );
 
+document.getElementById("duplicateFeatureBtn").addEventListener("click", () => {
+  const index = Number(
+    document.getElementById("duplicateFeatureBtn").dataset.featureIndex
+  );
+
+  if (Number.isInteger(index)) duplicateExclusionFeature(index);
+});
+
+/*
+ * Anspringbare Pruefbefunde. Delegiert, weil die Liste bei jeder Pruefung neu
+ * aufgebaut wird - ein Listener je Zeile muesste jedes Mal mit umziehen.
+ */
+document.getElementById("validationReport").addEventListener("click", event => {
+  const item = event.target.closest("[data-validation-target]");
+  if (!item) return;
+
+  selectWholeFeature(Number(item.dataset.validationTarget));
+});
+
 document.getElementById("resetBtn").addEventListener("click", resetToOriginal);
 document.getElementById("exportBtn").addEventListener("click", exportGeoJson);
 
@@ -16476,8 +16919,67 @@ viewerResizeObserver.observe(viewer);
  * erneut als Quelle verwendet werden.
  */
 let currentLanguage = "de";
-const I18N_EN = new Map(Object.entries({"Bedienung":"Controls","Einpassen":"Fit","↶ Zurück":"↶ Undo","↷ Vor":"↷ Redo","Hilfe":"Help","GeoJSON speichern":"Save GeoJSON","Aktive zurücksetzen":"Reset active","Keine Karte geladen":"No map loaded","Keine Karte geladen.":"No map loaded.","Karten":"Maps","Karte A · nicht geladen":"Map A · not loaded","Karte B · nicht geladen":"Map B · not loaded","Karte A öffnen":"Open map A","Karte B öffnen":"Open map B","Karte B schließen":"Close map B","Karten verbinden":"Merge maps","Beide Karten müssen dieselbe RTK-Basis / dasselbe lokale Koordinatensystem verwenden.":"Both maps must use the same RTK base / the same local coordinate system.","Karte A ist nicht geladen.":"Map A is not loaded.","Karte B ist nicht geladen.":"Map B is not loaded.","Verbindungsvorschau anzeigen":"Show merge preview","Zweite Karte laden, dann Start-/Endpunkt beider Perimeter festlegen.":"Load the second map, then define the start/end points of both perimeters.","Karte A + B verbinden":"Merge map A + B","Feature-Navigation":"Feature navigation","Keine Features vorhanden.":"No features available.","Features erstellen":"Create features","Exclusion zeichnen":"Draw exclusion","Search Wire zeichnen":"Draw Search Wire","Search Wire verlängern":"Extend Search Wire","Search Wire löschen":"Delete Search Wire","Docking-Pfad erstellen":"Create docking path","Docking-Pfad verlängern":"Extend docking path","Docking-Pfad verlängert.":"Docking path extended.","Docking-Pfad gelöscht.":"Docking path deleted.","Kein Docking-Pfad vorhanden.":"No docking path present.","Docking-Pfad: mindestens 2 Punkte anklicken, üblich sind 3.":"Docking path: click at least 2 points; 3 is customary.","Ein Docking-Pfad benötigt mindestens 2 Punkte.":"A docking path requires at least 2 points.","Kein Docking-Pfad zum Verlängern vorhanden.":"No docking path available to extend.","Docking-Pfad ist kein LineString.":"Docking path is not a LineString.","Der Docking-Pfad ist leer. Verwende „Docking-Pfad erstellen“.":"The docking path is empty. Use “Create docking path”.","Es existiert bereits ein Docking-Pfad. Verwende „Docking-Pfad verlängern“ oder lösche ihn zuerst.":"A docking path already exists. Use “Extend docking path” or delete it first.","Es existiert bereits ein Docking-Pfad. Pro Karte ist nur einer erlaubt.":"A docking path already exists. Only one per map is allowed.","Docking-Pfad vollständig löschen?":"Delete the entire docking path?","Docking-Pfad löschen":"Delete docking path","Letzten Punkt entfernen":"Remove last point","Zeichnung abschließen":"Finish drawing","Abbrechen":"Cancel","Kein Zeichenwerkzeug aktiv.":"No drawing tool active.","Exclusion:":"Exclusion:","mindestens 3 Punkte setzen und anschließend schließen.":"set at least 3 points and then close the polygon.","Search Wire:":"Search Wire:","offene Linie mit mindestens 2 Punkten; eine vorhandene Linie kann am Ende verlängert werden.":"open line with at least 2 points; an existing line can be extended at its end.","Docking-Pfad:":"Docking path:","nur einmal existieren; offene Linie mit mindestens 2 Punkten,":"exist only once; an open line with at least 2 points,","üblich sind 3.":"3 being customary.","Ebenen":"Layers","Ausschlussflächen":"Exclusion areas","Dockpoints":"Dock points","Sonstiges":"Other","Punkte anzeigen / bearbeiten":"Show / edit points","Punkteditor":"Point editor","Noch kein Punkt ausgewählt.":"No point selected yet.","Klicke einen weißen Kartenpunkt an.":"Click a white map point.","Punkt davor einfügen":"Insert point before","Punkt danach einfügen":"Insert point after","Als Startpunkt setzen":"Set as start point","Als Endpunkt setzen":"Set as end point","Punkt löschen":"Delete point","Geschlossene Polygone:":"Closed polygons:","Beim Ziehen am Raster einrasten":"Snap to grid while dragging","Verschiebungen bleiben bis zum Speichern als Vergleich sichtbar.":"Moved original positions remain visible for comparison until saving.","Punkte lassen sich anklicken und anschließend ziehen.":"Points can be clicked and then dragged.","Mähroboter-Vorschau":"Mower preview","Mäher am ausgewählten Punkt anzeigen":"Show mower at selected point","Länge (m)":"Length (m)","Breite (m)":"Width (m)","Mähergröße übernehmen":"Apply mower size","Punkt auswählen, um die Fahrtrichtung anzuzeigen.":"Select a point to show the travel direction.","Raster":"Grid","Raster anzeigen":"Show grid","Schnellwahl":"Preset","Eigener Wert":"Custom value","Eigener Rasterabstand in Metern":"Custom grid spacing in metres","Übernehmen":"Apply","Rasterabstand:":"Grid spacing:","Messen & Prüfen":"Measure & validate","Distanz messen":"Measure distance","Messung löschen":"Clear measurement","Zwei Positionen auf der Karte wählen.":"Select two positions on the map.","Koordinatenbezug":"Coordinate reference","RTK-Basis Breite (lat)":"RTK base latitude (lat)","RTK-Basis Länge (lon)":"RTK base longitude (lon)","Koordinaten beim Speichern":"Coordinates on save","wie geladen":"as loaded","absolut WGS84 (CaSSAndRA)":"absolute WGS84 (CaSSAndRA)","Kein Bezugspunkt gesetzt.":"No reference point set.","Kein Bezugspunkt gesetzt. Absolute Ausgabe entspricht dann der Relativkarte.":"No reference point set. Absolute output then equals the relative map.","Bezugspunkt gesetzt. Relativkarte kann absolut gespeichert werden.":"Reference point set. The relative map can be saved as absolute coordinates.","Karte wurde aus absolutem WGS84 umgerechnet. Ein geänderter Bezugspunkt rechnet sie automatisch um; die angezeigten East/North-Werte laufen danach gegen den neuen Nullpunkt.":"Map was converted from absolute WGS84. Changing the reference point re-bases it automatically; the displayed East/North values then run against the new origin.","Ungültige Bezugsposition.":"Invalid reference position.","Bezugspunkt aktualisiert.":"Reference point updated.","Karte prüfen":"Validate map","Vor dem Speichern automatisch prüfen":"Validate automatically before saving","Noch keine Prüfung durchgeführt.":"No validation performed yet.","Öffne links Karte A oder Karte B.":"Open map A or map B on the left.","Web Map Editor – Kurzüberblick":"Web Map Editor – Quick overview","Hilfe schließen":"Close help","Einsatzbereich":"Scope","Primär für Ardumower / Sunray:":"Primarily for Ardumower / Sunray:","Der Editor wurde mit Blick auf deren GeoJSON-/RTK-Karten und lokale East/North-Koordinaten entwickelt.":"The editor was designed with their GeoJSON/RTK maps and local East/North coordinates in mind.","Er kann auch für andere Anwendungen mit kompatiblen GeoJSON-Strukturen nützlich sein. Eine vollständige Unterstützung beliebiger Fremdformate wird jedoch nicht vorausgesetzt.":"It can also be useful for other applications with compatible GeoJSON structures. Full support for arbitrary third-party formats is not assumed.","Karte A / B öffnen:":"Open map A / B:","lokale GeoJSON-/RTK-Karten laden. Zwischen geladenen Karten kann umgeschaltet und jeweils vollständig bearbeitet werden.":"load local GeoJSON/RTK maps. You can switch between loaded maps and edit each one fully.","Karten verbinden:":"Merge maps:","Start/Ende beider Perimeter festlegen. Der Editor verbindet A Ende → B Start und B Ende → A Start zu einem geschlossenen Perimeter.":"Define start/end of both perimeters. The editor connects A end → B start and B end → A start into one closed perimeter.","Punkte bearbeiten":"Edit points","Punkt auswählen:":"Select point:","anklicken, ziehen oder East/North numerisch ändern.":"click, drag or change East/North numerically.","Start / Ende:":"Start / end:","ausgewählten Polygonpunkt als neuen Start- oder Endpunkt setzen; Reihenfolge wird neu nummeriert und der Ring bleibt geschlossen.":"set the selected polygon point as the new start or end point; order is renumbered and the ring remains closed.","Punkte hinzufügen:":"Add points:","vor/nach einem Punkt oder über die Feature-Navigation auf einer bestehenden Kante einfügen.":"insert before/after a point or via feature navigation on an existing edge.","Punkte löschen:":"Delete points:","einzeln oder als Mehrfachauswahl. Mindestpunktzahlen werden automatisch geprüft. Sind alle Eckpunkte einer Exclusion per Rechteck, Lasso oder Strg+Klick ausgewählt, löscht der Papierkorb die komplette Exclusion.":"individually or as a multi-selection. Minimum point counts are validated automatically. If all vertices of an exclusion are selected by rectangle, lasso or Ctrl+click, the trash button deletes the entire exclusion.","einzeln oder als Mehrfachauswahl. Mindestpunktzahlen werden automatisch geprüft.":"individually or as a multi-selection. Minimum point counts are validated automatically.","Exclusions & Features":"Exclusions & features","Exclusion zeichnen:":"Draw exclusion:","mindestens 3 Eckpunkte setzen und das Polygon anschließend schließen.":"set at least 3 vertices and then close the polygon.","offene Linie mit mindestens 2 Punkten neu zeichnen, bestehende Linie am Ende verlängern oder vollständig löschen. Beim Verlängern bleiben die vorhandenen Punkte geschützt.":"draw a new open line with at least 2 points, extend an existing line at its end, or delete it completely. Existing points are protected while extending.","genau ein Docking-Feature pro Karte; offene Linie mit mindestens 2 Punkten, üblich sind 3. Ein vorhandener Pfad kann am Ende verlängert werden.":"exactly one docking feature per map; an open line with at least 2 points, 3 being customary. An existing path can be extended at its end.","Docking-Pfad löschen:":"Delete docking path:","entfernt das komplette 3-Punkte-Feature; einzelne Dock-Punkte können nicht separat gelöscht werden.":"removes the complete 3-point feature; individual docking points cannot be deleted separately.","Exclusion löschen:":"Delete exclusion:","komplette Exclusion entfernen; verbleibende Exclusions werden neu nummeriert.":"remove the complete exclusion; remaining exclusions are renumbered.","Ganzes Feature verschieben:":"Move entire feature:","Exclusion, Search Wire oder Docking-Point über die Feature-Navigation auswählen oder direkt an der Geometrie ziehen. Alle Punkte werden gemeinsam verschoben.":"select an exclusion, Search Wire or docking point via feature navigation or drag it directly on the geometry. All points move together.","Exclusion duplizieren:":"Duplicate exclusion:","erstellt eine identische Kopie und versetzt sie zur besseren Sichtbarkeit um einen Rasterabstand nach East und North. Anschließend ist die Kopie komplett ausgewählt und kann direkt weiter verschoben werden.":"creates an identical copy and offsets it by one grid step in East and North for visibility. The copy is then fully selected and can be moved immediately.","Feature-Navigation:":"Feature navigation:","einklappen/aufklappen und einzelne Features sowie Punkte gezielt auswählen.":"collapse/expand and select individual features and points.","Mehrfachauswahl":"Multi-selection","Strg + Klick:":"Ctrl + click:","einzelne Punkte hinzufügen oder entfernen.":"add or remove individual points.","Rechteck / Lasso:":"Rectangle / lasso:","mehrere Punkte räumlich auswählen. Danach auf „Punkt / Verschieben“ wechseln und einen markierten Punkt ziehen, um alle gemeinsam zu verschieben.":"select multiple points spatially. Then switch to “Point / Move” and drag a selected point to move them together.","Entf / Backspace:":"Delete / Backspace:","Auswahl löschen.":"delete selection.","Auswahlwerkzeug abbrechen oder Auswahl aufheben.":"cancel the selection tool or clear the selection.","Pfeiltasten:":"Arrow keys:","ausgewählte Punkte exakt um einen Schritt der aktuell eingestellten Rasterweite verschieben. ←/→ = East, ↑/↓ = North. Funktioniert auch für Mehrfachauswahl.":"move selected points by exactly one step of the current grid spacing. ←/→ = East, ↑/↓ = North. Also works for multi-selection.","Der ausgewählte Punkt kann durch einen maßstäblichen Mäher ersetzt werden. Länge und Breite sind einstellbar. Die Ausrichtung wird aus der Punktfolge abgeleitet.":"The selected point can be replaced by a to-scale mower. Length and width are adjustable. Orientation is derived from the point sequence.","Distanz messen:":"Measure distance:","zwei Positionen wählen. Angezeigt werden Strecke, ΔEast, ΔNorth und Winkel (0° = East, 90° = North).":"select two positions. Distance, ΔEast, ΔNorth and angle are shown (0° = East, 90° = North).","Exclusion-Fläche:":"Exclusion area:","bei einem ausgewählten Punkt einer Exclusion wird deren Fläche angezeigt.":"when a point of an exclusion is selected, its area is shown.","Karte prüfen:":"Validate map:","kontrolliert Perimeter, Exclusions, Docking-Point, leere Features, doppelte Nachbarpunkte, auffällig große Segmente sowie Exclusions außerhalb des Perimeters, Überlappungen, Selbstüberschneidungen und zu enge Korridore.":"checks perimeter, exclusions, docking point, empty features, duplicate adjacent points, unusually large segments as well as exclusions outside the perimeter, overlaps, self-intersections and corridors that are too narrow.","Vergleich & Historie":"Comparison & history","Vorher-Ghosts:":"Previous-position ghosts:","verschobene Ausgangspositionen und alte Mäher bleiben bis zum Speichern sichtbar.":"moved original positions and previous mower previews remain visible until saving.","Zurück / Vor:":"Undo / Redo:","Änderungen per Button oder Ctrl/Cmd+Z bzw. Ctrl+Y / Ctrl/Cmd+Shift+Z rückgängig machen oder wiederholen.":"undo or redo changes using the buttons or Ctrl/Cmd+Z and Ctrl+Y / Ctrl/Cmd+Shift+Z.","Mobil / Android":"Mobile / Android","Bedienung:":"Controls:","auf kleinen Displays blendet der Button oben die Werkzeugleiste ein. „Karte anzeigen“ schließt sie wieder.":"on small displays, the button at the top opens the control panel. “Show map” closes it again.","Die Seite darf auf Android normal vertikal scrollen; die Kartenfläche bleibt separat touchfähig für Zoom, Pan, Auswahl und Verschieben.":"On Android the page can scroll vertically normally; the map remains independently touch-enabled for zoom, pan, selection and moving.","Ansicht & Speichern":"View & saving","Karteninfo:":"Map info:","Abmessungen und Hinweise zur Koordinatendarstellung liegen jetzt als eigenes einklappbares Fenster direkt auf der Karte.":"Dimensions and coordinate-display notes are available in a separate collapsible window directly on the map.","Auswahl-Werkzeugleiste:":"Selection toolbar:","Mauszeiger, Rechteck, Lasso, Verschieben, Löschen und Auswahl aufheben liegen jetzt direkt auf der Karte. Beim Mouseover erklärt ein Tooltip die jeweilige Funktion.":"Pointer, rectangle, lasso, move, delete and clear selection are now directly on the map. Hovering shows a tooltip explaining each function.","Sidebar:":"Sidebar:","Direkt unter „Karten“ folgt „Karten verbinden“. „Messen & Prüfen“ befindet sich ganz unten. Der bisherige Menüpunkt „Mehrfachauswahl“ wurde entfernt.":"“Merge maps” is directly below “Maps”. “Measure & validate” is at the bottom. The previous “Multi-selection” menu section has been removed.","Karteninfo & Legende:":"Map info & legend:","liegen direkt untereinander und lassen sich unabhängig aufklappen.":"are stacked vertically and can be expanded independently.","Raster:":"Grid:","Schrittweite frei einstellen; Snap-to-Grid kann beim Ziehen verwendet werden.":"set the spacing freely; snap-to-grid can be used while dragging.","Einpassen / Zoom:":"Fit / zoom:","Kartenansicht anpassen.":"adjust the map view.","GeoJSON speichern:":"Save GeoJSON:","aktuelle Karte exportieren. Die Vorher-Ghosts dieser Karte werden gelöscht und der aktuelle Stand wird neuer Vergleichs-/Reset-Checkpoint.":"export the current map. Previous-position ghosts for this map are cleared and the current state becomes the new comparison/reset checkpoint.","0 ausgewählt":"0 selected","Strg + Klick, Rechteck oder Lasso.":"Ctrl + click, rectangle or lasso.","Karteninfo":"Map info","Abmessungen":"Dimensions","Ost–West":"East–West","Nord–Süd":"North–South","Perimeterfläche":"Perimeter area","Editierbare Punkte":"Editable points","Darstellung":"Display","Geladene Rohkoordinaten werden intern unverändert beibehalten. Wenn ein unterstütztes RTK-Relativformat erkannt wird, erfolgt die Anzeige und Bearbeitung in lokalen East/North-Metern. Beim Export bleiben die GeoJSON-Rohwerte im geladenen Koordinatensystem erhalten.":"Loaded raw coordinates are retained unchanged internally. When a supported relative RTK format is detected, display and editing use local East/North metres. On export, the GeoJSON raw values remain in the loaded coordinate system.","Punkt anklicken → Mäher oder Punkt ziehen, E/N ändern oder bei Polygonen Start/Ende neu vergeben → GeoJSON speichern.":"Click a point → drag mower or point, change E/N or reassign polygon start/end → save GeoJSON.","Legende":"Legend","Startpunkt":"Start point","Endpunkt":"End point","Ausgewählter Mäher":"Selected mower","Sprache wechseln / Change language":"Change language / Sprache wechseln","Sprache Deutsch oder Englisch":"Language German or English","Keine Änderung zum Rückgängigmachen":"No change to undo","Keine Änderung zum Wiederholen":"No change to redo","Mauszeiger: Punkte auswählen und markierte Punkte bzw. ganze Features verschieben.":"Pointer: select points and move selected points or entire features.","Rechteckauswahl: Rahmen um Punkte ziehen. Mit Strg wird zur bestehenden Auswahl ergänzt.":"Rectangle selection: drag a box around points. Hold Ctrl to add to the existing selection.","Lasso: freie Form um Punkte ziehen. Mit Strg wird zur bestehenden Auswahl ergänzt.":"Lasso: draw a free shape around points. Hold Ctrl to add to the existing selection.","Löschen: entfernt alle aktuell ausgewählten Punkte. Mit Undo rückgängig.":"Delete: removes all currently selected points. Undo is available.","Auswahl aufheben: entfernt alle Markierungen, ohne Punkte zu löschen.":"Clear selection: removes all selections without deleting points.","Linie begradigen":"Straighten line","Kreis":"Circle","Rechteck":"Rectangle","Radius (m)":"Radius (m)","Eckpunkte":"Vertices","Höhe (m)":"Height (m)","Drehung (Grad, 0 = East)":"Rotation (degrees, 0 = East)","Klickpunkt ist":"Click point is","Mittelpunkt":"Centre","Ecke":"Corner","Kreis-Exclusion setzen":"Place circle exclusion","Rechteck-Exclusion setzen":"Place rectangle exclusion","Kreis-Exclusion: Mittelpunkt anklicken.":"Circle exclusion: click the centre.","Rechteck-Exclusion: Bezugspunkt anklicken.":"Rectangle exclusion: click the reference point.","Für die Form genau einen Bezugspunkt anklicken.":"Click exactly one reference point for the shape.","Der Radius muss größer als 0 sein.":"The radius must be greater than 0.","Breite und Höhe müssen größer als 0 sein.":"Width and height must be greater than 0.","Der Drehwinkel ist ungültig.":"The rotation angle is invalid.","Kreis:":"Circle:","Rechteck:":"Rectangle:","Mittelpunkt auf der Karte anklicken.":"Click the centre on the map.","Ecke auf der Karte anklicken.":"Click the corner on the map.","Maßstab unklar.":"Scale unclear.","Beide Karten enthalten einen Docking-Pfad mit Punkten. Vor dem Verbinden einen davon löschen.":"Both maps contain a docking path with points. Delete one of them before merging.","Beide Karten enthalten eine Search Wire mit Punkten. Vor dem Verbinden eine davon löschen.":"Both maps contain a Search Wire with points. Delete one of them before merging.","Rasterfang nicht möglich: der Maßstab der Karte ist unbekannt.":"Snap to grid not possible: the scale of this map is unknown.","Export in absolutem WGS84 nicht möglich: der Maßstab der Karte ist unbekannt.":"Export in absolute WGS84 is not possible: the scale of this map is unknown.","Perimeterfläche: konnte nicht berechnet werden, Maßstab unbekannt.":"Perimeter area: could not be computed, scale unknown.","Segmentprüfung: nur der relative Anteil wurde angewendet, die absolute Untergrenze von 50 m setzt einen bekannten Maßstab voraus.":"Segment check: only the relative part was applied; the absolute floor of 50 m requires a known scale.","Korridorprüfung: übersprungen, sie setzt einen bekannten Maßstab voraus.":"Corridor check: skipped, it requires a known scale.","Ecken rechtwinklig":"Right-angled corners","Vorzugsrichtung":"Preferred direction","automatisch erkennen":"detect automatically","fester Winkel":"fixed angle","Fester Winkel (Grad, 0 = East)":"Fixed angle (degrees, 0 = East)","Toleranz in Grad":"Tolerance in degrees","Ecken rechtwinklig machen":"Make corners right-angled","Ecken rechtwinklig machen (ganzes Feature).":"Make corners right-angled (whole feature).","Ecken rechtwinklig: einen Punkt des Features auswählen.":"Right-angled corners: select a point of the feature.","Ecken rechtwinklig: die Auswahl muss zu genau einem Feature gehören.":"Right-angled corners: the selection must belong to exactly one feature.","Ecken rechtwinklig: die Auswahl muss zu genau einem Linienzug gehören.":"Right-angled corners: the selection must belong to exactly one line.","Ecken rechtwinklig: dieses Feature hat keinen Linienzug.":"Right-angled corners: this feature has no line.","Ecken rechtwinklig: dieser Linienzug hat zu wenige Punkte.":"Right-angled corners: this line has too few points.","Ecken rechtwinklig: keine Vorzugsrichtung erkennbar.":"Right-angled corners: no preferred direction can be determined.","Ecken rechtwinklig: es ändert sich nichts.":"Right-angled corners: nothing changes.","Ecken rechtwinklig: die Auswahl ist nicht mehr gültig.":"Right-angled corners: the selection is no longer valid.","Ungültige Toleranz. Zulässig sind 0 bis 45 Grad.":"Invalid tolerance. Allowed values are 0 to 45 degrees.","Kanten, die weiter als die Toleranz von einer Achse abweichen, bleiben unangetastet. Es wird kein Punkt entfernt: werden drei Punkte kollinear, bleiben sie erhalten – Ausdünnen ist Aufgabe von „Punkte reduzieren“.":"Edges deviating from an axis by more than the tolerance are left untouched. No point is removed: if three points become collinear they are kept - thinning out is the job of \u201cReduce points\u201d.","Bei geschlossenen Ringen bleibt der Startpunkt immer erhalten, weil er Start und Ende des Rings markiert. Soll er weg, vorher über „Als Startpunkt setzen“ einen anderen Punkt dazu machen.":"On closed rings the start point is always kept, because it marks both start and end of the ring. To remove it, first use \u201cSet as start point\u201d to make another point the start.","Änderung":"Change","Punktkoordinate ändern":"Change point coordinate","Startpunkt neu setzen":"Reassign start point","Endpunkt neu setzen":"Reassign end point","Polygonpunkt einfügen":"Insert polygon point","Polygonpunkt hinzufügen":"Add polygon point","Exclusion duplizieren":"Duplicate exclusion","Bezugspunkt ändern":"Change reference point","Karte A öffnen/ersetzen":"Open/replace map A","Karte B öffnen/ersetzen":"Open/replace map B","Kreis-Exclusion erstellen":"Create circle exclusion","Rechteck-Exclusion erstellen":"Create rectangle exclusion","Exclusion erstellen":"Create exclusion","Search Wire erstellen":"Create Search Wire","Karte":"Map","Maßstab":"Scale","Bezugspunkt":"Reference point","Prüfung":"Validation","Sunray-Relativformat":"Sunray relative format","metrisch (angenommen)":"metric (assumed)","absolutes WGS84":"absolute WGS84","unklar":"unclear","gesetzt":"set","nicht gesetzt":"not set","widersprüchlich":"conflicting","nicht geprüft":"not validated","keine Befunde":"no findings","Auswählen":"Select","Zeichnen":"Draw","Prüfen":"Validate","Zeiger":"Pointer","Rahmen":"Box","Lasso":"Lasso","Exclusion":"Exclusion","Search Wire":"Search Wire","Dockpfad":"Docking path","Messen":"Measure","Kartenansicht einpassen":"Fit map view","Vergrößern":"Zoom in","Verkleinern":"Zoom out","Exclusion zeichnen: mindestens 3 Eckpunkte setzen und das Polygon schließen.":"Draw exclusion: set at least 3 vertices and close the polygon.","Kreis-Exclusion setzen: Mittelpunkt anklicken, Maße stehen in der Seitenleiste.":"Place circle exclusion: click the centre; dimensions are in the sidebar.","Rechteck-Exclusion setzen: Bezugspunkt anklicken, Maße stehen in der Seitenleiste.":"Place rectangle exclusion: click the reference point; dimensions are in the sidebar.","Search Wire zeichnen: offene Linie mit mindestens 2 Punkten.":"Draw Search Wire: open line with at least 2 points.","Docking-Pfad erstellen: offene Linie mit mindestens 2 Punkten, üblich sind 3.":"Create docking path: open line with at least 2 points, 3 being customary.","Distanz messen: zwei Positionen auf der Karte wählen. Verändert die Karte nicht.":"Measure distance: select two positions on the map. Does not change the map.","Karte prüfen: Geometrie und Struktur kontrollieren. Verändert die Karte nicht.":"Validate map: check geometry and structure. Does not change the map.","Werkzeugleiste einklappen":"Collapse tool bar","Werkzeugleiste ausklappen":"Expand tool bar","Bei dieser Fensterbreite bleibt die Werkzeugleiste eingeklappt.":"At this window width the tool bar stays collapsed.","Es wird bereits gezeichnet. Zuerst abschließen oder abbrechen.":"A drawing is already in progress. Finish or cancel it first.","Es gibt mehrere Search-Wire-Features. Bitte zuerst die Kartenprüfung verwenden.":"There are several Search Wire features. Please use map validation first.","Es gibt mehrere Search-Wire-Features. CaSSAndRA übernimmt beim Laden nur die erste, alle weiteren gehen verloren.":"There are several Search Wire features. CaSSAndRA only adopts the first one on load; all others are lost.","Es gibt mehrere Docking-Features. CaSSAndRA übernimmt beim Laden nur das erste, alle weiteren gehen verloren.":"There are several docking features. CaSSAndRA only adopts the first one on load; all others are lost.","Auswahl":"Selection","Nichts ausgewählt":"Nothing selected","Punkt auf der Karte anklicken":"Click a point on the map","Abmessungen":"Dimensions","Koordinaten":"Coordinates","Darstellung":"Display","Geschlossene Polygone":"Closed polygons","Polygon":"Polygon","Linie":"Line","Punktmenge":"Point set","Noch kein Punkt ausgewählt.":"No point selected yet.","◧ Seitenleiste":"◧ Sidebar","Seitenleiste einklappen":"Collapse sidebar","Seitenleiste ausklappen":"Expand sidebar","Punkte reduzieren":"Reduce points","Toleranz":"Tolerance","Eigene Toleranz in Metern":"Custom tolerance in metres","Einen Punkt auswählen (ganzes Feature) oder zwei Punkte (Abschnitt).":"Select one point (whole feature) or two points (section).","Reduzieren: einen Punkt auswählen (ganzes Feature) oder zwei Punkte (Abschnitt).":"Reduce: select one point (whole feature) or two points (section).","Reduzieren: die Auswahl muss zu genau einem Feature gehören.":"Reduce: the selection must belong to exactly one feature.","Reduzieren: die Auswahl muss zu genau einem Linienzug gehören.":"Reduce: the selection must belong to exactly one line.","Reduzieren: dieses Feature hat keinen Linienzug.":"Reduce: this feature has no line.","Reduzieren: dieser Linienzug hat zu wenige Punkte.":"Reduce: this line has too few points.","Reduzieren: die Auswahl ist nicht mehr gültig.":"Reduce: the selection is no longer valid.","Ungültige Toleranz.":"Invalid tolerance.","Bei geschlossenen Ringen bleibt der Startpunkt immer erhalten, weil":"On closed rings the start point is always kept, because","er Start und Ende des Rings markiert. Soll er weg, vorher über":"it marks both start and end of the ring. To remove it, first use","„Als Startpunkt setzen“ einen anderen Punkt dazu machen.":"“Set as start point” to make another point the start.","Nicht bearbeitbar: nur perimeter, exclusion, search wire und dockpoints werden unterstützt.":"Not editable: only perimeter, exclusion, search wire and dockpoints are supported.","Löschen: aktuell sind keine Punkte ausgewählt.":"Delete: no points are currently selected.","Begradigen: genau zwei Punkte desselben Linienzugs auswählen.":"Straighten: select exactly two points of the same line.","Begradigen: beide Punkte müssen zum selben Feature gehören.":"Straighten: both points must belong to the same feature.","Begradigen: beide Punkte müssen zum selben Linienzug gehören.":"Straighten: both points must belong to the same line.","Begradigen: dieses Feature hat keinen Linienzug.":"Straighten: this feature has no line.","Begradigen: die beiden Punkte sind benachbart – dazwischen liegt nichts.":"Straighten: the two points are adjacent - there is nothing in between.","Begradigen: die Auswahl ist nicht mehr gültig.":"Straighten: the selection is no longer valid.","Begradigen: die beiden Punkte liegen aufeinander, es gibt keine Gerade.":"Straighten: the two points coincide, so there is no line.","RTK Karte":"RTK map","Start und Ende sind zwei benachbarte echte Eckpunkte. Danach wiederholt GeoJSON intern den Startpunkt, damit der Ring geschlossen bleibt. Beim Neuvergeben werden die Punkte zyklisch neu nummeriert. Neue Punkte werden zunächst auf einer bestehenden Kante eingesetzt, damit sich die Polygonform beim Einfügen nicht unbeabsichtigt verändert.":"Start and end are two adjacent real vertices. GeoJSON then repeats the start point internally so the ring remains closed. When reassigned, points are renumbered cyclically. New points are initially inserted on an existing edge so the polygon shape does not change unintentionally."}));
+const I18N_EN = new Map(Object.entries({
+  "Gruppe":"Group",
+  "Mehrere Punkte ausgewählt.":"Several points selected.",
+  "Einen markierten Punkt ziehen verschiebt die ganze Gruppe.":"Dragging one highlighted point moves the whole group.",
+  "Mehrere Features":"Several features",
+  "Punkte aus mehreren Features.":"Points from several features.",
+  "Löschen und gemeinsames Verschieben gehen weiterhin. Alles, was einen einzelnen Linienzug braucht - Koordinaten, Start/Ende, Begradigen, Reduzieren, Rechtwinklig - braucht eine Auswahl innerhalb EINES Features.":"Deleting and moving together still work. Everything that needs a single line - coordinates, start/end, straighten, reduce, square up - needs a selection within ONE feature.",
+  "Typ":"Type",
+  "Punkte":"Points",
+  "Fläche":"Area",
+  "Verschieben durch Ziehen an der Geometrie auf der Karte.":"Move by dragging the geometry on the map.",
+  "Legt eine versetzte Kopie dieser Exclusion an.":"Creates an offset copy of this exclusion.",
+  "Duplizieren gilt nur für Exclusions.":"Duplicating only applies to exclusions.",
+  "Punkte setzen.":"Place points.",
+  "Enter schließt ab, Doppelklick ebenfalls. Bei einer Exclusion schließt auch ein Klick auf den ersten Punkt den Ring. Esc bricht ab.":"Enter finishes, so does a double click. On an exclusion, clicking the first point also closes the ring. Esc cancels.",
+  "Auswahl löschen":"Delete selection",
+  "Auswahl aufheben":"Clear selection",
+  "Umformen":"Reshape",
+  "Dünnt den Abschnitt zwischen den beiden Punkten aus.":"Thins out the section between the two points.",
+  "Dünnt das ganze Feature aus.":"Thins out the whole feature.",
+  "Richtet die Kanten des ganzen Features rechtwinklig aus.":"Squares up the edges of the whole feature.",
+  "Kartenprüfung":"Map check",
+  "Messung":"Measurement",
+  "Zwei Punkte gesetzt":"Two points placed",
+  "kein Punkt ausgewählt":"no point selected",
+  "mehrere Punkte ausgewählt":"several points selected",
+  "Kreis-Exclusion":"Circle exclusion",
+  "Rechteck-Exclusion":"Rectangle exclusion",
+  "Docking-Pfad zeichnen":"Draw docking path",
+"Bedienung":"Controls","Einpassen":"Fit","↶ Zurück":"↶ Undo","↷ Vor":"↷ Redo","Hilfe":"Help","GeoJSON speichern":"Save GeoJSON","Aktive zurücksetzen":"Reset active","Keine Karte geladen":"No map loaded","Keine Karte geladen.":"No map loaded.","Karten":"Maps","Karte A · nicht geladen":"Map A · not loaded","Karte B · nicht geladen":"Map B · not loaded","Karte A öffnen":"Open map A","Karte B öffnen":"Open map B","Karte B schließen":"Close map B","Karten verbinden":"Merge maps","Beide Karten müssen dieselbe RTK-Basis / dasselbe lokale Koordinatensystem verwenden.":"Both maps must use the same RTK base / the same local coordinate system.","Karte A ist nicht geladen.":"Map A is not loaded.","Karte B ist nicht geladen.":"Map B is not loaded.","Verbindungsvorschau anzeigen":"Show merge preview","Zweite Karte laden, dann Start-/Endpunkt beider Perimeter festlegen.":"Load the second map, then define the start/end points of both perimeters.","Karte A + B verbinden":"Merge map A + B","Feature-Navigation":"Feature navigation","Keine Features vorhanden.":"No features available.","Features erstellen":"Create features","Exclusion zeichnen":"Draw exclusion","Search Wire zeichnen":"Draw Search Wire","Search Wire verlängern":"Extend Search Wire","Search Wire löschen":"Delete Search Wire","Docking-Pfad erstellen":"Create docking path","Docking-Pfad verlängern":"Extend docking path","Docking-Pfad verlängert.":"Docking path extended.","Docking-Pfad gelöscht.":"Docking path deleted.","Kein Docking-Pfad vorhanden.":"No docking path present.","Docking-Pfad: mindestens 2 Punkte anklicken, üblich sind 3.":"Docking path: click at least 2 points; 3 is customary.","Ein Docking-Pfad benötigt mindestens 2 Punkte.":"A docking path requires at least 2 points.","Kein Docking-Pfad zum Verlängern vorhanden.":"No docking path available to extend.","Docking-Pfad ist kein LineString.":"Docking path is not a LineString.","Der Docking-Pfad ist leer. Verwende „Docking-Pfad erstellen“.":"The docking path is empty. Use “Create docking path”.","Es existiert bereits ein Docking-Pfad. Verwende „Docking-Pfad verlängern“ oder lösche ihn zuerst.":"A docking path already exists. Use “Extend docking path” or delete it first.","Es existiert bereits ein Docking-Pfad. Pro Karte ist nur einer erlaubt.":"A docking path already exists. Only one per map is allowed.","Docking-Pfad vollständig löschen?":"Delete the entire docking path?","Docking-Pfad löschen":"Delete docking path","Letzten Punkt entfernen":"Remove last point","Zeichnung abschließen":"Finish drawing","Abbrechen":"Cancel","Kein Zeichenwerkzeug aktiv.":"No drawing tool active.","Exclusion:":"Exclusion:","mindestens 3 Punkte setzen und anschließend schließen.":"set at least 3 points and then close the polygon.","Search Wire:":"Search Wire:","offene Linie mit mindestens 2 Punkten; eine vorhandene Linie kann am Ende verlängert werden.":"open line with at least 2 points; an existing line can be extended at its end.","Docking-Pfad:":"Docking path:","nur einmal existieren; offene Linie mit mindestens 2 Punkten,":"exist only once; an open line with at least 2 points,","üblich sind 3.":"3 being customary.","Ebenen":"Layers","Ausschlussflächen":"Exclusion areas","Dockpoints":"Dock points","Sonstiges":"Other","Punkte anzeigen / bearbeiten":"Show / edit points","Punkteditor":"Point editor","Noch kein Punkt ausgewählt.":"No point selected yet.","Klicke einen weißen Kartenpunkt an.":"Click a white map point.","Punkt davor einfügen":"Insert point before","Punkt danach einfügen":"Insert point after","Als Startpunkt setzen":"Set as start point","Als Endpunkt setzen":"Set as end point","Punkt löschen":"Delete point","Geschlossene Polygone:":"Closed polygons:","Beim Ziehen am Raster einrasten":"Snap to grid while dragging","Verschiebungen bleiben bis zum Speichern als Vergleich sichtbar.":"Moved original positions remain visible for comparison until saving.","Punkte lassen sich anklicken und anschließend ziehen.":"Points can be clicked and then dragged.","Mähroboter-Vorschau":"Mower preview","Mäher am ausgewählten Punkt anzeigen":"Show mower at selected point","Länge (m)":"Length (m)","Breite (m)":"Width (m)","Mähergröße übernehmen":"Apply mower size","Punkt auswählen, um die Fahrtrichtung anzuzeigen.":"Select a point to show the travel direction.","Raster":"Grid","Raster anzeigen":"Show grid","Schnellwahl":"Preset","Eigener Wert":"Custom value","Eigener Rasterabstand in Metern":"Custom grid spacing in metres","Übernehmen":"Apply","Rasterabstand:":"Grid spacing:","Messen & Prüfen":"Measure & validate","Distanz messen":"Measure distance","Messung löschen":"Clear measurement","Zwei Positionen auf der Karte wählen.":"Select two positions on the map.","Koordinatenbezug":"Coordinate reference","RTK-Basis Breite (lat)":"RTK base latitude (lat)","RTK-Basis Länge (lon)":"RTK base longitude (lon)","Koordinaten beim Speichern":"Coordinates on save","wie geladen":"as loaded","absolut WGS84 (CaSSAndRA)":"absolute WGS84 (CaSSAndRA)","Kein Bezugspunkt gesetzt.":"No reference point set.","Kein Bezugspunkt gesetzt. Absolute Ausgabe entspricht dann der Relativkarte.":"No reference point set. Absolute output then equals the relative map.","Bezugspunkt gesetzt. Relativkarte kann absolut gespeichert werden.":"Reference point set. The relative map can be saved as absolute coordinates.","Karte wurde aus absolutem WGS84 umgerechnet. Ein geänderter Bezugspunkt rechnet sie automatisch um; die angezeigten East/North-Werte laufen danach gegen den neuen Nullpunkt.":"Map was converted from absolute WGS84. Changing the reference point re-bases it automatically; the displayed East/North values then run against the new origin.","Ungültige Bezugsposition.":"Invalid reference position.","Bezugspunkt aktualisiert.":"Reference point updated.","Karte prüfen":"Validate map","Vor dem Speichern automatisch prüfen":"Validate automatically before saving","Noch keine Prüfung durchgeführt.":"No validation performed yet.","Öffne links Karte A oder Karte B.":"Open map A or map B on the left.","Web Map Editor – Kurzüberblick":"Web Map Editor – Quick overview","Hilfe schließen":"Close help","Einsatzbereich":"Scope","Primär für Ardumower / Sunray:":"Primarily for Ardumower / Sunray:","Der Editor wurde mit Blick auf deren GeoJSON-/RTK-Karten und lokale East/North-Koordinaten entwickelt.":"The editor was designed with their GeoJSON/RTK maps and local East/North coordinates in mind.","Er kann auch für andere Anwendungen mit kompatiblen GeoJSON-Strukturen nützlich sein. Eine vollständige Unterstützung beliebiger Fremdformate wird jedoch nicht vorausgesetzt.":"It can also be useful for other applications with compatible GeoJSON structures. Full support for arbitrary third-party formats is not assumed.","Karte A / B öffnen:":"Open map A / B:","lokale GeoJSON-/RTK-Karten laden. Zwischen geladenen Karten kann umgeschaltet und jeweils vollständig bearbeitet werden.":"load local GeoJSON/RTK maps. You can switch between loaded maps and edit each one fully.","Karten verbinden:":"Merge maps:","Start/Ende beider Perimeter festlegen. Der Editor verbindet A Ende → B Start und B Ende → A Start zu einem geschlossenen Perimeter.":"Define start/end of both perimeters. The editor connects A end → B start and B end → A start into one closed perimeter.","Punkte bearbeiten":"Edit points","Punkt auswählen:":"Select point:","anklicken, ziehen oder East/North numerisch ändern.":"click, drag or change East/North numerically.","Start / Ende:":"Start / end:","ausgewählten Polygonpunkt als neuen Start- oder Endpunkt setzen; Reihenfolge wird neu nummeriert und der Ring bleibt geschlossen.":"set the selected polygon point as the new start or end point; order is renumbered and the ring remains closed.","Punkte hinzufügen:":"Add points:","vor/nach einem Punkt oder über die Feature-Navigation auf einer bestehenden Kante einfügen.":"insert before/after a point or via feature navigation on an existing edge.","Punkte löschen:":"Delete points:","einzeln oder als Mehrfachauswahl. Mindestpunktzahlen werden automatisch geprüft. Sind alle Eckpunkte einer Exclusion per Rechteck, Lasso oder Strg+Klick ausgewählt, löscht der Papierkorb die komplette Exclusion.":"individually or as a multi-selection. Minimum point counts are validated automatically. If all vertices of an exclusion are selected by rectangle, lasso or Ctrl+click, the trash button deletes the entire exclusion.","einzeln oder als Mehrfachauswahl. Mindestpunktzahlen werden automatisch geprüft.":"individually or as a multi-selection. Minimum point counts are validated automatically.","Exclusions & Features":"Exclusions & features","Exclusion zeichnen:":"Draw exclusion:","mindestens 3 Eckpunkte setzen und das Polygon anschließend schließen.":"set at least 3 vertices and then close the polygon.","offene Linie mit mindestens 2 Punkten neu zeichnen, bestehende Linie am Ende verlängern oder vollständig löschen. Beim Verlängern bleiben die vorhandenen Punkte geschützt.":"draw a new open line with at least 2 points, extend an existing line at its end, or delete it completely. Existing points are protected while extending.","genau ein Docking-Feature pro Karte; offene Linie mit mindestens 2 Punkten, üblich sind 3. Ein vorhandener Pfad kann am Ende verlängert werden.":"exactly one docking feature per map; an open line with at least 2 points, 3 being customary. An existing path can be extended at its end.","Docking-Pfad löschen:":"Delete docking path:","entfernt das komplette 3-Punkte-Feature; einzelne Dock-Punkte können nicht separat gelöscht werden.":"removes the complete 3-point feature; individual docking points cannot be deleted separately.","Exclusion löschen:":"Delete exclusion:","komplette Exclusion entfernen; verbleibende Exclusions werden neu nummeriert.":"remove the complete exclusion; remaining exclusions are renumbered.","Ganzes Feature verschieben:":"Move entire feature:","Exclusion, Search Wire oder Docking-Point über die Feature-Navigation auswählen oder direkt an der Geometrie ziehen. Alle Punkte werden gemeinsam verschoben.":"select an exclusion, Search Wire or docking point via feature navigation or drag it directly on the geometry. All points move together.","Exclusion duplizieren:":"Duplicate exclusion:","erstellt eine identische Kopie und versetzt sie zur besseren Sichtbarkeit um einen Rasterabstand nach East und North. Anschließend ist die Kopie komplett ausgewählt und kann direkt weiter verschoben werden.":"creates an identical copy and offsets it by one grid step in East and North for visibility. The copy is then fully selected and can be moved immediately.","Feature-Navigation:":"Feature navigation:","einklappen/aufklappen und einzelne Features sowie Punkte gezielt auswählen.":"collapse/expand and select individual features and points.","Mehrfachauswahl":"Multi-selection","Strg + Klick:":"Ctrl + click:","einzelne Punkte hinzufügen oder entfernen.":"add or remove individual points.","Rechteck / Lasso:":"Rectangle / lasso:","mehrere Punkte räumlich auswählen. Danach auf „Punkt / Verschieben“ wechseln und einen markierten Punkt ziehen, um alle gemeinsam zu verschieben.":"select multiple points spatially. Then switch to “Point / Move” and drag a selected point to move them together.","Entf / Backspace:":"Delete / Backspace:","Auswahl löschen.":"delete selection.","Auswahlwerkzeug abbrechen oder Auswahl aufheben.":"cancel the selection tool or clear the selection.","Pfeiltasten:":"Arrow keys:","ausgewählte Punkte exakt um einen Schritt der aktuell eingestellten Rasterweite verschieben. ←/→ = East, ↑/↓ = North. Funktioniert auch für Mehrfachauswahl.":"move selected points by exactly one step of the current grid spacing. ←/→ = East, ↑/↓ = North. Also works for multi-selection.","Der ausgewählte Punkt kann durch einen maßstäblichen Mäher ersetzt werden. Länge und Breite sind einstellbar. Die Ausrichtung wird aus der Punktfolge abgeleitet.":"The selected point can be replaced by a to-scale mower. Length and width are adjustable. Orientation is derived from the point sequence.","Distanz messen:":"Measure distance:","zwei Positionen wählen. Angezeigt werden Strecke, ΔEast, ΔNorth und Winkel (0° = East, 90° = North).":"select two positions. Distance, ΔEast, ΔNorth and angle are shown (0° = East, 90° = North).","Exclusion-Fläche:":"Exclusion area:","bei einem ausgewählten Punkt einer Exclusion wird deren Fläche angezeigt.":"when a point of an exclusion is selected, its area is shown.","Karte prüfen:":"Validate map:","kontrolliert Perimeter, Exclusions, Docking-Point, leere Features, doppelte Nachbarpunkte, auffällig große Segmente sowie Exclusions außerhalb des Perimeters, Überlappungen, Selbstüberschneidungen und zu enge Korridore.":"checks perimeter, exclusions, docking point, empty features, duplicate adjacent points, unusually large segments as well as exclusions outside the perimeter, overlaps, self-intersections and corridors that are too narrow.","Vergleich & Historie":"Comparison & history","Vorher-Ghosts:":"Previous-position ghosts:","verschobene Ausgangspositionen und alte Mäher bleiben bis zum Speichern sichtbar.":"moved original positions and previous mower previews remain visible until saving.","Zurück / Vor:":"Undo / Redo:","Änderungen per Button oder Ctrl/Cmd+Z bzw. Ctrl+Y / Ctrl/Cmd+Shift+Z rückgängig machen oder wiederholen.":"undo or redo changes using the buttons or Ctrl/Cmd+Z and Ctrl+Y / Ctrl/Cmd+Shift+Z.","Mobil / Android":"Mobile / Android","Bedienung:":"Controls:","auf kleinen Displays blendet der Button oben die Werkzeugleiste ein. „Karte anzeigen“ schließt sie wieder.":"on small displays, the button at the top opens the control panel. “Show map” closes it again.","Die Seite darf auf Android normal vertikal scrollen; die Kartenfläche bleibt separat touchfähig für Zoom, Pan, Auswahl und Verschieben.":"On Android the page can scroll vertically normally; the map remains independently touch-enabled for zoom, pan, selection and moving.","Ansicht & Speichern":"View & saving","Karteninfo:":"Map info:","Abmessungen und Hinweise zur Koordinatendarstellung liegen jetzt als eigenes einklappbares Fenster direkt auf der Karte.":"Dimensions and coordinate-display notes are available in a separate collapsible window directly on the map.","Auswahl-Werkzeugleiste:":"Selection toolbar:","Mauszeiger, Rechteck, Lasso, Verschieben, Löschen und Auswahl aufheben liegen jetzt direkt auf der Karte. Beim Mouseover erklärt ein Tooltip die jeweilige Funktion.":"Pointer, rectangle, lasso, move, delete and clear selection are now directly on the map. Hovering shows a tooltip explaining each function.","Sidebar:":"Sidebar:","Direkt unter „Karten“ folgt „Karten verbinden“. „Messen & Prüfen“ befindet sich ganz unten. Der bisherige Menüpunkt „Mehrfachauswahl“ wurde entfernt.":"“Merge maps” is directly below “Maps”. “Measure & validate” is at the bottom. The previous “Multi-selection” menu section has been removed.","Karteninfo & Legende:":"Map info & legend:","liegen direkt untereinander und lassen sich unabhängig aufklappen.":"are stacked vertically and can be expanded independently.","Raster:":"Grid:","Schrittweite frei einstellen; Snap-to-Grid kann beim Ziehen verwendet werden.":"set the spacing freely; snap-to-grid can be used while dragging.","Einpassen / Zoom:":"Fit / zoom:","Kartenansicht anpassen.":"adjust the map view.","GeoJSON speichern:":"Save GeoJSON:","aktuelle Karte exportieren. Die Vorher-Ghosts dieser Karte werden gelöscht und der aktuelle Stand wird neuer Vergleichs-/Reset-Checkpoint.":"export the current map. Previous-position ghosts for this map are cleared and the current state becomes the new comparison/reset checkpoint.","0 ausgewählt":"0 selected","Strg + Klick, Rechteck oder Lasso.":"Ctrl + click, rectangle or lasso.","Karteninfo":"Map info","Abmessungen":"Dimensions","Ost–West":"East–West","Nord–Süd":"North–South","Perimeterfläche":"Perimeter area","Editierbare Punkte":"Editable points","Darstellung":"Display","Geladene Rohkoordinaten werden intern unverändert beibehalten. Wenn ein unterstütztes RTK-Relativformat erkannt wird, erfolgt die Anzeige und Bearbeitung in lokalen East/North-Metern. Beim Export bleiben die GeoJSON-Rohwerte im geladenen Koordinatensystem erhalten.":"Loaded raw coordinates are retained unchanged internally. When a supported relative RTK format is detected, display and editing use local East/North metres. On export, the GeoJSON raw values remain in the loaded coordinate system.","Punkt anklicken → Mäher oder Punkt ziehen, E/N ändern oder bei Polygonen Start/Ende neu vergeben → GeoJSON speichern.":"Click a point → drag mower or point, change E/N or reassign polygon start/end → save GeoJSON.","Legende":"Legend","Startpunkt":"Start point","Endpunkt":"End point","Ausgewählter Mäher":"Selected mower","Sprache wechseln / Change language":"Change language / Sprache wechseln","Sprache Deutsch oder Englisch":"Language German or English","Keine Änderung zum Rückgängigmachen":"No change to undo","Keine Änderung zum Wiederholen":"No change to redo","Mauszeiger: Punkte auswählen und markierte Punkte bzw. ganze Features verschieben.":"Pointer: select points and move selected points or entire features.","Rechteckauswahl: Rahmen um Punkte ziehen. Mit Strg wird zur bestehenden Auswahl ergänzt.":"Rectangle selection: drag a box around points. Hold Ctrl to add to the existing selection.","Lasso: freie Form um Punkte ziehen. Mit Strg wird zur bestehenden Auswahl ergänzt.":"Lasso: draw a free shape around points. Hold Ctrl to add to the existing selection.","Löschen: entfernt alle aktuell ausgewählten Punkte. Mit Undo rückgängig.":"Delete: removes all currently selected points. Undo is available.","Auswahl aufheben: entfernt alle Markierungen, ohne Punkte zu löschen.":"Clear selection: removes all selections without deleting points.","Linie begradigen":"Straighten line","Kreis":"Circle","Rechteck":"Rectangle","Radius (m)":"Radius (m)","Eckpunkte":"Vertices","Höhe (m)":"Height (m)","Drehung (Grad, 0 = East)":"Rotation (degrees, 0 = East)","Klickpunkt ist":"Click point is","Mittelpunkt":"Centre","Ecke":"Corner","Kreis-Exclusion setzen":"Place circle exclusion","Rechteck-Exclusion setzen":"Place rectangle exclusion","Kreis-Exclusion: Mittelpunkt anklicken.":"Circle exclusion: click the centre.","Rechteck-Exclusion: Bezugspunkt anklicken.":"Rectangle exclusion: click the reference point.","Für die Form genau einen Bezugspunkt anklicken.":"Click exactly one reference point for the shape.","Der Radius muss größer als 0 sein.":"The radius must be greater than 0.","Breite und Höhe müssen größer als 0 sein.":"Width and height must be greater than 0.","Der Drehwinkel ist ungültig.":"The rotation angle is invalid.","Kreis:":"Circle:","Rechteck:":"Rectangle:","Mittelpunkt auf der Karte anklicken.":"Click the centre on the map.","Ecke auf der Karte anklicken.":"Click the corner on the map.","Maßstab unklar.":"Scale unclear.","Beide Karten enthalten einen Docking-Pfad mit Punkten. Vor dem Verbinden einen davon löschen.":"Both maps contain a docking path with points. Delete one of them before merging.","Beide Karten enthalten eine Search Wire mit Punkten. Vor dem Verbinden eine davon löschen.":"Both maps contain a Search Wire with points. Delete one of them before merging.","Rasterfang nicht möglich: der Maßstab der Karte ist unbekannt.":"Snap to grid not possible: the scale of this map is unknown.","Export in absolutem WGS84 nicht möglich: der Maßstab der Karte ist unbekannt.":"Export in absolute WGS84 is not possible: the scale of this map is unknown.","Perimeterfläche: konnte nicht berechnet werden, Maßstab unbekannt.":"Perimeter area: could not be computed, scale unknown.","Segmentprüfung: nur der relative Anteil wurde angewendet, die absolute Untergrenze von 50 m setzt einen bekannten Maßstab voraus.":"Segment check: only the relative part was applied; the absolute floor of 50 m requires a known scale.","Korridorprüfung: übersprungen, sie setzt einen bekannten Maßstab voraus.":"Corridor check: skipped, it requires a known scale.","Ecken rechtwinklig":"Right-angled corners","Vorzugsrichtung":"Preferred direction","automatisch erkennen":"detect automatically","fester Winkel":"fixed angle","Fester Winkel (Grad, 0 = East)":"Fixed angle (degrees, 0 = East)","Toleranz in Grad":"Tolerance in degrees","Ecken rechtwinklig machen":"Make corners right-angled","Ecken rechtwinklig machen (ganzes Feature).":"Make corners right-angled (whole feature).","Ecken rechtwinklig: einen Punkt des Features auswählen.":"Right-angled corners: select a point of the feature.","Ecken rechtwinklig: die Auswahl muss zu genau einem Feature gehören.":"Right-angled corners: the selection must belong to exactly one feature.","Ecken rechtwinklig: die Auswahl muss zu genau einem Linienzug gehören.":"Right-angled corners: the selection must belong to exactly one line.","Ecken rechtwinklig: dieses Feature hat keinen Linienzug.":"Right-angled corners: this feature has no line.","Ecken rechtwinklig: dieser Linienzug hat zu wenige Punkte.":"Right-angled corners: this line has too few points.","Ecken rechtwinklig: keine Vorzugsrichtung erkennbar.":"Right-angled corners: no preferred direction can be determined.","Ecken rechtwinklig: es ändert sich nichts.":"Right-angled corners: nothing changes.","Ecken rechtwinklig: die Auswahl ist nicht mehr gültig.":"Right-angled corners: the selection is no longer valid.","Ungültige Toleranz. Zulässig sind 0 bis 45 Grad.":"Invalid tolerance. Allowed values are 0 to 45 degrees.","Kanten, die weiter als die Toleranz von einer Achse abweichen, bleiben unangetastet. Es wird kein Punkt entfernt: werden drei Punkte kollinear, bleiben sie erhalten – Ausdünnen ist Aufgabe von „Punkte reduzieren“.":"Edges deviating from an axis by more than the tolerance are left untouched. No point is removed: if three points become collinear they are kept - thinning out is the job of \u201cReduce points\u201d.","Bei geschlossenen Ringen bleibt der Startpunkt immer erhalten, weil er Start und Ende des Rings markiert. Soll er weg, vorher über „Als Startpunkt setzen“ einen anderen Punkt dazu machen.":"On closed rings the start point is always kept, because it marks both start and end of the ring. To remove it, first use \u201cSet as start point\u201d to make another point the start.","Änderung":"Change","Punktkoordinate ändern":"Change point coordinate","Startpunkt neu setzen":"Reassign start point","Endpunkt neu setzen":"Reassign end point","Polygonpunkt einfügen":"Insert polygon point","Polygonpunkt hinzufügen":"Add polygon point","Exclusion duplizieren":"Duplicate exclusion","Bezugspunkt ändern":"Change reference point","Karte A öffnen/ersetzen":"Open/replace map A","Karte B öffnen/ersetzen":"Open/replace map B","Kreis-Exclusion erstellen":"Create circle exclusion","Rechteck-Exclusion erstellen":"Create rectangle exclusion","Exclusion erstellen":"Create exclusion","Search Wire erstellen":"Create Search Wire","Karte":"Map","Maßstab":"Scale","Bezugspunkt":"Reference point","Prüfung":"Validation","Sunray-Relativformat":"Sunray relative format","metrisch (angenommen)":"metric (assumed)","absolutes WGS84":"absolute WGS84","unklar":"unclear","gesetzt":"set","nicht gesetzt":"not set","widersprüchlich":"conflicting","nicht geprüft":"not validated","keine Befunde":"no findings","Auswählen":"Select","Zeichnen":"Draw","Prüfen":"Validate","Zeiger":"Pointer","Rahmen":"Box","Lasso":"Lasso","Exclusion":"Exclusion","Search Wire":"Search Wire","Dockpfad":"Docking path","Messen":"Measure","Kartenansicht einpassen":"Fit map view","Vergrößern":"Zoom in","Verkleinern":"Zoom out","Exclusion zeichnen: mindestens 3 Eckpunkte setzen und das Polygon schließen.":"Draw exclusion: set at least 3 vertices and close the polygon.","Kreis-Exclusion setzen: Mittelpunkt anklicken, Maße stehen in der Seitenleiste.":"Place circle exclusion: click the centre; dimensions are in the sidebar.","Rechteck-Exclusion setzen: Bezugspunkt anklicken, Maße stehen in der Seitenleiste.":"Place rectangle exclusion: click the reference point; dimensions are in the sidebar.","Search Wire zeichnen: offene Linie mit mindestens 2 Punkten.":"Draw Search Wire: open line with at least 2 points.","Docking-Pfad erstellen: offene Linie mit mindestens 2 Punkten, üblich sind 3.":"Create docking path: open line with at least 2 points, 3 being customary.","Distanz messen: zwei Positionen auf der Karte wählen. Verändert die Karte nicht.":"Measure distance: select two positions on the map. Does not change the map.","Karte prüfen: Geometrie und Struktur kontrollieren. Verändert die Karte nicht.":"Validate map: check geometry and structure. Does not change the map.","Werkzeugleiste einklappen":"Collapse tool bar","Werkzeugleiste ausklappen":"Expand tool bar","Bei dieser Fensterbreite bleibt die Werkzeugleiste eingeklappt.":"At this window width the tool bar stays collapsed.","Es wird bereits gezeichnet. Zuerst abschließen oder abbrechen.":"A drawing is already in progress. Finish or cancel it first.","Es gibt mehrere Search-Wire-Features. Bitte zuerst die Kartenprüfung verwenden.":"There are several Search Wire features. Please use map validation first.","Es gibt mehrere Search-Wire-Features. CaSSAndRA übernimmt beim Laden nur die erste, alle weiteren gehen verloren.":"There are several Search Wire features. CaSSAndRA only adopts the first one on load; all others are lost.","Es gibt mehrere Docking-Features. CaSSAndRA übernimmt beim Laden nur das erste, alle weiteren gehen verloren.":"There are several docking features. CaSSAndRA only adopts the first one on load; all others are lost.","Auswahl":"Selection","Nichts ausgewählt":"Nothing selected","Punkt auf der Karte anklicken":"Click a point on the map","Koordinaten":"Coordinates","Geschlossene Polygone":"Closed polygons","Polygon":"Polygon","Linie":"Line","Punktmenge":"Point set","◧ Seitenleiste":"◧ Sidebar","Seitenleiste einklappen":"Collapse sidebar","Seitenleiste ausklappen":"Expand sidebar","Punkte reduzieren":"Reduce points","Toleranz":"Tolerance","Eigene Toleranz in Metern":"Custom tolerance in metres","Einen Punkt auswählen (ganzes Feature) oder zwei Punkte (Abschnitt).":"Select one point (whole feature) or two points (section).","Reduzieren: einen Punkt auswählen (ganzes Feature) oder zwei Punkte (Abschnitt).":"Reduce: select one point (whole feature) or two points (section).","Reduzieren: die Auswahl muss zu genau einem Feature gehören.":"Reduce: the selection must belong to exactly one feature.","Reduzieren: die Auswahl muss zu genau einem Linienzug gehören.":"Reduce: the selection must belong to exactly one line.","Reduzieren: dieses Feature hat keinen Linienzug.":"Reduce: this feature has no line.","Reduzieren: dieser Linienzug hat zu wenige Punkte.":"Reduce: this line has too few points.","Reduzieren: die Auswahl ist nicht mehr gültig.":"Reduce: the selection is no longer valid.","Ungültige Toleranz.":"Invalid tolerance.","Bei geschlossenen Ringen bleibt der Startpunkt immer erhalten, weil":"On closed rings the start point is always kept, because","er Start und Ende des Rings markiert. Soll er weg, vorher über":"it marks both start and end of the ring. To remove it, first use","„Als Startpunkt setzen“ einen anderen Punkt dazu machen.":"“Set as start point” to make another point the start.","Nicht bearbeitbar: nur perimeter, exclusion, search wire und dockpoints werden unterstützt.":"Not editable: only perimeter, exclusion, search wire and dockpoints are supported.","Löschen: aktuell sind keine Punkte ausgewählt.":"Delete: no points are currently selected.","Begradigen: genau zwei Punkte desselben Linienzugs auswählen.":"Straighten: select exactly two points of the same line.","Begradigen: beide Punkte müssen zum selben Feature gehören.":"Straighten: both points must belong to the same feature.","Begradigen: beide Punkte müssen zum selben Linienzug gehören.":"Straighten: both points must belong to the same line.","Begradigen: dieses Feature hat keinen Linienzug.":"Straighten: this feature has no line.","Begradigen: die beiden Punkte sind benachbart – dazwischen liegt nichts.":"Straighten: the two points are adjacent - there is nothing in between.","Begradigen: die Auswahl ist nicht mehr gültig.":"Straighten: the selection is no longer valid.","Begradigen: die beiden Punkte liegen aufeinander, es gibt keine Gerade.":"Straighten: the two points coincide, so there is no line.","RTK Karte":"RTK map","Start und Ende sind zwei benachbarte echte Eckpunkte. Danach wiederholt GeoJSON intern den Startpunkt, damit der Ring geschlossen bleibt. Beim Neuvergeben werden die Punkte zyklisch neu nummeriert. Neue Punkte werden zunächst auf einer bestehenden Kante eingesetzt, damit sich die Polygonform beim Einfügen nicht unbeabsichtigt verändert.":"Start and end are two adjacent real vertices. GeoJSON then repeats the start point internally so the ring remains closed. When reassigned, points are renumbered cyclically. New points are initially inserted on an existing edge so the polygon shape does not change unintentionally."}));
 const I18N_PATTERNS = [
+  /* Kopfblock und Bloecke des Inspektors. */
+  [/^(\d+) Punkte ausgewählt$/, "$1 points selected"],
+  [/^aus (\d+) Features$/, "from $1 features"],
+  /*
+   * $1 bleibt hier unuebersetzt, und das ist richtig: an dieser Stelle steht
+   * der Anzeigename eines Features aus describeFeature(). Der ist entweder
+   * sprachneutral ("Perimeter", "Exclusion #0", "Dockpoints") oder ein vom
+   * Nutzer vergebenes properties.label - und ein Label wird nicht uebersetzt.
+   */
+  [/^(.+) · vollständig$/, "$1 · complete"],
+  [/^Alle (\d+) Punkte von (.+)\.$/, "All $1 points of $2."],
+  [/^(\d+) Punkte in (.+)\.$/, "$1 points in $2."],
+  [/^(\d+) Punkte aus (\d+) Features\.$/, "$1 points from $2 features."],
+  [/^Springt zu (.+)\.$/, "Jumps to $1."],
+  [/^([\d.,]+) Einheiten²$/, "$1 units²"],
+
+  /* Zeichenfortschritt. */
+  [/^1 Punkt gesetzt$/, "1 point placed"],
+  [/^(\d+) Punkte gesetzt$/, "$1 points placed"],
+  [/^(\d+) von 2 Punkten$/, "$1 of 2 points"],
+  [/^(\d+) vorhandene \+ (\d+) neue Punkte\.$/, "$1 existing + $2 new points."],
+  [/^(\d+) von mindestens (\d+) Punkten gesetzt\.$/,
+    "$1 of at least $2 points placed."],
+  [/^(\d+) Punkte gesetzt\. Abschließen ist möglich\.$/,
+    "$1 points placed. Finishing is possible."],
+
+  /* Begruendung des Begradigens. */
+  [/^Legt die (\d+) Punkte dazwischen auf die Gerade\.$/,
+    "Puts the $1 points in between onto the straight line."],
+
   [/^Punkt (\d+) von (\d+)$/, "Point $1 of $2"],
   [/^Ring (\d+) von (\d+)$/, "Ring $1 of $2"],
   [/^Linie (\d+) von (\d+)$/, "Line $1 of $2"],
