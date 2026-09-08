@@ -192,7 +192,7 @@ Sie zerfallen in **zwei Stufen**, und diese Trennung ist beabsichtigt:
 | Stufe | Skripte | Abhängigkeiten | Status |
 |---|---|---|---|
 | statisch | `check-all.mjs` (4.1) | keine | **Pflicht** vor jeder Rückmeldung "fertig" |
-| Browser | vierzehn Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
+| Browser | fünfzehn Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
 
 `check-all.mjs` läuft mit Node-Bordmitteln und muss das bleiben – es ist die
 Stufe, die in **jeder** Umgebung ohne Vorbereitung durchläuft. Die
@@ -257,7 +257,7 @@ Zwei Fallstricke dabei:
 
 ### 4.2 Browsertests (optional, real gerendert)
 
-Vierzehn Skripte öffnen `index.html` in einem echten Browser über eine
+Fünfzehn Skripte öffnen `index.html` in einem echten Browser über eine
 `file://`-URL – die Datei hat keine externen Ressourcen und keine
 `fetch()`-Aufrufe, ein Webserver ist also nicht nötig.
 
@@ -277,6 +277,7 @@ Vierzehn Skripte öffnen `index.html` in einem echten Browser über eine
 | `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten |
 | `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
 | `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen |
+| `test-placeholders.mjs` | was als leerer Platzhalter gilt |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -817,6 +818,18 @@ kann einen künftigen Modus wieder vergessen.
   groß und beim Herauszoomen nicht zu treffen. Dafür gibt es `worldToScreen()`
   als Umkehrung von `screenToWorld()`.
 
+**Der Inspektor ist festes Markup mit stabilen IDs.** Abgeleitet ist nur,
+**welcher Zustandsblock sichtbar ist**, und der veränderliche Text darin – der
+Zustand selbst wird bei jedem Aufruf neu berechnet, wie `getSelectedSection()`
+und `getActiveOriginConflict()`, und nirgends zwischengespeichert.
+
+**Das Markup wird NICHT bei jedem Auswahlwechsel neu erzeugt.** Die
+Eingabefelder ziehen aus der Seitenleiste in den Inspektor um – verschoben,
+nicht kopiert, damit keine ID doppelt existiert –, und ein Neuaufbau würde sie
+bei jedem Klick zerstören: der Fokus ginge mitten im Tippen verloren, ohne dass
+irgendetwas gewonnen wäre. Die i18n-Wege aus Etappe 0 gelten unverändert für
+die dynamischen Texte.
+
 **Der Mauszeiger zeigt das aktive Werkzeug** (`updateMapCursor()`): Fadenkreuz
 für alles, was auf die Karte zielt – Rahmen, Lasso, jedes Zeichenwerkzeug,
 Messen –, sonst die Greifhand, weil sich die Karte mit dem Zeiger überall
@@ -936,6 +949,59 @@ getestet**, nur gegen den Quelltext.
 
 **Search Wire:** Offene `LineString`. Gültige Zustände: leerer Platzhalter
 oder nicht-leere Linie mit ≥2 Punkten.
+
+**Warum es nur EINE Search Wire und EINEN Docking-Pfad gibt** – belegt gegen
+den Quelltext, nicht aus dem Editor heraus begründet:
+
+- **CaSSAndRA** (`CaSSAndRA/src/backend/data/mapdata.py`, Branch `master`):
+  Zeile 31 führt `search_wire: LineString` – Einzahl, kein `List`. Der Import
+  sammelt zwar alle Features dieses Namens (Zeile 520–522), wandelt dann aber
+  nur `search_wire['geometry'].iloc[0]` um (Zeile 557). **Jede weitere Search
+  Wire geht ohne Meldung verloren.** Für `dockpoints` steht dasselbe in
+  Zeile 553. Exclusions dagegen werden durchiteriert
+  (`for i, exclusion in exclusions.iterrows()`) – deshalb sind dort mehrere
+  erlaubt.
+
+  Sie werden also **nicht zu einer durchgehenden Linie verbunden**, wie man
+  vermuten könnte, sondern verworfen. Der Ablehnungsgrund im `title` nennt
+  deshalb die Ursache und nicht nur die Tatsache.
+
+- **Sunray** (`sunray/map.h`, Branch `master`): kennt `Polygon
+  perimeterPoints`, `Polygon mowPoints`, `Polygon dockPoints` – jeweils
+  Einzahl – und `PolygonList exclusions` als Liste. **Eine Search Wire kommt in
+  Sunray überhaupt nicht vor**; der einzige Treffer auf „search" ist ein
+  Kommentar zum A\*-Algorithmus. Sie ist ein reines CaSSAndRA-Konzept für
+  dessen Wegfindung (`mapdata.py` Zeile 201). Das erklärt, warum die Firmware
+  dazu schweigt – eine Frage, die sonst jede künftige Session neu stellt.
+
+**Leere Platzhalter sind reguläre CaSSAndRA-Ausgabe, kein Fehler.** Der Export
+schreibt beide Features **immer**, auch ohne Punkte (Zeile 358–360). Ein
+`{"type":"LineString","coordinates":[]}` ist damit der Normalfall und darf das
+zugehörige Zeichenwerkzeug nicht sperren.
+
+**Wie viele Punkte hat eine Linie? Nur `countLineFeaturePoints()` antwortet
+darauf.** Ein Eintrag in `coordinates` zählt nur, wenn er ein Paar endlicher
+Zahlen ist (`isUsableCoordinate()`). `coordinates.length` ist die falsche
+Antwort: ein leerer Ring `[[]]` ist ein Eintrag **ohne** Punkt.
+
+Diese Annahme steckte an fünf Stellen, und jede hatte eine eigene Auswirkung:
+
+| Stelle | Auswirkung des Fehlers |
+|---|---|
+| Freigabe der Zeichenknöpfe | Platzhalter galt als befüllt, Zeichnen gesperrt |
+| Wiederverwendungs-Sperre in `startFeatureDrawing()` | Knopf frei, Werkzeug lehnte trotzdem ab |
+| `isEmptyLineFeature()` (Verbinden) | Platzhalter erzeugte einen Merge-Konflikt |
+| `ringPath()` / `linePath()` und die Faktor-Varianten | `d="M NaN NaN"` im SVG |
+| `enumerateEditableVertices()` | Punktmarker mit `cx="NaN"` |
+
+Die beiden letzten waren stille Konsolenfehler – sichtbar wurde das erst, als
+`tools/test-placeholders.mjs` alle Formen durchspielte. **Keine sechste
+Zählweise einführen.**
+
+Die Kartenprüfung zählt weiterhin Einträge (`coords.length`) und meldet einen
+entarteten Eintrag als „genau 1 Punkt ist keine gültige Linie". Das ist
+absichtlich so gelassen: die Datei IST fehlerhaft, und die Prüfung soll das
+sagen, während die Werkzeuge trotzdem benutzbar bleiben.
 
 **Punkte reduzieren (Douglas-Peucker):** Arbeitet auf dem Abschnitt zwischen
 zwei ausgewählten Punkten oder auf einem ganzen Feature. Die Auswahl kommt aus

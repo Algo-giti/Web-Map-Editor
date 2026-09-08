@@ -57,6 +57,10 @@ const NAMES = [
   "getUniqueOuterRing",
   "mowerWidth",
   "collectGeometryFindings",
+  "isUsableCoordinate",
+  "usableCoordinates",
+  "countLineFeaturePoints",
+  "isEmptyLineFeature",
   "I18N_EN",
   "I18N_PATTERNS",
   "I18N_LABEL_PREFIXES",
@@ -896,6 +900,53 @@ check("kein allgemeines Muster verdeckt ein spezielleres",
 const checkedPatterns = patternExamples.filter((s) => s.length).length;
 console.log(
   `  ${checkedPatterns} von ${patternList.length} Mustern automatisch geprueft`);
+
+/* -------------------------------------------------------------------- */
+console.log("Punktzahl einer Linie");
+
+/*
+ * Ein Eintrag in coordinates ist nur dann ein Punkt, wenn er ein Paar
+ * endlicher Zahlen ist. Ein leerer Ring [[]] ist ein Eintrag OHNE Punkt -
+ * genau daran hing ein unbenutzbares Werkzeug: die Search Wire galt als
+ * befuellt, das Zeichnen war gesperrt und stattdessen "verlaengern" angeboten.
+ */
+const line = (coordinates, type = "LineString") =>
+  ({ type: "Feature", properties: { name: "search wire" },
+     geometry: coordinates === undefined ? undefined : { type, coordinates } });
+
+check("Feature ohne geometry hat 0 Punkte",
+  app.countLineFeaturePoints({ type: "Feature", properties: {} }) === 0);
+check("geometry null hat 0 Punkte",
+  app.countLineFeaturePoints({ type: "Feature", geometry: null }) === 0);
+check("coordinates fehlt: 0 Punkte",
+  app.countLineFeaturePoints(line(undefined)) === 0);
+check("leeres coordinates-Array: 0 Punkte",
+  app.countLineFeaturePoints(line([])) === 0);
+check("ein leerer Ring ist KEIN Punkt",
+  app.countLineFeaturePoints(line([[]])) === 0,
+  String(app.countLineFeaturePoints(line([[]]))));
+check("mehrere leere Ringe sind keine Punkte",
+  app.countLineFeaturePoints(line([[], [], []])) === 0);
+check("zwei echte Punkte zaehlen",
+  app.countLineFeaturePoints(line([[1, 2], [3, 4]])) === 2);
+check("ein einzelner echter Punkt zaehlt",
+  app.countLineFeaturePoints(line([[1, 2]])) === 1);
+check("unvollstaendiges Paar zaehlt nicht",
+  app.countLineFeaturePoints(line([[1]])) === 0);
+check("NaN und Unendlich zaehlen nicht",
+  app.countLineFeaturePoints(line([[NaN, 1], [1, Infinity]])) === 0);
+check("null-Eintraege zaehlen nicht",
+  app.countLineFeaturePoints(line([null, [1, 2]])) === 1);
+check("echte Punkte neben leeren Ringen werden gezaehlt",
+  app.countLineFeaturePoints(line([[], [1, 2], [], [3, 4]])) === 2);
+
+/* Dieselbe Zaehlung entscheidet, was beim Verbinden als leer gilt. */
+check("leerer Platzhalter gilt als leer",
+  app.isEmptyLineFeature(line([])) === true);
+check("Platzhalter mit leerem Ring gilt ebenfalls als leer",
+  app.isEmptyLineFeature(line([[]])) === true);
+check("ein echter Punkt ist NICHT leer",
+  app.isEmptyLineFeature(line([[1, 2]])) === false);
 
 /* -------------------------------------------------------------------- */
 console.log(
