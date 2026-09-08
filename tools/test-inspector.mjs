@@ -617,6 +617,48 @@ try {
     nachKuerzung.unter === "Perimeter · Polygon", nachKuerzung.unter);
 
   /* ---------------------------------------------------------------- */
+  console.log("Der Bestandsblock haengt an der Karte, nicht an der Auswahl");
+
+  await load([MIT_LOCH]);
+
+  /*
+   * Die Knoepfe fuer Search Wire und Docking-Pfad haengen am BESTAND der
+   * Karte, nicht an einer Auswahl - sie muessen deshalb auch erreichbar sein,
+   * wenn nichts ausgewaehlt ist.
+   */
+  check("ohne Auswahl steht der Bestandsblock",
+    await visible("inspectorStock"));
+
+  await page.locator("#inspectorStock > summary").click();
+  await page.waitForTimeout(250);
+
+  check("und seine Knoepfe sind ohne Auswahl sichtbar",
+    (await visible("extendSearchWireBtn")) && (await visible("deleteSearchWireBtn")) &&
+    (await visible("extendDockBtn")) && (await visible("deleteDockBtn")));
+
+  check("der Bestand nennt die fehlende Search Wire",
+    (await text("searchWireStock")) === "Nicht vorhanden.",
+    await text("searchWireStock"));
+  check("die Kopfzeile fasst ihn zusammen",
+    (await text("stockSummary")) === "keine Search Wire · kein Dockpfad",
+    await text("stockSummary"));
+
+  /* Mit einer echten Search Wire aendert sich beides. */
+  await load([{
+    type: "Feature", properties: { name: "search wire" },
+    geometry: { type: "LineString", coordinates: [[2, 2], [8, 2], [14, 2]] },
+  }]);
+
+  check("mit Search Wire nennt der Bestand ihre Punktzahl",
+    (await text("searchWireStock")) === "Vorhanden, 3 Punkte.",
+    await text("searchWireStock"));
+  check("die Kopfzeile ebenfalls",
+    (await text("stockSummary")) === "Search Wire · kein Dockpfad",
+    await text("stockSummary"));
+  check("und verlaengern ist freigegeben",
+    !(await page.locator("#extendSearchWireBtn").isDisabled()));
+
+  /* ---------------------------------------------------------------- */
   console.log("Die Punktknöpfe stehen als Paare");
 
   await load();
@@ -757,6 +799,7 @@ try {
   const offen = (id) => page.evaluate((x) => document.getElementById(x).open, id);
 
   /* Sichtbar im Sinne von "der Block steht da" - auch zugeklappt. */
+  check("der Bestandsblock steht", await visible("inspectorStock"));
   check("der Umformblock steht", await visible("inspectorTransform"));
   check("der Prüfblock steht", await visible("inspectorValidation"));
   check("beide sind beim ersten Start zu",

@@ -932,6 +932,29 @@ for (const key of dictionaryKeys) {
 check("kein Schluessel steht zweimal in I18N_EN",
   duplicateKeys.length === 0, duplicateKeys.join(" | "));
 
+/*
+ * Dasselbe fuer I18N_PATTERNS. Ein doppeltes Muster ist harmloser als ein
+ * doppelter Schluessel - das zweite ist schlicht tot, weil die Suche beim
+ * ersten Treffer abbricht -, aber es ist eine stille Doppelung derselben Art,
+ * und die naechste koennte zwei verschiedene Uebersetzungen tragen.
+ *
+ * Gefunden wurde genau das beim Aufloesen der Seitenleiste: das Muster fuer
+ * "N Punkte ausgewaehlt" stand seit Etappe 5 zweimal in der Liste.
+ */
+const duplicatePatterns = [];
+const seenPatterns = new Set();
+
+for (const [pattern] of app.I18N_PATTERNS) {
+  const quelle = String(pattern);
+  if (seenPatterns.has(quelle) && !duplicatePatterns.includes(quelle)) {
+    duplicatePatterns.push(quelle);
+  }
+  seenPatterns.add(quelle);
+}
+
+check("kein Muster steht zweimal in I18N_PATTERNS",
+  duplicatePatterns.length === 0, duplicatePatterns.join(" | "));
+
 console.log(`  ${dictionaryKeys.length} Woerterbucheintraege, ${seenKeys.size} eindeutig`);
 
 /* -------------------------------------------------------------------- */
