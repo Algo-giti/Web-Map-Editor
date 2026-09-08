@@ -753,59 +753,97 @@ Zeile gar nicht zu haben. Deshalb weicht immer das Nachschlagbare zuerst.
 
 **Der Umbau ist ein Ordnungsgewinn, kein Flächengewinn.** Dieser Satz steht
 hier, damit ihn niemand noch einmal nachrechnet und das Ergebnis für einen
-Fehler des Umbaus hält. Gemessen, nicht geschätzt:
+Fehler des Umbaus hält.
 
 **Eine Flächenrechnung wird für alle drei Fenstergrößen gemacht, nie nur für
 die größte.** Im schmalsten Fenster entscheidet sich, ob ein Layout trägt: bei
 Etappe 4 hatte ich −17 % geschätzt, weil ich nur 1920 × 1080 gerechnet hatte –
-bei 1280 × 800 waren es tatsächlich −42 %, und die Karte fiel mit 544 px unter
-die 600 px, ab denen Zeichnen und Rechteckauswahl überhaupt brauchbar sind.
+bei 1280 × 800 waren es tatsächlich −42 %.
 
-Stand nach Etappe 3b, mit eingeklappter Werkzeugleiste:
+**Und der Ausgangswert wird gemessen, nicht erinnert.** Die früher hier
+stehende Baseline (1 485 120 / 833 760 / 618 240 px²) war zu niedrig. Die
+Zahlen unten stammen aus einem Lauf gegen `git show main:index.html` im selben
+Browser und mit demselben Skript wie die aktuellen – nur so sind sie
+vergleichbar:
 
-| Fenster | vor dem Umbau | Leiste offen | Leiste eingeklappt |
+| Fenster | Kartenfläche vor dem Umbau |
+|---|---|
+| 1920 × 1080 | 1 560 × 1016 = **1 584 960 px²** |
+| 1440 × 900 | 1 080 × 836 = **902 880 px²** |
+| 1280 × 800 | 920 × 736 = **677 120 px²** |
+
+**Stand nach Etappe 5 D**, gemessen. Der obere Block ist der *Zwischenstand*:
+Seitenleiste **und** Inspektor stehen gleichzeitig, was mit Etappe 6 endet.
+
+| Fenster | alles offen | Leiste zu | Inspektor zu | beide zu |
+|---|---|---|---|---|
+| 1920 × 1080 | −36,5 % | −29,9 % | −19,5 % | −12,9 % |
+| 1440 × 900 | −50,2 % | −40,8 % | −26,2 % | −16,8 % |
+| 1280 × 800 | −58,0 % | −47,1 % | −30,1 % | −19,2 % |
+
+**Vorschau auf Etappe 6**, wenn die Seitenleiste verschwindet und nur noch
+Werkzeugleiste, Karte und Inspektor nebeneinanderstehen – gemessen, indem die
+Seitenleiste eingeklappt wird:
+
+| Fenster | Leiste offen, Inspektor offen | Leiste zu, Inspektor offen | beide zu |
 |---|---|---|---|
-| 1920 × 1080 | 1 485 120 px² | 1 307 088 px² (−12,0 %) | 1 412 256 px² (−4,9 %) |
-| 1440 × 900 | 833 760 px² | 692 208 px² (−17,0 %) | 777 216 px² (−6,8 %) |
-| 1280 × 800 | 618 240 px² | 495 568 px² (−19,8 %) | 569 376 px² (−7,9 %) |
+| 1920 × 1080 | −15,2 % | −8,5 % | **+8,4 %** |
+| 1440 × 900 | −20,0 % | −10,6 % | **+13,5 %** |
+| 1280 × 800 | −22,9 % | −12,0 % | **+15,8 %** |
 
-**Zwischenstand ab Etappe 4**, solange Seitenleiste *und* Inspektor
-gleichzeitig stehen – gemessene Kartenbreite:
-
-| Fenster | Seitenleiste offen | Seitenleiste eingeklappt |
-|---|---|---|
-| 1920 × 1080 | 1184 px (−25,1 %) | 1544 px (−2,4 %) |
-| 1440 × 900 | 704 px (−35,9 %) | 1064 px (−3,1 %) |
-| 1280 × 800 | 544 px (−42,0 %) | 904 px (−3,6 %) |
-
-Der Schalter `#sidebarToggle` ist der Behelf dafür und **entfällt mit
-Etappe 6**, wenn die Seitenleiste ohnehin verschwindet; die rechte Spalte
-liegt dann dauerhaft bei den Werten der zweiten Zahlenreihe. Bewusst **ohne**
-`localStorage`: der Zustand ist vorübergehend und soll nicht in eine spätere
-Ausgabe überleben.
-
-**Die Rasterspalten von `main` sind fest, nicht `auto`.** Ein `auto`-Track
-nimmt sich seine max-content-Breite, sobald Platz frei wird – beim Einklappen
-der Seitenleiste wuchs die Spalte der Werkzeugleiste von 168 auf 659 px und
-fraß den Gewinn auf. Und das eingeklappte Raster hat **drei** Spalten statt
-vier mit einer Null: `display:none` nimmt die Seitenleiste aus der
-Rasterzuordnung, die übrigen rutschen sonst eine Spalte nach vorn, und die
-Karte landet in der 56-px-Spalte der Werkzeugleiste.
+Erst mit beiden eingeklappten Leisten liegt die Fläche **über** dem
+Ausgangswert. Das ist der ehrliche Stand: **wer mehr erwartet, erwartet das
+Falsche vom Umbau.** Was er tatsächlich gewinnt, ist Ordnung und
+**Überdeckung** – die schwebenden Fenster auf der Karte sind von 25 950 px²
+auf 21 870 px² geschrumpft, und die Auswahlleiste ist seit Etappe 5 ganz von
+der Karte verschwunden.
 
 Die Kartenfläche kostet: **93 px Höhe** für Legende (30) und die zweizeilige
-Statuszeile (63), 168 px Breite für die ausgeklappte Werkzeugleiste.
-Zurückgeholt wurden 16 px Höhe (Kopfzeile von 64 auf 48) und 112 px Breite
-(Leiste einklappbar). Die zweite Statuszeile hat den eingeklappten Fall von
-−2,0 % auf −4,9 % verschoben – bewusst, weil eine abgeschnittene Meldung
-teurer ist als 28 px. Was der Umbau
-tatsächlich gewinnt, ist **Überdeckung**: die schwebenden Fenster auf der Karte
-sind von 25 950 px² auf 21 870 px² geschrumpft, und was übrig ist, verschwindet
-mit Etappe 5 weitgehend.
+Statuszeile (63), 168 px Breite für die ausgeklappte Werkzeugleiste, 320 px
+für den Inspektor. Zurückgeholt wurden 16 px Höhe (Kopfzeile von 64 auf 48),
+112 px Breite (Leiste einklappbar) und seit Etappe 5 D weitere **286 px**
+(Inspektor einklappbar, 320 → 34).
 
-Nach Etappe 6 kommen noch 40 px Breite dazu, wenn der 360 px breite
-Seitenleistenbereich dem 320 px breiten Inspektor weicht. Mit eingeklappter
-Leiste liegt die Fläche dann bei 1920 × 1080 knapp über dem Ausgangswert. **Wer
-mehr erwartet, erwartet das Falsche vom Umbau.**
+**Der Inspektor klappt nach rechts ein – dieselbe Mechanik wie die
+Werkzeugleiste, aber MIT `localStorage`** (`webMapEditor.inspectorCollapsed`).
+Anders als beim Behelfsschalter der Seitenleiste ist das ein dauerhafter
+Wunsch: wer breit arbeiten will, will das auch nach dem nächsten Start.
+
+Zwei Unterschiede zur Leiste, beide beabsichtigt:
+
+- **Keine erzwungene Enge.** Die Leiste klappt unter 1000 px von selbst ein,
+  weil sie dann nur noch Symbole zeigt. Der Inspektor trägt Eingabefelder und
+  Knöpfe, die nicht auf Symbolgröße schrumpfen können – er bleibt allein die
+  Entscheidung des Nutzers.
+- **Eingeklappt bleibt ein 34-px-Streifen mit dem Umschalter**, statt ihn ganz
+  auszublenden. Der Knopf müsste sonst anderswo auftauchen, und ein
+  Bedienelement, das den Ort wechselt, ist schwerer zu finden als eines, das
+  bleibt. Der Umschalter sitzt aus demselben Grund im Kopfblock und nicht am
+  Rand: er behält beim Einklappen seinen Platz.
+
+Ausgeblendet wird der **Inhalt**, nicht nur die Breite – eine schmale Spalte,
+die ihren Inhalt überlaufen lässt, zeigte ihn weiterhin an. Der Test sichert
+zu, dass im eingeklappten Zustand genau **ein** Tabstopp übrig bleibt: der
+Umschalter selbst.
+
+**Die drei festen Rasterspalten stehen als Variablen an `.app`**
+(`--sidebar-col`, `--rail-col`, `--inspector-col`), nicht als eigene Regel je
+Kombination. Mit drei unabhängig einklappbaren Bereichen gäbe es sonst acht
+Regeln, die alle dasselbe Raster wiederholen – und die achte vergisst
+irgendwann jemand. `main` hat damit genau **eine** Rastervorlage; die
+Seitenleiste braucht weiterhin eine zweite mit **drei** Spalten, weil
+`display:none` sie aus der Rasterzuordnung nimmt und die übrigen sonst eine
+Spalte nach vorn rutschen.
+
+**Die Rasterspalten sind fest, nicht `auto`.** Ein `auto`-Track nimmt sich
+seine max-content-Breite, sobald Platz frei wird – beim Einklappen der
+Seitenleiste wuchs die Spalte der Werkzeugleiste von 168 auf 659 px und fraß
+den Gewinn auf.
+
+**Zwischenstand-Schalter der Seitenleiste:** `#sidebarToggle` ist der Behelf
+für die Zeit, in der Seitenleiste und Inspektor gleichzeitig stehen, und
+**entfällt mit Etappe 6**. Bewusst **ohne** `localStorage`: der Zustand ist
+vorübergehend und soll nicht in eine spätere Ausgabe überleben.
 
 **Werkzeugleiste:** Senkrecht links neben der Karte, Icon **und** Text. Drei
 Gruppen, und die Trennung trägt die nützlichste Information, die eine

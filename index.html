@@ -69,6 +69,11 @@
   [hidden] { display:none !important; }
 
   .app {
+    /* Die drei festen Rasterspalten von `main`, siehe dort. */
+    --sidebar-col:minmax(320px, 360px);
+    --rail-col:168px;
+    --inspector-col:320px;
+
     width:100%;
     height:100vh;
     height:100svh;
@@ -313,7 +318,8 @@
      * Gewinn auf, statt ihn der Karte zu geben. Die Leiste hat in beiden
      * Zuständen eine bekannte Breite - die gehört hierher.
      */
-    grid-template-columns:minmax(320px, 360px) 168px minmax(0,1fr) 320px;
+    grid-template-columns:
+      var(--sidebar-col) var(--rail-col) minmax(0,1fr) var(--inspector-col);
   }
 
   /*
@@ -1363,7 +1369,14 @@
    * erhöht die Spezifität nicht, deshalb genügt der zusätzliche Klassenname
    * an .app.
    */
-  .app.rail-collapsed main { grid-template-columns:minmax(320px, 360px) 56px minmax(0,1fr) 320px; }
+  /*
+   * Die drei festen Spalten stehen als Variablen an .app, nicht als eigene
+   * Regel je Kombination. Mit drei unabhängig einklappbaren Bereichen gäbe es
+   * sonst acht Regeln, die alle dasselbe Raster wiederholen - und die achte
+   * vergisst irgendwann jemand.
+   */
+  .app.rail-collapsed { --rail-col:56px; }
+  .app.inspector-collapsed { --inspector-col:34px; }
 
   /*
    * Eingeklappt bekommt das Raster DREI Spalten, nicht vier mit einer Null:
@@ -1371,8 +1384,9 @@
    * drei rutschen dann eine Spalte nach vorn. Mit einer 0-Spalte landete die
    * Karte in der 56-px-Spalte der Werkzeugleiste.
    */
-  .app.sidebar-collapsed main { grid-template-columns:168px minmax(0,1fr) 320px; }
-  .app.sidebar-collapsed.rail-collapsed main { grid-template-columns:56px minmax(0,1fr) 320px; }
+  .app.sidebar-collapsed main {
+    grid-template-columns: var(--rail-col) minmax(0,1fr) var(--inspector-col);
+  }
   .app.sidebar-collapsed #sidebar { display:none; }
 
   .inspector {
@@ -1394,11 +1408,56 @@
    * Inspektor bei jedem Klick auf die Karte.
    */
   .inspector-head {
+    position:relative;
     flex:0 0 auto;
     min-height:58px;
     padding-bottom:10px;
+    padding-right:30px;
     border-bottom:1px solid var(--line);
   }
+
+  /*
+   * Der Umschalter liegt im Kopfblock und behält seinen Platz, wenn der
+   * Inspektor einklappt - dann rutscht der Rest weg, er nicht.
+   */
+  .inspector-toggle {
+    position:absolute; top:0; right:0;
+    width:26px; height:26px; padding:0;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:6px;
+  }
+  .inspector-toggle svg {
+    width:16px; height:16px; fill:none; stroke:currentColor;
+    stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
+  }
+  .app.inspector-collapsed .inspector-toggle svg { transform:scaleX(-1); }
+
+  /*
+   * Eingeklappt bleibt ein schmaler Streifen mit dem Umschalter stehen. Die
+   * Alternative - den Inspektor ganz auszublenden - nähme dem Nutzer den Weg
+   * zurück: der Knopf müsste dann anderswo auftauchen, und ein Bedienelement,
+   * das den Ort wechselt, ist schwerer zu finden als eines, das bleibt.
+   *
+   * Ausgeblendet wird der INHALT, nicht die Breite: eine Spalte, die ihren
+   * Inhalt nur überläuft, würde ihn weiterhin anzeigen.
+   */
+  .app.inspector-collapsed .inspector {
+    width:34px;
+    padding:12px 4px;
+    overflow:hidden;
+  }
+
+  .app.inspector-collapsed .inspector > *:not(.inspector-head) { display:none; }
+
+  .app.inspector-collapsed .inspector-head {
+    min-height:0; padding:0; padding-right:0; border-bottom:0;
+  }
+
+  .app.inspector-collapsed .inspector-head > *:not(.inspector-toggle) {
+    display:none;
+  }
+
+  .app.inspector-collapsed .inspector-toggle { position:static; }
 
   .inspector-title {
     color:var(--text); font-size:14px; font-weight:700;
@@ -3251,8 +3310,17 @@
     -->
     <aside id="inspector" class="inspector" aria-label="Inspektor">
 
-      <!-- Kopfblock: in JEDEM Zustand vorhanden, feste Höhe, fester Ort. -->
+      <!--
+        Kopfblock: in JEDEM Zustand vorhanden, feste Höhe, fester Ort. Der
+        Umschalter sitzt hier und nicht am Rand, damit er im eingeklappten
+        Zustand an derselben Stelle bleibt - ein Knopf, der beim Klicken
+        wegspringt, ist schwer zurückzufinden.
+      -->
       <div class="inspector-head">
+        <button id="inspectorToggle" class="inspector-toggle" type="button"
+                title="Inspektor einklappen" aria-label="Inspektor einklappen">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+        </button>
         <div class="status-label">Auswahl</div>
         <div id="inspectorTitle" class="inspector-title">Nichts ausgewählt</div>
         <div id="inspectorSubtitle" class="inspector-subtitle">Keine Karte geladen</div>
@@ -4508,6 +4576,60 @@ function toggleSidebar() {
 
 /** localStorage-Schlüssel des Einklappzustands. */
 const TOOL_RAIL_STORAGE_KEY = "webMapEditor.toolRailCollapsed";
+
+/**
+ * Einklappzustand des Inspektors.
+ *
+ * Dieselbe Mechanik wie bei der Werkzeugleiste, aber MIT localStorage - anders
+ * als beim Behelfsschalter der Seitenleiste ist das hier ein dauerhafter
+ * Wunsch: wer breit arbeiten will, will das auch nach dem nächsten Start.
+ *
+ * Keine erzwungene Enge wie bei der Leiste: der Inspektor trägt Eingabefelder
+ * und Knöpfe, die bei einem schmalen Fenster nicht auf Symbolgröße schrumpfen
+ * können. Er bleibt deshalb allein die Entscheidung des Nutzers.
+ */
+const INSPECTOR_STORAGE_KEY = "webMapEditor.inspectorCollapsed";
+
+let inspectorCollapsed = false;
+
+function restoreInspectorState() {
+  try {
+    inspectorCollapsed =
+      localStorage.getItem(INSPECTOR_STORAGE_KEY) === "1";
+  } catch (error) {
+    inspectorCollapsed = false;
+  }
+}
+
+function applyInspectorState() {
+  const app = document.querySelector(".app");
+  const toggle = document.getElementById("inspectorToggle");
+
+  if (!app || !toggle) return;
+
+  app.classList.toggle("inspector-collapsed", inspectorCollapsed);
+
+  const label = inspectorCollapsed
+    ? "Inspektor ausklappen"
+    : "Inspektor einklappen";
+
+  toggle.title = label;
+  toggle.setAttribute("aria-label", label);
+  toggle.setAttribute("aria-expanded", String(!inspectorCollapsed));
+}
+
+function toggleInspector() {
+  inspectorCollapsed = !inspectorCollapsed;
+
+  try {
+    localStorage.setItem(INSPECTOR_STORAGE_KEY, inspectorCollapsed ? "1" : "0");
+  } catch (error) {
+    /* Ohne Speicher bleibt die Wahl eben nur für diese Sitzung. */
+  }
+
+  applyInspectorState();
+  handleViewerResize();
+}
 
 /** Ab hier ist die Leiste immer eingeklappt, unabhängig vom Wunsch. */
 const TOOL_RAIL_NARROW_QUERY = "(max-width: 1000px)";
@@ -16484,6 +16606,7 @@ svg.addEventListener("dblclick", () => {
 /* Kopfzeilen-Buttons. */
 document.getElementById("sidebarToggle").addEventListener("click", toggleSidebar);
 document.getElementById("toolRailToggle").addEventListener("click", toggleToolRail);
+document.getElementById("inspectorToggle").addEventListener("click", toggleInspector);
 
 if (toolRailNarrow) {
   toolRailNarrow.addEventListener("change", applyToolRailState);
@@ -17181,6 +17304,8 @@ function initialize() {
   applySidebarState();
   restoreToolRailState();
   applyToolRailState();
+  restoreInspectorState();
+  applyInspectorState();
   updateCircleHint();
   /*
    * Kein eingebetteter Karteninhalt:
@@ -17232,6 +17357,8 @@ let currentLanguage = "de";
 const I18N_EN = new Map(Object.entries({
   "nichts möglich":"nothing available",
   "Begradigen":"Straighten",
+  "Inspektor einklappen":"Collapse inspector",
+  "Inspektor ausklappen":"Expand inspector",
   "Bezugspunkt setzen":"Place reference point",
   "Reduzieren":"Reduce",
   "Rechtwinklig":"Square up",
@@ -17848,6 +17975,7 @@ function setLanguage(language) {
 function refreshDerivedUi() {
   applySidebarState();
   applyToolRailState();
+  applyInspectorState();
   updateInspector();
   updateFeatureDrawUi();
   updateHistoryButtons();

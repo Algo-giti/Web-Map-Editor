@@ -861,6 +861,70 @@ try {
   }
 
   /* ---------------------------------------------------------------- */
+  console.log("Inspektor einklappen");
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await load();
+  await marks.nth(0).click();
+  await page.waitForTimeout(300);
+
+  const breite = (id) => page.evaluate((x) =>
+    Math.round(document.getElementById(x).getBoundingClientRect().width), id);
+
+  const offenBreit = await breite("inspector");
+  const karteEng = await breite("viewer");
+
+  check("ausgeklappt ist der Inspektor 320 px breit",
+    offenBreit === 320, String(offenBreit));
+
+  await page.locator("#inspectorToggle").click();
+  await page.waitForTimeout(300);
+
+  const zuBreit = await breite("inspector");
+
+  check("eingeklappt bleibt ein schmaler Streifen",
+    zuBreit > 0 && zuBreit < 40, String(zuBreit));
+  check("und die Karte wird um die Differenz breiter",
+    (await breite("viewer")) === karteEng + (offenBreit - zuBreit),
+    `${await breite("viewer")} statt ${karteEng + (offenBreit - zuBreit)}`);
+
+  /*
+   * Der Inhalt muss wirklich weg sein, nicht nur überlaufen - sonst stünde er
+   * weiterhin da und man könnte hineintabben.
+   */
+  check("der Inhalt ist nicht mehr sichtbar",
+    !(await visible("inspectorPoint")) && !(await visible("inspectorTransform")));
+  check("aber der Umschalter bleibt erreichbar",
+    await visible("inspectorToggle"));
+
+  const tabstopps = await page.evaluate(() =>
+    [...document.getElementById("inspector").querySelectorAll(
+      "a[href],button,input,select,textarea,summary,[tabindex]")]
+      .filter((el) => el.offsetParent !== null).map((el) => el.id || el.tagName));
+
+  check("und ist der einzige Tabstopp im eingeklappten Inspektor",
+    tabstopps.join(",") === "inspectorToggle", tabstopps.join(","));
+
+  /*
+   * Anders als der Behelfsschalter der Seitenleiste ist das ein dauerhafter
+   * Wunsch: wer breit arbeiten will, will das auch nach dem nächsten Start.
+   */
+  await page.reload({ waitUntil: "load" });
+  await page.waitForTimeout(400);
+
+  check("der Zustand überlebt den Neuaufbau",
+    (await breite("inspector")) < 40, String(await breite("inspector")));
+
+  await page.locator("#inspectorToggle").click();
+  await page.waitForTimeout(300);
+
+  check("wieder ausklappen geht",
+    (await breite("inspector")) === 320, String(await breite("inspector")));
+  check("und der Inhalt ist zurück", await visible("inspectorEmpty"));
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+
+  /* ---------------------------------------------------------------- */
   console.log("Tastaturbedienung");
 
   await load();
