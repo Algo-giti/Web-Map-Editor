@@ -385,6 +385,68 @@ try {
     (await legend.textContent()).includes("Legend"),
     (await legend.textContent()).slice(0, 80));
 
+  /* ---------------------------------------------------------------- */
+  console.log("Legende und Darstellung haben EINE Farbquelle");
+
+  /*
+   * Vorher standen dieselben Farben zweimal: als Variable in der Darstellung
+   * und als fester Hex-Wert im style-Attribut der Legende. Zwei Quellen fuer
+   * dieselbe Farbe laufen auseinander, sobald jemand nur eine davon anfasst -
+   * und eine falsche Legende ist schlimmer als gar keine.
+   *
+   * Verglichen wird der BERECHNETE Wert des Farbtupfers mit dem berechneten
+   * Wert der Regel, die dasselbe auf der Karte zeichnet. Ein Vergleich der
+   * Quelltexte ("beide sagen var(--map-perimeter)") bewiese nichts: er ginge
+   * auch dann auf, wenn die Variable gar nicht existiert.
+   */
+  const abgleich = await page.evaluate(() => {
+    const buehne = document.createElement("div");
+    buehne.style.cssText = "position:absolute;left:-9999px;top:0;";
+    document.body.appendChild(buehne);
+
+    const ergebnis = [...document.querySelectorAll("#mapLegend [data-legend]")]
+      .map((eintrag) => {
+        const name = eintrag.textContent.trim();
+        const tupfer = getComputedStyle(eintrag.querySelector(".swatch"));
+
+        /*
+         * Die zugehoerige Kartenregel auf ein Probe-Element anwenden. Fuer die
+         * Formen zaehlt stroke, fuer die Punktrollen fill - beide werden
+         * geprueft und der Wert genommen, der eine Farbe liefert.
+         */
+        const klassen = eintrag.dataset.legend.split(".").filter(Boolean);
+        const probe = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        probe.setAttribute("class", klassen.join(" "));
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.appendChild(probe);
+        buehne.appendChild(svg);
+
+        /*
+         * Welche Eigenschaft die Bedeutung traegt, steht am Eintrag: bei den
+         * Formen der Strich, bei den Punktrollen die Fuellung. Sie zu raten
+         * ginge schief - der dunkle Rand eines Startpunktes ist auch eine
+         * Farbe, nur nicht die gemeinte.
+         */
+        const cs = getComputedStyle(probe);
+        const karte = cs[eintrag.dataset.legendProp];
+
+        svg.remove();
+
+        return { name, legende: tupfer.borderTopColor, karte };
+      });
+
+    buehne.remove();
+    return ergebnis;
+  });
+
+  check("die Legende hat Eintraege", abgleich.length >= 7, String(abgleich.length));
+
+  const abweichung = abgleich.filter((e) => e.legende !== e.karte);
+
+  check("jeder Legendeneintrag hat dieselbe Farbe wie seine Kartenregel",
+    abweichung.length === 0,
+    abweichung.map((e) => `${e.name}: Legende ${e.legende} / Karte ${e.karte}`).join(" | "));
+
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
 } finally {

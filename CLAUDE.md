@@ -1266,6 +1266,122 @@ Werkzeugleiste die Gruppen bildet. Dazu verschwindet die Auswahlleiste mit
 Etappe 5 ganz von der Karte; eine Zusammenlegung wäre dann wieder
 aufzutrennen. Sie trägt stattdessen nur noch Symbole.
 
+## Kartenfarben
+
+**Keine Farbe trägt zwei Bedeutungen.** Das ist die Regel, an der die ganze
+Zuordnung hängt. Eine Farbe, die zweierlei heißen kann, ist keine Information
+mehr – der Nutzer muss dann raten, und genau das soll eine Karte ihm abnehmen.
+
+**Alle Kartenfarben stehen als Variablen an einer Stelle** (`:root`, Block
+„KARTENFARBEN"), und **die Legende zieht dieselben Variablen wie die
+Darstellung**. Vorher standen dieselben Farben zweimal: als Variable in der
+Darstellung, als fester Hex-Wert im `style`-Attribut der Legende. Zwei Quellen
+für dieselbe Farbe laufen auseinander, sobald jemand nur eine davon anfasst –
+und eine falsche Legende ist schlimmer als gar keine.
+
+`tools/test-statusbar.mjs` sichert das ab, und zwar über die **berechneten**
+Werte: es liest den Farbtupfer der Legende und wendet daneben die zugehörige
+Kartenregel auf ein Probe-Element an. Ein Vergleich der Quelltexte („beide
+sagen `var(--map-perimeter)`") bewiese nichts – er ginge auch auf, wenn die
+Variable gar nicht existiert. Welche Eigenschaft die Bedeutung trägt, steht am
+Legendeneintrag (`data-legend`, `data-legend-prop`): bei den Formen der Strich,
+bei den Punktrollen die Füllung. Sie zu raten ginge schief, denn der dunkle
+Rand eines Startpunktes ist auch eine Farbe, nur nicht die gemeinte.
+
+| Variable | Wert | Bedeutung |
+|---|---|---|
+| `--map-perimeter` | `#43df84` | Perimeter |
+| `--map-exclusion` | `#ff6c78` | Exclusion |
+| `--map-dock` | `#5fb3ff` | Docking-Pfad |
+| `--map-searchwire` | `#ba8cff` | Search Wire |
+| `--map-other` | `#5db9ff` | nicht unterstützter Typ |
+| `--map-start` | `#5ee58a` | Startpunkt |
+| `--map-end` | `#ff7474` | Endpunkt |
+| `--map-selection` | `#ffd166` | **Auswahl**, und nur das |
+| `--map-selection-group` | `#61d8ff` | weitere Punkte derselben Auswahl |
+| `--map-ghost` | `#b9cce1` | Stand seit dem letzten Speichern |
+| `--map-origin` | `#95a7bf` | Ursprungskreuz – fester Bezug, kein Zustand |
+
+### Angleichung an MapmakerBT
+
+Perimeter, Exclusion und Docking-Pfad sind aus
+[`Algo-giti/MapmakerBT`](https://github.com/Algo-giti/MapmakerBT) übernommen,
+Datei `styles.css` auf dem Default-Branch **`main`**. Beim Nachschlagen
+beachten: dort stehen **drei** `:root`-Blöcke übereinander (hell,
+`prefers-color-scheme: dark`, und ein unbedingtes „v6 — technical dark
+field-console theme"), und die Kartenregeln überschreiben die Variablen danach
+noch einmal mit festen Werten. **Maßgeblich ist der letzte Block, nicht der
+erste.**
+
+Zwei bewusste Abweichungen – **Entscheidungen, keine Versäumnisse:**
+
+- **Search Wire bleibt violett** (`#ba8cff`), MapmakerBT verwendet Amber
+  `#d7a24a`. Amber liegt im selben Farbton wie unser Auswahlgelb `#ffd166`;
+  wir tauschten eine Doppelbelegung gegen die nächste. Violett ist im ganzen
+  Editor sonst nirgends vergeben. Wer Amber will, muss vorher die Auswahlfarbe
+  von Gelb wegnehmen – das ist eine eigene Entscheidung.
+- **Die Punktfüllung bleibt hell.** MapmakerBT füllt Punkte dunkel (`#071012`)
+  und färbt nur den Ring. Bei uns trägt die **Füllung** die Punktrolle –
+  Startpunkt grün, Endpunkt rot, sonst weiß. Mit dunkler Füllung wäre diese
+  Unterscheidung weg, und MapmakerBT kennt kein Start/Ende, kann uns dazu also
+  nichts sagen.
+
+**Startpunkt, Endpunkt und der ausgewählte Mäher lassen sich nicht
+angleichen** – diese Begriffe existieren in MapmakerBT nicht. Dafür werden
+keine „MapmakerBT-Werte" erfunden.
+
+### Wie die Dreifachbelegung von Gelb aufgelöst wurde
+
+Gemessen, nicht geschätzt: ein Browserlauf hat alle gelb gezeichneten Elemente
+im SVG aufgelistet. Gelb `#ffd166` trug **sechs** Bedeutungen, nicht drei:
+Docking-Pfad, Ursprungskreuz, Vergleichslinie, Mäher, Auswahlring und das
+Glühen eines ganz ausgewählten Features.
+
+| Bedeutung | vorher | jetzt |
+|---|---|---|
+| Docking-Pfad | gelb | **blau** `--map-dock` |
+| Ursprungskreuz | gelb | **neutral** `--map-origin` |
+| Vergleichslinie | gelb | **Ghost-Familie** `--map-ghost` |
+| Auswahlring, Feature-Glühen, Mäher | gelb | gelb – *eine* Bedeutung |
+
+**Auswahlring und Mäher dürfen dieselbe Farbe tragen, weil sie nie
+gleichzeitig erscheinen.** Die Mähervorschau **ersetzt** den Marker des
+ausgewählten Punktes (`mowerReplacesPoint` in `renderGeometry()`); ist sie an,
+existiert kein `circle.selected`. Nachgemessen: mit Mäher null gelbe
+Auswahlringe, ohne Mäher genau einer. Sie sind zwei Darstellungen **derselben**
+Bedeutung „hier ist die Auswahl", nicht zwei Bedeutungen.
+
+Die reale Überlagerung war eine andere und ist jetzt weg: ein **ausgewählter
+Dock-Punkt** setzte den gelben Mäher exakt auf die gelbe Dock-Linie – gleiche
+Farbe, gleiche Stelle, zwei verschiedene Dinge.
+
+### Offen, Farbrunde 2
+
+- **Die Gruppe „gerade in Arbeit" borgt sich weiterhin die Auswahlfarben.**
+  Betroffen sind der zweite Messpunkt, die Zeichenvorschau und die
+  Merge-Vorschau (gelb) sowie Messlinie und Vorschau-Zeiger (cyan). Das
+  verstößt gegen die Regel oben. Sie stehen deshalb bewusst weiter als feste
+  Hex-Werte im CSS, mit einem Kommentar an der Stelle – eine Variable würde die
+  Frage für beantwortet ausgeben. **Vorschlag:** ein eigener Ton für „in
+  Arbeit", oder die Vorschau nimmt die Farbe des Typs an, der gerade entsteht,
+  und das „in Arbeit" trägt allein die Strichelung. Beides ist eine
+  Entscheidung, keine Ableitung.
+- **Strichbreiten und Leuchten:** MapmakerBT zeichnet etwa doppelt so kräftig
+  (Perimeter 5, Exclusion 4, Dock 5, Search Wire 4, Punktrand 4 gegen unsere
+  2,2 / 2,0 / 2,6 / 2,4 / 1,4) und legt auf jede Form ein
+  `filter: drop-shadow(...)` in ihrer eigenen Farbe. Zurückgestellt: das ist
+  eine Frage des Erscheinungsbildes, keine der Bedeutung.
+- **Strichelung genau umgekehrt:** MapmakerBT strichelt den Docking-Pfad
+  (12 9), wir stricheln die Search Wire (7 5). Beide stricheln genau eine
+  Linie. Unverändert gelassen.
+
+**`vector-effect: non-scaling-stroke` gilt jetzt auch für die Formen**, nicht
+nur für Punkte und Mäher. Ohne das wächst die Strichbreite beim Hineinzoomen
+mit, und zwei gleich dicke Linien sehen bei verschiedenem Zoom verschieden
+dick aus – das ist ein Fehler, keine Geschmacksfrage.
+
+---
+
 **Legende:** Eine Reihe über die volle Breite, direkt über der Statuszeile,
 **immer offen und kein `<details>`**. Vorher lag sie eingeklappt über der Karte
 und war damit genau dann nicht da, wenn man die Farben braucht.

@@ -36,6 +36,43 @@
     --orange:#ff9d66;
     --grid:#26364b;
     --shadow:0 12px 28px rgba(0,0,0,.28);
+
+    /* --------------------------------------------------------------------
+       KARTENFARBEN - eine Quelle für Darstellung UND Legende.
+
+       Vorher standen dieselben Farben zweimal: als Variable in der
+       Darstellung und als fester Hex-Wert im style-Attribut der Legende. Zwei
+       Quellen für dieselbe Farbe laufen auseinander, sobald jemand nur eine
+       davon anfasst - und die Legende ist dann nicht bloß hässlich, sondern
+       falsch.
+
+       KEINE FARBE TRÄGT ZWEI BEDEUTUNGEN. Das ist die Regel, an der die
+       Zuordnung hängt; Abschnitt "Kartenfarben" in CLAUDE.md führt sie
+       vollständig auf.
+       -------------------------------------------------------------------- */
+
+    /* Feature-Typen. Perimeter, Exclusion und Dockpfad nach MapmakerBT. */
+    --map-perimeter:#43df84;
+    --map-perimeter-fill:rgba(55,209,117,.055);
+    --map-exclusion:#ff6c78;
+    --map-exclusion-fill:rgba(255,91,105,.07);
+    --map-dock:#5fb3ff;
+    --map-searchwire:#ba8cff;
+    --map-other:#5db9ff;
+
+    /* Punktrollen. */
+    --map-start:#5ee58a;
+    --map-end:#ff7474;
+
+    /* Auswahl - und NUR Auswahl. */
+    --map-selection:#ffd166;
+    --map-selection-group:#61d8ff;
+
+    /* Vergleichsstand seit dem letzten Speichern. */
+    --map-ghost:#b9cce1;
+
+    /* Fester Bezugspunkt der Karte, kein Zustand. */
+    --map-origin:#95a7bf;
   }
   * { box-sizing:border-box; }
   /*
@@ -563,11 +600,22 @@
   .feature.feature-selected {
     filter:drop-shadow(0 0 4px rgba(255,209,102,.52));
   }
-  .perimeter { fill:rgba(85,224,138,.075); stroke:var(--green); stroke-width:2.2; }
-  .exclusion { fill:rgba(255,107,107,.19); stroke:var(--red); stroke-width:2.0; }
-  .dockpoints { fill:none; stroke:var(--yellow); stroke-width:2.6; }
-  .searchwire { fill:none; stroke:#ba8cff; stroke-width:2.4; stroke-dasharray:7 5; }
-  .other { fill:none; stroke:var(--blue); stroke-width:2; }
+
+  /*
+   * Die Formen tragen vector-effect:non-scaling-stroke wie die Punkte und der
+   * Mäher. Ohne das wächst die Strichbreite beim Hineinzoomen mit, und zwei
+   * gleich dicke Linien sehen bei verschiedenem Zoom verschieden dick aus -
+   * das ist ein Fehler, keine Geschmacksfrage.
+   */
+  .perimeter, .exclusion, .dockpoints, .searchwire, .other {
+    vector-effect:non-scaling-stroke;
+  }
+
+  .perimeter { fill:var(--map-perimeter-fill); stroke:var(--map-perimeter); stroke-width:2.2; }
+  .exclusion { fill:var(--map-exclusion-fill); stroke:var(--map-exclusion); stroke-width:2.0; }
+  .dockpoints { fill:none; stroke:var(--map-dock); stroke-width:2.6; }
+  .searchwire { fill:none; stroke:var(--map-searchwire); stroke-width:2.4; stroke-dasharray:7 5; }
+  .other { fill:none; stroke:var(--map-other); stroke-width:2; }
   /* Editierbare Kartenpunkte:
      Der Radius wird per JavaScript so nachgeführt, dass die Punkte beim Zoomen
      ungefähr gleich groß auf dem Bildschirm bleiben. */
@@ -591,13 +639,13 @@
    * eindeutig dargestellt werden.
    */
   .vertex.start-point {
-    fill:#5ee58a;
+    fill:var(--map-start);
     stroke:#082214;
     stroke-width:2;
   }
 
   .vertex.end-point {
-    fill:#ff7474;
+    fill:var(--map-end);
     stroke:#2a0909;
     stroke-width:2;
   }
@@ -607,7 +655,7 @@
    * Rollenfarbe des Punktes zu überschreiben.
    */
   .vertex.selected {
-    stroke:var(--yellow);
+    stroke:var(--map-selection);
     stroke-width:3.2;
   }
 
@@ -618,12 +666,12 @@
 
   /* Mehrfach markierte Punkte: primär gelb, weitere cyan. */
   .vertex.multi-selected {
-    stroke:#61d8ff;
+    stroke:var(--map-selection-group);
     stroke-width:3;
   }
 
   .vertex.selected.multi-selected {
-    stroke:var(--yellow);
+    stroke:var(--map-selection);
     stroke-width:3.6;
   }
 
@@ -791,6 +839,15 @@
     vector-effect:non-scaling-stroke;
   }
 
+  /*
+   * OFFEN, Farbrunde 2: die Gruppe "gerade in Arbeit" - zweiter Messpunkt,
+   * Zeichenvorschau und Merge-Vorschau - borgt sich weiterhin die
+   * Auswahlfarben Gelb und Cyan. Das verstößt gegen die Regel "keine Farbe
+   * trägt zwei Bedeutungen"; die Farbe dafür ist eine Entscheidung, keine
+   * Ableitung, und steht als offener Punkt in CLAUDE.md. Deshalb hier
+   * bewusst noch feste Werte statt einer Variablen, die die Frage für
+   * beantwortet ausgäbe.
+   */
   .measurement-point.second {
     fill:#ffd166;
     stroke:#3a2600;
@@ -916,15 +973,22 @@
 
   .mower-footprint.dragging { cursor:grabbing; }
 
+  /*
+   * Der Mäher steht IMMER am ausgewählten Punkt und trägt deshalb die
+   * Auswahlfarbe - er ist eine zweite Darstellung derselben Bedeutung, keine
+   * zweite Bedeutung. Ein Widerspruch entsteht dadurch nicht: die
+   * Mähervorschau ERSETZT den Marker des ausgewählten Punktes
+   * (mowerReplacesPoint), der gelbe Auswahlring ist dann gar nicht gezeichnet.
+   */
   .mower-body {
     fill:rgba(242,247,252,.84);
-    stroke:#ffd166;
+    stroke:var(--map-selection);
     stroke-width:2;
     vector-effect:non-scaling-stroke;
   }
 
   .mower-front {
-    fill:#ffd166;
+    fill:var(--map-selection);
     stroke:#2b2100;
     stroke-width:1.5;
     vector-effect:non-scaling-stroke;
@@ -939,14 +1003,14 @@
 
   .mower-center {
     fill:#101926;
-    stroke:#ffd166;
+    stroke:var(--map-selection);
     stroke-width:1.5;
     vector-effect:non-scaling-stroke;
   }
 
   .mower-heading {
     fill:none;
-    stroke:#ffd166;
+    stroke:var(--map-selection);
     stroke-width:2;
     vector-effect:non-scaling-stroke;
     stroke-linecap:round;
@@ -954,10 +1018,10 @@
   }
 
   .mower-start .mower-body,
-  .mower-start .mower-center { stroke:#5ee58a; }
+  .mower-start .mower-center { stroke:var(--map-start); }
 
   .mower-end .mower-body,
-  .mower-end .mower-center { stroke:#ff7474; }
+  .mower-end .mower-center { stroke:var(--map-end); }
 
   /*
    * Vergleichszustand vor der Bearbeitung.
@@ -1005,9 +1069,14 @@
     fill:rgba(120,200,255,.30); stroke:rgba(120,200,255,.9);
     stroke-width:1.2px; vector-effect:non-scaling-stroke;
   }
+  /*
+   * Die Vergleichslinie gehört zur GHOST-Familie, nicht zur Auswahl. Sie war
+   * gelb und trug damit dieselbe Farbe wie Auswahlring und Mäher, obwohl sie
+   * etwas ganz anderes sagt: "so lag der Punkt beim letzten Speichern".
+   */
   .selection-ghost-line {
     fill:none;
-    stroke:#ffd166;
+    stroke:var(--map-ghost);
     stroke-width:1.5;
     stroke-dasharray:5 4;
     vector-effect:non-scaling-stroke;
@@ -2044,8 +2113,8 @@
     stroke-width:1.6;
   }
 
-  .passive-map-start { fill:#5ee58a; }
-  .passive-map-end { fill:#ff7474; }
+  .passive-map-start { fill:var(--map-start); }
+  .passive-map-end { fill:var(--map-end); }
 
   /*
    * Vorschau der zwei neuen Brückenkanten beim Zusammenführen:
@@ -2171,7 +2240,12 @@
   }
   .edit-status.ok { border-color:rgba(85,224,138,.45); color:#b9f5cf; }
   .edit-status.error { border-color:rgba(255,107,107,.65); color:#ffb3b3; }
-  .origin { vector-effect:non-scaling-stroke; stroke:var(--yellow); stroke-width:1.5; fill:none; }
+  /*
+   * Das Ursprungskreuz markiert einen festen Bezugspunkt der Karte, keinen
+   * Zustand - es war gelb und damit von einer Auswahl nicht zu unterscheiden.
+   * Neutral, weil es immer da ist und nie etwas meldet.
+   */
+  .origin { vector-effect:non-scaling-stroke; stroke:var(--map-origin); stroke-width:1.5; fill:none; }
   /* Rasterfarben. Die tatsächliche Strichbreite wird im Pattern in
      Weltkoordinaten berechnet, damit sie optisch etwa 1 px bleibt. */
   .grid-line { stroke:var(--grid); }
@@ -3551,13 +3625,21 @@
   -->
   <div id="mapLegend" class="map-legend-bar">
     <span class="status-label">Legende</span>
-    <div class="legend" style="color:var(--green)"><span class="swatch"></span><span>Perimeter</span></div>
-    <div class="legend" style="color:var(--red)"><span class="swatch"></span><span>Exclusion</span></div>
-    <div class="legend" style="color:var(--yellow)"><span class="swatch"></span><span>Dockpoints</span></div>
-    <div class="legend" style="color:#ba8cff"><span class="swatch"></span><span>Search wire</span></div>
-    <div class="legend" style="color:#5ee58a"><span class="swatch"></span><span>Startpunkt</span></div>
-    <div class="legend" style="color:#ff7474"><span class="swatch"></span><span>Endpunkt</span></div>
-    <div class="legend" style="color:#ffd166"><span class="swatch"></span><span>Ausgewählter Mäher</span></div>
+    <!--
+      Die Legende zieht DIESELBEN Variablen wie die Darstellung. Vorher standen
+      hier teils Variablen, teils feste Hex-Werte - eine zweite Quelle für
+      dieselbe Farbe, die beim nächsten Anfassen auseinanderläuft. data-legend
+      nennt die Regel, gegen die der Browsertest den Wert vergleicht,
+      data-legend-prop die Eigenschaft, die dort die Bedeutung trägt: bei den
+      Formen der Strich, bei den Punktrollen die Füllung.
+    -->
+    <div class="legend" style="color:var(--map-perimeter)" data-legend=".perimeter" data-legend-prop="stroke"><span class="swatch"></span><span>Perimeter</span></div>
+    <div class="legend" style="color:var(--map-exclusion)" data-legend=".exclusion" data-legend-prop="stroke"><span class="swatch"></span><span>Exclusion</span></div>
+    <div class="legend" style="color:var(--map-dock)" data-legend=".dockpoints" data-legend-prop="stroke"><span class="swatch"></span><span>Dockpoints</span></div>
+    <div class="legend" style="color:var(--map-searchwire)" data-legend=".searchwire" data-legend-prop="stroke"><span class="swatch"></span><span>Search wire</span></div>
+    <div class="legend" style="color:var(--map-start)" data-legend=".vertex.start-point" data-legend-prop="fill"><span class="swatch"></span><span>Startpunkt</span></div>
+    <div class="legend" style="color:var(--map-end)" data-legend=".vertex.end-point" data-legend-prop="fill"><span class="swatch"></span><span>Endpunkt</span></div>
+    <div class="legend" style="color:var(--map-selection)" data-legend=".vertex.selected" data-legend-prop="stroke"><span class="swatch"></span><span>Ausgewählter Mäher</span></div>
   </div>
 
   <footer id="statusBar" class="status-bar">
