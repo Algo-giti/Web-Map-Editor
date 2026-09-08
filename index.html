@@ -7977,6 +7977,14 @@ function activateMap(mapId, options = {}) {
   updateMowerOrientationInfo();
   renderFeatureNavigator();
   updateMapSlotUi();
+
+  /*
+   * Ein Pruefergebnis gehoert zu genau einer Karte. Ohne diesen Aufruf blieb
+   * der Text vom Seitenaufbau stehen - "Zuerst eine Karte laden." war auch
+   * dann noch zu lesen, wenn laengst eine geladen war. In der eingeklappten
+   * Seitenleiste fiel das nicht auf; im Inspektor steht es dauerhaft im Blick.
+   */
+  resetValidationUi();
 }
 
 

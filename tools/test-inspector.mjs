@@ -419,6 +419,16 @@ try {
 
   /* --- Prüfbericht ------------------------------------------------- */
   await load([MIT_LOCH]);
+
+  /*
+   * Der Prueftext vom Seitenaufbau blieb stehen, bis jemand pruefte - im
+   * eingeklappten Seitenleistenabschnitt fiel das nicht auf, im Inspektor
+   * steht es dauerhaft im Blick.
+   */
+  check("mit geladener Karte fordert die Prüfung nicht mehr zum Laden auf",
+    (await text("validationSummary")) === "Noch keine Prüfung durchgeführt.",
+    await text("validationSummary"));
+
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(400);
 
