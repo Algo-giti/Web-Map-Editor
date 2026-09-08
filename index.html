@@ -1609,6 +1609,12 @@
   /* Die einzelne Aktion behält die normale Größe der übrigen Knöpfe. */
   #deletePointBtn { padding:8px 11px; font-size:inherit; }
   .inspector .coord-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+  /* Die Maßfelder der Formwerkzeuge stehen untereinander wie die übrigen. */
+  #drawCircleFields, #drawRectFields {
+    display:flex; flex-direction:column; gap:10px;
+  }
+  #drawCircleFields[hidden], #drawRectFields[hidden] { display:none !important; }
   .inspector .stat { padding:6px 0; }
 
   /*
@@ -2859,43 +2865,6 @@
         <summary class="sidebar-collapsible-summary"><span>Features erstellen</span></summary>
         <div class="sidebar-collapsible-body">
           <div class="feature-create-panel">
-          <div class="feature-subgroup-title">Kreis</div>
-          <label class="coord-field" for="circleRadiusInput">
-            Radius (m)
-            <input id="circleRadiusInput" class="coord-input" type="text"
-                   inputmode="decimal" value="1,00" autocomplete="off" spellcheck="false">
-          </label>
-          <label class="coord-field" for="circleVerticesInput">
-            Eckpunkte
-            <input id="circleVerticesInput" class="coord-input" type="text"
-                   inputmode="numeric" value="24" autocomplete="off" spellcheck="false">
-          </label>
-          <div id="circleHint" class="grid-status" aria-live="polite"></div>
-
-          <div class="feature-subgroup-title">Rechteck</div>
-          <label class="coord-field" for="rectWidthInput">
-            Breite (m)
-            <input id="rectWidthInput" class="coord-input" type="text"
-                   inputmode="decimal" value="1,00" autocomplete="off" spellcheck="false">
-          </label>
-          <label class="coord-field" for="rectHeightInput">
-            Höhe (m)
-            <input id="rectHeightInput" class="coord-input" type="text"
-                   inputmode="decimal" value="1,00" autocomplete="off" spellcheck="false">
-          </label>
-          <label class="coord-field" for="rectAngleInput">
-            Drehung (Grad, 0 = East)
-            <input id="rectAngleInput" class="coord-input" type="text"
-                   inputmode="decimal" value="0" autocomplete="off" spellcheck="false">
-          </label>
-          <label class="field-label" for="rectAnchorSelect">
-            Klickpunkt ist
-            <select id="rectAnchorSelect" class="grid-select">
-              <option value="center" selected>Mittelpunkt</option>
-              <option value="corner">Ecke</option>
-            </select>
-          </label>
-
           <div class="feature-subgroup feature-subgroup-search">
             <div class="feature-subgroup-title">Search Wire</div>
             <button id="extendSearchWireBtn" type="button" disabled>Search Wire verlängern</button>
@@ -3537,6 +3506,52 @@
       <div id="inspectorDraw" class="inspector-block" hidden>
         <div class="inspector-section-title">Zeichnen</div>
         <div id="drawProgress" class="editor-meta">Punkte setzen.</div>
+
+        <!--
+          Die Maße der Formwerkzeuge stehen HIER, nicht in der Seitenleiste.
+          Sie sind gleichberechtigt mit dem Aufziehen, nicht dessen
+          Rückfallebene - und ein Feld, das man erst in einem eingeklappten
+          Seitenleistenabschnitt suchen muss, ist schlechter als eine
+          Rückfallebene. Verschoben, nicht kopiert: die ids sind unverändert.
+        -->
+        <div id="drawCircleFields" hidden>
+          <label class="coord-field" for="circleRadiusInput">
+            Radius (m)
+            <input id="circleRadiusInput" class="coord-input" type="text"
+                   inputmode="decimal" value="1,00" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="coord-field" for="circleVerticesInput">
+            Eckpunkte
+            <input id="circleVerticesInput" class="coord-input" type="text"
+                   inputmode="numeric" value="24" autocomplete="off" spellcheck="false">
+          </label>
+          <div id="circleHint" class="grid-status" aria-live="polite"></div>
+        </div>
+
+        <div id="drawRectFields" hidden>
+          <label class="coord-field" for="rectWidthInput">
+            Breite (m)
+            <input id="rectWidthInput" class="coord-input" type="text"
+                   inputmode="decimal" value="1,00" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="coord-field" for="rectHeightInput">
+            Höhe (m)
+            <input id="rectHeightInput" class="coord-input" type="text"
+                   inputmode="decimal" value="1,00" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="coord-field" for="rectAngleInput">
+            Drehung (Grad, 0 = East)
+            <input id="rectAngleInput" class="coord-input" type="text"
+                   inputmode="decimal" value="0" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field-label" for="rectAnchorSelect">
+            Klickpunkt ist
+            <select id="rectAnchorSelect" class="grid-select">
+              <option value="center" selected>Mittelpunkt</option>
+              <option value="corner">Ecke</option>
+            </select>
+          </label>
+        </div>
         <button id="finishDrawBtn" type="button" disabled>Zeichnung abschließen</button>
         <button id="undoDrawPointBtn" type="button" disabled>Letzten Punkt entfernen</button>
         <button id="cancelDrawBtn" type="button">Abbrechen</button>
@@ -4220,11 +4235,30 @@ function describeDrawProgress() {
   const mode = featureDrawState.mode;
 
   if (isShapeMode(mode)) {
+    if (!featureDrawState.points.length) {
+      return mode === "circle"
+        ? "Mittelpunkt auf der Karte anklicken."
+        : shapeSettings.anchor === "corner"
+          ? "Ecke auf der Karte anklicken."
+          : "Mittelpunkt auf der Karte anklicken.";
+    }
+
+    /*
+     * Bezugspunkt steht, die Form wartet. Die Maße stehen hier, damit man
+     * sieht, was man gleich erzeugt - und sie stehen zugleich in den
+     * Eingabefeldern, wo sie sich exakt nachtragen lassen.
+     */
+    const problem = readShapeSettings();
+    if (problem) return problem;
+
+    const einheit = scaleUnitLabel();
+
     return mode === "circle"
-      ? "Mittelpunkt auf der Karte anklicken."
-      : shapeSettings.anchor === "corner"
-        ? "Ecke auf der Karte anklicken."
-        : "Mittelpunkt auf der Karte anklicken.";
+      ? `Radius ${formatMeters(shapeSettings.radius, 2)} ${einheit}. ` +
+        `Ziehen ändert ihn, das Feld ebenso.`
+      : `Breite ${formatMeters(shapeSettings.width, 2)} ${einheit}, ` +
+        `Höhe ${formatMeters(shapeSettings.height, 2)} ${einheit}. ` +
+        `Ziehen ändert sie, die Felder ebenso.`;
   }
 
   const points = featureDrawState.points?.length || 0;
@@ -4408,6 +4442,14 @@ function updateInspectorBlocks(state) {
 
   if (state === "drawing") {
     setInspectorText("drawProgress", describeDrawProgress());
+
+    /* Die Maße nur für das Werkzeug, das sie benutzt. */
+    const kreis = document.getElementById("drawCircleFields");
+    const rechteck = document.getElementById("drawRectFields");
+
+    if (kreis) kreis.hidden = featureDrawState.mode !== "circle";
+    if (rechteck) rechteck.hidden = featureDrawState.mode !== "rectangle";
+
     return;
   }
 
@@ -4516,7 +4558,9 @@ function updateInspector() {
     setLocalizedText(
       title,
       isShapeMode(featureDrawState.mode)
-        ? "Bezugspunkt setzen"
+        ? (featureDrawState.points.length
+            ? "Bezugspunkt gesetzt"
+            : "Bezugspunkt setzen")
         : `${points} Punkt${points === 1 ? "" : "e"} gesetzt`
     );
 
@@ -6615,12 +6659,18 @@ function updateFeatureDrawUi() {
   }
 
   if (isShapeMode(featureDrawState.mode)) {
+    const gesetzt = featureDrawState.points.length > 0;
+
     status.innerHTML =
       featureDrawState.mode === "circle"
-        ? `<strong>Kreis:</strong> Mittelpunkt auf der Karte anklicken.`
-        : `<strong>Rechteck:</strong> ${
-            shapeSettings.anchor === "corner" ? "Ecke" : "Mittelpunkt"
-          } auf der Karte anklicken.`;
+        ? (gesetzt
+            ? `<strong>Kreis:</strong> ${describeDrawProgress()}`
+            : `<strong>Kreis:</strong> Mittelpunkt auf der Karte anklicken.`)
+        : (gesetzt
+            ? `<strong>Rechteck:</strong> ${describeDrawProgress()}`
+            : `<strong>Rechteck:</strong> ${
+                shapeSettings.anchor === "corner" ? "Ecke" : "Mittelpunkt"
+              } auf der Karte anklicken.`);
     return;
   }
 
@@ -6883,7 +6933,16 @@ function canFinishFeatureDrawing() {
   const pointCount = featureDrawState.points?.length || 0;
   const basePointCount = featureDrawState.basePointCount || 0;
 
-  if (isShapeMode(mode)) return pointCount === 1;
+  /*
+   * Formen: Bezugspunkt gesetzt UND die Maße brauchbar. Seit die Maßfelder im
+   * Zeichenzustand stehen, kann ein ungültiger Wert erst während des Zeichnens
+   * entstehen - "Radius 0" wäre sonst ein Knopf, der freigibt, was das
+   * Werkzeug anschließend ablehnt.
+   *
+   * readShapeSettings() liefert den Fehlertext und schreibt shapeSettings nur
+   * bei gültigen Werten; der Aufruf ist damit wiederholbar.
+   */
+  if (isShapeMode(mode)) return pointCount === 1 && !readShapeSettings();
 
   if (isOpenLineMode(mode)) {
     return (
@@ -7188,19 +7247,156 @@ function addFeatureDrawPoint(event) {
     north = snapWorldCoordinate(north);
   }
 
+  /*
+   * Formwerkzeuge haben genau EINEN Bezugspunkt. Ein weiterer Klick setzt ihn
+   * deshalb um, statt einen zweiten Punkt anzulegen: "hier einen Punkt setzen"
+   * heißt bei einer Form zwangsläufig "den Punkt hierher". Verworfen oder
+   * erzeugt wird dabei nichts - Erzeugen wäre eine versteckte zweite
+   * Abschlussgeste.
+   *
+   * Die Form entsteht erst beim Abschließen, nicht schon hier. Nur so ist die
+   * numerische Eingabe gleichberechtigt und keine Rückfallebene: nach dem
+   * Aufziehen steht die Vorschau, und die Maße lassen sich exakt nachtragen.
+   */
+  if (isShapeMode(featureDrawState.mode)) {
+    featureDrawState.points = [[east, north]];
+    featureDrawState.pointer = [east, north];
+    featureDrawState.sizing = {
+      pointerId:event.pointerId,
+      startX:event.clientX,
+      startY:event.clientY,
+      moved:false
+    };
+
+    renderFeatureDrawPreview();
+    updateFeatureDrawUi();
+    return true;
+  }
+
   featureDrawState.points.push([east, north]);
   featureDrawState.pointer = [east, north];
 
   renderFeatureDrawPreview();
   updateFeatureDrawUi();
 
+  return true;
+}
+
+
+/**
+ * Ab wie vielen Bildschirmpixeln aus einem Klick ein Aufziehen wird.
+ *
+ * ZWEI Werte, nach Eingabeart. Mit der Maus genügen 4 px: deutlich kleiner
+ * als der Ringfang (DRAW_CLOSE_SNAP_PIXELS, 12), denn dort muss man einen
+ * vorhandenen Punkt TREFFEN, hier geht es nur darum, ein Wackeln der Hand von
+ * einer Absicht zu unterscheiden.
+ *
+ * Ein Finger wackelt mehr. Android nennt in `ViewConfiguration` eine
+ * Touch-Slop von 8 dp - so weit darf ein Finger wandern und gilt dem System
+ * NOCH als Tipper, nicht als Wischen. Mit 4 px läge unsere Schwelle unter der
+ * des Betriebssystems: ein Tipper, den Android noch als Tipper zählt, hätte
+ * bei uns schon den Radius verstellt. 10 px liegt sicher darüber.
+ *
+ * Nachgemessen werden konnte nur die untere Schranke: ein synthetischer
+ * Tipper in Playwright erzeugt exakt 0 px Bewegung und beweist deshalb nur,
+ * dass die Schwelle dort nicht fälschlich auslöst. Echtes Fingerwackeln ist
+ * hier nicht messbar (siehe Abschnitt 4.3); die 10 px stammen aus der
+ * Plattformvorgabe, nicht aus einer eigenen Messung.
+ */
+const SHAPE_DRAG_THRESHOLD_MOUSE = 4;
+const SHAPE_DRAG_THRESHOLD_TOUCH = 10;
+
+function shapeDragThreshold(pointerType) {
+  return pointerType === "mouse"
+    ? SHAPE_DRAG_THRESHOLD_MOUSE
+    : SHAPE_DRAG_THRESHOLD_TOUCH;
+}
+
+
+/**
+ * Schreibt ein aufgezogenes Maß in SEIN EINGABEFELD - und nur dorthin.
+ *
+ * Der Weg ist bewusst einbahnig: Geste → Feld → readShapeSettings() →
+ * shapeSettings → shapePointsAt(). Damit endet das Ziehen an genau derselben
+ * Stelle wie das Tippen, und die numerische Eingabe ist gleichberechtigt
+ * statt Rückfallebene. Auch direkt in shapeSettings zu schreiben wäre ein
+ * zweiter Weg zum selben Wert - und zwei Wege laufen auseinander.
+ *
+ * Gerastet wird das MASS, nicht der gezogene Punkt. Zwei gerasterte Punkte
+ * haben bei diagonalem Ziehen einen krummen Abstand (1,41 statt 1,00); ein
+ * gerastetes Maß ist das, was der Nutzer im Feld liest.
+ */
+function applyShapeMeasure(inputId, value) {
+  const measure = snapWorldCoordinate(value);
+
   /*
-   * Formwerkzeuge brauchen genau einen Punkt - der Bezugspunkt steht damit
-   * fest und die Form ergibt sich aus den Maßen.
+   * Unter einem Rasterschritt bleibt der alte Wert stehen. Eine 0 ins Feld zu
+   * schreiben erzeugte einen ungültigen Zustand: readShapeSettings() lehnte
+   * ihn ab, shapeSettings behielte den alten Wert, und die Vorschau zeigte
+   * etwas anderes als das Feld.
    */
-  if (isShapeMode(featureDrawState.mode)) {
-    finishFeatureDrawing();
+  if (!(measure > 0)) return;
+
+  const input = document.getElementById(inputId);
+  if (input) input.value = formatMeters(measure, 2);
+}
+
+
+/**
+ * Zieht die Form am Bezugspunkt auf.
+ *
+ * Liefert true, wenn das Ereignis verbraucht ist.
+ */
+function updateShapeSizing(event) {
+  const sizing = featureDrawState?.sizing;
+
+  if (!sizing || event.pointerId !== sizing.pointerId) return false;
+
+  const dx = event.clientX - sizing.startX;
+  const dy = event.clientY - sizing.startY;
+
+  /* Unter der Schwelle bleibt es ein Klick - die Feldwerte gelten. */
+  if (
+    !sizing.moved &&
+    Math.hypot(dx, dy) < shapeDragThreshold(event.pointerType)
+  ) {
+    return true;
   }
+
+  sizing.moved = true;
+
+  const anchor = featureDrawState.points[0];
+  const [east, north] = screenToWorld(event.clientX, event.clientY);
+  const deltaEast = east - anchor[0];
+  const deltaNorth = north - anchor[1];
+
+  if (featureDrawState.mode === "circle") {
+    applyShapeMeasure("circleRadiusInput", Math.hypot(deltaEast, deltaNorth));
+  } else {
+    /*
+     * Der Ziehvektor wird in den Rahmen des Rechtecks zurückgedreht, bevor
+     * Breite und Höhe abgelesen werden. Ohne das zöge man bei 30° Drehung
+     * diagonal und bekäme etwas, das nicht zur Bewegung passt. Der Drehwinkel
+     * bleibt dabei aus dem Feld - Größe und Drehung mit einer Geste zu setzen
+     * machte beide unpräzise.
+     */
+    const angle = -(shapeSettings.angle || 0) * Math.PI / 180;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const localEast = deltaEast * cos - deltaNorth * sin;
+    const localNorth = deltaEast * sin + deltaNorth * cos;
+
+    /* Am Mittelpunkt wächst die Form symmetrisch, an der Ecke einseitig. */
+    const factor = shapeSettings.anchor === "corner" ? 1 : 2;
+
+    applyShapeMeasure("rectWidthInput", Math.abs(localEast) * factor);
+    applyShapeMeasure("rectHeightInput", Math.abs(localNorth) * factor);
+  }
+
+  /* Der eine Weg, auf dem die Felder zu shapeSettings werden. */
+  updateCircleHint();
+  renderFeatureDrawPreview();
+  updateFeatureDrawUi();
 
   return true;
 }
@@ -7209,6 +7405,14 @@ function addFeatureDrawPoint(event) {
 /** Freien Vorschaupunkt dem Cursor folgen lassen. */
 function updateFeatureDrawPointer(event) {
   if (!featureDrawState) return false;
+
+  /*
+   * Eine Form mit gesetztem Bezugspunkt wartet auf ihre Bestätigung und darf
+   * dem Zeiger nicht mehr folgen.
+   */
+  if (isShapeMode(featureDrawState.mode) && featureDrawState.points.length) {
+    return false;
+  }
 
   let [east, north] =
     screenToWorld(event.clientX, event.clientY);
@@ -7249,9 +7453,16 @@ function renderFeatureDrawPreview() {
    * Die Punkte kommen aus derselben Funktion wie bei der Erzeugung.
    */
   if (isShapeMode(featureDrawState.mode)) {
-    if (!pointer) return;
+    /*
+     * Solange kein Bezugspunkt gesetzt ist, folgt die Form dem Zeiger - man
+     * sieht vorab, was entstehen wird. Danach steht sie an ihrem Punkt und
+     * wandert nicht mehr mit; sonst wäre die wartende Vorschau nicht von
+     * einer Vorab-Anzeige zu unterscheiden.
+     */
+    const origin = featureDrawState.points[0] || pointer;
+    if (!origin) return;
 
-    const shape = shapePointsAt(featureDrawState.mode, pointer);
+    const shape = shapePointsAt(featureDrawState.mode, origin);
     if (shape.length < 3) return;
 
     const outline =
@@ -7270,8 +7481,8 @@ function renderFeatureDrawPreview() {
     const centreMark =
       document.createElementNS("http://www.w3.org/2000/svg", "circle");
 
-    centreMark.setAttribute("cx", pointer[0]);
-    centreMark.setAttribute("cy", -pointer[1]);
+    centreMark.setAttribute("cx", origin[0]);
+    centreMark.setAttribute("cy", -origin[1]);
     centreMark.setAttribute("r", Math.max(view.w, view.h) / 500);
     centreMark.setAttribute("class", "draw-preview-pointer");
     featureDrawGroup.appendChild(centreMark);
@@ -16580,6 +16791,11 @@ svg.addEventListener("pointermove", event => {
       ? `E: ${pointerEast.toFixed(2)} m   N: ${pointerNorth.toFixed(2)} m`
       : `x: ${pointerEast.toExponential(6)}   y: ${pointerNorth.toExponential(6)}`;
 
+  /* Das Aufziehen einer Form geht allem anderen vor. */
+  if (updateShapeSizing(event)) {
+    return;
+  }
+
   if (updateFeatureDrawPointer(event)) {
     return;
   }
@@ -16662,6 +16878,16 @@ svg.addEventListener("pointermove", event => {
 
 /** Beendet Karten- oder Punkt-Drag. */
 function stopPointerInteraction(event) {
+  /*
+   * Das Aufziehen endet, die Vorschau bleibt stehen. Erzeugt wird erst beim
+   * Abschließen - bis dahin lassen sich die Maße in den Feldern nachtragen.
+   */
+  if (featureDrawState?.sizing?.pointerId === event.pointerId) {
+    featureDrawState.sizing = null;
+    updateFeatureDrawUi();
+    return;
+  }
+
   if (finishAreaSelection(event)) {
     return;
   }
@@ -16874,6 +17100,12 @@ document.getElementById("drawRectangleBtn").addEventListener(
   document.getElementById(id).addEventListener("input", () => {
     updateCircleHint();
     renderFeatureDrawPreview();
+
+    /*
+     * Bei wartender Vorschau ist das Feld gleichberechtigt mit dem Ziehen:
+     * ein getippter Wert ändert dieselbe Form, die gleich entsteht.
+     */
+    updateFeatureDrawUi();
   });
 });
 
@@ -16989,9 +17221,24 @@ document.addEventListener("keydown", event => {
     target instanceof HTMLSelectElement ||
     target?.isContentEditable;
 
-  if (editingText) return;
+  /*
+   * Escape ist die einzige Taste, die AUCH aus einem Eingabefeld heraus
+   * wirkt. Sie ist keine Texteingabe, sondern die durchgehende Abbruchgeste -
+   * und seit die Maßfelder der Formwerkzeuge im Zeichenzustand stehen, ist
+   * "tippen und dann doch abbrechen" der normale Ablauf. Vorher lag der
+   * Cursor beim Zeichnen praktisch nie in einem Feld, deshalb fiel es nicht
+   * auf.
+   *
+   * Der Fokus wird dabei aus dem Feld genommen, damit sichtbar ist, dass die
+   * Taste angekommen ist. Alle übrigen Tasten bleiben von der Sperre
+   * geschützt: Ctrl+Z, Entf und die Pfeiltasten dürfen eine Texteingabe nicht
+   * anfassen.
+   */
+  if (editingText && event.key !== "Escape") return;
 
   if (event.key === "Escape") {
+    if (editingText) target.blur();
+
     if (!helpOverlay.hidden) {
       event.preventDefault();
       closeHelp();

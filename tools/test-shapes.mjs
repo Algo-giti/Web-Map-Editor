@@ -92,6 +92,18 @@ try {
     await page.waitForTimeout(350);
   };
 
+  /*
+   * Seit Etappe 5b setzt ein Klick nur den BEZUGSPUNKT; erzeugt wird beim
+   * Abschliessen. Und die Massfelder stehen im Zeichenzustand des Inspektors,
+   * nicht mehr in der Seitenleiste - sie sind also erst erreichbar, wenn das
+   * Werkzeug laeuft. Beide Aenderungen zusammen ergeben diese Reihenfolge:
+   * Werkzeug starten, Masse setzen, Bezugspunkt klicken, abschliessen.
+   */
+  const finishShape = async () => {
+    await page.locator("#finishDrawBtn").click();
+    await page.waitForTimeout(350);
+  };
+
   /** Wie clickMap, aber als Doppelklick - die Abschlussgeste. */
   const doubleClickMap = async (east, north) => {
     const point = await page.evaluate(([e, n]) => {
@@ -134,6 +146,17 @@ try {
   /* ---------------------------------------------------------------- */
   console.log("Kreis");
 
+  await page.locator("#drawCircleBtn").click();
+  await page.waitForTimeout(250);
+
+  const isActive = (selector) =>
+    page.locator(selector).evaluate((el) => el.classList.contains("active"));
+
+  check("Werkzeug ist aktiv", await isActive("#drawCircleBtn"));
+  check("die Maßfelder stehen im Zeichenzustand",
+    await page.evaluate(() =>
+      getComputedStyle(document.getElementById("drawCircleFields")).display !== "none"));
+
   check("Hinweis nennt die Abweichung",
     (await page.locator("#circleHint").textContent()).includes("Abweichung"),
     await page.locator("#circleHint").textContent());
@@ -142,15 +165,13 @@ try {
   await page.fill("#circleVerticesInput", "24");
   await page.waitForTimeout(200);
 
-  await page.locator("#drawCircleBtn").click();
-  await page.waitForTimeout(250);
-
-  const isActive = (selector) =>
-    page.locator(selector).evaluate((el) => el.classList.contains("active"));
-
-  check("Werkzeug ist aktiv", await isActive("#drawCircleBtn"));
-
   await clickMap(30, 30);
+
+  check("der Klick erzeugt noch nichts",
+    (await page.evaluate(() => data.features.length)) === 2,
+    String(await page.evaluate(() => data.features.length)));
+
+  await finishShape();
 
   check("Erfolgsmeldung nennt die Eckpunkte",
     (await page.locator("#editStatus").textContent()).includes("24 Eckpunkten"),
@@ -193,15 +214,23 @@ try {
   /* ---------------------------------------------------------------- */
   console.log("Rechteck");
 
-  await expand();
+  await page.locator("#drawRectangleBtn").click();
+  await page.waitForTimeout(250);
+
+  check("die Rechteckfelder stehen im Zeichenzustand",
+    await page.evaluate(() =>
+      getComputedStyle(document.getElementById("drawRectFields")).display !== "none"));
+  check("die Kreisfelder dagegen nicht",
+    await page.evaluate(() =>
+      getComputedStyle(document.getElementById("drawCircleFields")).display === "none"));
+
   await page.fill("#rectWidthInput", "6");
   await page.fill("#rectHeightInput", "2");
   await page.fill("#rectAngleInput", "90");
   await page.waitForTimeout(200);
 
-  await page.locator("#drawRectangleBtn").click();
-  await page.waitForTimeout(250);
   await clickMap(40, 40);
+  await finishShape();
 
   const afterRect = await exportMap();
   check("Export gelingt", !!afterRect);
@@ -236,21 +265,222 @@ try {
   /* ---------------------------------------------------------------- */
   console.log("Ungültige Eingaben werden abgelehnt");
 
-  await expand();
+  /*
+   * Seit die Massfelder im Zeichenzustand stehen, entsteht ein ungueltiger
+   * Wert erst WAEHREND des Zeichnens. Geprueft wird deshalb die Wirkung: der
+   * Abschluss ist gesperrt und der Grund steht sichtbar da - nicht bloss,
+   * dass nichts passiert.
+   */
+  await page.locator("#drawCircleBtn").click();
+  await page.waitForTimeout(250);
+  await clickMap(12, 12);
+
+  const vorFehler = await page.evaluate(() => data.features.length);
+
+  check("mit gueltigem Radius ist der Abschluss frei",
+    !(await page.locator("#finishDrawBtn").isDisabled()));
+
   await page.fill("#circleRadiusInput", "0");
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(250);
 
   check("Hinweis meldet den Fehler",
     (await page.locator("#circleHint").getAttribute("class")).includes("error"),
     await page.locator("#circleHint").textContent());
+  check("der Abschluss ist jetzt gesperrt",
+    await page.locator("#finishDrawBtn").isDisabled());
+  check("und der Fortschritt nennt den Grund",
+    (await page.locator("#drawProgress").textContent()).includes("Radius"),
+    await page.locator("#drawProgress").textContent());
+
+  await page.fill("#circleRadiusInput", "1,5");
+  await page.waitForTimeout(250);
+
+  check("ein gueltiger Wert gibt ihn wieder frei",
+    !(await page.locator("#finishDrawBtn").isDisabled()));
+
+  await finishShape();
+
+  check("und dann entsteht die Form wirklich",
+    (await page.evaluate(() => data.features.length)) === vorFehler + 1,
+    `${vorFehler} -> ${await page.evaluate(() => data.features.length)}`);
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Aufziehen");
+
+  await reload();
+
+  /** Bildschirmpunkt zu einer Weltposition. */
+  const screenOf = (east, north) => page.evaluate(([e, n]) => {
+    const svg = document.getElementById("svg");
+    const rect = svg.getBoundingClientRect();
+    const box = svg.viewBox.baseVal;
+    return [
+      rect.left + (e - box.x) / box.width * rect.width,
+      rect.top + (-n - box.y) / box.height * rect.height,
+    ];
+  }, [east, north]);
+
+  /** Zieht von einer Weltposition zur anderen. */
+  const dragMap = async (von, nach, schritte = 8) => {
+    const a = await screenOf(...von);
+    const b = await screenOf(...nach);
+    await page.mouse.move(a[0], a[1]);
+    await page.mouse.down();
+    for (let i = 1; i <= schritte; i++) {
+      await page.mouse.move(
+        a[0] + (b[0] - a[0]) * i / schritte,
+        a[1] + (b[1] - a[1]) * i / schritte);
+    }
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+  };
+
+  const undoLen = () => page.evaluate(() => undoStack.length);
+  const featureCount = () => page.evaluate(() => data.features.length);
 
   await page.locator("#drawCircleBtn").click();
   await page.waitForTimeout(250);
 
-  check("Werkzeug startet nicht", !(await isActive("#drawCircleBtn")));
-  check("Grund wird genannt",
-    (await page.locator("#editStatus").textContent()).includes("Radius"),
-    await page.locator("#editStatus").textContent());
+  const stapelVorher = await undoLen();
+  const featuresVorher = await featureCount();
+
+  /* Unter der Schwelle bleibt es ein Klick: die Feldwerte gelten. */
+  await page.fill("#circleRadiusInput", "1,00");
+  await page.waitForTimeout(150);
+
+  const nah = await screenOf(20, 20);
+  await page.mouse.move(nah[0], nah[1]);
+  await page.mouse.down();
+  await page.mouse.move(nah[0] + 2, nah[1]);
+  await page.mouse.up();
+  await page.waitForTimeout(250);
+
+  check("2 px sind noch ein Klick, der Radius bleibt",
+    (await page.locator("#circleRadiusInput").inputValue()) === "1,00",
+    await page.locator("#circleRadiusInput").inputValue());
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+
+  /* Aufziehen setzt das Mass. */
+  await page.locator("#drawCircleBtn").click();
+  await page.waitForTimeout(200);
+  await dragMap([20, 20], [23, 20]);
+
+  check("Aufziehen schreibt den Radius ins Feld",
+    (await page.locator("#circleRadiusInput").inputValue()) === "3,00",
+    await page.locator("#circleRadiusInput").inputValue());
+  check("erzeugt ist dabei noch nichts",
+    (await featureCount()) === featuresVorher, String(await featureCount()));
+  check("und kein Undo-Eintrag entstanden",
+    (await undoLen()) === stapelVorher,
+    `${await undoLen()} statt ${stapelVorher}`);
+
+  /* Das Feld ist gleichberechtigt: der gezogene Wert laesst sich nachtragen. */
+  await page.fill("#circleRadiusInput", "2,50");
+  await page.waitForTimeout(250);
+
+  /*
+   * DIE zentrale Zusicherung: Vorschau und erzeugte Geometrie kommen aus
+   * derselben Funktion. Verglichen wird Punkt fuer Punkt. Sie faellt sofort
+   * um, wenn jemand spaeter einen zweiten Rechenweg einbaut.
+   */
+  const vorschau = await page.evaluate(() =>
+    document.querySelector(".draw-preview-polygon").getAttribute("d")
+      .replace(/[MLZ]/g, "").trim().split(/\s+/).map(Number));
+
+  await finishShape();
+
+  const erzeugt = await page.evaluate(() => {
+    const f = data.features[data.features.length - 1];
+    return f.geometry.coordinates[0].slice(0, -1)
+      .flatMap(([e, n]) => {
+        const [x, y] = toWorld([e, n]);
+        return [x, -y];
+      });
+  });
+
+  check("Vorschau und erzeugte Geometrie sind Punkt fuer Punkt gleich",
+    vorschau.length === erzeugt.length && vorschau.length > 0 &&
+    vorschau.every((v, i) => Math.abs(v - erzeugt[i]) < 1e-9),
+    `${vorschau.length} gegen ${erzeugt.length}`);
+  check("und genau ein Undo-Schritt ist entstanden",
+    (await undoLen()) === stapelVorher + 1,
+    `${await undoLen()} statt ${stapelVorher + 1}`);
+
+  /* Escape verwirft, ohne etwas zu hinterlassen. */
+  await page.locator("#drawCircleBtn").click();
+  await page.waitForTimeout(200);
+  await dragMap([8, 30], [12, 30]);
+
+  const stapelVorEscape = await undoLen();
+  const featuresVorEscape = await featureCount();
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  check("Escape entfernt die Vorschau",
+    (await page.locator(".draw-preview-polygon").count()) === 0);
+  check("ohne Feature", (await featureCount()) === featuresVorEscape);
+  check("und ohne Undo-Eintrag", (await undoLen()) === stapelVorEscape,
+    `${await undoLen()} statt ${stapelVorEscape}`);
+
+  /*
+   * Escape wirkt AUCH aus einem Massfeld heraus. Seit die Felder im
+   * Zeichenzustand stehen, ist "tippen und dann doch abbrechen" der normale
+   * Ablauf - vorher lag der Cursor beim Zeichnen praktisch nie in einem Feld,
+   * und die Sperre fuer Texteingaben fiel deshalb nicht auf.
+   */
+  await page.locator("#drawCircleBtn").click();
+  await page.waitForTimeout(200);
+  await clickMap(15, 25);
+  await page.locator("#circleRadiusInput").focus();
+  await page.locator("#circleRadiusInput").press("Escape");
+  await page.waitForTimeout(250);
+
+  check("Escape aus dem Massfeld bricht die Zeichnung ab",
+    (await page.evaluate(() => featureDrawState)) === null);
+  check("und nimmt den Fokus aus dem Feld",
+    (await page.evaluate(() => document.activeElement?.id)) !== "circleRadiusInput",
+    await page.evaluate(() => document.activeElement?.id));
+
+  /* Ein zweiter Klick setzt den Bezugspunkt um, statt zu erzeugen. */
+  await page.locator("#drawRectangleBtn").click();
+  await page.waitForTimeout(200);
+  await clickMap(10, 10);
+
+  const ersterAnker = await page.evaluate(() => featureDrawState.points[0]);
+
+  await clickMap(30, 12);
+
+  const zweiterAnker = await page.evaluate(() => featureDrawState.points[0]);
+
+  check("ein weiterer Klick verschiebt den Bezugspunkt",
+    Math.abs(zweiterAnker[0] - ersterAnker[0]) > 10,
+    `${JSON.stringify(ersterAnker)} -> ${JSON.stringify(zweiterAnker)}`);
+  check("es bleibt bei genau einem Punkt",
+    (await page.evaluate(() => featureDrawState.points.length)) === 1);
+  check("und erzeugt wurde weiterhin nichts",
+    (await featureCount()) === featuresVorEscape, String(await featureCount()));
+
+  /* Gedrehtes Rechteck: das Ziehen folgt der eigenen Achse. */
+  await page.fill("#rectAngleInput", "90");
+  await page.fill("#rectHeightInput", "1,00");
+  await page.waitForTimeout(200);
+  await dragMap([20, 20], [20, 26]);
+
+  check("bei 90 Grad wird aus 6 m nach Norden die BREITE",
+    (await page.locator("#rectWidthInput").inputValue()) === "12,00",
+    await page.locator("#rectWidthInput").inputValue());
+  check("und die Hoehe bleibt unberuehrt",
+    (await page.locator("#rectHeightInput").inputValue()) === "1,00",
+    await page.locator("#rectHeightInput").inputValue());
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
 
   /* ---------------------------------------------------------------- */
   console.log("Kontur schließen: erster Punkt und Doppelklick");

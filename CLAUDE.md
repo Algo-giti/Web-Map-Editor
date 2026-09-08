@@ -533,12 +533,16 @@ Exclusions neu nummerieren, Undo muss funktionieren. Der frühere separate
 "Exclusion löschen"-Button im Punkteditor wurde entfernt – nicht ohne
 explizite Anfrage wiederherstellen.
 
-**Kreis- und Rechteck-Exclusions:** Ein Klick setzt den Bezugspunkt, die
-Geometrie folgt aus den eingestellten Maßen. Beide laufen über dieselbe
+**Kreis- und Rechteck-Exclusions:** Ein Klick setzt den Bezugspunkt, Ziehen
+zieht die Form auf, und **erzeugt wird erst beim Abschließen**. Die Geometrie
+folgt aus den eingestellten Maßen. Beide laufen über dieselbe
 Zeichenmechanik wie Exclusion und Search Wire (`SHAPE_MODES`,
 `isShapeMode()`), damit Abbrechen, Escape, Statuszeile und Undo-Grenze
 unverändert gelten. Vorschau und Erzeugung holen die Punkte aus derselben
-Funktion `shapePointsAt()` – sie können nicht auseinanderlaufen.
+Funktion `shapePointsAt()` – sie können nicht auseinanderlaufen. **Der Test
+vergleicht die Vorschau Punkt für Punkt mit der erzeugten Geometrie.** Das ist
+die Zusicherung, die den ganzen Punkt trägt: sie fällt sofort um, wenn jemand
+später einen zweiten Rechenweg einbaut.
 
 Das Ergebnis ist eine **gewöhnliche Exclusion**: derselbe Erzeugungsweg über
 `createExclusionFeatureFromWorldPoints()`, also gleicher Ringschluss, gleiche
@@ -553,6 +557,83 @@ editierbar.
 - **Snap-to-Grid wirkt auf den Bezugspunkt, nicht auf die Eckpunkte.** Das
   ergibt sich von selbst, weil `addFeatureDrawPoint()` den Klick rastet und die
   Form anschließend aus dem gerasteten Punkt berechnet wird.
+
+**Aufziehen und Eingeben sind gleichberechtigt.** Die numerische Eingabe ist
+keine Rückfallebene: für bekannte Maße ist sie genauer als jede Geste, und bei
+einer Sperrfläche um einen Baumstamm ist „grob setzen, Zahl eintippen" der
+wahrscheinlichere Weg. Daraus folgt der ganze Ablauf:
+
+| Schritt | Verhalten |
+|---|---|
+| `pointerdown` | Bezugspunkt setzen (gerastet), Ziehzustand starten |
+| `pointermove` | Maß aus dem Ziehvektor → **ins Eingabefeld** → Vorschau |
+| `pointerup` | Ziehen endet, **die Vorschau bleibt stehen** |
+| Feld tippen | ändert dieselbe wartende Form |
+| Abschließen / Enter | jetzt erst entsteht die Exclusion |
+| Escape | verwirft, ohne Spur |
+
+**Der Weg ist einbahnig: Geste → Feld → `readShapeSettings()` →
+`shapeSettings` → `shapePointsAt()`.** `applyShapeMeasure()` schreibt deshalb
+**nur** ins Eingabefeld und nicht zusätzlich in `shapeSettings` – das wäre ein
+zweiter Weg zum selben Wert. So endet das Ziehen an genau derselben Stelle wie
+das Tippen.
+
+**Gerastet wird das MASS, nicht der gezogene Punkt.** Zwei gerasterte Punkte
+haben bei diagonalem Ziehen einen krummen Abstand (1,41 statt 1,00); ein
+gerastetes Maß ist das, was der Nutzer im Feld liest. Bleibt das Maß unter
+einem Rasterschritt, wird gar nichts geschrieben – eine 0 im Feld erzeugte
+einen ungültigen Zustand, in dem die Vorschau etwas anderes zeigt als das Feld.
+
+**Die Maßfelder stehen im Zeichenzustand des Inspektors**, nicht mehr in der
+Seitenleiste. Ein Feld, das man erst in einem eingeklappten
+Seitenleistenabschnitt suchen muss, ist schlechter als eine Rückfallebene.
+Verschoben, nicht kopiert; die ids sind unverändert. Sie sind damit erst
+erreichbar, wenn das Werkzeug läuft – die Reihenfolge ist also: Werkzeug
+starten, Maße setzen, Bezugspunkt klicken, abschließen.
+
+**Ein weiterer Klick verschiebt den Bezugspunkt.** Er verwirft nicht und
+erzeugt nicht. Das ist keine Sonderregel, sondern die vorhandene: ein Klick
+heißt „setz hier einen Punkt", und eine Form hat genau **einen** – „einen
+Punkt setzen, wo schon einer ist" heißt dort zwangsläufig „den Punkt
+verschieben". Erzeugen wäre eine versteckte zweite Abschlussgeste.
+
+**Ungültige Maße sperren den Abschluss.** Seit die Felder im Zeichenzustand
+stehen, kann ein ungültiger Wert erst *während* des Zeichnens entstehen;
+`canFinishFeatureDrawing()` prüft deshalb bei Formen zusätzlich
+`readShapeSettings()`. Ohne das gäbe ein Knopf frei, was das Werkzeug
+anschließend ablehnt – derselbe Fehler wie bei der Search-Wire-Zählung.
+
+**Der Drehwinkel bleibt aus dem Feld, aber das Ziehen folgt der eigenen
+Achse.** Größe und Drehung mit einer Geste zu setzen machte beide unpräzise.
+Der Ziehvektor wird deshalb um −Winkel zurückgedreht, bevor Breite und Höhe
+abgelesen werden; `rectanglePolygonPoints()` bleibt unverändert. Bei 90° wird
+aus „6 m nach Norden gezogen" die **Breite**, nicht die Höhe.
+
+**Schwelle Klick gegen Ziehen: 4 px mit der Maus, 10 px mit dem Finger.**
+Android nennt in `ViewConfiguration` eine Touch-Slop von 8 dp – so weit darf
+ein Finger wandern und gilt dem System noch als Tipper. Mit 4 px läge unsere
+Schwelle unter der des Betriebssystems: ein Tipper, den Android noch als
+Tipper zählt, hätte bei uns schon den Radius verstellt.
+
+**Nachgemessen wurde nur die untere Schranke.** Ein synthetischer Tipper in
+Playwright erzeugt exakt 0 px Bewegung; er beweist damit nur, dass die
+Schwelle dort nicht fälschlich auslöst. Echtes Fingerwackeln ist hier nicht
+messbar (Abschnitt 4.3) – die 10 px stammen aus der Plattformvorgabe, nicht
+aus einer eigenen Messung. **Beim nächsten echten Android-Test bitte prüfen.**
+
+**Escape wirkt auch aus einem Eingabefeld heraus** – als einzige Taste. Der
+Tastaturhandler ignoriert sonst alles, was aus einem Feld kommt, damit Ctrl+Z,
+Entf und die Pfeiltasten eine Texteingabe nicht anfassen. Escape ist aber
+keine Texteingabe, sondern die durchgehende Abbruchgeste, und seit die
+Maßfelder im Zeichenzustand stehen, ist „tippen und dann doch abbrechen" der
+normale Ablauf. Vorher lag der Cursor beim Zeichnen praktisch nie in einem
+Feld, deshalb war die Lücke nicht zu sehen. Der Fokus wird dabei aus dem Feld
+genommen, damit sichtbar ist, dass die Taste angekommen ist.
+
+**Bis zum Abschluss steht nichts in `data`.** Escape hinterlässt deshalb
+keinen Undo-Eintrag, und ein abgeschlossenes Aufziehen ist **genau ein**
+Undo-Schritt, unabhängig davon, wie oft die Vorschau während des Ziehens lief.
+Nachgemessen an `undoStack.length`.
 - Winkelkonvention wie beim Messen: 0° = East, gegen den Uhrzeigersinn.
 - Der Klickpunkt des Rechtecks ist wahlweise Mittelpunkt oder Ecke.
 

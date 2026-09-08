@@ -487,7 +487,21 @@ try {
   await clickMap(30, 30);
   await page.waitForTimeout(400);
 
-  check("ein Klick erzeugt die Kreis-Exclusion",
+  /*
+   * Seit Etappe 5b setzt der Klick nur den Bezugspunkt - erzeugt wird beim
+   * Abschliessen. So bleiben die Masse bis dahin veraenderbar.
+   */
+  check("der Klick setzt den Bezugspunkt, erzeugt aber noch nichts",
+    (await page.evaluate(() =>
+      document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length))
+      === vorKreis &&
+    (await head()).titel === "Bezugspunkt gesetzt",
+    (await head()).titel);
+
+  await page.locator("#finishDrawBtn").click();
+  await page.waitForTimeout(400);
+
+  check("das Abschliessen erzeugt die Kreis-Exclusion",
     (await page.evaluate(() =>
       document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length))
       > vorKreis + 10,
