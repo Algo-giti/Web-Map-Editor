@@ -638,11 +638,28 @@ Editors lagen in einklappbaren Bereichen, und genau daran waren zweimal
 Meldungen unsichtbar geworden. Gegliedert wird nach **Beständigkeit**, nicht
 nach Herkunft:
 
-| Zone | Inhalt | Verhalten |
-|---|---|---|
-| links, feste Plätze | Dateiname, Maßstab, Bezugspunkt, Prüfergebnis | ändert sich selten, immer da |
-| Mitte, ein Platz | `editStatus`, `drawFeatureStatus`, `multiSelectionStatus` | genau eine davon sichtbar |
-| rechts außen | Auswahlzähler, Cursor-Koordinaten | ändert sich ständig, fester Ort |
+**Zwei Zeilen.** Zeile 1 trägt die dauerhaften Angaben links und die beiden
+ständig wechselnden rechts; Zeile 2 gehört über die volle Breite der flüchtigen
+Meldung:
+
+| Zeile | Zone | Inhalt | Verhalten |
+|---|---|---|---|
+| 1 | links, feste Plätze | Dateiname, Maßstab, Bezugspunkt, Prüfergebnis | ändert sich selten, immer da |
+| 1 | rechts außen | Auswahlzähler, Cursor-Koordinaten | ändert sich ständig, fester Ort |
+| 2 | volle Breite | `editStatus`, `drawFeatureStatus`, `multiSelectionStatus` | genau eine davon sichtbar |
+
+**Zeile 2 bleibt immer bestehen, auch ohne Meldung.** Eine Zeile, die je nach
+Meldungslänge auftaucht und verschwindet, ließe die Karte springen – das wäre
+schlimmer als die 28 px, die sie dauerhaft kostet.
+
+Vorher lag die Meldung als fünfte Spalte zwischen den dauerhaften Feldern und
+dem Zähler. Dort blieb ihr auf einem 1280 px breiten Fenster kaum Platz: die
+längste Meldung des Editors hat 114 Zeichen, 27 liegen über 60. Sie wurde
+abgeschnitten, ohne dass man es dem Text ansah.
+
+**Zähler und Koordinaten stehen fest in den letzten beiden Spalten.** Ohne die
+Festlegung rutschte der Zähler in die Dehnspalte und klebte an den dauerhaften
+Feldern, sobald die Meldung in Zeile 2 umzog.
 
 **Die vier linken Angaben sind Kurzformen, und das ist wörtlich gemeint.** Wird
 eine länger als eine Zeile, ist es keine Kurzform mehr – der ausführliche Text
@@ -689,15 +706,18 @@ Zeile gar nicht zu haben. Deshalb weicht immer das Nachschlagbare zuerst.
 hier, damit ihn niemand noch einmal nachrechnet und das Ergebnis für einen
 Fehler des Umbaus hält. Gemessen, nicht geschätzt:
 
-| Fenster | vor dem Umbau | Etappe 3b, Leiste offen | Etappe 3b, Leiste zu |
+| Fenster | vor dem Umbau | Leiste offen | Leiste eingeklappt |
 |---|---|---|---|
-| 1920 × 1080 | 1 485 120 px² | 1 347 456 px² (−9,3 %) | 1 455 872 px² (−2,0 %) |
-| 1440 × 900 | 833 760 px² | 718 656 px² (−13,8 %) | 806 912 px² (−3,2 %) |
-| 1280 × 800 | 618 240 px² | 517 376 px² (−16,3 %) | 594 432 px² (−3,9 %) |
+| 1920 × 1080 | 1 485 120 px² | 1 307 088 px² (−12,0 %) | 1 412 256 px² (−4,9 %) |
+| 1440 × 900 | 833 760 px² | 692 208 px² (−17,0 %) | 777 216 px² (−6,8 %) |
+| 1280 × 800 | 618 240 px² | 495 568 px² (−19,8 %) | 569 376 px² (−7,9 %) |
 
-Die Kartenfläche kostet: 64 px Höhe für Legende und Statuszeile, 168 px Breite
-für die ausgeklappte Werkzeugleiste. Zurückgeholt wurden 16 px Höhe (Kopfzeile
-von 64 auf 48) und 112 px Breite (Leiste einklappbar). Was der Umbau
+Die Kartenfläche kostet: **93 px Höhe** für Legende (30) und die zweizeilige
+Statuszeile (63), 168 px Breite für die ausgeklappte Werkzeugleiste.
+Zurückgeholt wurden 16 px Höhe (Kopfzeile von 64 auf 48) und 112 px Breite
+(Leiste einklappbar). Die zweite Statuszeile hat den eingeklappten Fall von
+−2,0 % auf −4,9 % verschoben – bewusst, weil eine abgeschnittene Meldung
+teurer ist als 28 px. Was der Umbau
 tatsächlich gewinnt, ist **Überdeckung**: die schwebenden Fenster auf der Karte
 sind von 25 950 px² auf 21 870 px² geschrumpft, und was übrig ist, verschwindet
 mit Etappe 5 weitgehend.

@@ -271,6 +271,81 @@ try {
     (await text("scaleStatus")).includes("angenommen"), await text("scaleStatus"));
 
   /* ---------------------------------------------------------------- */
+  console.log("Zwei Zeilen");
+
+  const geometry = () =>
+    page.evaluate(() => {
+      const r = (s) => document.querySelector(s).getBoundingClientRect();
+      const bar = r("#statusBar");
+      const zeile2 = r(".status-transient");
+      const zaehler = r("#multiSelectionInfo");
+      const feld = r(".status-field");
+      const stil = getComputedStyle(document.getElementById("editStatus"));
+      return {
+        barBreite: Math.round(bar.width),
+        barHoehe: Math.round(bar.height),
+        barLinks: Math.round(bar.left),
+        zeile2Breite: Math.round(zeile2.width),
+        zeile2Oben: Math.round(zeile2.top),
+        zaehlerOben: Math.round(zaehler.top),
+        zaehlerRechts: Math.round(zaehler.right),
+        feldOben: Math.round(feld.top),
+        minHeight: stil.minHeight,
+        maxWidth: stil.maxWidth,
+        unten: Math.round(document.getElementById("editStatus").getBoundingClientRect().bottom),
+        barUnten: Math.round(bar.bottom),
+      };
+    });
+
+  const g = await geometry();
+
+  check("die Meldung steht in einer eigenen Zeile",
+    g.zeile2Oben > g.feldOben, JSON.stringify(g));
+  check("die dauerhaften Felder und der Zähler teilen sich Zeile 1",
+    g.zaehlerOben === g.feldOben, JSON.stringify(g));
+  check("Zeile 2 nimmt die volle Breite",
+    g.zeile2Breite >= g.barBreite - 32, JSON.stringify(g));
+  check("der Zähler steht rechts, nicht neben den Feldern",
+    g.zaehlerRechts > g.barLinks + g.barBreite * 0.6, JSON.stringify(g));
+
+  /*
+   * Wächter gegen einen Fehler aus Etappe 1: die drei Elemente kommen aus der
+   * Seitenleiste und waren dort eigenständige Panels. min-height:34px und
+   * max-width:260px blieben beim Umzug stehen - der Text klebte am oberen Rand
+   * einer zu hohen Box, ragte einen Pixel unter die Leiste und die
+   * Auswahlmeldung wurde bei 260 px abgeschnitten, unabhängig vom Platz.
+   */
+  check("die Panel-Mindesthöhe ist zurückgenommen",
+    g.minHeight === "0px", g.minHeight);
+  check("die Panel-Maximalbreite ist zurückgenommen",
+    g.maxWidth === "none", g.maxWidth);
+  check("nichts ragt unter die Leiste",
+    g.unten <= g.barUnten, JSON.stringify(g));
+
+  /* Eine lange Meldung darf nicht mehr abgeschnitten werden. */
+  await page.evaluate(() =>
+    setEditStatus("Karte A und B wurden verbunden. Der neue Perimeter ist geschlossen; " +
+      "Karte B wurde aus dem Arbeitsbereich entfernt."));
+  await page.waitForTimeout(200);
+
+  const lang = await page.evaluate(() => {
+    const el = document.getElementById("editStatus");
+    return { sichtbar: Math.round(el.clientWidth), noetig: Math.round(el.scrollWidth) };
+  });
+
+  check("eine 114 Zeichen lange Meldung passt vollständig",
+    lang.noetig <= lang.sichtbar, JSON.stringify(lang));
+
+  /* Die Zeile bleibt auch ohne Meldung bestehen - sonst springt die Karte. */
+  await page.evaluate(() => setEditStatus(""));
+  await page.waitForTimeout(200);
+
+  const leer = await geometry();
+
+  check("ohne Meldung bleibt die Zeile stehen",
+    leer.barHoehe === g.barHoehe, `${leer.barHoehe} statt ${g.barHoehe}`);
+
+  /* ---------------------------------------------------------------- */
   console.log("Legende");
 
   const legend = page.locator("#mapLegend");
