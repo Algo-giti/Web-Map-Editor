@@ -219,6 +219,80 @@ try {
   await page.waitForTimeout(250);
 
   /* ---------------------------------------------------------------- */
+  console.log("Mauszeiger zeigt das Werkzeug");
+
+  await page.goto(indexUrl(), { waitUntil: "load" });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "load" });
+  await page.locator("#fileInput").setInputFiles({
+    name: "cursor.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(MAP),
+  });
+  await page.waitForTimeout(400);
+
+  const cursorOf = (selector) =>
+    page.evaluate((s) => getComputedStyle(document.querySelector(s)).cursor, selector);
+
+  check("Zeiger: die Karte lässt sich greifen",
+    (await cursorOf("#svg")) === "grab", await cursorOf("#svg"));
+
+  await page.locator('[data-selection-tool="lasso"]').click();
+  await page.waitForTimeout(200);
+  check("Lasso: Fadenkreuz", (await cursorOf("#svg")) === "crosshair",
+    await cursorOf("#svg"));
+
+  await page.locator('[data-selection-tool="pointer"]').click();
+  await page.waitForTimeout(200);
+
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(250);
+  check("Zeichnen: Fadenkreuz", (await cursorOf("#svg")) === "crosshair",
+    await cursorOf("#svg"));
+
+  /* Auch über einem Punktmarker - das Werkzeug schlägt den Marker. */
+  check("beim Zeichnen auch über einem Punkt",
+    (await cursorOf('#vertexGroup circle[data-layer="perimeter"]')) === "crosshair",
+    await cursorOf('#vertexGroup circle[data-layer="perimeter"]'));
+
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(250);
+
+  check("ohne Werkzeug zeigt der Punkt Verschieben an",
+    (await cursorOf('#vertexGroup circle[data-layer="perimeter"]')) === "move",
+    await cursorOf('#vertexGroup circle[data-layer="perimeter"]'));
+
+  await page.locator("#measureBtn").click();
+  await page.waitForTimeout(250);
+  check("Messen: Fadenkreuz", (await cursorOf("#svg")) === "crosshair",
+    await cursorOf("#svg"));
+  await page.locator("#measureBtn").click();
+  await page.waitForTimeout(250);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Aktive Markierung überlebt die Sperre");
+
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(250);
+
+  const marked = await page.evaluate(() => {
+    const b = document.getElementById("drawExclusionBtn");
+    return {
+      aktiv: b.classList.contains("active"),
+      gesperrt: b.getAttribute("aria-disabled") === "true",
+      deckkraft: getComputedStyle(b).opacity,
+    };
+  });
+
+  check("das laufende Werkzeug ist aktiv und gesperrt zugleich",
+    marked.aktiv && marked.gesperrt, JSON.stringify(marked));
+  check("und behält seine volle Deckkraft",
+    Number(marked.deckkraft) === 1, JSON.stringify(marked));
+
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(250);
+
+  /* ---------------------------------------------------------------- */
   console.log("Drei Breitenstufen");
 
   const measure = async (width) => {

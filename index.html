@@ -507,12 +507,30 @@
     height:100%;
     overflow:hidden;
     touch-action:none;
-    cursor:grab;
+    /*
+     * Der Zeiger zeigt das aktive Werkzeug an. Vorher stand hier fest
+     * cursor:grab - die Karte sah also immer nach "schieben" aus, auch
+     * mitten im Zeichnen. Gesetzt wird data-cursor in updateMapCursor().
+     */
+    cursor:default;
     shape-rendering:geometricPrecision;
   }
+  svg[data-cursor="pan"] { cursor:grab; }
+  svg[data-cursor="crosshair"] { cursor:crosshair; }
   svg.dragging { cursor:grabbing; }
+
+  /*
+   * Punktmarker gibt es nur für die vier unterstützten Typen - fremde
+   * Features haben keine. Der Verschiebe-Zeiger erscheint damit von selbst
+   * nur dort, wo sich auch wirklich etwas ziehen lässt.
+   */
+  #vertexGroup circle { cursor:move; }
   .feature { vector-effect:non-scaling-stroke; stroke-linejoin:round; stroke-linecap:round; }
   .feature.feature-movable { cursor:move; }
+
+  /* Beim Zeichnen und Messen gewinnt das Fadenkreuz über alles darunter. */
+  svg[data-cursor="crosshair"] #vertexGroup circle,
+  svg[data-cursor="crosshair"] .feature.feature-movable { cursor:crosshair; }
   .feature.feature-selected {
     filter:drop-shadow(0 0 4px rgba(255,209,102,.52));
   }
@@ -1376,8 +1394,14 @@
   .tool-button:hover:not(:disabled) {
     background:rgba(97,216,255,.08); border-color:var(--line);
   }
-  .tool-button:disabled,
-  .tool-button.is-unavailable { opacity:.4; }
+  /*
+   * Gedämpft wird nur, was NICHT aktiv ist. Ein laufendes Werkzeug ist
+   * gleichzeitig aktiv und gesperrt - man soll es nicht neu starten können -,
+   * und die Dämpfung fraß seine Hervorhebung auf 40 %. Deshalb wirkte "Rahmen"
+   * kräftig und ein laufendes Zeichenwerkzeug blass.
+   */
+  .tool-button:disabled:not(.active),
+  .tool-button.is-unavailable:not(.active) { opacity:.4; }
   .tool-button:disabled { cursor:default; }
   .tool-button.active {
     background:rgba(97,216,255,.16); border-color:rgba(97,216,255,.45);
@@ -1849,7 +1873,12 @@
   }
   button.danger { border-color:rgba(255,107,107,.6); color:#ffd0d0; }
   button.danger:hover { border-color:var(--red); }
-  button:disabled { opacity:.45; cursor:not-allowed; }
+  /*
+   * Dieselbe Regel wie in der Werkzeugleiste: "Search Wire verlängern" und
+   * "Docking-Pfad verlängern" sind während des Verlängerns aktiv UND gesperrt.
+   */
+  button:disabled:not(.active) { opacity:.45; }
+  button:disabled { cursor:not-allowed; }
   .edit-status {
     min-height:34px; padding:8px 9px; border:1px solid var(--line); border-radius:8px;
     background:rgba(23,34,53,.55); color:var(--muted); font-size:12px; line-height:1.35;
@@ -2849,8 +2878,8 @@
         <button id="measureBtn" class="tool-button" type="button"
                 title="Distanz messen: zwei Positionen auf der Karte wählen. Verändert die Karte nicht.">
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M3 14l11-11 7 7-11 11z"></path>
-            <path d="M7 10l2 2M10 7l2 2M13 13l2 2"></path>
+            <rect x="2" y="8" width="20" height="8" rx="1"></rect>
+            <path d="M6 8v3M10 8v5M14 8v3M18 8v5"></path>
           </svg>
           <span class="tool-label">Messen</span>
         </button>
@@ -3411,6 +3440,29 @@ function createWorkspaceSnapshot(label = "Änderung") {
      */
     referenceOrigin:{lat:referenceOrigin.lat, lon:referenceOrigin.lon}
   };
+}
+
+
+/**
+ * Setzt den Mauszeiger der Karte auf das aktive Werkzeug.
+ *
+ * Ein Fadenkreuz für alles, was auf die Karte zielt: Rahmen, Lasso, jedes
+ * Zeichenwerkzeug, Messen. Sonst die Greifhand, denn mit dem Zeiger lässt sich
+ * die Karte überall schieben.
+ *
+ * Bewusst KEIN "not-allowed" über nicht bearbeitbaren Features: die haben seit
+ * Etappe 1a weder Marker noch Trefferfläche, man kann sie nur ansehen. Ein
+ * Verbotszeichen würde einen Fehlerzustand behaupten, wo keiner ist.
+ */
+function updateMapCursor() {
+  if (!svg) return;
+
+  const aiming =
+    !!featureDrawState ||
+    measurementState.active ||
+    selectionTool !== "pointer";
+
+  svg.dataset.cursor = aiming ? "crosshair" : "pan";
 }
 
 
@@ -4004,6 +4056,8 @@ function updateMeasurementUi() {
       measurementState.active ? "Messung läuft…" : "Messen"
     );
   }
+
+  updateMapCursor();
 
   clearButton.disabled = measurementState.points.length === 0;
 
@@ -5163,6 +5217,8 @@ function updateFeatureDrawUi() {
    * Der Zeichenstatus meldet sich als ABGELEITET an: er darf eine gerade
    * erschienene Einmalmeldung nicht verdrängen. Siehe showTransientStatus().
    */
+  updateMapCursor();
+
   showTransientStatus("drawFeatureStatus", {derived:true, force:!!featureDrawState});
 
   if (!loaded) {
@@ -5734,8 +5790,37 @@ function deleteDockFeature() {
 
 
 /** Einen Punkt in die laufende Zeichnung übernehmen. */
+/**
+ * Fangabstand zum ersten Punkt, in Bildschirmpixeln.
+ *
+ * 12 px entsprechen dem Radius eines Punktmarkers plus etwas Rand: mit Maus
+ * wie mit dem Finger treffbar, ohne benachbarte Punkte einzufangen. In Pixeln
+ * statt in Metern, damit der Wert über jede Zoomstufe gleich bleibt.
+ */
+const DRAW_CLOSE_SNAP_PIXELS = 12;
+
 function addFeatureDrawPoint(event) {
   if (!featureDrawState) return false;
+
+  /*
+   * Klick auf den ersten Punkt schliesst den Ring - aber nur bei der
+   * Exclusion. Search Wire und Docking-Pfad sind offene Linien; dort wäre ein
+   * geschlossener Ring schlicht falsch, und ein Treffer auf den ersten Punkt
+   * setzt deshalb bewusst einfach einen weiteren Punkt. Das ist keine
+   * Auslassung, sondern die richtige Bedeutung für eine offene Linie.
+   */
+  if (
+    featureDrawState.mode === "exclusion" &&
+    featureDrawState.points.length >= 3
+  ) {
+    const [firstX, firstY] = worldToScreen(...featureDrawState.points[0]);
+    const distance = Math.hypot(event.clientX - firstX, event.clientY - firstY);
+
+    if (distance <= DRAW_CLOSE_SNAP_PIXELS) {
+      finishFeatureDrawing();
+      return true;
+    }
+  }
 
   let [east, north] =
     screenToWorld(event.clientX, event.clientY);
@@ -6256,6 +6341,8 @@ function updateMultiSelectionUi(options = {}) {
 
   updateReduceUi();
   updateRectifyUi();
+
+  updateMapCursor();
 
   document.querySelectorAll("[data-selection-tool]").forEach(button => {
     button.classList.toggle(
@@ -8527,6 +8614,23 @@ function screenToWorld(clientX, clientY) {
   const svgY = -(view.y + view.h) + sy * view.h;
 
   return [x, -svgY];
+}
+
+
+/**
+ * Umkehrung von screenToWorld(): Weltkoordinate zu Bildschirmpunkt.
+ *
+ * Gebraucht für Fangabstände, die in BILDSCHIRMPIXELN gelten müssen und nicht
+ * in Metern: ein Fangradius in Metern wäre beim Hineinzoomen unbedienbar groß
+ * und beim Herauszoomen nicht mehr zu treffen.
+ */
+function worldToScreen(east, north) {
+  const rect = svg.getBoundingClientRect();
+
+  const sx = (east - view.x) / view.w;
+  const sy = (view.y + view.h - north) / view.h;
+
+  return [rect.left + sx * rect.width, rect.top + sy * rect.height];
 }
 
 
@@ -15181,7 +15285,35 @@ svg.addEventListener("pointercancel", event => {
 });
 
 /* Doppelklick passt die gesamte Karte ein. */
-svg.addEventListener("dblclick", fit);
+/*
+ * Doppelklick: während einer Zeichnung schliesst er ab, sonst passt er die
+ * Ansicht ein. Der zweite Klick der Geste setzt keinen Punkt mehr - siehe
+ * addFeatureDrawPoint().
+ */
+svg.addEventListener("dblclick", () => {
+  if (!featureDrawState) {
+    fit();
+    return;
+  }
+
+  /*
+   * Der zweite Klick der Geste hat bereits einen Punkt gesetzt - er wird hier
+   * wieder entfernt, damit der Abschluss keinen zusätzlichen Punkt auf dem
+   * letzten hinterlässt.
+   *
+   * Ihn schon beim Klicken zu unterdrücken funktioniert nicht: Punkte
+   * entstehen auf pointerdown, und PointerEvent.detail ist in Chrome 0 - eine
+   * Abfrage auf detail >= 2 greift dort nie. Nachgemessen, nicht vermutet.
+   *
+   * Nur ein NEUER Punkt darf weg; beim Verlängern bleiben die vorhandenen
+   * unangetastet.
+   */
+  if (featureDrawState.points.length > (featureDrawState.basePointCount || 0)) {
+    featureDrawState.points.pop();
+  }
+
+  finishFeatureDrawing();
+});
 
 
 /* Kopfzeilen-Buttons. */

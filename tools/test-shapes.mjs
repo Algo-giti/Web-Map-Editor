@@ -92,6 +92,31 @@ try {
     await page.waitForTimeout(350);
   };
 
+  /** Wie clickMap, aber als Doppelklick - die Abschlussgeste. */
+  const doubleClickMap = async (east, north) => {
+    const point = await page.evaluate(([e, n]) => {
+      const svg = document.getElementById("svg");
+      const rect = svg.getBoundingClientRect();
+      const box = svg.viewBox.baseVal;
+      return [
+        rect.left + (e - box.x) / box.width * rect.width,
+        rect.top + (-n - box.y) / box.height * rect.height,
+      ];
+    }, [east, north]);
+    await page.mouse.dblclick(point[0], point[1]);
+    await page.waitForTimeout(350);
+  };
+
+  /** Lädt die Ausgangskarte erneut in Slot A. */
+  const reload = async () => {
+    await page.locator("#fileInput").setInputFiles({
+      name: "shapes.geojson", mimeType: "application/geo+json",
+      buffer: Buffer.from(baseMap),
+    });
+    await page.waitForTimeout(450);
+    await expand();
+  };
+
   const exportMap = async () => {
     const pending = page.waitForEvent("download", { timeout: 5000 }).catch(() => null);
     await page.locator("#exportBtn").click();
@@ -226,6 +251,85 @@ try {
   check("Grund wird genannt",
     (await page.locator("#editStatus").textContent()).includes("Radius"),
     await page.locator("#editStatus").textContent());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Kontur schließen: erster Punkt und Doppelklick");
+
+  await reload();
+
+  const exclusionRings = () =>
+    page.locator('#geometryGroup .exclusion').count();
+
+  const before = await exclusionRings();
+  const baseMarks = await page.evaluate(() =>
+    document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length);
+
+  /* Klick auf den ersten Punkt schliesst den Ring. */
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(200);
+
+  await clickMap(6, 6);
+  await clickMap(14, 6);
+  await clickMap(14, 14);
+  await clickMap(6, 6);
+  await page.waitForTimeout(350);
+
+  check("der Klick auf den ersten Punkt schließt die Kontur",
+    (await exclusionRings()) === before + 1,
+    `${await exclusionRings()} statt ${before + 1}`);
+  check("die Zeichnung ist beendet",
+    await page.locator("#cancelDrawBtn").isDisabled());
+
+  /* Gezählt wird gegen den Bestand der Ausgangskarte, nicht absolut. */
+  const marksOf = () =>
+    page.evaluate(() =>
+      document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length);
+
+  check("der Schließklick setzt keinen vierten Punkt",
+    (await marksOf()) === baseMarks + 3, `${await marksOf()} statt ${baseMarks + 3}`);
+
+  await page.locator("#undoBtn").click();
+  await page.waitForTimeout(300);
+
+  /* Doppelklick beendet ebenfalls - ohne zusätzlichen Punkt. */
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(200);
+
+  await clickMap(20, 20);
+  await clickMap(28, 20);
+  await doubleClickMap(28, 28);
+  await page.waitForTimeout(350);
+
+  check("der Doppelklick beendet die Zeichnung",
+    await page.locator("#cancelDrawBtn").isDisabled());
+  check("er erzeugt genau drei Punkte, nicht vier",
+    (await marksOf()) === baseMarks + 3, `${await marksOf()} statt ${baseMarks + 3}`);
+
+  await page.locator("#undoBtn").click();
+  await page.waitForTimeout(300);
+
+  /*
+   * Offene Linien schliessen NICHT: ein Treffer auf den ersten Punkt setzt
+   * dort bewusst einen weiteren Punkt. Ein geschlossener Ring wäre für eine
+   * Search Wire schlicht falsch.
+   */
+  await page.locator("#drawSearchWireBtn").click();
+  await page.waitForTimeout(200);
+
+  await clickMap(6, 30);
+  await clickMap(14, 30);
+  await clickMap(14, 34);
+  await clickMap(6, 30);
+  await page.waitForTimeout(300);
+
+  check("die Search Wire läuft nach dem Treffer weiter",
+    await page.locator("#cancelDrawBtn").isEnabled());
+  check("und hat einen vierten Punkt bekommen",
+    (await page.locator("#drawFeatureStatus").textContent()).includes("4 Punkt"),
+    await page.locator("#drawFeatureStatus").textContent());
+
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(250);
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

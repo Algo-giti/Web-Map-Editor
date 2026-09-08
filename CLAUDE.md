@@ -775,6 +775,48 @@ wurde sie, als Etappe 3 den Startknopf in die Leiste holte und den Abschluss in
 der Seitenleiste zurückließ. **Keine Modus-Aufzählung mehr einführen** – sie
 kann einen künftigen Modus wieder vergessen.
 
+**Eine Zeichnung endet auf drei Wegen**, und alle drei laufen über
+`finishFeatureDrawing()`:
+
+- **Enter** – jederzeit, ohne Modus-Aufzählung.
+- **Doppelklick auf die Karte** – sonst passt der Doppelklick die Ansicht ein.
+  Der zweite Klick der Geste hat da schon einen Punkt gesetzt; er wird im
+  `dblclick`-Handler wieder entfernt. **Ihn beim Klicken zu unterdrücken
+  funktioniert nicht:** Punkte entstehen auf `pointerdown`, und
+  `PointerEvent.detail` ist in Chrome 0 – eine Abfrage auf `detail >= 2` greift
+  dort nie. Nachgemessen, nicht vermutet. Beim Verlängern bleibt der Bestand
+  unangetastet.
+- **Klick auf den ersten Punkt** – **nur bei der Exclusion**, und erst ab drei
+  Punkten. Search Wire und Docking-Pfad sind offene Linien; dort wäre ein
+  geschlossener Ring falsch, und ein Treffer auf den ersten Punkt setzt
+  bewusst einfach einen weiteren Punkt. Das ist eine Entscheidung, keine
+  Auslassung.
+
+  Der Fangabstand `DRAW_CLOSE_SNAP_PIXELS` (12) gilt in **Bildschirmpixeln**,
+  nicht in Metern: ein Fangradius in Metern wäre beim Hineinzoomen unbedienbar
+  groß und beim Herauszoomen nicht zu treffen. Dafür gibt es `worldToScreen()`
+  als Umkehrung von `screenToWorld()`.
+
+**Der Mauszeiger zeigt das aktive Werkzeug** (`updateMapCursor()`): Fadenkreuz
+für alles, was auf die Karte zielt – Rahmen, Lasso, jedes Zeichenwerkzeug,
+Messen –, sonst die Greifhand, weil sich die Karte mit dem Zeiger überall
+schieben lässt. Über einem Punktmarker ein Verschiebe-Zeiger; beim Zeichnen
+gewinnt das Fadenkreuz auch dort. Vorher stand fest `cursor:grab` am `svg`, die
+Karte sah also mitten im Zeichnen nach „schieben" aus.
+
+**Kein `not-allowed` über nicht bearbeitbaren Features.** Das war erwogen und
+nach Prüfung verworfen: seit Etappe 1a haben sie weder Marker noch
+Trefferfläche, man kann sie nur ansehen. Ein Verbotszeichen würde einen
+Fehlerzustand behaupten, wo keiner ist.
+
+**Gedämpft wird nur, was nicht aktiv ist.** Ein laufendes Werkzeug ist
+gleichzeitig `active` und gesperrt – man soll es nicht neu starten können –,
+und `opacity:.4` fraß seine Hervorhebung auf. Deshalb wirkte „Rahmen" kräftig
+und ein laufendes Zeichenwerkzeug blass. Die Dämpfungsregeln tragen jetzt
+`:not(.active)`, in der Leiste **und** bei den Seitenleistenknöpfen: „Search
+Wire verlängern" und „Docking-Pfad verlängern" sind während des Verlängerns
+ebenfalls beides zugleich.
+
 **Nie `button.textContent` auf einem Knopf mit Symbol.** Das löscht das SVG
 mitsamt der Beschriftung. `updateMeasurementUi()` tat genau das und hat den
 Knopf beim Umzug entkernt; geschrieben wird jetzt in `.tool-label`. Gefunden
