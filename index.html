@@ -2714,7 +2714,7 @@
         </div>
       </details>
 
-      <details id="featureCreateSection" class="section sidebar-collapsible section-accent-orange">
+      <details class="section sidebar-collapsible section-accent-orange">
         <summary class="sidebar-collapsible-summary"><span>Features erstellen</span></summary>
         <div class="sidebar-collapsible-body">
           <div class="feature-create-panel">
@@ -4048,6 +4048,48 @@ function restoreInspectorFolds() {
 }
 
 
+/**
+ * Wie weit ist die laufende Zeichnung?
+ *
+ * Die Mindestpunktzahl kommt aus OPEN_LINE_MODES, nicht aus einer zweiten
+ * Aufzählung: eine Zahl, die an zwei Stellen steht, läuft auseinander. Genau
+ * daran hing schon einmal ein Abschluss-Knopf, der freigab, was das Werkzeug
+ * anschließend ablehnte.
+ */
+function describeDrawProgress() {
+  if (!featureDrawState) return "";
+
+  const mode = featureDrawState.mode;
+
+  if (isShapeMode(mode)) {
+    return mode === "circle"
+      ? "Mittelpunkt auf der Karte anklicken."
+      : shapeSettings.anchor === "corner"
+        ? "Ecke auf der Karte anklicken."
+        : "Mittelpunkt auf der Karte anklicken.";
+  }
+
+  const points = featureDrawState.points?.length || 0;
+  const base = featureDrawState.basePointCount || 0;
+
+  if (featureDrawState.appendToExisting) {
+    const added = points - base;
+
+    return added
+      ? `${base} vorhandene + ${added} neue Punkte. Abschließen ist möglich.`
+      : `${base} vorhandene Punkte. Mindestens einen neuen setzen.`;
+  }
+
+  const minimum = isOpenLineMode(mode)
+    ? OPEN_LINE_MODES[mode].minimumPoints
+    : 3;
+
+  return points >= minimum
+    ? `${points} Punkte gesetzt. Abschließen ist möglich.`
+    : `${points} von mindestens ${minimum} Punkten gesetzt.`;
+}
+
+
 /** Benennt das laufende Zeichenwerkzeug im Kopfblock. */
 function describeDrawMode(mode) {
   if (mode === "exclusion") return "Exclusion zeichnen";
@@ -4177,20 +4219,7 @@ function updateInspectorBlocks(state) {
   updateValidationShortText();
 
   if (state === "drawing") {
-    const points = featureDrawState.points?.length || 0;
-    const base = featureDrawState.basePointCount || 0;
-    const minimum = featureDrawState.mode === "exclusion" ? 3 : 2;
-    const missing = Math.max(0, minimum - points);
-
-    setInspectorText(
-      "drawProgress",
-      featureDrawState.appendToExisting
-        ? `${base} vorhandene + ${points - base} neue Punkte.`
-        : missing
-          ? `${points} von mindestens ${minimum} Punkten gesetzt.`
-          : `${points} Punkte gesetzt. Abschließen ist möglich.`
-    );
-
+    setInspectorText("drawProgress", describeDrawProgress());
     return;
   }
 
@@ -4291,7 +4320,18 @@ function updateInspector() {
   if (state === "drawing") {
     const points = featureDrawState.points?.length || 0;
 
-    setLocalizedText(title, `${points} Punkt${points === 1 ? "" : "e"} gesetzt`);
+    /*
+     * Formwerkzeuge zählen keine Punkte: ein Klick setzt den Bezugspunkt, und
+     * die Form entsteht sofort aus den Maßen. "0 Punkte gesetzt" wäre dort
+     * eine Zählung, die nie über 0 hinauskommt.
+     */
+    setLocalizedText(
+      title,
+      isShapeMode(featureDrawState.mode)
+        ? "Bezugspunkt setzen"
+        : `${points} Punkt${points === 1 ? "" : "e"} gesetzt`
+    );
+
     setLocalizedText(subtitle, describeDrawMode(featureDrawState.mode));
     return;
   }
@@ -6528,21 +6568,6 @@ function startFeatureDrawing(mode, options = {}) {
   updateSelectionPanel();
   updateMultiSelectionUi();
   updateFeatureDrawUi();
-
-  /*
-   * ABLAUFDATUM: ETAPPE 5 - diesen Block dann ersatzlos entfernen.
-   *
-   * Die Zeichnung startet seit Etappe 3 aus der Werkzeugleiste, "Zeichnung
-   * abschließen" und "Abbrechen" liegen aber weiterhin im Seitenleisten-
-   * abschnitt - und der ist eingeklappt, solange niemand ihn geöffnet hat.
-   * Wer die Leiste benutzt, soll die zugehörigen Knöpfe sehen.
-   *
-   * Sobald diese Knöpfe im Inspektor stehen, ist der Behelf nicht nur
-   * überflüssig, sondern störend: er klappte dann einen Abschnitt auf, der
-   * mit dem Zeichnen nichts mehr zu tun hat.
-   */
-  const drawSection = document.getElementById("featureCreateSection");
-  if (drawSection) drawSection.open = true;
 
   const message =
     mode === "circle"
@@ -17207,6 +17232,7 @@ let currentLanguage = "de";
 const I18N_EN = new Map(Object.entries({
   "nichts möglich":"nothing available",
   "Begradigen":"Straighten",
+  "Bezugspunkt setzen":"Place reference point",
   "Reduzieren":"Reduce",
   "Rechtwinklig":"Square up",
   "Gruppe":"Group",
@@ -17259,7 +17285,10 @@ const I18N_PATTERNS = [
   [/^1 Punkt gesetzt$/, "1 point placed"],
   [/^(\d+) Punkte gesetzt$/, "$1 points placed"],
   [/^(\d+) von 2 Punkten$/, "$1 of 2 points"],
-  [/^(\d+) vorhandene \+ (\d+) neue Punkte\.$/, "$1 existing + $2 new points."],
+  [/^(\d+) vorhandene \+ (\d+) neue Punkte\. Abschließen ist möglich\.$/,
+    "$1 existing + $2 new points. Finishing is possible."],
+  [/^(\d+) vorhandene Punkte\. Mindestens einen neuen setzen\.$/,
+    "$1 existing points. Place at least one new one."],
   [/^(\d+) von mindestens (\d+) Punkten gesetzt\.$/,
     "$1 of at least $2 points placed."],
   [/^(\d+) Punkte gesetzt\. Abschließen ist möglich\.$/,

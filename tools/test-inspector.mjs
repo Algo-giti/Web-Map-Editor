@@ -426,6 +426,74 @@ try {
   check("„Zeichnung abschließen“ legt die Exclusion an",
     nachher === vorher + 3, `${vorher} -> ${nachher}`);
 
+  /*
+   * „Letzten Punkt entfernen" und „Abbrechen" liegen seit Etappe 5 ebenfalls
+   * im Inspektor. Beide werden ueber ihre WIRKUNG geprueft, nicht ueber einen
+   * unveraenderten Zustand: eine Zusicherung ueber ein Ausbleiben besteht auch
+   * dann, wenn der Knopf gar nichts tut.
+   */
+  await load();
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(200);
+  await clickMap(10, 10);
+  await clickMap(20, 10);
+  await clickMap(20, 20);
+
+  check("drei Punkte sind gesetzt",
+    (await text("drawProgress")) === "3 Punkte gesetzt. Abschließen ist möglich.",
+    await text("drawProgress"));
+
+  await page.locator("#undoDrawPointBtn").click();
+  await page.waitForTimeout(250);
+
+  check("„Letzten Punkt entfernen“ nimmt einen zurück",
+    (await text("drawProgress")) === "2 von mindestens 3 Punkten gesetzt.",
+    await text("drawProgress"));
+  check("und sperrt damit das Abschließen wieder",
+    await page.locator("#finishDrawBtn").isDisabled());
+
+  const vorAbbruch = await page.evaluate(() =>
+    document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length);
+
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(300);
+
+  check("„Abbrechen“ beendet den Zeichenzustand",
+    (await sichtbareBloecke()).join(",") === "inspectorEmpty",
+    (await sichtbareBloecke()).join(","));
+  check("und legt nichts an",
+    (await page.evaluate(() =>
+      document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length))
+      === vorAbbruch);
+
+  /*
+   * Formwerkzeuge zaehlen keine Punkte: ein Klick setzt den Bezugspunkt, und
+   * die Form entsteht sofort. "0 Punkte gesetzt" waere dort eine Zaehlung,
+   * die nie ueber 0 hinauskommt.
+   */
+  await page.locator("#drawCircleBtn").click();
+  await page.waitForTimeout(250);
+
+  check("der Kreis fordert einen Bezugspunkt statt einer Punktzahl",
+    (await head()).titel === "Bezugspunkt setzen" &&
+    (await text("drawProgress")) === "Mittelpunkt auf der Karte anklicken.",
+    `${(await head()).titel} / ${await text("drawProgress")}`);
+  check("und nennt das Werkzeug",
+    (await head()).unter === "Kreis-Exclusion", (await head()).unter);
+
+  const vorKreis = await page.evaluate(() =>
+    document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length);
+
+  await clickMap(30, 30);
+  await page.waitForTimeout(400);
+
+  check("ein Klick erzeugt die Kreis-Exclusion",
+    (await page.evaluate(() =>
+      document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length))
+      > vorKreis + 10,
+    String(await page.evaluate(() =>
+      document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length)));
+
   /* --- Messen ------------------------------------------------------ */
   await load();
   await page.locator("#measureBtn").click();

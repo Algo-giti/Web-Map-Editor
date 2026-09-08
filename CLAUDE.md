@@ -1156,11 +1156,32 @@ umgezogen: `#finishDrawBtn`, `#undoDrawPointBtn`, `#cancelDrawBtn`,
 `#validationSummary` und `#validationReport`. **Verschoben, nicht kopiert** –
 beim ersten Anlauf waren fünf ids doppelt vorhanden.
 
-**Behelf mit Ablaufdatum:** `startFeatureDrawing()` klappt den Seitenleisten-
-abschnitt „Features erstellen" auf. Die Zeichnung startet seit Etappe 3 aus der
-Leiste, „Zeichnung abschließen" und „Abbrechen" liegen aber noch dort – und der
-Abschnitt ist eingeklappt. Der Behelf entfällt mit Etappe 5, wenn diese Knöpfe
-in den Inspektor ziehen.
+**Der Behelf in `startFeatureDrawing()` ist entfallen.** Er klappte den
+Seitenleistenabschnitt „Features erstellen" auf, weil „Zeichnung abschließen"
+und „Abbrechen" dort lagen, während die Zeichnung aus der Werkzeugleiste
+startete. Seit Etappe 5 stehen die Knöpfe im Inspektor, direkt dort, wo
+gearbeitet wird – der Behelf klappte danach einen Abschnitt auf, der mit dem
+Zeichnen nichts mehr zu tun hat. Die dadurch verwaiste id
+`featureCreateSection` ist ebenfalls weg.
+
+**Der Zeichenzustand des Inspektors zeigt den Fortschritt**
+(`describeDrawProgress()`), und zwar für alle vier Betriebsarten getrennt:
+
+| Art | Fortschritt | Kopfblock |
+|---|---|---|
+| Exclusion | „2 von mindestens 3 Punkten gesetzt." | „2 Punkte gesetzt" |
+| offene Linie, neu | dieselbe Form, Mindestzahl aus `OPEN_LINE_MODES` | ebenso |
+| offene Linie, verlängern | „5 vorhandene + 2 neue Punkte." | ebenso |
+| Kreis / Rechteck | „Mittelpunkt auf der Karte anklicken." | „Bezugspunkt setzen" |
+
+**Formwerkzeuge zählen keine Punkte.** Ein Klick setzt den Bezugspunkt, die
+Form entsteht sofort aus den Maßen – „0 Punkte gesetzt" wäre dort eine
+Zählung, die nie über 0 hinauskommt.
+
+**Die Mindestpunktzahl kommt aus `OPEN_LINE_MODES`, nicht aus einer zweiten
+Aufzählung.** Eine Zahl, die an zwei Stellen steht, läuft auseinander; genau
+daran hing schon einmal ein Knopf, der freigab, was das Werkzeug anschließend
+ablehnte.
 
 **Einklappen:** Der Umschalter oben in der Leiste schaltet zwischen 168 und
 56 px; der Wunsch steht in `localStorage` unter
