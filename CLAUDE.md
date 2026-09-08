@@ -425,16 +425,21 @@ angefasst werden):
 
 | Datei | Zusicherung |
 |---|---|
-| `test-shapes.mjs` | „Werkzeug startet nicht" nach Klick mit Radius 0 |
 | `test-merge.mjs` | „Kartenprüfung sieht nur einen Perimeter" |
 | `test-merge.mjs` | „Kartenprüfung meldet kein doppeltes Docking" |
 | `test-merge.mjs` | „Kartenprüfung meldet danach keine doppelten Features" |
 | `test-reduce.mjs` | „Ring ist nach dem Reduzieren noch geschlossen" |
 | `test-dockpath.mjs` | „drei Punkte erzeugen keinen Docking-Befund" |
 
-Alle sechs lesen einen Prüfbericht oder einen Knopfzustand, nachdem sie einen
+Alle fünf lesen einen Prüfbericht oder einen Knopfzustand, nachdem sie einen
 Auslöser gefeuert haben, und würden auch bei einem leeren Bericht bzw. einem
-wirkungslosen Klick bestehen. Eine reine Verneinung ohne Auslöser – etwa
+wirkungslosen Klick bestehen.
+
+Die sechste ist mit Etappe 5b erledigt: `test-shapes.mjs` prüfte „Werkzeug
+startet nicht" nach einem Klick mit Radius 0 – das bestand auch, wenn der
+Klick gar nichts auslöste. Geprüft wird jetzt die Wirkung: der Abschluss ist
+gesperrt, der Grund steht sichtbar da, ein gültiger Wert gibt ihn wieder frei,
+und danach entsteht die Form wirklich. Eine reine Verneinung ohne Auslöser – etwa
 `!pointInRing(...)` in `test-geometry.mjs` – ist davon nicht betroffen: dort
 gibt es keinen Auslöser, dessen Verarbeitung ausbleiben könnte.
 
