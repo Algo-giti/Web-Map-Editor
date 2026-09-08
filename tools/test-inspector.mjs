@@ -535,6 +535,110 @@ try {
     nachKuerzung.unter === "Perimeter · Polygon", nachKuerzung.unter);
 
   /* ---------------------------------------------------------------- */
+  console.log("Die Punktknöpfe stehen als Paare");
+
+  await load();
+  await marks.nth(0).click();
+  await page.waitForTimeout(300);
+
+  const kasten = (id) => page.evaluate((x) => {
+    const r = document.getElementById(x).getBoundingClientRect();
+    return { links: Math.round(r.left), oben: Math.round(r.top),
+      breit: Math.round(r.width) };
+  }, id);
+
+  const davor = await kasten("insertPointBeforeBtn");
+  const danach = await kasten("insertPointAfterBtn");
+  const start = await kasten("setStartPointBtn");
+  const ende = await kasten("setEndPointBtn");
+  const loeschen = await kasten("deletePointBtn");
+
+  check("davor und danach stehen nebeneinander",
+    davor.oben === danach.oben && danach.links > davor.links,
+    `${JSON.stringify(davor)} / ${JSON.stringify(danach)}`);
+  check("Start und Ende ebenfalls",
+    start.oben === ende.oben && ende.links > start.links,
+    `${JSON.stringify(start)} / ${JSON.stringify(ende)}`);
+  check("und die Paare untereinander", start.oben > davor.oben,
+    `${start.oben} / ${davor.oben}`);
+
+  /*
+   * Löschen ist die einzige zerstörende Aktion im Block und soll nicht wie
+   * ein Paarpartner aussehen: eigene Zeile über die volle Breite.
+   */
+  check("Löschen steht allein über die volle Breite",
+    loeschen.links === davor.links &&
+    loeschen.breit > davor.breit + 100 &&
+    loeschen.oben > start.oben,
+    `${JSON.stringify(loeschen)} vs ${JSON.stringify(davor)}`);
+
+  /*
+   * Die Tab-Reihenfolge muss den Paaren folgen. Bei einem zweispaltigen
+   * Raster ist das die DOM-Reihenfolge - aber genau das kann eine spätere
+   * Umsortierung im Markup oder ein `order`/`grid-area` in CSS zerreißen,
+   * ohne dass man es sieht.
+   */
+  await page.locator("#pointNorthInput").focus();
+  const reihenfolge = [];
+  for (let i = 0; i < 5; i += 1) {
+    await page.keyboard.press("Tab");
+    reihenfolge.push(await page.evaluate(() => document.activeElement?.id));
+  }
+
+  check("Tab folgt den Paaren: davor, danach, Start, Ende, löschen",
+    reihenfolge.join(",") ===
+      "insertPointBeforeBtn,insertPointAfterBtn,setStartPointBtn,setEndPointBtn,deletePointBtn",
+    reihenfolge.join(","));
+
+  /*
+   * Bei halber Spaltenbreite darf keine Beschriftung abgeschnitten werden -
+   * Knöpfe tragen white-space:nowrap, ein zu langer Text liefe still über den
+   * Rand. Gemessen wird die EIGENBREITE einer Kopie mit width:max-content;
+   * scrollWidth meldet den Überlauf bei overflow:visible nicht.
+   *
+   * Die Kopie übernimmt Schrift und Polsterung vom Original: sie liegt
+   * außerhalb von #inspectorPoint, wo die dortigen Regeln nicht mehr greifen.
+   */
+  const KNOEPFE = ["insertPointBeforeBtn", "insertPointAfterBtn",
+    "setStartPointBtn", "setEndPointBtn", "deletePointBtn"];
+
+  const zuEng = () => page.evaluate((ids) => {
+    const buehne = document.createElement("div");
+    buehne.style.cssText = "position:absolute;left:-9999px;top:0;";
+    document.body.appendChild(buehne);
+
+    const out = ids.filter((id) => {
+      const el = document.getElementById(id);
+      const cs = getComputedStyle(el);
+      const kopie = el.cloneNode(true);
+      kopie.removeAttribute("id");
+      kopie.style.width = "max-content";
+      kopie.style.font = cs.font;
+      kopie.style.padding = cs.padding;
+      kopie.style.borderWidth = cs.borderWidth;
+      buehne.appendChild(kopie);
+      const noetig = Math.ceil(kopie.getBoundingClientRect().width);
+      kopie.remove();
+      return noetig > Math.round(el.getBoundingClientRect().width);
+    });
+
+    buehne.remove();
+    return out;
+  }, KNOEPFE);
+
+  check("keine deutsche Beschriftung wird abgeschnitten",
+    (await zuEng()).length === 0, (await zuEng()).join(", "));
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(400);
+
+  check("keine englische ebenfalls",
+    (await zuEng()).length === 0, (await zuEng()).join(", "));
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(400);
+
+  /* ---------------------------------------------------------------- */
   console.log("Leere Felder sagen, warum sie leer sind");
 
   await load();
@@ -681,15 +785,12 @@ try {
 
   check("mit Prüfergebnis ebenfalls", await passt(), await hoehen());
 
-  /*
-   * Bei 900 px reicht es seit der Kürzung von #pointMeta ebenfalls. Bei
-   * 800 px fehlen weiterhin 76 px - das ist bekannt und in CLAUDE.md
-   * festgehalten, deshalb steht hier keine Zusicherung darüber.
-   */
-  await page.setViewportSize({ width: 1600, height: 900 });
-  await page.waitForTimeout(300);
+  for (const hoehe of [900, 800]) {
+    await page.setViewportSize({ width: 1600, height: hoehe });
+    await page.waitForTimeout(300);
 
-  check("bei 900 px Höhe passt es ebenfalls", await passt(), await hoehen());
+    check(`bei ${hoehe} px Höhe passt es ebenfalls`, await passt(), await hoehen());
+  }
 
   /* ---------------------------------------------------------------- */
   console.log("Tastaturbedienung");

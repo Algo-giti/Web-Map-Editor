@@ -990,26 +990,22 @@ für die Übersetzung ein Ersetzungsmuster mit deutschem `$1`; als eigene
 CSS über den allgemeinen Geschwisterwähler, damit nie ein führendes „·"
 dasteht.
 
-**Gemessen (1600 px breit), Spaltenhöhe gegen Inhalt** – nach der Kürzung von
-`#pointMeta`, ungünstigster Fall des Punktzustands (Startpunkt, Rolle also
-sichtbar):
+**Gemessen (1600 px breit), Spaltenhöhe gegen Inhalt**, ungünstigster Fall des
+Punktzustands (Startpunkt, Rolle also sichtbar):
 
-| Fensterhöhe | leer | ein Punkt | ein Punkt + geprüft | beide aufgeklappt |
-|---|---|---|---|---|
-| 1000 px | passt | **passt** | **passt** | scrollt (+407) |
-| 900 px | passt | **passt** | **passt** | scrollt (+507) |
-| 800 px | passt | scrollt (+76) | scrollt (+76) | scrollt (+607) |
+| Fensterhöhe | ausgeklappte Blöcke, Etappe 5 B | + `#pointMeta` gekürzt | + Knöpfe zweispaltig |
+|---|---|---|---|
+| 1000 px | passt | passt | **passt** |
+| 900 px | scrollt (+36) | passt | **passt** |
+| 800 px | scrollt (+136) | scrollt (+76) | **passt** |
 
-Die Kürzung von `#pointMeta` hat 60 px gebracht und den 900-px-Fall gelöst.
-**Bei 800 px fehlen weiterhin 76 px** – das ist bekannt und offen. Weitere
-Kürzungen kosten dort Information, und die Frage ist stattdessen, ob die
-Spalte in sehr niedrigen Fenstern anders aufgebaut sein muss (etwa: der
-Umformblock zieht dort aus dem Inspektor heraus). Nicht auf eigene Faust
-entscheiden.
+Zwei Schritte, beide ohne Informationsverlust: die Kürzung von `#pointMeta`
+brachte 60 px, die zweispaltigen Knöpfe weitere 76. Die Spalte kommt jetzt in
+allen drei Fenstergrößen ohne Scrollen aus.
 
-Der Fall „beide aufgeklappt" ist ausdrücklich **kein** Ziel: wer beide Blöcke
-öffnet, will ihren Inhalt sehen und scrollt dafür. Deshalb sind sie
-einklappbar.
+Der Fall „beide Faltblöcke aufgeklappt" ist ausdrücklich **kein** Ziel: wer
+beide öffnet, will ihren Inhalt sehen und scrollt dafür. Genau deshalb sind
+sie einklappbar.
 
 **Ein Block kann zu mehreren Zuständen gehören.** `INSPECTOR_BLOCKS` ist
 deswegen eine Liste aus `{id, states}` und keine Zuordnung Zustand → Block:
@@ -1045,6 +1041,47 @@ Betroffen sind `#featureAreaRow`, `#featureIdxRow`, `#duplicateFeatureBtn` und
 
 Das widerspricht dem festen Kopfblock nicht: **der Kopfblock bleibt fest, die
 Kennzahlen darunter dürfen sich in der Zahl unterscheiden.**
+
+**Die Punktknöpfe stehen zweispaltig, „Punkt löschen" allein.** Davor/danach
+und Start/Ende sind **Paare**; fünf gleich breite Zeilen behaupteten dagegen
+fünf gleichrangige Aktionen. Löschen bleibt einzeln über die volle Breite,
+weil es die einzige zerstörende Aktion im Block ist und nicht wie ein
+Paarpartner aussehen soll.
+
+**Zweispaltig unabhängig von der Fensterhöhe.** Eine Anordnung, die nur unter
+900 px erschiene, würde nie durchgeklickt und beim nächsten Umbau vergessen.
+
+Die **Tab-Reihenfolge folgt den Paaren** – davor, danach, Start, Ende, löschen
+–, weil sie bei einem zweispaltigen Raster die DOM-Reihenfolge ist. Genau das
+kann eine spätere Umsortierung im Markup oder ein `order`/`grid-area` in CSS
+lautlos zerreißen; der Test hält die Kette fest.
+
+**Die Spalte ist 139 px breit** – gemessen, nicht gerechnet: 320 minus
+Polsterung, minus 12 px Rollbalken, minus Abstand, halbiert. Der schmale Fall
+(mit Rollbalken) ist der, der halten muss.
+
+Zwei Schritte waren nötig, damit die **deutschen** Beschriftungen
+hineinpassen – Knöpfe tragen `white-space:nowrap`, ein zu langer Text liefe
+still über den Rand:
+
+1. **Beschriftungen gekürzt** – „Punkt davor einfügen" → „Davor einfügen",
+   „Punkt danach einfügen" → „Danach einfügen", „Als Startpunkt setzen" →
+   „Startpunkt setzen", „Als Endpunkt setzen" → „Endpunkt setzen". Das Wort
+   „Punkt" stand viermal da, wo ohnehin nur ein Punkt gemeint sein kann. Der
+   Erklärtext, der den Knopf beim Namen nennt, ist mitgezogen.
+2. Das reichte nicht: bei der geerbten Schriftgröße von 16 px fehlten
+   weiterhin 4 bis 8 px. **Diese vier Knöpfe tragen deshalb 14 px**, „Punkt
+   löschen" behält die normale Größe. Das kostet keine Information, während
+   die naheliegende Alternative („Start setzen" statt „Startpunkt setzen")
+   einen im Editor definierten Begriff verwässert hätte – „Startpunkt" steht
+   so in der Legende und in der Rollenanzeige.
+
+Bei 14 px bleiben 8 bis 23 px Luft, englisch 32 bis 51; Englisch passte schon
+bei 16 px. **Der Test misst die Eigenbreite einer Kopie mit
+`width:max-content`** und vergleicht sie mit der tatsächlichen Breite –
+`scrollWidth` meldet den Überlauf bei `overflow:visible` nicht, und eine Kopie
+außerhalb von `#inspectorPoint` muss Schrift und Polsterung vom Original
+übernehmen, sonst misst man 16 px statt der echten 14.
 
 **`#pointMeta` trägt nur noch die Punktrolle.** Bis Etappe 5 wiederholte es
 Punktnummer, Feature und Geometrietyp – also genau das, was der feste
