@@ -222,8 +222,11 @@ Führt nacheinander aus:
   ab, die laut `AGENTS.md`/Changelog wiederholt Laufzeitfehler verursacht
   hat (stale Referenzen nach Entfernen von UI-Elementen).
 
-  Dazu zwei Prüfungen auf **stille Doppelungen**, beide aus konkreten Fehlern
-  entstanden und beide unsichtbar für die Syntaxprüfung:
+  Dazu Prüfungen auf **stille Doppelungen**, aus konkreten Fehlern entstanden
+  und unsichtbar für die Syntaxprüfung. Sie bleiben dauerhaft – gemeinsam
+  decken sie mit der Schlüsselprüfung in `test-cassandra.mjs` die drei Orte
+  ab, an denen diese Einzeldatei still doppelt vergeben kann: Markup, Skript
+  und Wörterbuch:
 
   - **Eine `id` darf im Markup nur einmal vorkommen.** `getElementById()`
     liefert sonst das erste Vorkommen, das zweite ist totes Markup, und im
@@ -955,6 +958,53 @@ stehen in **jedem** Zustand. Das ist Absicht: wer die drei Umformwerkzeuge nur
 sähe, wenn sie schon gehen, erführe nie, was er dafür tun müsste. Jedes trägt
 deshalb seinen Grund in einem eigenen `.tool-reason`-Feld unter sich.
 
+**Vorhanden zu sein und ausgeklappt zu sein sind zwei verschiedene Dinge.**
+Beide Blöcke sind `<details>` und **standardmäßig zu**. Dauerhaft offen
+brauchten sie zusammen mehr Höhe, als die 320-px-Spalte bei 1000 px
+Fensterhöhe hat – die Spalte musste scrollen, und das ist schlechter als
+beides. Die Regel „in jedem Zustand sichtbar" richtete sich gegen das
+*Verschwinden*, nicht gegen das Einklappen.
+
+Zugeklappt trägt die Kopfzeile das Wichtigste in einer Zeile:
+
+| Block | Kopfzeile zugeklappt |
+|---|---|
+| Umformen | welche der drei Werkzeuge gerade gehen (`updateTransformShortText()`) |
+| Kartenprüfung | die Kurzform aus `validationShortText()`, dieselbe Quelle wie die Statuszeile |
+
+**Sie klappen NIE von selbst auf.** Wird ein Werkzeug ausführbar oder findet
+die Prüfung neue Fehler, ändert sich die Kopfzeile – der Block bleibt zu.
+Selbsttätiges Aufklappen wäre genau die Unruhe, gegen die der feste Kopfblock
+gebaut wurde. Der Auf-/Zu-Wunsch steht in `localStorage`
+(`webMapEditor.inspectorTransformOpen`, `webMapEditor.inspectorValidationOpen`),
+damit man ihn einmal einstellt.
+
+`restoreInspectorFolds()` läuft **einmal beim Start, nicht in `initialize()`** –
+die Funktion hängt Listener an, und `initialize()` wird beim Dateiladen und
+beim Zurücksetzen erneut aufgerufen.
+
+**Die Kurzform „Umformen" besteht aus einzelnen Marken, nicht aus einem
+zusammengesetzten Satz.** „Begradigen · Reduzieren" als ein Textknoten wäre
+für die Übersetzung ein Ersetzungsmuster mit deutschem `$1`; als eigene
+`<span>`-Elemente wird jede Marke ganz normal übersetzt. Das Trennzeichen setzt
+CSS über den allgemeinen Geschwisterwähler, damit nie ein führendes „·"
+dasteht.
+
+**Gemessen (1600 px breit), Spaltenhöhe gegen Inhalt:**
+
+| Fensterhöhe | leer | ein Punkt | ein Punkt + geprüft | beide aufgeklappt |
+|---|---|---|---|---|
+| 1000 px | passt | **passt** | **passt** | scrollt (+467) |
+| 900 px | passt | scrollt (+36) | scrollt (+36) | scrollt (+567) |
+| 800 px | passt | scrollt (+136) | scrollt (+136) | scrollt (+667) |
+
+Bei 1000 px Höhe kommt die Spalte in beiden gefragten Zuständen ohne Scrollen
+aus. Darunter fehlen im Zustand „ein Punkt" 36 bzw. 136 px. **Der nächste
+Hebel dafür ist `#pointMeta`**: es wiederholt, was der Kopfblock seit Etappe 4
+ohnehin sagt („Perimeter · Punkt 1/4", „Perimeter · Polygon"); einzig die
+Punktrolle („Startpunkt") steht nur dort. Nicht ohne Auftrag entfernen – es
+hängt an mehreren Codepfaden und an Tests.
+
 **Ein Block kann zu mehreren Zuständen gehören.** `INSPECTOR_BLOCKS` ist
 deswegen eine Liste aus `{id, states}` und keine Zuordnung Zustand → Block:
 die Auswahlaktionen („Auswahl löschen", „Auswahl aufheben") gelten in allen
@@ -967,6 +1017,20 @@ angeklickten Punkt hält, behauptete der Kopf „Punkt 138 von 208", während
 darunter „2 Punkte ausgewählt" stand. Deshalb gilt: **`single` heißt genau ein
 Punkt**, und die Quelle ist `getEffectiveSelectedVertices()`, nicht
 `selectedVertex`.
+
+**Weglassen statt platzhaltern.** Eine typabhängige Kennzahl, die es für
+diesen Typ gar nicht gibt, bekommt **keine Zeile** – kein „–". Ein
+Gedankenstrich behauptet, dort gebe es einen Wert, den man nur gerade nicht
+kennt; ein Perimeter hat aber kein `idx`, und eine Linie hat keine Fläche. Das
+ist keine fehlende Angabe, sondern eine, die es nicht gibt.
+
+Der Gedankenstrich bleibt für den anderen Fall reserviert: **der Wert
+existiert, ist aber gerade nicht zu ermitteln** – etwa eine Fläche bei
+unbekanntem Maßstab. Betroffen sind `#featureAreaRow`, `#featureIdxRow` und
+`#duplicateFeatureBtn`; das Prinzip gilt für jede künftige Kennzahl.
+
+Das widerspricht dem festen Kopfblock nicht: **der Kopfblock bleibt fest, die
+Kennzahlen darunter dürfen sich in der Zahl unterscheiden.**
 
 **Ein leeres Feld sagt, warum es leer ist.** Die E/N-Felder werden bei einer
 Mehrfachauswahl bewusst geleert und gesperrt – das ist richtig, sah aber wie
@@ -1598,6 +1662,33 @@ dokumentiert, aber im Code konsistent sichtbar):
   erzeugten `NaN` im SVG (`d="M NaN NaN"`, `cx="NaN"`) und blieben als stille
   Konsolenfehler unbemerkt, bis ein Test alle Platzhalterformen durchspielte.
   Details in Abschnitt 5 unter „Search Wire".
+- **Ein Bezeichner wird nur einmal deklariert – und das ist in dieser Datei
+  eine strukturelle Gefahr, keine Nachlässigkeit.** Zwei
+  `function foo()` auf oberster Ebene sind **gültiges JavaScript**: die
+  spätere überschreibt die frühere lautlos, ohne Warnung, ohne Fehler, und die
+  Syntaxprüfung hat nichts zu beanstanden. Dasselbe gilt für einen doppelten
+  Schlüssel in einem Objektliteral (`I18N_EN`).
+
+  In `index.html` ist das **wahrscheinlich, nicht unwahrscheinlich**: rund
+  17 000 Zeilen und über 330 globale Funktionen liegen in einem einzigen
+  Gültigkeitsbereich, ohne Module, ohne Namensräume. Wer eine Hilfsfunktion
+  schreibt, sieht die 9 000 Zeilen weiter unten nicht, und naheliegende Namen
+  (`isWholeFeatureSelected`, `describeFeature`, `updateX`) sind genau die, die
+  jemand schon vergeben hat. Die Datei hat keinen Mechanismus, der davor
+  schützt – deshalb muss der Prüfschritt es tun.
+
+  Der konkrete Fall: `isWholeFeatureSelected()` bekam beim Bau des Inspektors
+  eine zweite Fassung mit **anderer Signatur** (`descriptors` statt
+  `featureIndex`). Die spätere gewann, der Aufruf übergab ein Array an eine
+  Funktion, die eine Zahl erwartete, das Ergebnis war immer `false`, und der
+  Inspektorzustand „ganzes Feature" wurde **nie** erreicht. Kein Fehler in der
+  Konsole, kein fehlgeschlagener Test, keine Meldung. Gefunden hat es erst ein
+  Browsertest, der die *Menge* der sichtbaren Blöcke prüfte statt einzelner.
+
+  **Vor dem Anlegen einer neuen globalen Funktion den Namen im Dateitext
+  suchen.** `tools/check-dom-ids.mjs` meldet den Fall inzwischen, aber erst
+  nach dem Schreiben.
+
 - **Jede `id` ist ein Zeichenketten-Literal.** Zulässig sind drei
   Schreibweisen: `id="..."` im Markup, `id="..."` in einer Vorlage im Skript,
   und `element.id = "..."` bzw. `setAttribute("id", "...")` für programmatisch

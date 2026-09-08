@@ -1443,6 +1443,51 @@
   }
   .tool-reason:empty { display:none; }
 
+  /*
+   * Einklappbarer Block. display:block statt des flex aus .inspector-block -
+   * ein <details> mit flex-Container verliert die Anordnung von summary und
+   * Inhalt.
+   */
+  .inspector-fold { display:block; }
+
+  .inspector-fold > summary {
+    display:flex; align-items:baseline; gap:8px;
+    cursor:pointer; user-select:none; padding:2px 0;
+    list-style:none;
+  }
+  .inspector-fold > summary::-webkit-details-marker { display:none; }
+
+  /* Eigener Pfeil, damit er links steht und mitdreht. */
+  .inspector-fold > summary::before {
+    content:"▸"; color:#6d7f97; font-size:10px; line-height:1.6;
+    transition:transform .12s ease;
+  }
+  .inspector-fold[open] > summary::before { content:"▾"; }
+
+  .inspector-fold > summary:focus-visible { outline:2px solid var(--blue); }
+
+  /* Die Kurzform darf die Überschrift nicht verdrängen. */
+  .fold-summary {
+    margin-left:auto; color:var(--muted); font-size:12px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;
+  }
+  .fold-summary.ok { color:var(--green); }
+  .fold-summary.warning { color:var(--yellow); }
+  .fold-summary.error { color:var(--red); }
+
+  /*
+   * Trennzeichen zwischen sichtbaren Marken. Der allgemeine Geschwisterwähler
+   * greift nur, wenn VOR der Marke schon eine sichtbare steht - damit steht
+   * nie ein führendes "·" da.
+   */
+  .fold-summary > span:not([hidden]) ~ span:not([hidden])::before {
+    content:"· ";
+  }
+
+  .fold-body {
+    display:flex; flex-direction:column; gap:10px; padding-top:10px;
+  }
+
   /* -----------------------------------------------------------------------
      Werkzeugleiste
      -----------------------------------------------------------------------
@@ -3263,11 +3308,18 @@
       <!-- Alle editierbaren Punkte eines Features. -->
       <div id="inspectorFeature" class="inspector-block" hidden>
         <div class="inspector-section-title">Feature</div>
+
+        <!--
+          Typabhaengige Kennzahlen werden WEGGELASSEN, nicht platzhaltert.
+          Ein "-" bei idx behauptete, es gaebe dort einen Wert, den man nur
+          nicht kennt; ein Perimeter hat aber keinen idx. Die Zeilen tragen
+          deshalb eigene ids und werden ueber hidden geschaltet.
+        -->
         <div class="stat"><span>Typ</span><strong id="featureTypeStat">–</strong></div>
         <div class="stat"><span>Punkte</span><strong id="featurePointStat">–</strong></div>
-        <div class="stat"><span>Fläche</span><strong id="featureAreaStat">–</strong></div>
-        <div class="stat"><span>idx</span><strong id="featureIdxStat">–</strong></div>
-        <button id="duplicateFeatureBtn" type="button" disabled>Exclusion duplizieren</button>
+        <div id="featureAreaRow" class="stat" hidden><span>Fläche</span><strong id="featureAreaStat">–</strong></div>
+        <div id="featureIdxRow" class="stat" hidden><span>idx</span><strong id="featureIdxStat">–</strong></div>
+        <button id="duplicateFeatureBtn" type="button" hidden>Exclusion duplizieren</button>
         <div class="hint">
           Verschieben durch Ziehen an der Geometrie auf der Karte.
         </div>
@@ -3314,28 +3366,58 @@
       </div>
 
       <!--
-        Umformen: in JEDEM Auswahlzustand sichtbar, jedes Werkzeug mit dem
-        Grund, warum es gerade geht oder nicht. Wer die Werkzeuge nur sieht,
-        wenn sie schon gehen, erfährt nie, was er tun müsste.
+        Umformen und Kartenprüfung sind in JEDEM Zustand vorhanden, aber
+        einklappbar. Vorhanden zu sein und ausgeklappt zu sein sind zwei
+        verschiedene Dinge: dauerhaft offen brauchten beide zusammen mehr Höhe,
+        als eine 320-px-Spalte bei 1000 px Fensterhöhe hat, und die Spalte
+        musste scrollen.
+
+        Zusammengeklappt trägt die Kopfzeile das Wichtigste in einer Zeile -
+        beim Umformen, welche Werkzeuge gerade gehen, bei der Prüfung die
+        Kurzform. Sie klappen NIE von selbst auf: ein Block, der sich öffnet,
+        weil sich sein Inhalt geändert hat, ist genau die Unruhe, gegen die
+        der feste Kopfblock gebaut wurde.
       -->
-      <div id="inspectorTransform" class="inspector-block">
-        <div class="inspector-section-title">Umformen</div>
-        <button id="straightenSelectionBtn" type="button" disabled>Linie begradigen</button>
-        <div id="straightenReason" class="tool-reason"></div>
-        <button id="reduceApplyBtn" type="button" disabled>Punkte reduzieren</button>
-        <div id="reduceReason" class="tool-reason"></div>
-        <button id="rectifyApplyBtn" type="button" disabled>Ecken rechtwinklig machen</button>
-        <div id="rectifyReason" class="tool-reason"></div>
-      </div>
+      <details id="inspectorTransform" class="inspector-block inspector-fold">
+        <summary>
+          <span class="inspector-section-title">Umformen</span>
+          <!--
+            Die Kurzform besteht aus einzelnen Marken statt aus einem
+            zusammengesetzten Satz. Ein zusammengefuegter Text
+            ("Begradigen · Reduzieren") waere fuer die Uebersetzung ein
+            Ersetzungsmuster mit deutschem $1; als eigene Elemente wird jede
+            Marke ganz normal uebersetzt. Das Trennzeichen setzt CSS.
+          -->
+          <span id="transformSummary" class="fold-summary">
+            <span id="transformNoneTag">nichts möglich</span>
+            <span id="transformStraightenTag" hidden>Begradigen</span>
+            <span id="transformReduceTag" hidden>Reduzieren</span>
+            <span id="transformRectifyTag" hidden>Rechtwinklig</span>
+          </span>
+        </summary>
+        <div class="fold-body">
+          <button id="straightenSelectionBtn" type="button" disabled>Linie begradigen</button>
+          <div id="straightenReason" class="tool-reason"></div>
+          <button id="reduceApplyBtn" type="button" disabled>Punkte reduzieren</button>
+          <div id="reduceReason" class="tool-reason"></div>
+          <button id="rectifyApplyBtn" type="button" disabled>Ecken rechtwinklig machen</button>
+          <div id="rectifyReason" class="tool-reason"></div>
+        </div>
+      </details>
 
       <!-- Prüfbericht: die Liste gehört hierher, die Kurzform in die Statuszeile. -->
-      <div id="inspectorValidation" class="inspector-block">
-        <div class="inspector-section-title">Kartenprüfung</div>
-        <div id="validationSummary" class="validation-summary" aria-live="polite">
-          Noch keine Prüfung durchgeführt.
+      <details id="inspectorValidation" class="inspector-block inspector-fold">
+        <summary>
+          <span class="inspector-section-title">Kartenprüfung</span>
+          <span id="validationFoldShort" class="fold-summary">nicht geprüft</span>
+        </summary>
+        <div class="fold-body">
+          <div id="validationSummary" class="validation-summary" aria-live="polite">
+            Noch keine Prüfung durchgeführt.
+          </div>
+          <div id="validationReport" class="validation-report" hidden></div>
         </div>
-        <div id="validationReport" class="validation-report" hidden></div>
-      </div>
+      </details>
     </aside>
   </main>
 
@@ -3863,6 +3945,54 @@ function describeVertexContainer(descriptor) {
 }
 
 
+/**
+ * Die einklappbaren Blöcke des Inspektors und ihr localStorage-Schlüssel.
+ *
+ * Beide sind in JEDEM Zustand vorhanden - vorhanden zu sein und ausgeklappt zu
+ * sein sind zwei verschiedene Dinge. Zusammen brauchten sie offen mehr Höhe,
+ * als die Spalte bei 1000 px Fensterhöhe hat.
+ */
+const INSPECTOR_FOLDS = [
+  {id:"inspectorTransform", key:"webMapEditor.inspectorTransformOpen"},
+  {id:"inspectorValidation", key:"webMapEditor.inspectorValidationOpen"}
+];
+
+/**
+ * Holt den gewünschten Auf-/Zu-Zustand zurück.
+ *
+ * Vorgabe ist zugeklappt: die Kopfzeile sagt bereits das Wichtigste, und eine
+ * Spalte, die beim ersten Start scrollt, ist der schlechtere Anfang.
+ */
+function restoreInspectorFolds() {
+  INSPECTOR_FOLDS.forEach(({id, key}) => {
+    const block = document.getElementById(id);
+    if (!block) return;
+
+    let open = false;
+
+    try {
+      open = localStorage.getItem(key) === "1";
+    } catch (error) {
+      open = false;
+    }
+
+    block.open = open;
+
+    /*
+     * Der Zustand wird beim Umschalten gesichert, nicht bei jedem Neuaufbau -
+     * ein toggle-Ereignis entsteht nur durch echtes Auf- und Zuklappen.
+     */
+    block.addEventListener("toggle", () => {
+      try {
+        localStorage.setItem(key, block.open ? "1" : "0");
+      } catch (error) {
+        /* Ohne Speicher bleibt die Wahl eben nur für diese Sitzung. */
+      }
+    });
+  });
+}
+
+
 /** Benennt das laufende Zeichenwerkzeug im Kopfblock. */
 function describeDrawMode(mode) {
   if (mode === "exclusion") return "Exclusion zeichnen";
@@ -3910,6 +4040,58 @@ function transformToolReasons() {
 }
 
 
+/**
+ * Kurzform der Kopfzeile "Umformen": welche Werkzeuge gerade gehen.
+ *
+ * Bewusst die Namen der verfügbaren, nicht eine Zahl: "Begradigen · Reduzieren"
+ * sagt, was man tun kann, "2 von 3" sagt es nicht.
+ *
+ * Geschaltet werden feste Marken. Der Text wird nicht zusammengesetzt, damit
+ * jede Marke von der normalen Übersetzung erfasst wird.
+ */
+function updateTransformShortText() {
+  const straighten = getSelectedSection().ok;
+  const reduce = getReduceTarget().ok;
+  const rectify = getWholeFeatureTarget().ok;
+  const any = straighten || reduce || rectify;
+
+  const toggle = (id, on) => {
+    const tag = document.getElementById(id);
+    if (tag) tag.hidden = !on;
+  };
+
+  toggle("transformStraightenTag", straighten);
+  toggle("transformReduceTag", reduce);
+  toggle("transformRectifyTag", rectify);
+  toggle("transformNoneTag", !any);
+
+  document.getElementById("transformSummary")?.classList.toggle("ok", any);
+}
+
+
+/**
+ * Kurzform der Kopfzeile "Kartenprüfung".
+ *
+ * Dieselbe Quelle wie die Statuszeile - eine zweite Formulierung desselben
+ * Ergebnisses könnte auseinanderlaufen.
+ */
+function updateValidationShortText() {
+  const short = document.getElementById("validationFoldShort");
+  if (!short) return;
+
+  const errors = lastValidationResult?.errors?.length || 0;
+  const warnings = lastValidationResult?.warnings?.length || 0;
+
+  short.classList.remove("ok", "warning", "error");
+
+  if (errors) short.classList.add("error");
+  else if (warnings) short.classList.add("warning");
+  else if (lastValidationResult) short.classList.add("ok");
+
+  setLocalizedText(short, validationShortText());
+}
+
+
 /** Schreibt einen abgeleiteten Text in ein Feld des Inspektors. */
 function setInspectorText(id, text) {
   const element = document.getElementById(id);
@@ -3929,6 +4111,15 @@ function updateInspectorBlocks(state) {
   const reasons = transformToolReasons();
 
   Object.entries(reasons).forEach(([id, text]) => setInspectorText(id, text));
+
+  /*
+   * Die Kopfzeilen der beiden Faltblöcke. Sie werden aktualisiert, der Block
+   * wird NICHT geöffnet - ein Block, der aufklappt, weil sich sein Inhalt
+   * geändert hat, ist genau die Unruhe, gegen die der feste Kopfblock
+   * gebaut wurde.
+   */
+  updateTransformShortText();
+  updateValidationShortText();
 
   if (state === "drawing") {
     const points = featureDrawState.points?.length || 0;
@@ -3979,35 +4170,49 @@ function updateInspectorBlocks(state) {
   const feature = data.features?.[featureIndex];
   const type = getFeatureType(feature);
   const isExclusion = type === "exclusion";
-  const area = isExclusion || type === "perimeter"
-    ? polygonAreaMeters(feature)
-    : 0;
 
   setInspectorText("featureTypeStat", describeFeature(feature));
   setInspectorText("featurePointStat", String(selection.length));
 
-  setInspectorText(
-    "featureAreaStat",
-    !area
-      ? "–"
-      : hasKnownScale()
-        ? `${formatMeters(area, 1)} m²`
-        : `${formatMeters(area, 1)} Einheiten²`
-  );
+  /*
+   * Typabhängige Kennzahlen werden WEGGELASSEN, nicht platzhaltert. Ein "-"
+   * behauptet, es gäbe dort einen Wert, den man nur gerade nicht kennt. Ein
+   * Perimeter hat aber kein idx, und eine Linie hat keine Fläche - das ist
+   * keine fehlende Angabe, sondern eine, die es nicht gibt.
+   *
+   * Der Gedankenstrich bleibt für den anderen Fall reserviert: der Wert
+   * existiert, ist aber gerade nicht zu ermitteln.
+   */
+  const hasArea = feature?.geometry?.type === "Polygon";
+  const area = hasArea ? polygonAreaMeters(feature) : 0;
+  const areaRow = document.getElementById("featureAreaRow");
+
+  if (areaRow) areaRow.hidden = !hasArea;
+
+  if (hasArea) {
+    setInspectorText(
+      "featureAreaStat",
+      !area
+        ? "–"
+        : hasKnownScale()
+          ? `${formatMeters(area, 1)} m²`
+          : `${formatMeters(area, 1)} Einheiten²`
+    );
+  }
 
   const idx = feature?.idx ?? feature?.properties?.idx;
+  const hasIdx = isExclusion && idx !== undefined;
+  const idxRow = document.getElementById("featureIdxRow");
 
-  setInspectorText("featureIdxStat", idx === undefined ? "–" : String(idx));
+  if (idxRow) idxRow.hidden = !hasIdx;
+  if (hasIdx) setInspectorText("featureIdxStat", String(idx));
 
   const duplicateButton = document.getElementById("duplicateFeatureBtn");
 
   if (duplicateButton) {
-    duplicateButton.disabled = !isExclusion;
+    duplicateButton.hidden = !isExclusion;
     duplicateButton.dataset.featureIndex = String(featureIndex);
-    duplicateButton.title =
-      isExclusion
-        ? "Legt eine versetzte Kopie dieser Exclusion an."
-        : "Duplizieren gilt nur für Exclusions.";
+    duplicateButton.title = "Legt eine versetzte Kopie dieser Exclusion an.";
   }
 }
 
@@ -5486,6 +5691,7 @@ function findValidationTarget(message) {
 function renderValidationResult(result) {
   lastValidationResult = result;
   updateStatusBar();
+  updateValidationShortText();
 
   const summary =
     document.getElementById("validationSummary");
@@ -5603,6 +5809,7 @@ function validateActiveMap(options = {}) {
 function resetValidationUi() {
   lastValidationResult = null;
   updateStatusBar();
+  updateValidationShortText();
 
   const summary =
     document.getElementById("validationSummary");
@@ -16928,6 +17135,10 @@ viewerResizeObserver.observe(viewer);
  */
 let currentLanguage = "de";
 const I18N_EN = new Map(Object.entries({
+  "nichts möglich":"nothing available",
+  "Begradigen":"Straighten",
+  "Reduzieren":"Reduce",
+  "Rechtwinklig":"Square up",
   "Gruppe":"Group",
   "Mehrere Punkte ausgewählt.":"Several points selected.",
   "Einen markierten Punkt ziehen verschiebt die ganze Gruppe.":"Dragging one highlighted point moves the whole group.",
@@ -17569,6 +17780,13 @@ languageToggle.addEventListener(
  * Die App erzeugt beim Initialisieren weitere DOM-Inhalte.
  * Deshalb zuerst initialisieren, DANN den deutschen Snapshot aufnehmen.
  */
+/*
+ * Einmalig, NICHT in initialize(): die Funktion hängt Listener an und wird
+ * beim Dateiladen und beim Zurücksetzen erneut aufgerufen - die Listener
+ * stapelten sich sonst.
+ */
+restoreInspectorFolds();
+
 initialize();
 
 captureI18nSnapshot();

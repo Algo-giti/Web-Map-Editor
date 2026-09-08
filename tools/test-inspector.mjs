@@ -289,8 +289,45 @@ try {
   check("die Fläche wird beziffert",
     /^[\d.,]+ m²$/.test(await text("featureAreaStat")),
     await text("featureAreaStat"));
-  check("duplizieren gilt nur für Exclusions",
-    await page.locator("#duplicateFeatureBtn").isDisabled());
+
+  /*
+   * Typabhängige Kennzahlen werden WEGGELASSEN, nicht platzhaltert: ein "–"
+   * bei idx behauptete, es gäbe dort einen Wert, den man nur nicht kennt.
+   * Ein Perimeter hat aber keinen idx.
+   */
+  check("ein Perimeter zeigt keine idx-Zeile",
+    !(await visible("featureIdxRow")));
+  check("aber die Flächenzeile, die es bei ihm gibt",
+    await visible("featureAreaRow"));
+  check("duplizieren gilt nur für Exclusions und ist hier weg",
+    !(await visible("duplicateFeatureBtn")));
+
+  /* Gegenprobe an der Exclusion: dort gibt es beides. */
+  await page.locator("#clearMultiSelectionBtn").click();
+  await page.waitForTimeout(200);
+  /* Beide Ringe: die Exclusion hat ein Loch, das sind acht Punkte. */
+  await ringe.nth(0).click();
+  for (let i = 1; i < 8; i += 1) {
+    await ringe.nth(i).click({ modifiers: ["Control"] });
+  }
+  await page.waitForTimeout(300);
+
+  check("die Exclusion ist vollständig ausgewählt",
+    (await sichtbareBloecke()).includes("inspectorFeature"),
+    (await sichtbareBloecke()).join(","));
+  check("und zeigt ihre idx-Zeile",
+    (await visible("featureIdxRow")) && (await text("featureIdxStat")) === "0",
+    await text("featureIdxStat"));
+  check("und den Duplizieren-Knopf",
+    await visible("duplicateFeatureBtn"));
+
+  await page.locator("#clearMultiSelectionBtn").click();
+  await page.waitForTimeout(200);
+  await marks.nth(0).click();
+  for (let i = 1; i < 4; i += 1) {
+    await marks.nth(i).click({ modifiers: ["Control"] });
+  }
+  await page.waitForTimeout(250);
 
   /* --- gemischte Auswahl ------------------------------------------ */
   await ringe.nth(0).click({ modifiers: ["Control"] });
@@ -432,6 +469,13 @@ try {
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(400);
 
+  /*
+   * Der Prüfblock ist zugeklappt und klappt bewusst nicht von selbst auf. Um
+   * die Liste zu benutzen, öffnet man ihn - genau wie ein Nutzer.
+   */
+  await page.locator("#inspectorValidation > summary").click();
+  await page.waitForTimeout(250);
+
   const befunde = await page.locator("#validationReport .validation-item").count();
 
   check("der Bericht steht im Inspektor", befunde > 0, String(befunde));
@@ -478,6 +522,127 @@ try {
     (await page.locator("#pointEastInput").getAttribute("placeholder")) === "" &&
     (await page.locator("#pointEastInput").inputValue()).length > 0,
     await page.locator("#pointEastInput").inputValue());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Umformen und Kartenprüfung sind eingeklappt, nicht weg");
+
+  await load([MIT_LOCH]);
+
+  const offen = (id) => page.evaluate((x) => document.getElementById(x).open, id);
+
+  /* Sichtbar im Sinne von "der Block steht da" - auch zugeklappt. */
+  check("der Umformblock steht", await visible("inspectorTransform"));
+  check("der Prüfblock steht", await visible("inspectorValidation"));
+  check("beide sind beim ersten Start zu",
+    !(await offen("inspectorTransform")) && !(await offen("inspectorValidation")));
+
+  /*
+   * Zugeklappt heißt: der Inhalt ist wirklich weg, nicht nur optisch. Sonst
+   * wäre nichts gewonnen und man könnte hineintabben.
+   */
+  /*
+   * Gemessen wird die Höhe des BLOCKS, nicht die seines Inhalts. Ein
+   * zugeklapptes <details> versteckt den Inhalt über content-visibility:
+   * der berechnete Stil meldet weiterhin "flex", und getBoundingClientRect()
+   * liefert dort weiterhin die volle Höhe - der Inhalt ist gelayoutet, nur
+   * nicht gerendert. Dieselbe Lehre wie beim [hidden]-Fund, nur andersherum:
+   * es zählt, was der Block tatsächlich an Platz belegt.
+   */
+  const blockhoehe = (id) => page.evaluate((x) =>
+    Math.round(document.getElementById(x).getBoundingClientRect().height), id);
+
+  const zu = await blockhoehe("inspectorTransform");
+
+  check("zugeklappt kostet der Umformblock nur seine Kopfzeile",
+    zu < 40, String(zu));
+
+  const marken = () => page.evaluate(() =>
+    [...document.querySelectorAll("#transformSummary > span")]
+      .filter((el) => getComputedStyle(el).display !== "none")
+      .map((el) => el.textContent.trim()));
+
+  check("ohne Auswahl sagt die Kopfzeile, dass nichts geht",
+    (await marken()).join(",") === "nichts möglich", (await marken()).join(","));
+
+  await marks.nth(0).click();
+  await marks.nth(2).click({ modifiers: ["Control"] });
+  await page.waitForTimeout(300);
+
+  /*
+   * Alle drei: der Abschnitt gibt Begradigen frei, Reduzieren arbeitet auf ihm
+   * und Rechtwinklig fällt auf das ganze Feature zurück.
+   */
+  check("mit gültigem Abschnitt nennt sie die Werkzeuge",
+    (await marken()).join(" · ") === "Begradigen · Reduzieren · Rechtwinklig",
+    (await marken()).join(" · "));
+
+  /*
+   * DAS ist der Punkt: der Block klappt NICHT von selbst auf, obwohl gerade
+   * zwei Werkzeuge ausführbar geworden sind. Selbsttätiges Aufklappen wäre
+   * genau die Unruhe, gegen die der feste Kopfblock gebaut wurde.
+   */
+  check("und der Block bleibt trotzdem zu",
+    !(await offen("inspectorTransform")));
+
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(500);
+
+  const kurz = () =>
+    page.evaluate(() =>
+      document.getElementById("validationFoldShort").textContent.trim());
+
+  check("die Prüfung schreibt ihre Kurzform in die Kopfzeile",
+    /Fehler|Warnung|keine Befunde/.test(await kurz()), await kurz());
+  check("und klappt den Block ebenfalls nicht auf",
+    !(await offen("inspectorValidation")));
+
+  /* Aufklappen geht - und der Wunsch überlebt den Neuaufbau. */
+  await page.locator("#inspectorTransform > summary").click();
+  await page.waitForTimeout(250);
+
+  check("aufklappen zeigt die Werkzeuge",
+    (await offen("inspectorTransform")) &&
+    (await blockhoehe("inspectorTransform")) > zu + 200,
+    `${await blockhoehe("inspectorTransform")} statt >${zu + 200}`);
+
+  await page.reload({ waitUntil: "load" });
+  await page.waitForTimeout(400);
+
+  check("nach dem Neuladen ist er noch offen",
+    await offen("inspectorTransform"), "Zustand ging verloren");
+  check("und der Prüfblock weiterhin zu",
+    !(await offen("inspectorValidation")));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Die Spalte kommt bei 1000 px Höhe ohne Scrollen aus");
+
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "load" });
+  await load([MIT_LOCH]);
+
+  const passt = () => page.evaluate(() => {
+    const el = document.getElementById("inspector");
+    return el.scrollHeight <= el.clientHeight;
+  });
+
+  const hoehen = () => page.evaluate(() => {
+    const el = document.getElementById("inspector");
+    return `${el.scrollHeight} in ${el.clientHeight}`;
+  });
+
+  await marks.nth(0).click();
+  await page.waitForTimeout(300);
+
+  check("Zustand ein Punkt passt ohne Scrollen", await passt(), await hoehen());
+
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(500);
+
+  check("mit Prüfergebnis ebenfalls", await passt(), await hoehen());
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.waitForTimeout(250);
 
   /* ---------------------------------------------------------------- */
   console.log("Tastaturbedienung");
