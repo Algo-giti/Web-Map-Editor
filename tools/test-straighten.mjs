@@ -76,7 +76,12 @@ try {
    */
   const expandSidebar = () =>
     page.evaluate(() => {
-      document.querySelectorAll("#sidebar details")
+      /*
+       * Seit Etappe 5 D sind "Umformen" und "Kartenpruefung" im Inspektor
+       * einklappbar und beim ersten Start ZU. Wer ihre Knoepfe bedienen will,
+       * klappt sie auf - der Test tut dasselbe.
+       */
+      document.querySelectorAll("#sidebar details, .inspector-fold")
         .forEach((section) => section.setAttribute("open", ""));
     });
 
@@ -112,9 +117,19 @@ try {
 
   const straighten = page.locator("#straightenSelectionBtn");
 
+  /*
+   * Seit Etappe 5 E erklaert der Tooltip, was das Werkzeug TUT - immer
+   * dasselbe. Der Ablehnungsgrund steht sichtbar unter dem Knopf, nicht im
+   * Tooltip: dort erschiene er auf einem Touchgeraet nie.
+   */
+  const grund = () => page.locator("#straightenReason").textContent();
+
   check("Begradigen ist ohne Auswahl gesperrt", await straighten.isDisabled());
-  check("Titel nennt den Grund",
-    (await straighten.getAttribute("title")).includes("genau zwei Punkte"));
+  check("der Grund steht sichtbar unter dem Knopf",
+    (await grund()).includes("genau zwei Punkte"), await grund());
+  check("und der Tooltip erklaert die Wirkung",
+    (await straighten.getAttribute("title")).includes("gerade Verbindungslinie"),
+    await straighten.getAttribute("title"));
 
   await markers.nth(0).click();
   await page.waitForTimeout(150);
@@ -128,9 +143,8 @@ try {
     (await page.locator("#multiSelectionInfo").textContent()).startsWith("2"),
     await page.locator("#multiSelectionInfo").textContent());
   check("Begradigen ist jetzt freigegeben", await straighten.isEnabled());
-  check("Titel nennt die Anzahl der betroffenen Punkte",
-    (await straighten.getAttribute("title")).includes("3 Punkte"),
-    await straighten.getAttribute("title"));
+  check("der Text unter dem Knopf nennt die Anzahl der betroffenen Punkte",
+    (await grund()).includes("3 Punkte"), await grund());
 
   /* ---------------------------------------------------------------- */
   console.log("Vorschau erscheint ohne vorhandene Vergleichszustände");

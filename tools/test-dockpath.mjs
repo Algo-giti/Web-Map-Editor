@@ -69,7 +69,12 @@ try {
 
   const expandSidebar = () =>
     page.evaluate(() => {
-      document.querySelectorAll("#sidebar details")
+      /*
+       * Seit Etappe 5 D sind "Umformen" und "Kartenpruefung" im Inspektor
+       * einklappbar und beim ersten Start ZU. Wer ihre Knoepfe bedienen will,
+       * klappt sie auf - der Test tut dasselbe.
+       */
+      document.querySelectorAll("#sidebar details, .inspector-fold")
         .forEach((section) => section.setAttribute("open", ""));
     });
 

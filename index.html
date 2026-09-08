@@ -4177,6 +4177,36 @@ function describeDrawMode(mode) {
 
 
 /**
+ * Was die drei Umformwerkzeuge TUN - der Tooltip erklärt die Bedienung,
+ * er benennt sie nicht nur.
+ *
+ * "Linie begradigen" als Tooltip auf einem Knopf, der "Linie begradigen"
+ * heißt, sagt nichts: wer den Knopf sieht, hat die Beschriftung schon
+ * gelesen. Erklärt wird deshalb, was mit welchen Punkten geschieht und was
+ * unangetastet bleibt - beides zusammen beantwortet die eigentliche Frage
+ * "kann ich das rückgängig unterscheiden von dem, was ich will?".
+ *
+ * Der Ablehnungsgrund steht weiterhin sichtbar unter dem Knopf
+ * (.tool-reason), nicht nur im Tooltip: ein Tooltip erscheint auf einem
+ * Touchgerät nie.
+ */
+const TRANSFORM_TOOL_HELP = {
+  straightenSelectionBtn:
+    "Legt alle Punkte zwischen den beiden ausgewählten exakt auf die gerade " +
+    "Verbindungslinie. Die beiden ausgewählten Punkte bleiben, wo sie sind; " +
+    "es wird kein Punkt entfernt.",
+  reduceApplyBtn:
+    "Entfernt Punkte, die weniger als die eingestellte Toleranz von der " +
+    "Linie abweichen (Douglas-Peucker). Die Form bleibt damit innerhalb der " +
+    "Toleranz erhalten. Bei geschlossenen Ringen bleibt der Startpunkt immer.",
+  rectifyApplyBtn:
+    "Dreht jede Kante des Features auf die nächste Achse seiner eigenen " +
+    "Vorzugsrichtung, sofern sie weniger als die Toleranz davon abweicht. " +
+    "Ausgerichtet wird nicht auf East/North, und es wird kein Punkt entfernt."
+};
+
+
+/**
  * Der Grund je Umformwerkzeug - abgeleitet, nicht vom Knopf abgelesen.
  *
  * Den title des Knopfes zu spiegeln waere naheliegend und falsch:
@@ -7571,10 +7601,14 @@ function updateMultiSelectionUi(options = {}) {
     const target = getSelectedSection();
 
     straightenButton.disabled = !target.ok;
+
+    /*
+     * Der Tooltip erklärt IMMER dasselbe: was das Werkzeug tut. Der Grund,
+     * warum es gerade nicht geht, steht sichtbar unter dem Knopf - im Tooltip
+     * wäre er auf einem Touchgerät unerreichbar.
+     */
     straightenButton.title =
-      target.ok
-        ? `Begradigen: ${target.indices.length} Punkte auf die Gerade zwischen den beiden ausgewählten legen.`
-        : straightenReasonText(target.reason);
+      TRANSFORM_TOOL_HELP.straightenSelectionBtn;
   }
 
   updateReduceUi();
@@ -13243,7 +13277,7 @@ function updateRectifyUi() {
 
   if (!target.ok) {
     button.disabled = true;
-    button.title = rectifyReasonText(target.reason);
+    button.title = TRANSFORM_TOOL_HELP.rectifyApplyBtn;
     setRectifyStatus(rectifyReasonText(target.reason));
     return;
   }
@@ -13252,13 +13286,13 @@ function updateRectifyUi() {
 
   if (!analysis || analysis.angle === null) {
     button.disabled = true;
-    button.title = "Ecken rechtwinklig: keine Vorzugsrichtung erkennbar.";
+    button.title = TRANSFORM_TOOL_HELP.rectifyApplyBtn;
     setRectifyStatus("Ecken rechtwinklig: keine Vorzugsrichtung erkennbar.");
     return;
   }
 
   button.disabled = !analysis.snapped || analysis.maxShift === 0;
-  button.title = "Ecken rechtwinklig machen (ganzes Feature).";
+  button.title = TRANSFORM_TOOL_HELP.rectifyApplyBtn;
 
   /*
    * Kein eigener Text fuer "nichts gefunden": describeRectify() sagt bereits
@@ -13369,7 +13403,7 @@ function updateReduceUi() {
 
   if (!target.ok) {
     button.disabled = true;
-    button.title = reduceReasonText(target.reason);
+    button.title = TRANSFORM_TOOL_HELP.reduceApplyBtn;
     setReduceStatus(reduceReasonText(target.reason));
     return;
   }
@@ -13378,7 +13412,7 @@ function updateReduceUi() {
   const scope = target.mode === "section" ? "Abschnitt" : "ganzes Feature";
 
   button.disabled = !analysis.removed.length || analysis.belowMinimum;
-  button.title = `Punkte reduzieren (${scope}).`;
+  button.title = TRANSFORM_TOOL_HELP.reduceApplyBtn;
 
   if (analysis.belowMinimum) {
     setReduceStatus(
@@ -17357,6 +17391,9 @@ let currentLanguage = "de";
 const I18N_EN = new Map(Object.entries({
   "nichts möglich":"nothing available",
   "Begradigen":"Straighten",
+  "Legt alle Punkte zwischen den beiden ausgewählten exakt auf die gerade Verbindungslinie. Die beiden ausgewählten Punkte bleiben, wo sie sind; es wird kein Punkt entfernt.":"Puts every point between the two selected ones exactly onto the straight line connecting them. The two selected points stay where they are; no point is removed.",
+  "Entfernt Punkte, die weniger als die eingestellte Toleranz von der Linie abweichen (Douglas-Peucker). Die Form bleibt damit innerhalb der Toleranz erhalten. Bei geschlossenen Ringen bleibt der Startpunkt immer.":"Removes points that deviate from the line by less than the configured tolerance (Douglas-Peucker). The shape is therefore preserved within the tolerance. On closed rings the start point is always kept.",
+  "Dreht jede Kante des Features auf die nächste Achse seiner eigenen Vorzugsrichtung, sofern sie weniger als die Toleranz davon abweicht. Ausgerichtet wird nicht auf East/North, und es wird kein Punkt entfernt.":"Rotates every edge of the feature onto the nearest axis of its own preferred direction, as long as it deviates from it by less than the tolerance. Alignment is not to East/North, and no point is removed.",
   "Inspektor einklappen":"Collapse inspector",
   "Inspektor ausklappen":"Expand inspector",
   "Bezugspunkt setzen":"Place reference point",

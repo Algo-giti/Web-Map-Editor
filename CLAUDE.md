@@ -440,6 +440,17 @@ gibt es keinen Auslöser, dessen Verarbeitung ausbleiben könnte.
 
 #### Hinweis für eigene Erweiterungen
 
+**Einklappbare Bereiche zuerst öffnen.** Seit Etappe 5 sind „Umformen" und
+„Kartenprüfung" im Inspektor `<details>` und beim ersten Start **zu** – ein
+Klick auf einen Knopf darin läuft sonst in einen Playwright-Timeout
+("element is not visible"). Die betroffenen Tests öffnen deshalb
+`#sidebar details, .inspector-fold`; genau das tut auch ein Nutzer.
+
+**Die Zoom-Leiste liegt über der Karte** (`.map-view-toolbar`, oben rechts).
+Ein Punktmarker darunter lässt sich nicht anklicken – Playwright meldet
+"subtree intercepts pointer events". Testpunkte deshalb nicht in die obere
+rechte Ecke der Karte legen.
+
 Werte in eingeklappten `<details>`-Bereichen (z. B. `#widthStat`,
 `#originStatus`) müssen mit `textContent` gelesen werden, `innerText` liefert
 dort einen leeren String.
@@ -1044,6 +1055,18 @@ allen drei Fenstergrößen ohne Scrollen aus.
 Der Fall „beide Faltblöcke aufgeklappt" ist ausdrücklich **kein** Ziel: wer
 beide öffnet, will ihren Inhalt sehen und scrollt dafür. Genau deshalb sind
 sie einklappbar.
+
+**Der Tooltip erklärt, er benennt nicht.** „Linie begradigen" als `title` auf
+einem Knopf, der „Linie begradigen" heißt, sagt nichts – wer den Knopf sieht,
+hat die Beschriftung schon gelesen. Die drei Umformwerkzeuge tragen deshalb in
+`TRANSFORM_TOOL_HELP` je einen Satz, der die **Wirkung** beschreibt: welche
+Punkte sich bewegen, welche bleiben, und was ausdrücklich *nicht* geschieht
+(kein Punkt entfernt, keine Ausrichtung auf East/North).
+
+**Der Tooltip ist immer derselbe, auch wenn das Werkzeug gesperrt ist.** Der
+Ablehnungsgrund steht stattdessen sichtbar unter dem Knopf im
+`.tool-reason`-Feld – im Tooltip erschiene er auf einem Touchgerät nie.
+Dieselbe Regel gilt seit Etappe 3 für die Zeichenknöpfe der Werkzeugleiste.
 
 **Ein Block kann zu mehreren Zuständen gehören.** `INSPECTOR_BLOCKS` ist
 deswegen eine Liste aus `{id, states}` und keine Zuordnung Zustand → Block:

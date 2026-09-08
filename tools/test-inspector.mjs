@@ -861,6 +861,75 @@ try {
   }
 
   /* ---------------------------------------------------------------- */
+  console.log("Die Tooltips der Umformwerkzeuge erklären, statt zu benennen");
+
+  await load([MIT_LOCH]);
+
+  const UMFORMEN = ["straightenSelectionBtn", "reduceApplyBtn", "rectifyApplyBtn"];
+
+  const tipps = () => page.evaluate((ids) => ids.map((id) =>
+    document.getElementById(id).title), UMFORMEN);
+
+  const beschriftungen = () => page.evaluate((ids) => ids.map((id) =>
+    document.getElementById(id).textContent.trim()), UMFORMEN);
+
+  const gesperrt = await tipps();
+  const namen = await beschriftungen();
+
+  /*
+   * Ein Tooltip, der nur die Beschriftung wiederholt, sagt nichts: wer den
+   * Knopf sieht, hat sie schon gelesen.
+   */
+  check("kein Tooltip wiederholt nur die Beschriftung",
+    gesperrt.every((t, i) => t !== namen[i] && t.length > namen[i].length + 40),
+    gesperrt.join(" | "));
+  check("jeder nennt eine Wirkung",
+    gesperrt.every((t) => /Punkt|Kante|Linie/.test(t)), gesperrt.join(" | "));
+
+  /*
+   * Der Ablehnungsgrund steht weiterhin SICHTBAR unter dem Knopf, nicht nur
+   * im Tooltip - dort erschiene er auf einem Touchgerät nie.
+   */
+  const gruendeGesperrt = await gruende();
+
+  check("und der Ablehnungsgrund steht sichtbar unter dem Knopf",
+    Object.values(gruendeGesperrt).every((g) => g.length > 0),
+    JSON.stringify(gruendeGesperrt));
+
+  /*
+   * Der Tooltip ändert sich nicht, wenn das Werkzeug verfügbar wird.
+   * Ausgewählt wird an der Exclusion, nicht am Perimeter: dessen obere Ecken
+   * liegen unter der Zoom-Leiste der Karte, die den Klick abfängt.
+   */
+  await ringe.nth(0).click();
+  await ringe.nth(2).click({ modifiers: ["Control"] });
+  await page.waitForTimeout(300);
+
+  check("die Werkzeuge sind jetzt verfügbar",
+    !(await page.locator("#straightenSelectionBtn").isDisabled()));
+  check("der Tooltip erklärt weiterhin dasselbe",
+    (await tipps()).join("|") === gesperrt.join("|"),
+    (await tipps()).join(" | "));
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  const englisch = await tipps();
+
+  check("und ist auf Englisch übersetzt",
+    englisch.every((t, i) => t !== gesperrt[i] && /[A-Za-z]/.test(t)),
+    englisch.join(" | "));
+  check("ohne deutschen Rest",
+    !englisch.join(" ").match(/[äöüß]|Punkte|Kante|Linie/),
+    englisch.join(" | "));
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  check("und kommt deutsch zurück",
+    (await tipps()).join("|") === gesperrt.join("|"), (await tipps()).join(" | "));
+
+  /* ---------------------------------------------------------------- */
   console.log("Inspektor einklappen");
 
   await page.setViewportSize({ width: 1600, height: 900 });
