@@ -240,6 +240,76 @@ try {
     (await page.locator(".map-info-window").count()) === 0);
 
   /* ---------------------------------------------------------------- */
+  console.log("Seitenleiste einklappen (Zwischenstand)");
+
+  /*
+   * Solange Seitenleiste UND Inspektor stehen, belegen sie zusammen bis zu
+   * 680 px. Bei 1280 px Fensterbreite blieben der Karte 544 px - weniger als
+   * die 600, ab denen Zeichnen und Rechteckauswahl brauchbar sind. Der
+   * Schalter macht den Zwischenstand beurteilbar. Entfällt mit Etappe 6.
+   */
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.waitForTimeout(250);
+
+  const mapWidth = () =>
+    page.evaluate(() =>
+      Math.round(document.getElementById("viewer").getBoundingClientRect().width));
+
+  const sidebarShown = () =>
+    page.evaluate(() =>
+      getComputedStyle(document.getElementById("sidebar")).display !== "none");
+
+  const schmal = await mapWidth();
+
+  check("mit Seitenleiste ist die Karte eng", schmal < 600, String(schmal));
+  check("die Seitenleiste steht", await sidebarShown());
+
+  await page.locator("#sidebarToggle").click();
+  await page.waitForTimeout(300);
+
+  check("eingeklappt ist die Seitenleiste weg", !(await sidebarShown()));
+  check("und die Karte deutlich breiter",
+    (await mapWidth()) > schmal + 300, `${await mapWidth()} statt >${schmal + 300}`);
+  check("die Karte ist wieder brauchbar breit",
+    (await mapWidth()) >= 600, String(await mapWidth()));
+
+  /*
+   * Die Spalte der Werkzeugleiste ist fest, nicht `auto`: ein auto-Track nahm
+   * sich beim Einklappen seine max-content-Breite (659 statt 168 px) und fraß
+   * den Gewinn auf. Und das eingeklappte Raster hat DREI Spalten - mit einer
+   * 0-Spalte landete die Karte in der Spalte der Werkzeugleiste.
+   */
+  check("die Werkzeugleiste bleibt schmal",
+    (await page.evaluate(() =>
+      Math.round(document.getElementById("toolRail").getBoundingClientRect().width))) <= 168,
+    String(await page.evaluate(() =>
+      Math.round(document.getElementById("toolRail").getBoundingClientRect().width))));
+  check("der Inspektor behält seine 320 px",
+    (await page.evaluate(() =>
+      Math.round(document.getElementById("inspector").getBoundingClientRect().width))) === 320);
+
+  await page.locator("#sidebarToggle").click();
+  await page.waitForTimeout(300);
+
+  check("wieder ausklappen geht", await sidebarShown());
+  check("und die Karte ist wieder eng", (await mapWidth()) === schmal);
+
+  /* Der Zustand ist vorübergehend - er darf den Neuaufbau NICHT überleben. */
+  await page.locator("#sidebarToggle").click();
+  await page.waitForTimeout(250);
+  await page.reload({ waitUntil: "load" });
+  await page.waitForTimeout(300);
+
+  check("nach dem Neuladen steht die Seitenleiste wieder",
+    await sidebarShown(), "Zustand hat den Neuaufbau überlebt");
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.waitForTimeout(250);
+  await load();
+  await marks.nth(0).click();
+  await page.waitForTimeout(250);
+
+  /* ---------------------------------------------------------------- */
   console.log("Übersetzung");
 
   await marks.nth(0).click();

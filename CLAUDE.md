@@ -360,6 +360,22 @@ sie ist auch kein bestandener Test: wenn du einen Browserlauf nicht wirklich
 durchführen konntest, sag das ausdrücklich dazu, statt die Änderung als
 getestet zu melden.
 
+#### Der Test prüft die Wirkung, nicht die Absicht
+
+Zwei Fehlerklassen, die dieselbe Wurzel haben und beide schon zugeschlagen
+haben:
+
+**Sichtbarkeit wird über den BERECHNETEN Stil geprüft, nie über ein Attribut
+oder eine Klasse.** `element.hidden` und `classList.contains(...)` beschreiben,
+was gemeint war – nicht, was der Browser daraus macht. Beim Inspektor standen
+beide Zustandsblöcke gleichzeitig da, während `element.hidden` brav `true`
+meldete: eine Klassenregel mit `display:flex` schlägt die Browser-Vorgabe
+`[hidden]{display:none}`. Richtig ist
+`getComputedStyle(el).display !== "none"`.
+
+Dasselbe gilt für „ist der Knopf gesperrt?": seit die Zeichenknöpfe über
+`aria-disabled` sperren, sagt `element.disabled` nichts mehr.
+
 #### Eine Zusicherung über ein Ausbleiben beweist nichts
 
 **Jeder Test, der einen Auslöser prüft, braucht mindestens eine Zusicherung,
@@ -708,11 +724,42 @@ Zeile gar nicht zu haben. Deshalb weicht immer das Nachschlagbare zuerst.
 hier, damit ihn niemand noch einmal nachrechnet und das Ergebnis für einen
 Fehler des Umbaus hält. Gemessen, nicht geschätzt:
 
+**Eine Flächenrechnung wird für alle drei Fenstergrößen gemacht, nie nur für
+die größte.** Im schmalsten Fenster entscheidet sich, ob ein Layout trägt: bei
+Etappe 4 hatte ich −17 % geschätzt, weil ich nur 1920 × 1080 gerechnet hatte –
+bei 1280 × 800 waren es tatsächlich −42 %, und die Karte fiel mit 544 px unter
+die 600 px, ab denen Zeichnen und Rechteckauswahl überhaupt brauchbar sind.
+
+Stand nach Etappe 3b, mit eingeklappter Werkzeugleiste:
+
 | Fenster | vor dem Umbau | Leiste offen | Leiste eingeklappt |
 |---|---|---|---|
 | 1920 × 1080 | 1 485 120 px² | 1 307 088 px² (−12,0 %) | 1 412 256 px² (−4,9 %) |
 | 1440 × 900 | 833 760 px² | 692 208 px² (−17,0 %) | 777 216 px² (−6,8 %) |
 | 1280 × 800 | 618 240 px² | 495 568 px² (−19,8 %) | 569 376 px² (−7,9 %) |
+
+**Zwischenstand ab Etappe 4**, solange Seitenleiste *und* Inspektor
+gleichzeitig stehen – gemessene Kartenbreite:
+
+| Fenster | Seitenleiste offen | Seitenleiste eingeklappt |
+|---|---|---|
+| 1920 × 1080 | 1184 px (−25,1 %) | 1544 px (−2,4 %) |
+| 1440 × 900 | 704 px (−35,9 %) | 1064 px (−3,1 %) |
+| 1280 × 800 | 544 px (−42,0 %) | 904 px (−3,6 %) |
+
+Der Schalter `#sidebarToggle` ist der Behelf dafür und **entfällt mit
+Etappe 6**, wenn die Seitenleiste ohnehin verschwindet; die rechte Spalte
+liegt dann dauerhaft bei den Werten der zweiten Zahlenreihe. Bewusst **ohne**
+`localStorage`: der Zustand ist vorübergehend und soll nicht in eine spätere
+Ausgabe überleben.
+
+**Die Rasterspalten von `main` sind fest, nicht `auto`.** Ein `auto`-Track
+nimmt sich seine max-content-Breite, sobald Platz frei wird – beim Einklappen
+der Seitenleiste wuchs die Spalte der Werkzeugleiste von 168 auf 659 px und
+fraß den Gewinn auf. Und das eingeklappte Raster hat **drei** Spalten statt
+vier mit einer Null: `display:none` nimmt die Seitenleiste aus der
+Rasterzuordnung, die übrigen rutschen sonst eine Spalte nach vorn, und die
+Karte landet in der 56-px-Spalte der Werkzeugleiste.
 
 Die Kartenfläche kostet: **93 px Höhe** für Legende (30) und die zweizeilige
 Statuszeile (63), 168 px Breite für die ausgeklappte Werkzeugleiste.
