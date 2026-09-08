@@ -1990,6 +1990,9 @@
 
   .point-role {
     display:inline-block;
+    /* Im Flex-Spalten-Layout des Inspektors soll die Pille ihren Inhalt
+       umschliessen, nicht die volle Breite nehmen. */
+    align-self:flex-start;
     margin-top:5px;
     padding:2px 7px;
     border-radius:999px;
@@ -3276,9 +3279,14 @@
           </div>
         </details>
 
-        <div id="pointMeta" class="editor-meta">
-          Noch kein Punkt ausgewählt.
-        </div>
+        <!--
+          Seit Etappe 4 nennt der Kopfblock Punktnummer, Feature und Behälter.
+          Dieses Feld sagte dasselbe noch einmal - genau das sollte der feste
+          Kopfblock überflüssig machen. Übrig bleibt die Punktrolle, und die
+          auch nur, wenn es eine gibt: "Zwischenpunkt" ist der Normalfall und
+          sagt nichts. Weglassen statt platzhaltern.
+        -->
+        <div id="pointMeta" class="point-role" hidden></div>
       </div>
 
       <!--
@@ -10752,12 +10760,37 @@ function describeVertex(descriptor) {
 }
 
 
+/**
+ * Schreibt die Punktrolle unter den Punkteditor - oder blendet sie aus.
+ *
+ * Gezeigt werden nur Start- und Endpunkt: das sind die beiden Rollen, die der
+ * Editor tatsächlich anders behandelt (grün bzw. rot auf der Karte, eigene
+ * Knöpfe zum Neuvergeben). "Zwischenpunkt" ist der Normalfall und sagt nichts;
+ * "Einzelpunkt" steht bereits als "· Punktmenge" im Kopfblock.
+ *
+ * Weglassen statt platzhaltern: eine Zeile, die bei fast jedem Punkt dasselbe
+ * Nichtssagende zeigt, kostet Platz und trägt keine Information.
+ */
+const SHOWN_POINT_ROLES = ["Startpunkt", "Endpunkt"];
+
+function setPointRoleText(role) {
+  const meta = document.getElementById("pointMeta");
+  if (!meta) return;
+
+  const show = SHOWN_POINT_ROLES.includes(role);
+
+  meta.hidden = !show;
+
+  if (show) setLocalizedText(meta, role);
+  else meta.textContent = "";
+}
+
+
 /** Aktualisiert Felder, Buttons und Metadaten des Punkteditors. */
 function updateSelectionPanel() {
   syncActiveSlotFromGlobals();
   updateInspector();
 
-  const meta = document.getElementById("pointMeta");
   const eastInput = document.getElementById("pointEastInput");
   const northInput = document.getElementById("pointNorthInput");
   const insertBeforeButton = document.getElementById("insertPointBeforeBtn");
@@ -10769,9 +10802,7 @@ function updateSelectionPanel() {
   const selectionCount = selectedVertices.length;
 
   if (selectionCount > 1) {
-    meta.innerHTML =
-      `<strong>${selectionCount} Punkte ausgewählt</strong><br>` +
-      `Gemeinsam verschieben oder löschen. Einzelpunktfunktionen sind deaktiviert.`;
+    setPointRoleText(null);
 
     eastInput.value = "";
     northInput.value = "";
@@ -10800,9 +10831,7 @@ function updateSelectionPanel() {
   }
 
   if (!selectedVertex) {
-    meta.innerHTML =
-      `Noch kein Punkt ausgewählt.<br>` +
-      `Klicke einen weißen Kartenpunkt an.`;
+    setPointRoleText(null);
 
     eastInput.value = "";
     northInput.value = "";
@@ -10831,14 +10860,8 @@ function updateSelectionPanel() {
   }
 
   const [east, north] = toWorld(coordinate);
-  const feature = data.features?.[selectedVertex.featureIndex];
-  const pointRole = describePointRole(selectedVertex);
-  const featureLabel = describeFeature(feature);
 
-  meta.innerHTML =
-    `<strong>${escapeHtml(describeVertex(selectedVertex))}</strong><br>` +
-    `${escapeHtml(featureLabel)} · ${escapeHtml(selectedVertex.geometryType)}<br>` +
-    `<span class="point-role">${escapeHtml(pointRole)}</span>`;
+  setPointRoleText(describePointRole(selectedVertex));
 
   eastInput.value = formatMeters(east, 2);
   northInput.value = formatMeters(north, 2);

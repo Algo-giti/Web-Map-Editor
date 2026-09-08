@@ -990,20 +990,26 @@ für die Übersetzung ein Ersetzungsmuster mit deutschem `$1`; als eigene
 CSS über den allgemeinen Geschwisterwähler, damit nie ein führendes „·"
 dasteht.
 
-**Gemessen (1600 px breit), Spaltenhöhe gegen Inhalt:**
+**Gemessen (1600 px breit), Spaltenhöhe gegen Inhalt** – nach der Kürzung von
+`#pointMeta`, ungünstigster Fall des Punktzustands (Startpunkt, Rolle also
+sichtbar):
 
 | Fensterhöhe | leer | ein Punkt | ein Punkt + geprüft | beide aufgeklappt |
 |---|---|---|---|---|
-| 1000 px | passt | **passt** | **passt** | scrollt (+467) |
-| 900 px | passt | scrollt (+36) | scrollt (+36) | scrollt (+567) |
-| 800 px | passt | scrollt (+136) | scrollt (+136) | scrollt (+667) |
+| 1000 px | passt | **passt** | **passt** | scrollt (+407) |
+| 900 px | passt | **passt** | **passt** | scrollt (+507) |
+| 800 px | passt | scrollt (+76) | scrollt (+76) | scrollt (+607) |
 
-Bei 1000 px Höhe kommt die Spalte in beiden gefragten Zuständen ohne Scrollen
-aus. Darunter fehlen im Zustand „ein Punkt" 36 bzw. 136 px. **Der nächste
-Hebel dafür ist `#pointMeta`**: es wiederholt, was der Kopfblock seit Etappe 4
-ohnehin sagt („Perimeter · Punkt 1/4", „Perimeter · Polygon"); einzig die
-Punktrolle („Startpunkt") steht nur dort. Nicht ohne Auftrag entfernen – es
-hängt an mehreren Codepfaden und an Tests.
+Die Kürzung von `#pointMeta` hat 60 px gebracht und den 900-px-Fall gelöst.
+**Bei 800 px fehlen weiterhin 76 px** – das ist bekannt und offen. Weitere
+Kürzungen kosten dort Information, und die Frage ist stattdessen, ob die
+Spalte in sehr niedrigen Fenstern anders aufgebaut sein muss (etwa: der
+Umformblock zieht dort aus dem Inspektor heraus). Nicht auf eigene Faust
+entscheiden.
+
+Der Fall „beide aufgeklappt" ist ausdrücklich **kein** Ziel: wer beide Blöcke
+öffnet, will ihren Inhalt sehen und scrollt dafür. Deshalb sind sie
+einklappbar.
 
 **Ein Block kann zu mehreren Zuständen gehören.** `INSPECTOR_BLOCKS` ist
 deswegen eine Liste aus `{id, states}` und keine Zuordnung Zustand → Block:
@@ -1018,19 +1024,36 @@ darunter „2 Punkte ausgewählt" stand. Deshalb gilt: **`single` heißt genau e
 Punkt**, und die Quelle ist `getEffectiveSelectedVertices()`, nicht
 `selectedVertex`.
 
-**Weglassen statt platzhaltern.** Eine typabhängige Kennzahl, die es für
-diesen Typ gar nicht gibt, bekommt **keine Zeile** – kein „–". Ein
-Gedankenstrich behauptet, dort gebe es einen Wert, den man nur gerade nicht
-kennt; ein Perimeter hat aber kein `idx`, und eine Linie hat keine Fläche. Das
-ist keine fehlende Angabe, sondern eine, die es nicht gibt.
+**Weglassen oder Gedankenstrich – zwei verschiedene Fälle, und die
+Unterscheidung ist der eigentliche Inhalt der Regel.** Wer sie zu „nie einen
+Strich zeigen" verkürzt, macht die Anzeige wieder unehrlich:
 
-Der Gedankenstrich bleibt für den anderen Fall reserviert: **der Wert
-existiert, ist aber gerade nicht zu ermitteln** – etwa eine Fläche bei
-unbekanntem Maßstab. Betroffen sind `#featureAreaRow`, `#featureIdxRow` und
-`#duplicateFeatureBtn`; das Prinzip gilt für jede künftige Kennzahl.
+| Fall | Anzeige | Beispiele |
+|---|---|---|
+| Der Wert **existiert für diesen Typ nicht** | **Zeile weglassen** | `idx` bei einem Perimeter, Fläche bei einer Linie, „Exclusion duplizieren" bei einem Nicht-Exclusion, Punktrolle „Zwischenpunkt" |
+| Der Wert **existiert, ist aber gerade nicht zu ermitteln** | **„–"** | Fläche bei unbekanntem Maßstab, Maßstab ohne geladene Karte |
+
+Ein Gedankenstrich ist eine Aussage: „hier gehört ein Wert hin, den ich dir
+gerade nicht nennen kann." Bei einem Perimeter gehört dort kein `idx` hin –
+die Zeile zu zeigen behauptete eine Lücke, wo keine ist. Umgekehrt wäre es
+genauso falsch, eine Flächenzeile bei unbekanntem Maßstab wegzulassen: die
+Fläche gibt es, sie ist nur nicht berechenbar, und das Verschwinden der Zeile
+verschwiege die Einschränkung.
+
+Betroffen sind `#featureAreaRow`, `#featureIdxRow`, `#duplicateFeatureBtn` und
+`#pointMeta`; das Prinzip gilt für jede künftige Kennzahl.
 
 Das widerspricht dem festen Kopfblock nicht: **der Kopfblock bleibt fest, die
 Kennzahlen darunter dürfen sich in der Zahl unterscheiden.**
+
+**`#pointMeta` trägt nur noch die Punktrolle.** Bis Etappe 5 wiederholte es
+Punktnummer, Feature und Geometrietyp – also genau das, was der feste
+Kopfblock seit Etappe 4 sagt; ihn einzuführen und die Wiederholung stehen zu
+lassen war ein halber Umbau. Übrig bleibt eine Zeile, und die nur für
+**Startpunkt und Endpunkt** (`SHOWN_POINT_ROLES`): das sind die beiden Rollen,
+die der Editor tatsächlich anders behandelt – grün bzw. rot auf der Karte,
+eigene Knöpfe zum Neuvergeben. „Zwischenpunkt" ist der Normalfall,
+„Einzelpunkt" steht bereits als „· Punktmenge" im Kopfblock.
 
 **Ein leeres Feld sagt, warum es leer ist.** Die E/N-Felder werden bei einer
 Mehrfachauswahl bewusst geleert und gesperrt – das ist richtig, sah aber wie

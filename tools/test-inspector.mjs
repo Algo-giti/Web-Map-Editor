@@ -495,6 +495,46 @@ try {
     (await sichtbareBloecke()).join(","));
 
   /* ---------------------------------------------------------------- */
+  console.log("Die Punktrolle steht nur da, wenn es eine gibt");
+
+  /*
+   * #pointMeta wiederholte bis hierher, was der Kopfblock seit Etappe 4
+   * ohnehin sagt. Uebrig bleibt die Punktrolle - und auch die nur fuer Start-
+   * und Endpunkt: "Zwischenpunkt" ist der Normalfall und sagt nichts.
+   */
+  await load();
+  await marks.nth(0).click();
+  await page.waitForTimeout(300);
+
+  check("der Startpunkt wird benannt",
+    (await visible("pointMeta")) && (await text("pointMeta")) === "Startpunkt",
+    await text("pointMeta"));
+
+  await marks.nth(3).click();
+  await page.waitForTimeout(300);
+
+  check("der Endpunkt ebenfalls",
+    (await visible("pointMeta")) && (await text("pointMeta")) === "Endpunkt",
+    await text("pointMeta"));
+
+  await marks.nth(1).click();
+  await page.waitForTimeout(300);
+
+  check("ein gewöhnlicher Punkt bekommt keine Zeile",
+    !(await visible("pointMeta")), await text("pointMeta"));
+
+  /*
+   * Und die Gegenprobe, dass nichts verlorengegangen ist: Punktnummer und
+   * Feature stehen weiterhin da - im Kopfblock.
+   */
+  const nachKuerzung = await head();
+
+  check("Punktnummer und Anzahl stehen weiterhin im Kopf",
+    /^Punkt 2 von 4$/.test(nachKuerzung.titel), nachKuerzung.titel);
+  check("Feature und Behälter ebenfalls",
+    nachKuerzung.unter === "Perimeter · Polygon", nachKuerzung.unter);
+
+  /* ---------------------------------------------------------------- */
   console.log("Leere Felder sagen, warum sie leer sind");
 
   await load();
@@ -641,8 +681,15 @@ try {
 
   check("mit Prüfergebnis ebenfalls", await passt(), await hoehen());
 
+  /*
+   * Bei 900 px reicht es seit der Kürzung von #pointMeta ebenfalls. Bei
+   * 800 px fehlen weiterhin 76 px - das ist bekannt und in CLAUDE.md
+   * festgehalten, deshalb steht hier keine Zusicherung darüber.
+   */
   await page.setViewportSize({ width: 1600, height: 900 });
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(300);
+
+  check("bei 900 px Höhe passt es ebenfalls", await passt(), await hoehen());
 
   /* ---------------------------------------------------------------- */
   console.log("Tastaturbedienung");
