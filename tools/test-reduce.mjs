@@ -121,8 +121,13 @@ try {
        * einklappbar und beim ersten Start ZU. Wer ihre Knoepfe bedienen will,
        * klappt sie auf - der Test tut dasselbe.
        */
-      document.querySelectorAll("#sidebar details, .inspector-fold")
-        .forEach((section) => section.setAttribute("open", ""));
+      /*
+       * Seit Etappe 6 stehen die Werkzeugeinstellungen als eingeklapptes
+       * <details> unter ihrem Knopf im Inspektor (.tool-settings).
+       */
+      document.querySelectorAll(
+        "#sidebar details, .inspector-fold, .tool-settings"
+      ).forEach((section) => section.setAttribute("open", ""));
     });
 
   await expandSidebar();

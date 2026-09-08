@@ -1615,6 +1615,28 @@
   .tool-reason:empty { display:none; }
 
   /*
+   * Einstellungen eines Werkzeugs, eingeklappt unter seinem Knopf. Sie stehen
+   * bei dem Knopf, zu dem sie gehoeren, kosten aber keine Hoehe, solange man
+   * sie nicht braucht - dieselbe Ueberlegung wie bei den Faltbloecken.
+   */
+  .tool-settings { margin-top:-4px; }
+
+  .tool-settings > summary {
+    cursor:pointer; user-select:none; padding:3px 0;
+    color:var(--muted); font-size:12px;
+  }
+  .tool-settings[open] > summary { color:var(--text); }
+  .tool-settings > summary:focus-visible { outline:2px solid var(--blue); }
+
+  .tool-settings-body {
+    display:flex; flex-direction:column; gap:9px; padding:8px 0 4px;
+  }
+
+  /* In der schmalen Spalte stehen Feld und Knopf untereinander. */
+  .inspector .field-row { display:flex; gap:6px; }
+  .inspector .field-row .grid-input { min-width:0; flex:1 1 auto; }
+
+  /*
    * Einklappbarer Block. display:block statt des flex aus .inspector-block -
    * ein <details> mit flex-Container verliert die Anordnung von summary und
    * Inhalt.
@@ -2895,91 +2917,6 @@
         </div>
       </details>
 
-      <details class="section sidebar-collapsible section-accent-cyan">
-        <summary class="sidebar-collapsible-summary"><span>Punkte reduzieren</span></summary>
-        <div class="sidebar-collapsible-body">
-          <div class="grid-controls">
-
-          <label class="field-label" for="reducePreset">
-            Toleranz
-            <select id="reducePreset" class="grid-select">
-              <option value="">Eigener Wert</option>
-              <option value="0.01">0,01 m (1 cm)</option>
-              <option value="0.02" selected>0,02 m (2 cm)</option>
-              <option value="0.05">0,05 m (5 cm)</option>
-              <option value="0.10">0,10 m (10 cm)</option>
-              <option value="0.20">0,20 m (20 cm)</option>
-            </select>
-          </label>
-
-          <label class="field-label" for="reduceToleranceInput">
-            Eigene Toleranz in Metern
-            <div class="field-row">
-              <input id="reduceToleranceInput" class="grid-input" type="text" inputmode="decimal"
-                     value="0,02" autocomplete="off" spellcheck="false" aria-describedby="reduceStatus">
-              <button id="applyReduceToleranceBtn" type="button">Übernehmen</button>
-            </div>
-          </label>
-
-
-          <div id="reduceStatus" class="grid-status" aria-live="polite">
-            Einen Punkt auswählen (ganzes Feature) oder zwei Punkte (Abschnitt).
-          </div>
-
-          <div class="hint">
-            Bei geschlossenen Ringen bleibt der Startpunkt immer erhalten, weil
-            er Start und Ende des Rings markiert. Soll er weg, vorher über
-            „Startpunkt setzen“ einen anderen Punkt dazu machen.
-          </div>
-          </div>
-        </div>
-      </details>
-
-      <details class="section sidebar-collapsible section-accent-cyan">
-        <summary class="sidebar-collapsible-summary"><span>Ecken rechtwinklig</span></summary>
-        <div class="sidebar-collapsible-body">
-          <div class="grid-controls">
-
-          <label class="field-label" for="rectifyAngleMode">
-            Vorzugsrichtung
-            <select id="rectifyAngleMode" class="grid-select">
-              <option value="auto" selected>automatisch erkennen</option>
-              <option value="fixed">fester Winkel</option>
-            </select>
-          </label>
-
-          <label class="field-label" for="rectifyAngleInput">
-            Fester Winkel (Grad, 0 = East)
-            <div class="field-row">
-              <input id="rectifyAngleInput" class="grid-input" type="text" inputmode="decimal"
-                     value="0" autocomplete="off" spellcheck="false" aria-describedby="rectifyStatus">
-              <button id="applyRectifyAngleBtn" type="button">Übernehmen</button>
-            </div>
-          </label>
-
-          <label class="field-label" for="rectifyToleranceInput">
-            Toleranz in Grad
-            <div class="field-row">
-              <input id="rectifyToleranceInput" class="grid-input" type="text" inputmode="decimal"
-                     value="15" autocomplete="off" spellcheck="false" aria-describedby="rectifyStatus">
-              <button id="applyRectifyToleranceBtn" type="button">Übernehmen</button>
-            </div>
-          </label>
-
-
-          <div id="rectifyStatus" class="grid-status" aria-live="polite">
-            Ecken rechtwinklig: einen Punkt des Features auswählen.
-          </div>
-
-          <div class="hint">
-            Kanten, die weiter als die Toleranz von einer Achse abweichen,
-            bleiben unangetastet. Es wird kein Punkt entfernt: werden drei
-            Punkte kollinear, bleiben sie erhalten – Ausdünnen ist Aufgabe von
-            „Punkte reduzieren“.
-          </div>
-          </div>
-        </div>
-      </details>
 
       <details class="section sidebar-collapsible section-accent-green">
         <summary class="sidebar-collapsible-summary"><span>Mähroboter-Vorschau</span></summary>
@@ -3594,8 +3531,98 @@
           <div id="straightenReason" class="tool-reason"></div>
           <button id="reduceApplyBtn" type="button" disabled>Punkte reduzieren</button>
           <div id="reduceReason" class="tool-reason"></div>
+
+          <!--
+            Die Einstellungen eines Werkzeugs stehen bei seinem Knopf. Sie
+            lagen bis Etappe 6 in der Seitenleiste, waehrend der Knopf hier
+            stand - dieselbe Trennung, die bei den Formmassen in Etappe 5b
+            leergelaufen ist. Verschoben, nicht kopiert; die ids sind
+            unveraendert.
+          -->
+          <details class="tool-settings">
+            <summary>Toleranz und Hinweise</summary>
+            <div class="tool-settings-body">
+            <label class="field-label" for="reducePreset">
+              Toleranz
+              <select id="reducePreset" class="grid-select">
+                <option value="">Eigener Wert</option>
+                <option value="0.01">0,01 m (1 cm)</option>
+                <option value="0.02" selected>0,02 m (2 cm)</option>
+                <option value="0.05">0,05 m (5 cm)</option>
+                <option value="0.10">0,10 m (10 cm)</option>
+                <option value="0.20">0,20 m (20 cm)</option>
+              </select>
+            </label>
+
+            <label class="field-label" for="reduceToleranceInput">
+              Eigene Toleranz in Metern
+              <div class="field-row">
+                <input id="reduceToleranceInput" class="grid-input" type="text" inputmode="decimal"
+                       value="0,02" autocomplete="off" spellcheck="false" aria-describedby="reduceStatus">
+                <button id="applyReduceToleranceBtn" type="button">Übernehmen</button>
+              </div>
+            </label>
+
+
+            <div id="reduceStatus" class="grid-status" aria-live="polite">
+              Einen Punkt auswählen (ganzes Feature) oder zwei Punkte (Abschnitt).
+            </div>
+
+            <div class="hint">
+              Bei geschlossenen Ringen bleibt der Startpunkt immer erhalten, weil
+              er Start und Ende des Rings markiert. Soll er weg, vorher über
+              „Startpunkt setzen“ einen anderen Punkt dazu machen.
+            </div>
+          
+            </div>
+          </details>
+
           <button id="rectifyApplyBtn" type="button" disabled>Ecken rechtwinklig machen</button>
           <div id="rectifyReason" class="tool-reason"></div>
+
+          <details class="tool-settings">
+            <summary>Vorzugsrichtung und Toleranz</summary>
+            <div class="tool-settings-body">
+            <label class="field-label" for="rectifyAngleMode">
+              Vorzugsrichtung
+              <select id="rectifyAngleMode" class="grid-select">
+                <option value="auto" selected>automatisch erkennen</option>
+                <option value="fixed">fester Winkel</option>
+              </select>
+            </label>
+
+            <label class="field-label" for="rectifyAngleInput">
+              Fester Winkel (Grad, 0 = East)
+              <div class="field-row">
+                <input id="rectifyAngleInput" class="grid-input" type="text" inputmode="decimal"
+                       value="0" autocomplete="off" spellcheck="false" aria-describedby="rectifyStatus">
+                <button id="applyRectifyAngleBtn" type="button">Übernehmen</button>
+              </div>
+            </label>
+
+            <label class="field-label" for="rectifyToleranceInput">
+              Toleranz in Grad
+              <div class="field-row">
+                <input id="rectifyToleranceInput" class="grid-input" type="text" inputmode="decimal"
+                       value="15" autocomplete="off" spellcheck="false" aria-describedby="rectifyStatus">
+                <button id="applyRectifyToleranceBtn" type="button">Übernehmen</button>
+              </div>
+            </label>
+
+
+            <div id="rectifyStatus" class="grid-status" aria-live="polite">
+              Ecken rechtwinklig: einen Punkt des Features auswählen.
+            </div>
+
+            <div class="hint">
+              Kanten, die weiter als die Toleranz von einer Achse abweichen,
+              bleiben unangetastet. Es wird kein Punkt entfernt: werden drei
+              Punkte kollinear, bleiben sie erhalten – Ausdünnen ist Aufgabe von
+              „Punkte reduzieren“.
+            </div>
+          
+            </div>
+          </details>
         </div>
       </details>
 
