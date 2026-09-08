@@ -192,7 +192,7 @@ Sie zerfallen in **zwei Stufen**, und diese Trennung ist beabsichtigt:
 | Stufe | Skripte | Abhängigkeiten | Status |
 |---|---|---|---|
 | statisch | `check-all.mjs` (4.1) | keine | **Pflicht** vor jeder Rückmeldung "fertig" |
-| Browser | fünfzehn Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
+| Browser | sechzehn Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
 
 `check-all.mjs` läuft mit Node-Bordmitteln und muss das bleiben – es ist die
 Stufe, die in **jeder** Umgebung ohne Vorbereitung durchläuft. Die
@@ -257,7 +257,7 @@ Zwei Fallstricke dabei:
 
 ### 4.2 Browsertests (optional, real gerendert)
 
-Fünfzehn Skripte öffnen `index.html` in einem echten Browser über eine
+Sechzehn Skripte öffnen `index.html` in einem echten Browser über eine
 `file://`-URL – die Datei hat keine externen Ressourcen und keine
 `fetch()`-Aufrufe, ein Webserver ist also nicht nötig.
 
@@ -278,6 +278,7 @@ Fünfzehn Skripte öffnen `index.html` in einem echten Browser über eine
 | `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
 | `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen |
 | `test-placeholders.mjs` | was als leerer Platzhalter gilt |
+| `test-inspector.mjs` | Inspektor: Zustände, Behälter, Tastatur |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -817,6 +818,44 @@ kann einen künftigen Modus wieder vergessen.
   nicht in Metern: ein Fangradius in Metern wäre beim Hineinzoomen unbedienbar
   groß und beim Herauszoomen nicht zu treffen. Dafür gibt es `worldToScreen()`
   als Umkehrung von `screenToWorld()`.
+
+**Ausgeblendet wird über `hidden`, und `[hidden]` trägt `!important`.** Die
+Browser-Vorgabe `[hidden]{display:none}` hat dieselbe Spezifität wie eine
+Klassenregel, und Autorenregeln gewinnen gegen die Vorgabe: eine harmlose Zeile
+wie `.inspector-block { display:flex; }` macht einen ausgeblendeten Block
+wieder sichtbar, **während `element.hidden` weiterhin `true` meldet**. Genau das
+ist beim Bau des Inspektors passiert – beide Zustandsblöcke standen
+gleichzeitig da.
+
+Daraus folgen zwei Regeln: die globale `!important`-Zeile nicht entfernen, und
+**Sichtbarkeit im Test immer über den berechneten Stil prüfen, nie über das
+Attribut**. Eine Zusicherung auf `element.hidden` hätte den Fehler nicht
+gesehen – dieselbe Klasse wie „eine Zusicherung über ein Ausbleiben beweist
+nichts".
+
+**Der Kopfblock ist in jedem Zustand vorhanden, gleich hoch und am selben
+Ort.** Er ist der Anker, der beim Auswählen nicht wandert; ohne ihn springt der
+ganze Inspektor bei jedem Klick auf die Karte. Der Test sichert Höhe und
+Position über den Zustandswechsel hinweg zu.
+
+**Die Punktnummer ist behälterlokal.** `getVertexContainerInfo()` zählt
+innerhalb eines Rings bzw. einer Linie, nicht über das ganze Feature. Deshalb
+nennt die zweite Kopfzeile den Behälter – aber **nur, wenn es mehr als einen
+gibt** (`describeVertexContainer()`): „Exclusion #0 · Ring 2 von 2",
+„Search Wire · Linie 2 von 3", „Exclusion #0 · Teil 2 von 3, Ring 1". Bei einem
+gewöhnlichen Polygon steht schlicht „· Polygon".
+
+Eine durchgehende Nummerierung über das Feature wäre die schlechtere Wahl: die
+Indizes, mit denen der Editor rechnet, sind behälterlokal, und eine Anzeige,
+die anders zählt als der Code, ist eine Falle.
+
+**Tastaturbedienung beim Verschieben von Markup:** Der Enter-Handler der
+E/N-Felder hängt an den IDs, nicht am Ort, und überlebt den Umzug – die Datei
+enthält kein `<form>` und **kein einziges `tabindex`**, die Tab-Reihenfolge
+folgt also reiner DOM-Reihenfolge. Sie ändert sich durch den Umbau gewollt:
+Kopfzeile → Werkzeugleiste → Karte → Inspektor → Seitenleiste. Der Test
+sichert Enter, die Reihenfolge innerhalb des Blocks und die Abwesenheit von
+Tabstopps im ausgeblendeten Block zu.
 
 **Der Inspektor ist festes Markup mit stabilen IDs.** Abgeleitet ist nur,
 **welcher Zustandsblock sichtbar ist**, und der veränderliche Text darin – der
@@ -1509,6 +1548,29 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `referenceOrigin` und `coordinateScale`: dass CaSSAndRAs Import sie ignoriert,
   ist am Quelltext belegt (er greift ausschließlich auf `features` zu), aber
   nicht gegen eine laufende Instanz geprüft.
+- **Löcher in Polygonen sind editierbar, aber weder geprüft noch in der
+  Fläche enthalten – potenziell sicherheitsrelevant.**
+  `enumerateEditableVertices()` läuft über **alle** Ringe eines Polygons und
+  über alle Teile eines MultiPolygons; `validateMapData()` und
+  `polygonAreaMeters()` sehen dagegen ausschließlich `coordinates[0]`.
+
+  Eine Sperrfläche mit Loch wäre damit weder validiert noch in der
+  Flächenwarnung beim Reduzieren enthalten – der Editor ließe das Loch
+  bearbeiten und meldete eine Flächenänderung, die den Innenring nicht
+  berücksichtigt. Auf echter Hardware ist die Sperrfläche dann anders, als der
+  Editor sagt.
+
+  **Wie wahrscheinlich ist der Fall?** Aus CaSSAndRA nicht: der Import baut
+  Exclusions mit `Polygon(geometry['geometry']['coordinates'][0])`
+  (`mapdata.py` Zeile 515) und verwirft damit jeden Innenring, der Export
+  schreibt immer genau einen Ring (Zeilen 366, 654, 688). CaSSAndRA kann
+  Polygone mit Löchern also weder erzeugen noch erhalten. Erreichbar ist der
+  Fall nur über handgeschriebene oder fremde Dateien – die der Editor aber
+  annimmt und bearbeitbar macht.
+
+  Nach dem Oberflächenumbau ansehen: entweder Löcher gar nicht erst editierbar
+  machen, oder Prüfung und Flächenrechnung auf alle Ringe ausweiten. Beides ist
+  eine Entscheidung, kein Nachtrag.
 - **Die Mähbahnen-Vorschau ist geplant, aber nicht gebaut.** Sie war für
   Ausgabe 049 vorgesehen und wurde herausgenommen, um den Release nicht
   aufzuhalten; sie kommt in einer späteren Ausgabe. In der Anwendung gibt es
