@@ -613,6 +613,14 @@
 
   .perimeter { fill:var(--map-perimeter-fill); stroke:var(--map-perimeter); stroke-width:2.2; }
   .exclusion { fill:var(--map-exclusion-fill); stroke:var(--map-exclusion); stroke-width:2.0; }
+  /*
+   * Gestrichelt heißt: existiert physisch nicht. Die Search Wire ist ein
+   * virtueller Draht für CaSSAndRAs Wegfindung und kommt in der
+   * Sunray-Firmware gar nicht vor; der Docking-Pfad ist dagegen ein Weg, den
+   * der Mäher tatsächlich abfährt, und bleibt durchgezogen. MapmakerBT macht
+   * es umgekehrt - siehe CLAUDE.md, "Gestrichelt heißt: existiert physisch
+   * nicht".
+   */
   .dockpoints { fill:none; stroke:var(--map-dock); stroke-width:2.6; }
   .searchwire { fill:none; stroke:var(--map-searchwire); stroke-width:2.4; stroke-dasharray:7 5; }
   .other { fill:none; stroke:var(--map-other); stroke-width:2; }

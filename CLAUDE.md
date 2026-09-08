@@ -1371,9 +1371,36 @@ Farbe, gleiche Stelle, zwei verschiedene Dinge.
   2,2 / 2,0 / 2,6 / 2,4 / 1,4) und legt auf jede Form ein
   `filter: drop-shadow(...)` in ihrer eigenen Farbe. Zurückgestellt: das ist
   eine Frage des Erscheinungsbildes, keine der Bedeutung.
-- **Strichelung genau umgekehrt:** MapmakerBT strichelt den Docking-Pfad
-  (12 9), wir stricheln die Search Wire (7 5). Beide stricheln genau eine
-  Linie. Unverändert gelassen.
+- **Strichbreiten und Leuchten** siehe oben – zurückgestellt.
+
+### Gestrichelt heißt: existiert physisch nicht
+
+**Die Search Wire ist gestrichelt, der Docking-Pfad ist durchgezogen** – und
+das ist die Bedeutung dahinter:
+
+| Linie | Darstellung | warum |
+|---|---|---|
+| Search Wire | gestrichelt `7 5` | ein **virtueller** Draht. Er liegt nirgends im Garten; CaSSAndRA benutzt ihn nur für die Wegfindung, und in der Sunray-Firmware kommt er überhaupt nicht vor (belegt in Abschnitt 5, „Warum es nur EINE Search Wire gibt"). |
+| Docking-Pfad | durchgezogen | ein Weg, den der Mäher **tatsächlich abfährt**. |
+| Perimeter, Exclusion | durchgezogen | reale Grenzen im Garten. |
+
+**MapmakerBT macht es genau umgekehrt** (Docking-Pfad gestrichelt `12 9`,
+Search Wire gestrichelt `5 8` – dort ist beides gestrichelt). Wir übernehmen
+das **nicht**. Nicht übernehmen, was anders ist, nur weil es anders ist: die
+Regel oben trägt eine Information, und die geben wir nicht auf, um einer
+fremden Datei zu gleichen.
+
+**Zur Ehrlichkeit dazu: die Regel war nicht dokumentiert und ist auch nicht
+rekonstruiert.** Die Strichelung steht seit dem allerersten Upload
+(`e3da676`) unverändert in der Datei, ohne Kommentar und ohne Erwähnung in
+irgendeiner Doku – nachgesehen in CLAUDE.md, AGENTS.md, beiden Changelogs,
+beiden READMEs und der Git-Historie. Sie ist also **nicht** als Begründung
+vorgefunden worden, sondern **hier und jetzt entschieden**; sie erklärt den
+Bestand gut, aber niemand hat ihn damals so gemeint. Wer sie später ändern
+will, ändert damit eine Entscheidung, nicht einen Zufall.
+
+Daraus folgt für neue Linienarten: **durchgezogen, wenn es das Ding im Garten
+gibt; gestrichelt, wenn es nur in der Software existiert.**
 
 **`vector-effect: non-scaling-stroke` gilt jetzt auch für die Formen**, nicht
 nur für Punkte und Mäher. Ohne das wächst die Strichbreite beim Hineinzoomen
