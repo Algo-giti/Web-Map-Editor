@@ -154,11 +154,47 @@ try {
 
   check("Enter beendet die Zeichnung nicht",
     (await drawStatus()).includes("1 Punkt"), await drawStatus());
-  check("Meldung nennt die Mindestanzahl",
-    (await editStatus()).includes("mindestens 2"), await editStatus());
+
+  /*
+   * Diese Zusicherung muss die WIRKUNG belegen, nicht ihr Ausbleiben.
+   *
+   * Vorher stand hier nur, dass die Meldung "mindestens 2" enthält - das tat
+   * auch die Startmeldung "Docking-Pfad: mindestens 2 Punkte anklicken",
+   * die ohnehin noch stand. Der Test bestand deshalb, obwohl Enter für den
+   * Dockpfad gar nichts tat: der Tastaturpfad zählte die Modi einzeln auf und
+   * kannte "dock" nicht. Gefunden hat es der Nutzer, nicht der Test.
+   *
+   * "benötigt mindestens 2" kommt ausschließlich aus der Ablehnung von
+   * finishFeatureDrawing() und beweist damit, dass Enter angekommen ist.
+   */
+  check("Enter wird verarbeitet und lehnt begründet ab",
+    (await editStatus()).includes("benötigt mindestens 2"), await editStatus());
 
   await page.locator("#cancelDrawBtn").click();
   await page.waitForTimeout(200);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Enter schließt den Dockpfad ab");
+  await load(syntheticMap());
+
+  await page.locator("#createDockBtn").click();
+  await page.waitForTimeout(200);
+  await clickMap(5, 5);
+  await clickMap(10, 5);
+  await clickMap(15, 5);
+
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(350);
+
+  check("die Zeichnung ist beendet",
+    (await drawStatus()).includes("Kein Zeichenwerkzeug aktiv") ||
+    !(await page.locator("#finishDrawBtn").isEnabled()),
+    await drawStatus());
+  check("das Feature ist entstanden",
+    (await page.locator('#vertexGroup circle[data-layer="dockpoints"]').count()) === 3,
+    String(await page.locator('#vertexGroup circle[data-layer="dockpoints"]').count()));
+  check("die Erfolgsmeldung nennt die Punktzahl",
+    (await editStatus()).includes("3 Punkten erstellt"), await editStatus());
 
   /* ---------------------------------------------------------------- */
   console.log("Verlängern");

@@ -358,6 +358,44 @@ sie ist auch kein bestandener Test: wenn du einen Browserlauf nicht wirklich
 durchführen konntest, sag das ausdrücklich dazu, statt die Änderung als
 getestet zu melden.
 
+#### Eine Zusicherung über ein Ausbleiben beweist nichts
+
+**Jeder Test, der einen Auslöser prüft, braucht mindestens eine Zusicherung,
+die nur bei tatsächlicher Wirkung gelingt.**
+
+Eine Zusicherung, die prüfen soll, dass etwas NICHT passiert, besteht auch
+dann, wenn die Funktion gar nicht existiert. Das ist keine Theorie:
+`tools/test-dockpath.mjs` drückte Enter mit einem Punkt und prüfte, dass die
+Meldung „mindestens 2" enthält. Das tat auch die Startmeldung „Docking-Pfad:
+mindestens 2 Punkte anklicken", die ohnehin noch stand. Der Test bestand über
+mehrere Ausgaben hinweg, obwohl Enter für den Dockpfad überhaupt nichts tat –
+gefunden hat es der Nutzer, nicht der Test.
+
+Praktisch heißt das: nach einem Klick oder Tastendruck nicht nur den
+unveränderten Zustand prüfen, sondern **einen Text oder Zustand, den es ohne
+die Verarbeitung nicht gäbe**. Bei einer begründeten Ablehnung ist das der
+Ablehnungstext selbst – aber nur, wenn er sich von jeder Meldung
+unterscheidet, die vorher schon dort stand.
+
+**Bekannte Stellen, die diese Regel noch nicht erfüllen** (erfasst, nicht
+repariert – sie werden mitgezogen, wenn die betroffenen Tests ohnehin
+angefasst werden):
+
+| Datei | Zusicherung |
+|---|---|
+| `test-shapes.mjs` | „Werkzeug startet nicht" nach Klick mit Radius 0 |
+| `test-merge.mjs` | „Kartenprüfung sieht nur einen Perimeter" |
+| `test-merge.mjs` | „Kartenprüfung meldet kein doppeltes Docking" |
+| `test-merge.mjs` | „Kartenprüfung meldet danach keine doppelten Features" |
+| `test-reduce.mjs` | „Ring ist nach dem Reduzieren noch geschlossen" |
+| `test-dockpath.mjs` | „drei Punkte erzeugen keinen Docking-Befund" |
+
+Alle sechs lesen einen Prüfbericht oder einen Knopfzustand, nachdem sie einen
+Auslöser gefeuert haben, und würden auch bei einem leeren Bericht bzw. einem
+wirkungslosen Klick bestehen. Eine reine Verneinung ohne Auslöser – etwa
+`!pointInRing(...)` in `test-geometry.mjs` – ist davon nicht betroffen: dort
+gibt es keinen Auslöser, dessen Verarbeitung ausbleiben könnte.
+
 #### Hinweis für eigene Erweiterungen
 
 Werte in eingeklappten `<details>`-Bereichen (z. B. `#widthStat`,
@@ -710,6 +748,32 @@ man dauerhaft sieht und schnell wechselt – die kennt man nach einer Woche am
 Symbol. Die Zeichenwerkzeuge benutzt man selten und muss sie treffen. Der
 `title` bleibt in jeder Stufe erhalten: verschwinden darf der Platz der
 Erklärung, nicht die Erklärung.
+
+**Gesperrt wird mit Grund, nicht mit `disabled`.** Die fünf Zeichenknöpfe der
+Leiste tragen kein natives `disabled`, sondern `aria-disabled`, die Klasse
+`is-unavailable` und ihren Ablehnungsgrund in `data-blocked-reason`;
+`runToolAction()` gibt ihn beim Klick in die flüchtige Meldungszeile aus.
+
+Der Grund ist gemessen, nicht vermutet: ein deaktivierter Knopf schluckt jedes
+Zeigerereignis – weder `click` noch `pointerdown` erreichen ihn oder seinen
+Container –, sein `title` erscheint auf Touch nie und am Desktop erst nach
+Verzögerung. Genau das war der Befund beim Durchklicken von Etappe 3: „Search
+Wire zeichnen" blieb dauerhaft grau, weil die Karte bereits eine hat, und
+nichts sagte das. **Die Freigabelogik war dabei korrekt** – nachgemessen über
+vier Kartenvarianten; kaputt war nur die Erklärung, seit der Knopf ohne seine
+Nachbarn „verlängern" und „löschen" in der Leiste steht.
+
+Die Knöpfe der Seitenleiste behalten das native `disabled`: sie stehen in
+ihrer Gruppe, dort erklärt sich der Zustand aus den Nachbarn.
+
+**Abschließen hat EINE Bedingung: `canFinishFeatureDrawing()`.** Sie versorgt
+den Abschluss-Knopf, Enter und den Doppelklick. Vorher zählte der Enter-Pfad
+die Modi einzeln auf (`"exclusion"` oder `"searchwire"`) – der Docking-Pfad
+fehlte dort seit dem ersten Upload. Wirksam wurde die Lücke erst, als Etappe 1b
+die automatische Fertigstellung nach dem dritten Punkt entfernte; sichtbar
+wurde sie, als Etappe 3 den Startknopf in die Leiste holte und den Abschluss in
+der Seitenleiste zurückließ. **Keine Modus-Aufzählung mehr einführen** – sie
+kann einen künftigen Modus wieder vergessen.
 
 **Nie `button.textContent` auf einem Knopf mit Symbol.** Das löscht das SVG
 mitsamt der Beschriftung. `updateMeasurementUi()` tat genau das und hat den

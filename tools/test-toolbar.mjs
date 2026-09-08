@@ -141,6 +141,84 @@ try {
     await page.locator("#validationShort").textContent());
 
   /* ---------------------------------------------------------------- */
+  console.log("Gesperrte Werkzeuge nennen ihren Grund");
+
+  /*
+   * Ein gesperrter Knopf ohne Begründung war der Befund beim Durchklicken:
+   * "Search Wire zeichnen" blieb grau, weil die Karte schon eine hat - nur
+   * stand das nirgends. Ein natives disabled kann es auch nicht sagen: es
+   * schluckt jeden Klick, und sein Tooltip erscheint auf Touch nie.
+   */
+  const WITH_WIRE = JSON.stringify({
+    type: "FeatureCollection",
+    features: [
+      { type: "Feature", properties: { name: "perimeter" },
+        geometry: { type: "Polygon", coordinates: [[
+          [0, 0], [40, 0], [40, 40], [0, 40], [0, 0]]] } },
+      { type: "Feature", properties: { name: "search wire" },
+        geometry: { type: "LineString", coordinates: [[5, 5], [10, 5], [15, 5]] } },
+    ],
+  });
+
+  await page.goto(indexUrl(), { waitUntil: "load" });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "load" });
+  await page.locator("#fileInput").setInputFiles({
+    name: "wire.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(WITH_WIRE),
+  });
+  await page.waitForTimeout(400);
+
+  const wireButton = page.locator("#drawSearchWireBtn");
+
+  check("der Knopf ist als gesperrt ausgezeichnet",
+    (await wireButton.getAttribute("aria-disabled")) === "true",
+    await wireButton.getAttribute("aria-disabled"));
+  check("der Grund steht im Tooltip",
+    (await wireButton.getAttribute("title")).includes("bereits eine Search Wire"),
+    await wireButton.getAttribute("title"));
+
+  /*
+   * Entscheidend: der Klick kommt an und der Grund wird sichtbar.
+   *
+   * force ist nötig, weil Playwright aria-disabled="true" als "nicht
+   * bedienbar" wertet und den Klick sonst gar nicht erst schickt. Die
+   * Auszeichnung ist trotzdem richtig - aria-disabled beschreibt den Zustand
+   * für Screenreader und unterdrückt keine Ereignisse; ein echter Nutzer
+   * klickt den Knopf ohne Weiteres.
+   */
+  await wireButton.click({ force: true });
+  await page.waitForTimeout(300);
+
+  check("der Klick nennt den Grund in der Meldungszeile",
+    (await page.locator("#editStatus").textContent()).includes("bereits eine Search Wire"),
+    await page.locator("#editStatus").textContent());
+  check("und startet keine Zeichnung",
+    (await page.locator("#cancelDrawBtn").isDisabled()),
+    "Zeichnung wurde gestartet");
+
+  /* Der Dockpfad daneben ist frei - dieselbe Karte, anderes Feature. */
+  check("der Dockpfad ist nicht gesperrt",
+    (await page.locator("#createDockBtn").getAttribute("aria-disabled")) === "false",
+    await page.locator("#createDockBtn").getAttribute("aria-disabled"));
+
+  await page.locator("#createDockBtn").click();
+  await page.waitForTimeout(250);
+
+  check("und lässt sich starten",
+    await page.locator("#cancelDrawBtn").isEnabled());
+
+  /* Während einer Zeichnung sind die übrigen gesperrt - ebenfalls mit Grund. */
+  check("laufende Zeichnung sperrt die anderen",
+    (await page.locator("#drawExclusionBtn").getAttribute("title"))
+      .includes("bereits gezeichnet"),
+    await page.locator("#drawExclusionBtn").getAttribute("title"));
+
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(250);
+
+  /* ---------------------------------------------------------------- */
   console.log("Drei Breitenstufen");
 
   const measure = async (width) => {
