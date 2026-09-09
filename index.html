@@ -289,6 +289,20 @@
   }
 
   /*
+   * Der Alt-Buchstabe wird markiert, und zwar ueber ::first-letter statt ueber
+   * ein <span> um den ersten Buchstaben. Ein <span> zerlegte den Titel in zwei
+   * Textknoten ("D" + "atei"); der i18n-Schnappschuss faende fuer keinen der
+   * beiden einen Woerterbucheintrag, und der Titel bliebe im Englischen
+   * deutsch - sichtbar erst im englischen Durchlauf, also spaet.
+   *
+   * ::first-letter liest dieselbe Quelle wie das Kuerzel selbst: den
+   * gerenderten ersten Buchstaben. Markierung und Kuerzel sind damit beide
+   * abgeleitet und koennen nicht auseinanderlaufen - auch nicht beim
+   * Sprachwechsel, wo aus D/A/K/H von selbst F/V/M/H wird.
+   */
+  .menu-title::first-letter { text-decoration:underline; }
+
+  /*
    * Ausgeblendet wird über hidden, und [hidden] trägt oben !important. Ohne
    * das machte diese display:flex-Zeile ein geschlossenes Menü wieder
    * sichtbar, während element.hidden weiterhin true meldete.
@@ -17449,17 +17463,28 @@ const menuBarEl = document.getElementById("menuBar");
 /** Aktuell offenes .menu, oder null. */
 let openMenuEl = null;
 
-/** Alt+Buchstabe je Menü. Der Buchstabe ist der Anfangsbuchstabe des Titels. */
-const MENU_ALT_KEYS = {
-  d: "menuFileBtn",
-  a: "menuViewBtn",
-  k: "menuMapBtn",
-  h: "menuHelpBtn"
-};
-
 /** Alle Menütitel der Leiste, in DOM-Reihenfolge. */
 function menuTitles() {
   return [...menuBarEl.querySelectorAll(".menu-title")];
+}
+
+/**
+ * Der Alt-Buchstabe eines Menüs: der erste Buchstabe seines Titels in der
+ * gerade laufenden Sprache.
+ *
+ * Abgeleitet, nicht gesetzt. Eine Tabelle Buchstabe → Menü wäre eine zweite
+ * Quelle: sie stimmte nur, solange die Titel „Datei/Ansicht/Karte/Hilfe"
+ * heißen, und eine Umbenennung liesse das Kürzel still auf das falsche Menü
+ * zeigen. Beim Sprachwechsel wechseln die Kürzel deshalb mit - deutsch
+ * d/a/k/h, englisch f/v/m/h -, und `.menu-title::first-letter` markiert genau
+ * denselben Buchstaben.
+ *
+ * Dass zwei Titel einer Sprache nicht denselben Anfangsbuchstaben haben
+ * dürfen, prüft `tools/test-cassandra.mjs` für JEDES Wörterbuch - hier wäre
+ * es zu spät, denn im Zweifel gewönne schlicht das erste Menü.
+ */
+function menuAltKey(titel) {
+  return (titel?.textContent || "").trim().charAt(0).toLowerCase();
 }
 
 /**
@@ -17832,10 +17857,14 @@ function runMenuShortcut(event) {
     return true;
   }
 
-  if (event.altKey && !ctrl && MENU_ALT_KEYS[taste]) {
-    event.preventDefault();
-    openMenuAt(menuOf(document.getElementById(MENU_ALT_KEYS[taste])), 0);
-    return true;
+  if (event.altKey && !ctrl && taste.length === 1) {
+    const titel = menuTitles().find((t) => menuAltKey(t) === taste);
+
+    if (titel) {
+      event.preventDefault();
+      openMenuAt(menuOf(titel), 0);
+      return true;
+    }
   }
 
   if (event.key === "F1") {

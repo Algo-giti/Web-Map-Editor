@@ -65,6 +65,19 @@ try {
 
   const fokus = () => page.evaluate(() => document.activeElement?.id || "");
 
+  /*
+   * Der Alt-Buchstabe ist abgeleitet und wechselt mit der Sprache: deutsch
+   * Alt+D fuer "Datei", englisch Alt+F fuer "File". Ein fest verdrahtetes
+   * Alt+D braeche deshalb erst im englischen Durchlauf - also spaet und an
+   * einer Stelle, die mit dem Kuerzel nichts zu tun zu haben scheint.
+   */
+  const altTaste = (id) =>
+    page.evaluate((x) =>
+      document.getElementById(x).textContent.trim().charAt(0).toLowerCase(), id);
+
+  const druckeAlt = async (id) =>
+    page.keyboard.press(`Alt+${await altTaste(id)}`);
+
   const load = async () => {
     await page.goto(indexUrl(), { waitUntil: "load" });
     await page.evaluate(() => localStorage.clear());
@@ -212,9 +225,9 @@ try {
     (await fokus()) === "menuViewBtn", await fokus());
 
   /* Tab verlässt die Leiste vollständig - nicht von Eintrag zu Eintrag. */
-  await page.keyboard.press("Alt+d");
+  await druckeAlt("menuFileBtn");
   await page.waitForTimeout(150);
-  check("Alt+D öffnet das Datei-Menü",
+  check("Alt+Anfangsbuchstabe öffnet das Datei-Menü",
     (await offeneMenues()).join(",") === "menuFile", (await offeneMenues()).join(","));
 
   await page.keyboard.press("Tab");
@@ -226,9 +239,9 @@ try {
     await fokus());
 
   /* Enter löst wirklich aus - geprüft an einer Wirkung, nicht am Zustand. */
-  await page.keyboard.press("Alt+h");
+  await druckeAlt("menuHelpBtn");
   await page.waitForTimeout(150);
-  check("Alt+H öffnet das Hilfe-Menü und setzt den Fokus in den Eintrag",
+  check("Alt+Anfangsbuchstabe öffnet das Hilfe-Menü und setzt den Fokus in den Eintrag",
     (await fokus()) === "helpBtn", await fokus());
 
   await page.keyboard.press("Enter");
@@ -263,7 +276,7 @@ try {
 
   check("es wird gezeichnet", await sichtbar("#inspectorDraw"));
 
-  await page.keyboard.press("Alt+d");
+  await druckeAlt("menuFileBtn");
   await page.waitForTimeout(150);
   check("und ein Menü ist offen",
     (await offeneMenues()).join(",") === "menuFile");
@@ -554,7 +567,7 @@ try {
   /* Ein offenes Menü schlägt ein offenes Fenster. */
   await menueBefehl(page, "Ansicht", "Raster…");
   await page.waitForTimeout(250);
-  await page.keyboard.press("Alt+d");
+  await druckeAlt("menuFileBtn");
   await page.waitForTimeout(200);
 
   await page.keyboard.press("Escape");
@@ -567,6 +580,69 @@ try {
   await page.waitForTimeout(250);
   check("der zweite Escape nimmt dann das Fenster",
     !(await sichtbar("#gridWindow")));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Der Tastaturvertrag gilt in BEIDEN Sprachen");
+
+  /*
+   * Der Buchstabe ist abgeleitet, also wechselt er mit der Sprache. Ein Test
+   * nur in der laufenden Sprache belegte davon nichts - und der Fehlerfall
+   * (zwei Titel mit demselben Anfangsbuchstaben) traete genau dort auf, wo
+   * niemand hinsieht.
+   *
+   * Geprueft wird die WIRKUNG: das zugehoerige Panel steht offen, und es wird
+   * an seinen eigenen Koordinaten getroffen - display allein sagt darueber
+   * nichts, ein abschneidender Vorfahr sitzt eine Ebene hoeher.
+   */
+  const menues = [
+    ["menuFileBtn", "menuFile"],
+    ["menuViewBtn", "menuView"],
+    ["menuMapBtn", "menuMap"],
+    ["menuHelpBtn", "menuHelp"],
+  ];
+
+  for (const sprache of ["deutsch", "englisch"]) {
+    await page.goto(indexUrl(), { waitUntil: "load" });
+    await page.evaluate(() => localStorage.clear());
+    await page.reload({ waitUntil: "load" });
+
+    if (sprache === "englisch") {
+      await page.locator("#languageToggle").click();
+      await page.waitForTimeout(500);
+    }
+
+    const gesehen = [];
+
+    for (const [titelId, panelId] of menues) {
+      const taste = await altTaste(titelId);
+      gesehen.push(taste);
+
+      await page.keyboard.press(`Alt+${taste}`);
+      await page.waitForTimeout(200);
+
+      const offen = await offeneMenues();
+      check(`${sprache}: Alt+${taste.toUpperCase()} öffnet #${panelId}`,
+        offen.join(",") === panelId, offen.join(","));
+
+      const treffer = await elementGetroffen(page, `#${panelId}`);
+      check(`${sprache}: #${panelId} wird an seiner eigenen Stelle getroffen`,
+        treffer.ok, treffer.grund);
+
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(150);
+    }
+
+    check(`${sprache}: die vier Buchstaben sind verschieden`,
+      new Set(gesehen).size === 4, gesehen.join(","));
+
+    /* Und die Markierung im Titel zeigt genau diesen Buchstaben. */
+    const markiert = await page.evaluate(() =>
+      [...document.querySelectorAll(".menu-title")].map((t) =>
+        getComputedStyle(t, "::first-letter").textDecorationLine));
+
+    check(`${sprache}: jeder Titel markiert seinen ersten Buchstaben`,
+      markiert.every((d) => d.includes("underline")), JSON.stringify(markiert));
+  }
 
   /* ---------------------------------------------------------------- */
   check("keine Konsolenfehler", consoleErrors.length === 0,

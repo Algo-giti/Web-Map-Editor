@@ -958,6 +958,84 @@ check("kein Muster steht zweimal in I18N_PATTERNS",
 console.log(`  ${dictionaryKeys.length} Woerterbucheintraege, ${seenKeys.size} eindeutig`);
 
 /* -------------------------------------------------------------------- */
+console.log("Alt-Buchstaben der Menueleiste");
+
+/*
+ * Der Alt-Buchstabe eines Menues ist ABGELEITET: der erste Buchstabe seines
+ * Titels in der laufenden Sprache. Das ist die richtige Wahl - eine Tabelle
+ * Buchstabe -> Menue waere eine zweite Quelle und zeigte nach einer
+ * Umbenennung still auf das falsche Menue.
+ *
+ * Der Preis ist diese Pruefung: haetten in einer Sprache zwei Titel denselben
+ * Anfangsbuchstaben, gewaenne im Browser schlicht das erste Menue, und das
+ * zweite waere per Tastatur unerreichbar - ohne Fehler, ohne Meldung.
+ *
+ * Geprueft wird deshalb JEDES Woerterbuch, nicht nur das laufende. Eine neue
+ * Sprache muss hier scheitern, nicht erst beim Durchklicken.
+ */
+const menuTitles = [...readFileSync(
+  new URL("../index.html", import.meta.url), "utf8"
+).matchAll(
+  /<button id="menu\w+Btn"[^>]*class="menu-title"[\s\S]*?>([^<]+)<\/button>/g
+)].map((m) => m[1].trim());
+
+check("die Menueleiste hat vier Titel", menuTitles.length === 4,
+  JSON.stringify(menuTitles));
+
+/** Nennt jedes Paar, das denselben Anfangsbuchstaben traegt. */
+const altKollisionen = (titel) => {
+  const buchstaben = titel.map((t) => t.trim().charAt(0).toLowerCase());
+  const treffer = [];
+
+  for (let i = 0; i < buchstaben.length; i++) {
+    for (let j = i + 1; j < buchstaben.length; j++) {
+      if (buchstaben[i] === buchstaben[j]) {
+        treffer.push(
+          `"${titel[i]}" und "${titel[j]}" beginnen beide mit ` +
+          `"${buchstaben[i].toUpperCase()}"`
+        );
+      }
+    }
+  }
+
+  return treffer;
+};
+
+/*
+ * Der Melder selbst wird geprueft. Eine Zusicherung "keine Kollision" bestuende
+ * sonst auch dann, wenn die Suche gar nichts faende - und genau dieser Fall
+ * soll ja eines Tages laut scheitern.
+ */
+const probe = altKollisionen(["Datei", "Ansicht", "Karte", "Dateien"]);
+
+check("der Melder findet eine kuenstliche Kollision",
+  probe.length === 1 && probe[0].includes("Datei") &&
+  probe[0].includes("Dateien") && probe[0].includes('"D"'),
+  JSON.stringify(probe));
+
+/*
+ * Die Woerterbuecher, gegen die geprueft wird. Deutsch ist die Quellsprache
+ * und braucht keine Uebersetzung; jedes weitere Woerterbuch kommt als
+ * [Name, Uebersetzer] dazu und wird damit automatisch mitgeprueft.
+ */
+const woerterbuecher = [
+  ["Deutsch", (text) => text],
+  ["Englisch", (text) => app.translateGermanText(text)],
+];
+
+for (const [sprache, uebersetze] of woerterbuecher) {
+  const titel = menuTitles.map(uebersetze);
+  const kollisionen = altKollisionen(titel);
+
+  check(`${sprache}: die vier Alt-Buchstaben sind eindeutig`,
+    kollisionen.length === 0, kollisionen.join(" | "));
+
+  const buchstaben = titel.map((t) => t.trim().charAt(0).toUpperCase());
+  console.log(
+    `  ${sprache}: ${titel.map((t, i) => `${t} (Alt+${buchstaben[i]})`).join(", ")}`);
+}
+
+/* -------------------------------------------------------------------- */
 console.log("Punktzahl einer Linie");
 
 /*

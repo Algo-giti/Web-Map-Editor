@@ -516,6 +516,21 @@ gemockt oder manuell geprüft werden:
   Rückmeldung bitten oder es explizit als ungetestet kennzeichnen.
 - **GitHub Pages Deployment selbst:** kein Zugriff auf das echte gehostete
   Deployment; `python3 -m http.server` ist die beste lokale Näherung.
+- **Alt+Buchstabe auf macOS – VERMUTUNG, kein Befund.** Auf macOS erzeugt die
+  Wahltaste ein Sonderzeichen (Alt+D → „∂"), und `event.key` trägt dann
+  dieses Zeichen statt des Buchstabens. Der Vergleich in `runMenuShortcut()`
+  ginge damit ins Leere, und die Menükürzel funktionierten dort nicht.
+
+  **Das ist ungeprüft** – es steht kein Mac zur Verfügung, und die Aussage
+  stammt aus der Plattformkonvention, nicht aus einer Messung. Sie gilt
+  außerdem unverändert für den Zustand vor der Ableitung: das Kürzel wäre
+  auch mit einer festen Tabelle betroffen.
+
+  **Falls es zutrifft, ist die Antwort F10, nicht der Verzicht auf die
+  Markierung.** F10 betritt die Leiste ohne Wahltaste, danach führen die
+  Pfeiltasten durch alle Menüs – der Weg ist also auch ohne Alt vollständig.
+  Den Unterstrich deswegen wegzunehmen hieße, die Erklärung dort zu streichen,
+  wo sie stimmt, weil sie anderswo vielleicht nicht stimmt.
 
 **Wichtig:** Wenn du eine Änderung als "erledigt" meldest, aber einer der
 obigen Punkte nicht real geprüft werden konnte, sage das explizit dazu –
@@ -1056,6 +1071,41 @@ den Gewinn auf.
 für die Zeit, in der Seitenleiste und Inspektor gleichzeitig stehen, und
 **entfällt mit Etappe 6**. Bewusst **ohne** `localStorage`: der Zustand ist
 vorübergehend und soll nicht in eine spätere Ausgabe überleben.
+
+**Menüleiste: der Alt-Buchstabe ist ABGELEITET, nicht gesetzt.** Er ist der
+erste Buchstabe des Menütitels **in der laufenden Sprache** – deutsch
+Alt+D/A/K/H für Datei, Ansicht, Karte, Hilfe, englisch Alt+F/V/M/H für File,
+View, Map, Help. **Die Kürzel wechseln damit mit der Sprache mit.**
+
+Eine Tabelle Buchstabe → Menü wäre eine zweite Quelle für dieselbe Tatsache:
+sie stimmte nur, solange die Titel so heißen, und eine Umbenennung liesse das
+Kürzel still auf das falsche Menü zeigen. `menuAltKey()` liest deshalb den
+Titeltext.
+
+**Der Preis dafür ist eine Prüfung, und sie steht in `test-cassandra.mjs`:**
+hätten in einer Sprache zwei Titel denselben Anfangsbuchstaben, gewönne im
+Browser schlicht das erste Menü, und das zweite wäre per Tastatur
+unerreichbar – ohne Fehler, ohne Meldung. Geprüft wird deshalb **jedes
+Wörterbuch**, nicht nur das laufende, und die Meldung nennt **beide**
+kollidierenden Titel. Eine neue Sprache scheitert damit dort und nicht erst
+beim Durchklicken. Der Melder selbst wird an einem künstlichen Paar
+gegengeprüft – sonst bestünde „keine Kollision" auch, wenn er gar nichts fände.
+
+**Markiert wird über `.menu-title::first-letter`, nicht über ein `<span>`.**
+Ein `<span>` um den ersten Buchstaben zerlegte den Titel in **zwei**
+Textknoten („D" + „atei"); der i18n-Schnappschuss fände für keinen der beiden
+einen Wörterbucheintrag, und der Titel bliebe im Englischen deutsch – sichtbar
+erst im englischen Durchlauf, also spät. `::first-letter` liest dagegen
+dieselbe Quelle wie das Kürzel: den **gerenderten** ersten Buchstaben.
+Markierung und Kürzel sind damit beide abgeleitet und können nicht
+auseinanderlaufen; beim Sprachwechsel wandert der Unterstrich von selbst mit.
+Gemessen kostet er **0 px** – je Titel und für die ganze Leiste, in beiden
+Sprachen.
+
+Dass der Unterstrich dauerhaft steht und nicht erst beim Drücken von Alt
+erscheint, ist eine Entscheidung: die Einträge *im* Menü zeigen „Strg+O" und
+„Strg+S" ebenfalls dauerhaft, und ein Zustand, der nur solange gilt, wie eine
+Taste gedrückt ist, kann nach Alt+Tab hängenbleiben.
 
 **Werkzeugleiste:** Senkrecht links neben der Karte, Icon **und** Text. Drei
 Gruppen, und die Trennung trägt die nützlichste Information, die eine
