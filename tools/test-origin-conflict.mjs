@@ -105,6 +105,26 @@ try {
     "Bereich Koordinatenbezug ist aufgeklappt",
     await page.locator("#originSection").evaluate((element) => element.open)
   );
+
+  /*
+   * Seit 7c steht der Block im Inspektor. Zwei getrennte Zusicherungen, weil
+   * sie zwei verschiedene Dinge belegen: die erste den ORT, die zweite die
+   * WIRKUNG des selbsttaetigen Aufklappens. `element.open` allein bewiese
+   * nichts - ein ausgeblendeter Block waere ebenfalls "offen".
+   */
+  check(
+    "und liegt im Inspektor, nicht mehr in der Seitenleiste",
+    (await page.locator("#originSection").evaluate(
+      (element) => element.closest("aside")?.id
+    )) === "inspector",
+    await page.locator("#originSection").evaluate(
+      (element) => element.closest("aside")?.id
+    )
+  );
+  check(
+    "das Feld der RTK-Basis ist dadurch wirklich sichtbar",
+    await page.locator("#originLatInput").isVisible()
+  );
   check(
     "aktiver Bezugspunkt wurde NICHT ueberschrieben",
     (await page.locator("#originLatInput").inputValue()) === String(BASE_A.lat),

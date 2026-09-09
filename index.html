@@ -593,7 +593,6 @@
   }
 
   .section-accent-orange::before { background:linear-gradient(180deg, #ffb36b, #ff7c5a); }
-  .section-accent-cyan::before { background:linear-gradient(180deg, #61d8ff, #5fd8c5); }
   .section-accent-slate::before { background:linear-gradient(180deg, #8ea6c5, #5e748f); }
 
   h2 {
@@ -867,9 +866,6 @@
     background:linear-gradient(180deg, rgba(66,46,91,.96), rgba(42,31,59,.96));
     color:#f1e8ff;
   }
-
-  .measurement-panel,
-
 
   #measureBtn.active {
     border-color:rgba(97,216,255,.65);
@@ -3192,41 +3188,6 @@
       </details>
 
 
-      <details id="originSection" class="section sidebar-collapsible section-accent-cyan">
-        <summary class="sidebar-collapsible-summary"><span>Koordinatenbezug</span></summary>
-        <div class="sidebar-collapsible-body">
-          <div class="measurement-panel">
-
-          <label class="field-label" for="originLatInput">
-            RTK-Basis Breite (lat)
-            <input id="originLatInput" class="grid-input" type="text" inputmode="decimal"
-                   value="0" autocomplete="off" spellcheck="false" aria-describedby="originStatus">
-          </label>
-
-          <label class="field-label" for="originLonInput">
-            RTK-Basis Länge (lon)
-            <div class="field-row">
-              <input id="originLonInput" class="grid-input" type="text" inputmode="decimal"
-                     value="0" autocomplete="off" spellcheck="false" aria-describedby="originStatus">
-              <button id="applyOriginBtn" type="button">Übernehmen</button>
-            </div>
-          </label>
-
-          <label class="field-label" for="exportFrameSelect">
-            Koordinaten beim Speichern
-            <select id="exportFrameSelect" class="grid-select">
-              <option value="loaded" selected>wie geladen</option>
-              <option value="absolute">absolut WGS84 (CaSSAndRA)</option>
-            </select>
-          </label>
-
-          <div id="originStatus" class="grid-status" aria-live="polite">
-            Kein Bezugspunkt gesetzt.
-          </div>
-          </div>
-        </div>
-      </details>
-
 
     </aside>
 
@@ -3999,6 +3960,70 @@
             Noch keine Prüfung durchgeführt.
           </div>
           <div id="validationReport" class="validation-report" hidden></div>
+        </div>
+      </details>
+
+      <!--
+        KOORDINATENBEZUG.
+
+        Er sagt, gegen welchen Punkt die angezeigten East/North-Werte laufen -
+        also eine Eigenschaft dessen, was der Inspektor ohnehin beschreibt.
+        Verschoben, nicht kopiert; die fünf ids sind unverändert.
+
+        Er steht am Ende, weil man ihn einmal je Karte braucht und nicht je
+        Auswahl. Wer ihn im Konfliktfall braucht, wird zu ihm geführt.
+
+        AUSNAHME, und die einzige: DIESER Faltblock klappt von selbst auf.
+        Für jeden anderen gilt "klappt nie von selbst auf", weil
+        Selbsttätigkeit genau die Unruhe erzeugt, gegen die der feste Kopfblock
+        gebaut wurde. Hier wiegt das andere schwerer: ein Bezugspunkt-Konflikt
+        sperrt Export UND Verbinden, und ein gesperrter Knopf, dessen Grund in
+        einem zugeklappten Block steht, ist der Fall, gegen den "gesperrt wird
+        mit Grund" gebaut wurde. openOriginSection() ist unverändert.
+
+        Deshalb auch KEIN localStorage: ein gemerkter Auf-/Zu-Wunsch und das
+        selbsttätige Aufklappen überlagerten sich - nach dem ersten Konflikt
+        stünde der Block dauerhaft offen, ohne dass das jemand gewählt hätte.
+        Gleiche Entscheidung und gleicher Aufbau wie bei der Feature-Navigation
+        aus 7b: inspector-block ohne Eintrag in INSPECTOR_BLOCKS (also in jedem
+        Zustand da), inspector-fold ohne Eintrag in INSPECTOR_FOLDS.
+
+        Die Klassen der Felder bleiben, wie sie waren: grid-input, grid-select,
+        grid-status und field-label sind global, nicht seitenleisten-eigen.
+        Entfallen ist allein die Hülle .measurement-panel - die Anordnung
+        liefert .fold-body.
+      -->
+      <details id="originSection" class="inspector-block inspector-fold">
+        <summary>
+          <span class="inspector-section-title">Koordinatenbezug</span>
+        </summary>
+        <div class="fold-body">
+          <label class="field-label" for="originLatInput">
+            RTK-Basis Breite (lat)
+            <input id="originLatInput" class="grid-input" type="text" inputmode="decimal"
+                   value="0" autocomplete="off" spellcheck="false" aria-describedby="originStatus">
+          </label>
+
+          <label class="field-label" for="originLonInput">
+            RTK-Basis Länge (lon)
+            <div class="field-row">
+              <input id="originLonInput" class="grid-input" type="text" inputmode="decimal"
+                     value="0" autocomplete="off" spellcheck="false" aria-describedby="originStatus">
+              <button id="applyOriginBtn" type="button">Übernehmen</button>
+            </div>
+          </label>
+
+          <label class="field-label" for="exportFrameSelect">
+            Koordinaten beim Speichern
+            <select id="exportFrameSelect" class="grid-select">
+              <option value="loaded" selected>wie geladen</option>
+              <option value="absolute">absolut WGS84 (CaSSAndRA)</option>
+            </select>
+          </label>
+
+          <div id="originStatus" class="grid-status" aria-live="polite">
+            Kein Bezugspunkt gesetzt.
+          </div>
         </div>
       </details>
     </aside>
