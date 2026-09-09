@@ -1646,12 +1646,34 @@ Farbe, gleiche Stelle, zwei verschiedene Dinge.
   Arbeit", oder die Vorschau nimmt die Farbe des Typs an, der gerade entsteht,
   und das „in Arbeit" trägt allein die Strichelung. Beides ist eine
   Entscheidung, keine Ableitung.
+- **Die Werkzeugvorschauen liegen in der Ghost-Gruppe und erben deren
+  Deckung.** `renderStraightenPreview()`, `renderReducePreview()` und
+  `renderRectifyPreview()` hängen ihre Elemente in `selectionGhostGroup`, und
+  die trägt `opacity:.42`. Die Rechtwinklig-Vorschau ist deshalb nominell
+  blassgrün (`rgba(180,255,160,.85)`), sichtbar aber grau – nicht mehr zu
+  unterscheiden von den Vorher-Ghosts. Das ist ein Verstoß gegen die Regel
+  oben, und zwar ein sinnentstellender: die Ghosts zeigen die **Vergangenheit**
+  („so lag der Punkt beim letzten Speichern"), die Vorschauen einen
+  **Vorschlag für die Zukunft**.
+
+  In der Gruppe liegen sie nur wegen der Z-Ordnung – sie sollen hinter der
+  aktiven Geometrie stehen; der Kommentar an `renderStraightenPreview()` sagt
+  das selbst. **Vorschlag:** eine eigene Gruppe an derselben Z-Position mit
+  eigener Deckung. Dann ist Grün wieder grün.
+
+  Nebenbei aufgefallen und dazugehörig: `renderReducePreview()` benutzt für
+  seinen Ergebnispfad die Klasse `.straighten-preview-line` des Begradigens.
+  Zwei Werkzeuge, eine Farbe – dieselbe Regel, dieselbe Runde.
+
 - **Strichbreiten und Leuchten:** MapmakerBT zeichnet etwa doppelt so kräftig
   (Perimeter 5, Exclusion 4, Dock 5, Search Wire 4, Punktrand 4 gegen unsere
   2,2 / 2,0 / 2,6 / 2,4 / 1,4) und legt auf jede Form ein
   `filter: drop-shadow(...)` in ihrer eigenen Farbe. Zurückgestellt: das ist
   eine Frage des Erscheinungsbildes, keine der Bedeutung.
-- **Strichbreiten und Leuchten** siehe oben – zurückgestellt.
+
+**Der Zeitpunkt der Vorschauen gehört NICHT mehr in diese Runde.** Er ist
+Verhalten, nicht Farbe, und er betrifft alle drei Werkzeuge statt eines – er
+steht als Entscheidung für Etappe 7 in Abschnitt 7.
 
 ### Gestrichelt heißt: existiert physisch nicht
 
@@ -2399,6 +2421,36 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Nach dem Oberflächenumbau ansehen: entweder Löcher gar nicht erst editierbar
   machen, oder Prüfung und Flächenrechnung auf alle Ringe ausweiten. Beides ist
   eine Entscheidung, kein Nachtrag.
+- **Zu entscheiden mit Etappe 7: Wann erscheinen Werkzeugvorschauen?** Der
+  Inspektor wird dort ohnehin angefasst. Das hier ist eine **Entscheidung,
+  kein Auftrag** – der heutige Zustand ist benutzbar, nur zu eifrig.
+
+  Heute genügt ein Klick auf einen beliebigen Punkt, und die
+  Rechtwinklig-Vorschau liegt über dem ganzen Feature: `renderRectifyPreview()`
+  holt sein Ziel aus `getWholeFeatureTarget()`, und das fällt auf das ganze
+  Feature zurück, sobald die Auswahl eindeutig zu einem gehört. Ein einzelner
+  Punkt reicht. Wer einen Punkt verschieben will, bekommt ungefragt die
+  Vorschau eines Werkzeugs, nach dem er nicht gefragt hat.
+
+  **Naheliegend wäre: nur, solange der Faltblock „Umformen" offen ist.**
+
+  **Die Regel muss für ALLE Vorschauen gelten, nicht nur für Rechtwinklig.**
+  Drei Werkzeuge mit drei verschiedenen Zeitpunkten wären schlimmer als der
+  heutige Zustand – dann müsste man sich merken, welches wann zeigt.
+
+  Der Bestand, eine Zeile je Vorschau:
+
+  | Vorschau | Funktion | Ziel | erscheint, sobald |
+  |---|---|---|---|
+  | Begradigen | `renderStraightenPreview()` | `getSelectedSection()` | **genau zwei** Punkte desselben Rings eines unterstützten Features ausgewählt sind – ohne weitere Bedingung |
+  | Reduzieren | `renderReducePreview()` | `getReduceTarget()`: Abschnitt, sonst `getWholeFeatureTarget()` | **ein** Punkt genügt (Rückfall auf das ganze Feature) – zusätzlich nur, wenn bei der eingestellten Toleranz überhaupt Punkte wegfielen und die Mindestpunktzahl hält |
+  | Rechtwinklig | `renderRectifyPreview()` | `getWholeFeatureTarget()` | **ein** Punkt genügt – zusätzlich nur, wenn `analyzeRectify()` etwas verschiebt (`maxShift > 0`) |
+
+  Zwei der drei hängen also schon heute an derselben Bedingung („ein Punkt
+  eines Features"), das Begradigen an einer strengeren („genau zwei Punkte").
+  Wer den Zeitpunkt vereinheitlicht, vereinheitlicht damit auch, ob das
+  Begradigen weiterhin früher zeigt als die beiden anderen.
+
 - **Die Mähbahnen-Vorschau ist geplant, aber nicht gebaut.** Sie war für
   Ausgabe 049 vorgesehen und wurde herausgenommen, um den Release nicht
   aufzuhalten; sie kommt in einer späteren Ausgabe. In der Anwendung gibt es
