@@ -582,6 +582,73 @@ try {
     !(await sichtbar("#gridWindow")));
 
   /* ---------------------------------------------------------------- */
+  console.log("Der Vergleichspunkt verschwindet, wenn der Punkt zurückkehrt");
+
+  await load();
+
+  const ghost = () =>
+    page.evaluate(() => ({
+      punkte: document.querySelectorAll(".selection-ghost-point").length,
+      linien: document.querySelectorAll(".selection-ghost-line").length,
+      maeher: document.querySelectorAll(".selection-ghost-mower-body").length,
+    }));
+
+  const ausgang = await eastOf(1);
+
+  await page.locator('#vertexGroup circle[data-layer="perimeter"]').nth(1).click();
+  await page.waitForTimeout(350);
+
+  await page.fill("#pointEastInput", String(ausgang - 8).replace(".", ","));
+  await page.press("#pointEastInput", "Enter");
+  await page.waitForTimeout(400);
+
+  /*
+   * Erst der positive Beleg: der Punkt liegt wirklich woanders UND alle drei
+   * Vergleichselemente stehen da. Ohne ihn bewiese ihr Verschwinden nichts.
+   */
+  check("nach dem Verschieben liegt der Punkt woanders",
+    Math.abs((await eastOf(1)) - (ausgang - 8)) < 1e-9,
+    String(await eastOf(1)));
+
+  let g = await ghost();
+  check("und alle drei Vergleichselemente stehen da",
+    g.punkte === 1 && g.linien === 1 && g.maeher === 1, JSON.stringify(g));
+
+  await page.locator("#undoBtn").click();
+  await page.waitForTimeout(500);
+
+  check("nach dem Undo liegt der Punkt wieder am Ausgangsort",
+    Math.abs((await eastOf(1)) - ausgang) < 1e-9, String(await eastOf(1)));
+
+  g = await ghost();
+  check("und keines der drei Vergleichselemente steht mehr da",
+    g.punkte === 0 && g.linien === 0 && g.maeher === 0, JSON.stringify(g));
+
+  /*
+   * Der Gegenfall. Ohne ihn bestünde der Test auch dann, wenn die Ghosts
+   * gar nicht mehr gezeichnet würden.
+   */
+  /*
+   * Nicht erneut anklicken: der zurueckgenommene Punkt ist nach dem Undo
+   * weiterhin ausgewaehlt, und die Maehervorschau ersetzt seinen Marker -
+   * nth(1) traefe deshalb einen anderen Punkt.
+   */
+  check("der Punkt ist nach dem Undo weiterhin ausgewählt",
+    await page.evaluate(() => !!selectedVertex));
+
+  await page.fill("#pointEastInput", String(ausgang - 3).replace(".", ","));
+  await page.press("#pointEastInput", "Enter");
+  await page.waitForTimeout(400);
+
+  check("nach erneutem Verschieben liegt der Punkt wieder woanders",
+    Math.abs((await eastOf(1)) - (ausgang - 3)) < 1e-9,
+    String(await eastOf(1)));
+
+  g = await ghost();
+  check("und der Vergleich ist wieder da",
+    g.punkte === 1 && g.linien === 1 && g.maeher === 1, JSON.stringify(g));
+
+  /* ---------------------------------------------------------------- */
   console.log("Der Tastaturvertrag gilt in BEIDEN Sprachen");
 
   /*

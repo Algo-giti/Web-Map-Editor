@@ -11172,6 +11172,43 @@ function renderStraightenPreview(worldUnitsPerPixel) {
 
 
 /**
+ * Weicht die aktuelle Position eines Vergleichspunktes noch von seiner
+ * Baseline ab?
+ *
+ * `baseline.changed` merkt sich, DASS einmal bearbeitet wurde - nicht, dass
+ * das Ergebnis heute noch abweicht. Nach einem Undo liegt der Punkt wieder
+ * exakt am Ausgangsort, und ein Ghost dort behauptet eine Verschiebung, die
+ * es nicht mehr gibt. Deshalb entscheidet beim ZEICHNEN die Position, nicht
+ * das Merkmal.
+ *
+ * Der Vergleichscheckpoint bleibt davon unberührt: er ist weiterhin das
+ * letzte Speichern, `restoreWorkspaceSnapshot()` ist unverändert. Kehrt der
+ * Punkt später wieder weg, ist der Ghost von selbst wieder da - es wird nichts
+ * gelöscht, nur nichts Falsches gezeichnet.
+ *
+ * Die Schwelle 1e-12 je Achse ist die im Projekt bereits vorhandene: dieselbe
+ * Zahl beantwortet in `applyPointCoordinateInput()` ("Die Koordinate wurde
+ * nicht verändert.") und im Ziehen-Handler (`actuallyMoved`) genau diese
+ * Frage. Eine eigene Schwelle wäre eine dritte Quelle für eine Entscheidung.
+ *
+ * Ein Punkt, den es nicht mehr gibt, behält seinen Ghost: dort ist die alte
+ * Position der einzige Vergleich, der noch existiert.
+ */
+function baselineStillMoved(baseline) {
+  const coordinate = resolveBaselineCurrentCoordinate(baseline);
+
+  if (!coordinate) return true;
+
+  const [east, north] = toWorld(coordinate);
+
+  return (
+    Math.abs(east - baseline.east) > 1e-12 ||
+    Math.abs(north - baseline.north) > 1e-12
+  );
+}
+
+
+/**
  * Zeichnet den Vergleichszustand des ausgewählten Punktes im Hintergrund.
  *
  * Sichtbar bleiben:
@@ -11204,10 +11241,21 @@ function renderSelectionGhost() {
   renderReducePreview(worldUnitsPerPixel);
   renderRectifyPreview(worldUnitsPerPixel);
 
+  /*
+   * Zwei Bedingungen, und beide müssen gelten.
+   *
+   * Die erste sagt, WELCHE Vergleichspunkte überhaupt in Frage kommen: die
+   * bearbeiteten und der gerade ausgewählte. Die zweite sagt, ob es an ihnen
+   * noch etwas zu vergleichen GIBT.
+   *
+   * Die Prüfung muss beide Zweige umfassen, nicht nur `changed`: nach einem
+   * Undo bleibt der zurückgenommene Punkt ausgewählt - nachgemessen -, und
+   * über den zweiten Zweig käme sein Ghost sonst weiterhin durch.
+   */
   const baselines = getSelectionBaselines(activeMapId)
     .filter(baseline =>
-      baseline.changed ||
-      baseline === selectionBaseline
+      (baseline.changed || baseline === selectionBaseline) &&
+      baselineStillMoved(baseline)
     );
 
   /*
