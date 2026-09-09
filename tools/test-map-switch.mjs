@@ -21,7 +21,7 @@ import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-h
 const TOOL = "test-map-switch";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 /**
  * Karte in rohen Metern. Der Perimeter hat acht Punkte, damit sich eine

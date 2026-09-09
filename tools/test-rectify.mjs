@@ -18,7 +18,7 @@ import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-h
 const TOOL = "test-rectify";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 /** Karte in rohen Metern mit einer Exclusion aus den gegebenen Punkten. */
 function mapWith(ring) {

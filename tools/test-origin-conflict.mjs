@@ -22,7 +22,7 @@ import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-h
 const TOOL = "test-origin-conflict";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 /* Zwei RTK-Basen rund 1,1 km auseinander - eindeutig verschiedene Standorte. */
 const BASE_A = { lat: 52.5, lon: 13.4 };

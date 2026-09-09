@@ -23,7 +23,7 @@ import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
 const TOOL = "test-toolbar";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 const MAP = JSON.stringify({
   type: "FeatureCollection",

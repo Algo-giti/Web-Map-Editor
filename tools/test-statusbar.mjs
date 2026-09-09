@@ -25,7 +25,7 @@ import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
 const TOOL = "test-statusbar";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 /** Karte in rohen Metern mit einem Befund, damit die Prüfung etwas meldet. */
 const MAP = JSON.stringify({

@@ -25,7 +25,7 @@ import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-h
 const TOOL = "test-i18n-dynamic";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 /** Karte in rohen Metern mit einem Befund, damit der Bericht Inhalt hat. */
 const MAP = JSON.stringify({

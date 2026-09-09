@@ -22,7 +22,7 @@ import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-h
 const TOOL = "test-straighten";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 /*
  * Eine offene Search Wire mit fünf Punkten. Die drei mittleren liegen deutlich

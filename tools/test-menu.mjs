@@ -29,7 +29,7 @@ import {
 const TOOL = "test-menu";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 const PERIMETER = {
   type: "Feature",

@@ -27,7 +27,7 @@
 //   3. ein Build im ms-playwright-Cache, ohne feste Versionsnummer
 //   4. der von playwright-core selbst verwaltete Browser
 //
-// Fehlt alles, geben die Tests eine Anleitung aus und enden mit Exit-Code 0.
+// Fehlt alles, geben die Tests eine Anleitung aus und enden mit Exit-Code 2.
 
 import { accessSync, constants, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -205,8 +205,12 @@ const SETUP_HINT =
  * Startet einen Browser für einen Test.
  *
  * Liefert null, wenn Playwright fehlt oder kein Browser startet. Der Aufrufer
- * beendet sich dann mit Exit-Code 0 - fehlende Testinfrastruktur ist kein
- * Testfehler.
+ * beendet sich dann mit EXIT-CODE 2 - fehlende Testinfrastruktur ist kein
+ * Testfehler, aber auch kein bestandener Test.
+ *
+ * Bis zum Laeufer war das eine 0, und damit war ein Lauf ohne Browser von einem
+ * bestandenen nicht zu unterscheiden. run-browser-tests.mjs zaehlt 2 deshalb als
+ * "uebersprungen" und meldet den Lauf ausdruecklich als NICHT gelaufen.
  */
 export async function launchBrowser(toolName) {
   const playwright = await importPlaywright();

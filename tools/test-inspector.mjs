@@ -26,7 +26,7 @@ import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
 const TOOL = "test-inspector";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 const PERIMETER = {
   type: "Feature",

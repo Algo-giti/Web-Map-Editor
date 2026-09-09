@@ -20,7 +20,7 @@ import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
 const TOOL = "test-validation";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 /** Achsparalleles Rechteck als geschlossener Ring. */
 const box = (x0, y0, x1, y1) => [

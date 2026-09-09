@@ -378,12 +378,16 @@ Ausführbarkeit, statt sich auf die Existenz eines Verzeichnisses zu
 verlassen. Verlass dich beim Debuggen auf dieselbe Prüfung, nicht auf ein
 `ls`.
 
-Wenn `playwright-core` fehlt oder kein Browser startet, brechen beide
-Skripte **nicht** mit Fehler ab, sondern geben eine Anleitung aus und beenden
-sich mit Exit-Code 0. Fehlende Testinfrastruktur ist kein Testfehler – aber
-sie ist auch kein bestandener Test: wenn du einen Browserlauf nicht wirklich
-durchführen konntest, sag das ausdrücklich dazu, statt die Änderung als
-getestet zu melden.
+Wenn `playwright-core` fehlt oder kein Browser startet, brechen die Skripte
+**nicht** mit Fehler ab, sondern geben eine Anleitung aus und beenden sich mit
+**Exit-Code 2**. Fehlende Testinfrastruktur ist kein Testfehler – aber sie ist
+auch kein bestandener Test, und genau das muss ein Exit-Code sagen können.
+
+**Die 0 an dieser Stelle war das Falsche zugesichert.** Sie machte einen Lauf
+ohne Browser von einem bestandenen ununterscheidbar: siebzehn Skripte, die alle
+mit 0 enden, weil keines starten konnte, sehen aus wie siebzehn bestandene
+Tests. `tools/run-browser-tests.mjs` zählt 2 deshalb als **übersprungen** und
+meldet den Lauf ausdrücklich als *nicht gelaufen*.
 
 #### Der Test prüft die Wirkung, nicht die Absicht
 

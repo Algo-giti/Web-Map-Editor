@@ -27,7 +27,7 @@
 import { indexUrl, launchBrowser } from "./browser-harness.mjs";
 
 const browser = await launchBrowser("smoke-test");
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 const consoleErrors = [];
 const pageErrors = [];
