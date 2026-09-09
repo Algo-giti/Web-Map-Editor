@@ -883,7 +883,7 @@ try {
     !(await offen("inspectorValidation")));
 
   /* ---------------------------------------------------------------- */
-  console.log("Die Spalte kommt bei 1000 px Höhe ohne Scrollen aus");
+  console.log("Höhenziel: bis 900 px scrollfrei, darunter darf sie scrollen");
 
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.evaluate(() => localStorage.clear());
@@ -910,12 +910,34 @@ try {
 
   check("mit Prüfergebnis ebenfalls", await passt(), await hoehen());
 
-  for (const hoehe of [900, 800]) {
-    await page.setViewportSize({ width: 1600, height: hoehe });
-    await page.waitForTimeout(300);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.waitForTimeout(300);
 
-    check(`bei ${hoehe} px Höhe passt es ebenfalls`, await passt(), await hoehen());
-  }
+  check("bei 900 px Höhe passt es ebenfalls", await passt(), await hoehen());
+
+  /*
+   * Bei 800 px darf die Spalte scrollen - das ist der ZUGELASSENE Fall, kein
+   * Zielverlust. Das Höhenziel lautet seit Etappe 6 b3 "bis 900 px
+   * scrollfrei", nicht "keine Fenstergröße scrollt": die Fahrtrichtung des
+   * ausgewählten Punktes gehört in den Punktzustand, und dort hat bei 800 px
+   * ohnehin nichts mehr Platz - vor dem Umzug waren dort 2 px frei.
+   *
+   * Zugesichert wird deshalb nicht, DASS es scrollt (das wäre eine Zusicherung
+   * über ein Ausbleiben), sondern dass die Spalte in diesem Fall wirklich
+   * erreichbar bleibt: sie hat einen Scrollbereich, und er lässt sich nutzen.
+   */
+  await page.setViewportSize({ width: 1600, height: 800 });
+  await page.waitForTimeout(300);
+
+  const scrollbar = await page.evaluate(() => {
+    const el = document.getElementById("inspector");
+    el.scrollTop = 9999;
+    return { erreicht: el.scrollTop > 0, ueberschuss: el.scrollHeight - el.clientHeight };
+  });
+
+  check("bei 800 px bleibt der Inhalt über die Rollleiste erreichbar",
+    scrollbar.erreicht || scrollbar.ueberschuss <= 0,
+    JSON.stringify(scrollbar));
 
   /* ---------------------------------------------------------------- */
   console.log("Die Tooltips der Umformwerkzeuge erklären, statt zu benennen");

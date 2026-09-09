@@ -127,8 +127,22 @@ try {
   check("Maßstab wird als angenommen benannt",
     (await text("scaleStatus")).includes("angenommen"), await text("scaleStatus"));
 
+  /*
+   * Sechstes Feld: die Rasterweite. Seit Etappe 6 b3 steht sie sonst nur im
+   * Rasterfenster - ohne dieses Feld waere sie nirgends nachschlagbar, ohne
+   * das Fenster aufzumachen.
+   */
+  check("das Rasterfeld nennt die Weite",
+    (await text("gridShort")).trim() === "0,10 m", await text("gridShort"));
+  check("und sein title nennt beide Bedeutungen",
+    await page.evaluate(() => {
+      const t = document.getElementById("gridShort").closest(".status-field")
+        .getAttribute("title") || "";
+      return t.includes("Rasterweite") && t.includes("Pfeiltasten");
+    }));
+
   /* Kurzformen bleiben kurz - das ist die Bedingung, unter der sie taugen. */
-  for (const id of ["scaleStatus", "originShort", "validationShort"]) {
+  for (const id of ["scaleStatus", "originShort", "gridShort", "validationShort"]) {
     check(`#${id} bleibt unter 30 Zeichen`,
       (await text(id)).trim().length <= 30, `${id}: ${await text(id)}`);
   }
@@ -451,6 +465,44 @@ try {
   check("jeder Legendeneintrag hat dieselbe Farbe wie seine Kartenregel",
     abweichung.length === 0,
     abweichung.map((e) => `${e.name}: Legende ${e.legende} / Karte ${e.karte}`).join(" | "));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Ausblendreihenfolge: das Nachschlagbare weicht zuerst");
+
+  /*
+   * Geprueft ueber den BERECHNETEN Stil, nicht ueber die Medienregel im
+   * Quelltext: nur so steht fest, was der Browser daraus macht.
+   */
+  const sichtbareFelder = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll("#statusBar .status-field")]
+        .filter((f) => getComputedStyle(f).display !== "none")
+        .map((f) => f.querySelector(".status-label").textContent.trim()));
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.waitForTimeout(300);
+
+  check("bei 1280 px stehen alle fünf Felder",
+    (await sichtbareFelder()).join(",") === "Karte,Maßstab,Raster,Bezugspunkt,Prüfung",
+    (await sichtbareFelder()).join(","));
+
+  await page.setViewportSize({ width: 860, height: 800 });
+  await page.waitForTimeout(300);
+
+  check("unter 900 px weichen Raster, Bezugspunkt und Prüfung",
+    (await sichtbareFelder()).join(",") === "Karte,Maßstab",
+    (await sichtbareFelder()).join(","));
+
+  check("Zähler und Koordinaten bleiben",
+    await page.evaluate(() =>
+      getComputedStyle(document.getElementById("multiSelectionInfo")).display !== "none"));
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.waitForTimeout(300);
+
+  check("und kommen bei mehr Platz zurück",
+    (await sichtbareFelder()).length === 5,
+    (await sichtbareFelder()).join(","));
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

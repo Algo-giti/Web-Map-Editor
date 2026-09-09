@@ -421,6 +421,154 @@ try {
     (await slotTitel()) === "Karte A · aktiv", await slotTitel());
 
   /* ---------------------------------------------------------------- */
+  console.log("Rasterfenster: die eingestellte Weite wirkt wirklich");
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await load();
+
+  check("das Rasterfenster ist zunächst zu", !(await sichtbar("#gridWindow")));
+
+  await menueBefehl(page, "Ansicht", "Raster…");
+  await page.waitForTimeout(250);
+
+  check("nach dem Menübefehl steht es da", await sichtbar("#gridWindow"));
+  check("und das Menü ist zu", (await offeneMenues()).length === 0);
+
+  /*
+   * Über den Fenstern sitzt .viewer mit overflow:hidden. display sagt darüber
+   * nichts - ein abschneidender Vorfahr sitzt eine Ebene höher. Deshalb in
+   * allen drei Fenstergrößen die Trefferprüfung.
+   */
+  for (const [w, h] of [[1920, 1080], [1440, 900], [1280, 800]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.waitForTimeout(250);
+    const t = await elementGetroffen(page, "#gridWindow");
+    check(`das Rasterfenster wird bei ${w}x${h} getroffen`, t.ok, t.grund);
+  }
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.waitForTimeout(250);
+
+  await page.fill("#gridStepInput", "1,00");
+  await page.locator("#applyGridBtn").click();
+  await page.waitForTimeout(250);
+
+  check("die Kurzform in der Statuszeile zieht mit",
+    (await page.locator("#gridShort").textContent()).trim() === "1,00 m",
+    (await page.locator("#gridShort").textContent()).trim());
+
+  /*
+   * Die eigentliche Wirkung: die Rasterweite ist zugleich die Schrittweite
+   * der Pfeiltasten. Ein Test auf den Feldinhalt allein bestünde auch dann,
+   * wenn "Übernehmen" gar nichts täte.
+   */
+  await page.locator('#vertexGroup circle[data-layer="perimeter"]').nth(1).click();
+  await page.waitForTimeout(300);
+
+  const vorPfeil = await eastOf(1);
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(300);
+
+  check("ein Pfeiltastendruck verschiebt um genau die eingestellte Weite",
+    Math.abs((await eastOf(1)) - (vorPfeil + 1)) < 1e-6,
+    `${await eastOf(1)} statt ${vorPfeil + 1}`);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Mäherfenster: höchstens eines ist offen");
+
+  await menueBefehl(page, "Ansicht", "Mähroboter-Vorschau…");
+  await page.waitForTimeout(250);
+
+  check("das Mäherfenster steht da", await sichtbar("#mowerWindow"));
+  check("und das Rasterfenster ist zugegangen", !(await sichtbar("#gridWindow")));
+
+  for (const [w, h] of [[1920, 1080], [1440, 900], [1280, 800]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.waitForTimeout(250);
+    const t = await elementGetroffen(page, "#mowerWindow");
+    check(`das Mäherfenster wird bei ${w}x${h} getroffen`, t.ok, t.grund);
+  }
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.waitForTimeout(250);
+
+  check("der Hinweis nennt Korridorprüfung und Flächenwarnung",
+    (await page.locator("#mowerWindow .hint").textContent())
+      .includes("Korridorprüfung") &&
+    (await page.locator("#mowerWindow .hint").textContent())
+      .includes("Flächenwarnung"));
+
+  /* Wirkung im SVG: der gezeichnete Mäher wird wirklich breiter. */
+  const mowerBreite = () =>
+    page.evaluate(() => {
+      const el = document.querySelector(".mower-body");
+      return el ? Math.round(el.getBoundingClientRect().width) : 0;
+    });
+
+  const schmal = await mowerBreite();
+  check("der Mäher wird überhaupt gezeichnet", schmal > 0, String(schmal));
+
+  await page.fill("#mowerWidthInput", "1,40");
+  await page.locator("#applyMowerSizeBtn").click();
+  await page.waitForTimeout(350);
+
+  const breit = await mowerBreite();
+  check("nach dem Übernehmen ist er im SVG breiter",
+    breit > schmal * 1.5, `${schmal} -> ${breit}`);
+  check("und die Größenzeile im Fenster nennt den neuen Wert",
+    (await page.locator("#mowerSizeInfo").textContent()).includes("140 cm"),
+    await page.locator("#mowerSizeInfo").textContent());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Escape-Rangfolge mit Fenster");
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  check("Escape schließt das Fenster", !(await sichtbar("#mowerWindow")));
+  check("und der Fokus steht beim sichtbaren Öffner",
+    (await fokus()) === "menuViewBtn", await fokus());
+
+  await menueBefehl(page, "Ansicht", "Raster…");
+  await page.waitForTimeout(250);
+
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(250);
+
+  check("es wird gezeichnet und das Fenster steht noch",
+    (await sichtbar("#inspectorDraw")) && (await sichtbar("#gridWindow")));
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  check("der erste Escape schließt nur das Fenster",
+    !(await sichtbar("#gridWindow")));
+  check("die Zeichnung läuft weiter", await sichtbar("#inspectorDraw"));
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  check("der zweite Escape bricht die Zeichnung ab",
+    !(await sichtbar("#inspectorDraw")));
+
+  /* Ein offenes Menü schlägt ein offenes Fenster. */
+  await menueBefehl(page, "Ansicht", "Raster…");
+  await page.waitForTimeout(250);
+  await page.keyboard.press("Alt+d");
+  await page.waitForTimeout(200);
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  check("bei Menü UND Fenster gewinnt das Menü",
+    (await offeneMenues()).length === 0 && (await sichtbar("#gridWindow")));
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  check("der zweite Escape nimmt dann das Fenster",
+    !(await sichtbar("#gridWindow")));
+
+  /* ---------------------------------------------------------------- */
   check("keine Konsolenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
 } finally {
