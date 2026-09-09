@@ -197,7 +197,7 @@ Sie zerfallen in **zwei Stufen**, und diese Trennung ist beabsichtigt:
 | Stufe | Skripte | Abhängigkeiten | Status |
 |---|---|---|---|
 | statisch | `check-all.mjs` (4.1) | keine | **Pflicht** vor jeder Rückmeldung "fertig" |
-| Browser | sechzehn Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
+| Browser | siebzehn Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
 
 `check-all.mjs` läuft mit Node-Bordmitteln und muss das bleiben – es ist die
 Stufe, die in **jeder** Umgebung ohne Vorbereitung durchläuft. Die
@@ -281,7 +281,7 @@ Zwei Fallstricke dabei:
 
 ### 4.2 Browsertests (optional, real gerendert)
 
-Sechzehn Skripte öffnen `index.html` in einem echten Browser über eine
+Siebzehn Skripte öffnen `index.html` in einem echten Browser über eine
 `file://`-URL – die Datei hat keine externen Ressourcen und keine
 `fetch()`-Aufrufe, ein Webserver ist also nicht nötig.
 
@@ -303,6 +303,7 @@ Sechzehn Skripte öffnen `index.html` in einem echten Browser über eine
 | `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen |
 | `test-placeholders.mjs` | was als leerer Platzhalter gilt |
 | `test-inspector.mjs` | Inspektor: alle sieben Zustände, Behälter, Tastatur |
+| `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -908,9 +909,11 @@ Seitenleiste **und** Inspektor stehen gleichzeitig, was mit Etappe 6 endet.
 | 1440 × 900 | −50,2 % | −40,8 % | −26,2 % | −16,8 % |
 | 1280 × 800 | −58,0 % | −47,1 % | −30,1 % | −19,2 % |
 
-**Vorschau auf Etappe 6**, wenn die Seitenleiste verschwindet und nur noch
+**Vorschau auf Etappe 7**, wenn die Seitenleiste verschwindet und nur noch
 Werkzeugleiste, Karte und Inspektor nebeneinanderstehen – gemessen, indem die
-Seitenleiste eingeklappt wird:
+Seitenleiste eingeklappt wird. Die Zahlen sind unverändert die aus der Messung
+zu Etappe 5 D; sie sind **nicht** neu gerechnet, nur der Etappe zugeordnet, in
+der sie eintreten:
 
 | Fenster | Leiste offen, Inspektor offen | Leiste zu, Inspektor offen | beide zu |
 |---|---|---|---|
@@ -918,12 +921,73 @@ Seitenleiste eingeklappt wird:
 | 1440 × 900 | −20,0 % | −10,6 % | **+13,5 %** |
 | 1280 × 800 | −22,9 % | −12,0 % | **+15,8 %** |
 
+**Geändert gegenüber der ursprünglichen Etappenplanung: „Seitenleiste
+auflösen" und die Schlussmessung rücken von Etappe 6 nach Etappe 7.** Etappe 6
+füllt die vier Menüs, aber „Karten verbinden" hat noch kein Ziel – es wird mit
+Etappe 7 ein Werkzeug der Leiste. Solange bleibt seine Hülle stehen, und mit
+ihr zwei weitere Abschnitte (siehe unten). Die Hülle zu entfernen und das
+Verbinden dabei zu verlieren wäre schlechter als eine Etappe mit einem
+sichtbaren Rest. Die Schlussmessung wird in Etappe 7 gemacht, im selben Browser
+und mit demselben Skript wie die Ausgangswerte.
+
+**Nach Etappe 6 stehen in der Seitenleiste noch genau drei Abschnitte:**
+Karten verbinden, Feature-Navigation, Koordinatenbezug.
+
+**Feature-Navigation und Koordinatenbezug ziehen NICHT vorzeitig in den
+Inspektor**, obwohl sie thematisch dorthin gehören. Drei Gründe, alle drei
+zählen:
+
+- Die Hülle bleibt wegen „Karten verbinden" ohnehin stehen. Der Umzug brächte
+  also keinen Abschnitt weniger, nur einen Umzug mehr.
+- Zwei weitere Faltblöcke kosten den Inspektor mindestens 42 px plus Lücken.
+  Das reißt die **20 px Reserve bei 900 px**, die oben als verbindlich stehen.
+- Die Höhenentscheidung wird in Etappe 7 **einmal mit allen Blöcken** getroffen,
+  nicht zweimal mit halbem Bestand. Zweimal messen heißt, die erste Messung
+  wegzuwerfen.
+
+**„Karten verbinden" zieht mit Etappe 7 in die Werkzeugleiste** – es ist ein
+Modus (Start/Ende beider Perimeter festlegen), kein Menübefehl. Bis dahin steht
+es unverändert in der Seitenleiste, und im Menü „Karte" steht **kein grauer
+Eintrag** dafür: ein deaktivierter Eintrag mit dem Grund „zieht später um"
+behauptet Unerreichbarkeit, während der Befehl zehn Zentimeter weiter links
+funktioniert. Dieselbe Regel hält Zoom, Einpassen und „Karte prüfen" aus den
+Menüs heraus, und sie verbietet einen Platzhalter für die noch ungebaute
+Mähbahnen-Vorschau.
+
+**`#mobilePanelBtn` bleibt ebenfalls bis Etappe 7.** Unter 760 px steht die
+Seitenleiste auf `display:none`, und **nur** dieser Knopf setzt
+`aside.mobile-open`. Nachgemessen bei 400 × 800: ohne ihn sind die drei
+verbliebenen Abschnitte auf einem Telefon nicht erreichbar. Er geht mit der
+Hülle, nicht vorher – zusammen mit `.mobile-panel-btn` und der Mobilausnahme
+der Seitenleiste.
+
 Erst mit beiden eingeklappten Leisten liegt die Fläche **über** dem
 Ausgangswert. Das ist der ehrliche Stand: **wer mehr erwartet, erwartet das
 Falsche vom Umbau.** Was er tatsächlich gewinnt, ist Ordnung und
 **Überdeckung** – die schwebenden Fenster auf der Karte sind von 25 950 px²
 auf 21 870 px² geschrumpft, und die Auswahlleiste ist seit Etappe 5 ganz von
 der Karte verschwunden.
+
+**Gemessen nach Etappe 6, gegen den Stand unmittelbar davor** (`37f71f5`),
+im selben Browser und mit demselben Skript – die Zahlen unten sind die
+gemessenen, nicht die vorhergesagten:
+
+| Fenster | Kopfzeile vorher | nachher | Höhe | Statuszeile | Felder | Kartenfläche |
+|---|---|---|---|---|---|---|
+| 1920 × 1080 | 1038 px nötig | **880 px** | 48 px, unverändert | 63 px, unverändert | 4 → 5 | 1 006 608 px², unverändert |
+| 1440 × 900 | 1038 px nötig | **880 px** | 48 px, unverändert | 63 px, unverändert | 4 → 5 | 449 328 px², unverändert |
+| 1280 × 800 | 1038 px nötig | **880 px** | 48 px, unverändert | 63 px, unverändert | 4 → 5 | 284 688 px², unverändert |
+
+„Nötig" ist die Summe der Eigenbreiten der Kopfzeilenkinder plus Lücken plus
+Polsterung, gemessen an Klonen mit `width:max-content`. `scrollWidth` taugt
+dafür nicht: die Kopfzeile trägt `overflow-x:clip` und verbirgt eine Stauchung.
+
+**−158 px in der Kopfzeile, 0 px Zuwachs durch das sechste Statusfeld, und die
+Kartenfläche ist in allen drei Größen unverändert.** Das Menü kostet 256 px
+und ersetzt 402 px an Knöpfen (speichern 170, zurücksetzen 173, Hilfe 59); das
+Statusfeld nimmt seine 104 px aus der Dehnspalte, die bei 1280 px danach noch
+86 px hat. Der Dateiname wird ab 1000 px Breite gekappt – das war vorher schon
+so und ist von diesem Umbau unberührt.
 
 Die Kartenfläche kostet: **93 px Höhe** für Legende (30) und die zweizeilige
 Statuszeile (63), 168 px Breite für die ausgeklappte Werkzeugleiste, 320 px
@@ -1165,8 +1229,37 @@ Punktzustands (Startpunkt, Rolle also sichtbar):
 | 800 px | scrollt (+136) | scrollt (+76) | **passt** |
 
 Zwei Schritte, beide ohne Informationsverlust: die Kürzung von `#pointMeta`
-brachte 60 px, die zweispaltigen Knöpfe weitere 76. Die Spalte kommt jetzt in
-allen drei Fenstergrößen ohne Scrollen aus.
+brachte 60 px, die zweispaltigen Knöpfe weitere 76.
+
+**Das Höhenziel lautet: bis 900 px Fensterhöhe scrollfrei, darunter darf die
+Spalte scrollen.** Nicht „keine Fenstergröße scrollt" – das war die Fassung bis
+Etappe 6 b3 und ist mit der Fahrtrichtung im Punktzustand aufgegeben worden.
+Der Überlauf bei 800 px ist damit der **zugelassene** Fall, kein Zielverlust.
+
+**Der verbindliche Wert ist: 20 px Reserve bei 900 px.** Das ist die Zahl, die
+der nächste Block schlagen muss, der in den Punktzustand will. Gemessen mit
+ausgewähltem Startpunkt (Rolle sichtbar), 1600 px breit, deutsch und englisch
+identisch:
+
+| Fensterhöhe | Spalte | Inhalt | Reserve |
+|---|---|---|---|
+| 1000 px | 859 | 739 | 120 px |
+| 900 px | 759 | 739 | **20 px** |
+| 800 px | 659 | 739 | −80 px, zugelassen |
+
+**Gemessen wird als Summe der Blöcke plus Lücken plus Polsterung – nicht über
+`scrollHeight`.** `scrollHeight` wird auf `clientHeight` geklemmt, solange der
+Inhalt passt, und meldet dann fälschlich „Reserve 0". Wer damit misst, hält
+eine Spalte mit 120 px Luft für randvoll.
+
+**Die Fahrtrichtung des ausgewählten Punktes steht im Punktzustand, die
+Mähergröße im Mäherfenster** – die Box aus der Seitenleiste ist mit Etappe 6 b3
+geteilt worden. Erwogen und verworfen war, sie ganz im Fenster zu lassen: das
+hätte das 800-px-Ziel gerettet, aber die Beschreibung des Ausgewählten von dem
+Ort getrennt, an dem das Ausgewählte beschrieben wird. Das Ziel verlangt diesen
+Preis nicht – es lautet „bis 900 px", und dort passt es. Die id blieb beim
+Richtungsteil, weil sie ihn benennt (`mowerOrientationInfo`); die Größe hat
+eine eigene bekommen (`mowerSizeInfo`) statt einer geerbten.
 
 Der Fall „beide Faltblöcke aufgeklappt" ist ausdrücklich **kein** Ziel: wer
 beide öffnet, will ihren Inhalt sehen und scrollt dafür. Genau deshalb sind
@@ -2129,6 +2222,25 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 - **`tools/check-privacy.mjs` ist nur heuristisch** – erkennt keine privaten
   Daten unter untypischen Schlüsselnamen. Ersetzt keine manuelle
   Diff-Prüfung vor einem Release.
+- **Eine vierte statische Prüfung fehlt: verwaiste CSS-Regeln ohne Markup.**
+  Eintragen, nicht bauen – sie ist hier als offener Punkt vermerkt, damit sie
+  nicht ein viertes Mal von Hand gefunden werden muss.
+
+  Der Befund ist gemessen, nicht vermutet: in Etappe 6 b1, b2 und b3 blieben
+  **dreimal** Regeln stehen, deren einziges Markup gerade entfernt worden war –
+  `.file-btn` und zwei `.toolbar-btn-*` in b1, `.map-slots` und
+  `.map-slot-button` in b2, `.grid-controls`, `.robot-settings`,
+  `.editor-grid`, `.validation-panel` (zweimal), `.multi-select-panel` und fünf
+  `.section-accent-*` in b3. Dazu `.map-info-window` samt Unterregeln, die
+  schon seit Etappe 4 verwaist war und keiner Prüfung auffiel.
+
+  Kein Laufzeitfehler, aber genau die Klasse, gegen die `check-dom-ids.mjs`
+  gebaut wurde: tote Verweise, die niemand sieht. Machbar mit Bordmitteln –
+  Klassenselektoren aus dem `<style>`-Block sammeln, gegen die
+  `class="…"`-Literale des Markups halten, dynamisch gesetzte Klassen
+  (`classList.add("…")`) mitzählen. Fehlalarme sind zu erwarten, deshalb eher
+  als Warnung denn als Fehler.
+
 - **`tools/check-dom-ids.mjs` prüft IDs und doppelte Funktionsnamen, aber
   keine Variablennamen und keine verwaisten Funktionen.** Verwaister Code nach
   dem Entfernen eines UI-Elements bleibt dadurch unentdeckt – genau so hatte
@@ -2139,26 +2251,31 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   jeder Etappe des Oberflächenumbaus.** Es wird in Etappe 9 vollständig neu
   geschrieben, wenn die Anordnung feststeht – vorher wäre es zweimal Arbeit.
   Damit dort keine Neulektüre nötig ist, hier die Sätze, die **jetzt schon
-  falsch** sind:
+  falsch** sind. Die Fundstelle ist der Abschnitt des Overlays plus die
+  ersten Worte des Satzes – Zeilennummern verschieben sich mit jeder Änderung
+  und wären hier bereits beim Aufschreiben veraltet.
 
-  - „Karteninfo: … liegen jetzt als eigenes einklappbares Fenster direkt auf
-    der Karte." – stimmt noch, wird aber mit dem Inspektor hinfällig.
-  - **„Auswahl-Werkzeugleiste: Mauszeiger, Rechteck, Lasso, Verschieben,
-    Löschen und Auswahl aufheben liegen jetzt direkt auf der Karte." – seit
-    Etappe 5 vollständig falsch.** Auf der Karte liegt keine Auswahlleiste
-    mehr; die Auswahlwerkzeuge stehen in der Werkzeugleiste, Löschen, Auswahl
-    aufheben und Begradigen im Inspektor, und „Verschieben" gibt es nicht mehr.
-  - **„Sidebar: … ‚Messen & Prüfen' befindet sich ganz unten." – seit Etappe 5
-    falsch.** Von diesem Abschnitt ist nur noch der Schalter „Vor dem Speichern
-    automatisch prüfen" übrig; Messergebnis und Prüfbericht stehen im
-    Inspektor.
-  - **„Einpassen / Zoom: Kartenansicht anpassen." – der Ort stimmt nicht mehr**,
-    beides liegt seit Etappe 3 an der Karte statt in der Kopfzeile.
-  - „Sidebar: Direkt unter ‚Karten' folgt ‚Karten verbinden' …" – wird mit
-    Etappe 6 falsch.
-  - **„Karteninfo & Legende: liegen direkt untereinander und lassen sich
-    unabhängig aufklappen." – seit Etappe 2 falsch.** Die Legende ist ein
-    fester Streifen und lässt sich nicht mehr aufklappen.
+  **Alle sechs sind in Ausgabe 050 falsch geworden**, also im laufenden,
+  noch nicht veröffentlichten Umbau; in Ausgabe 049 stimmte jeder von ihnen.
+  Die Etappe steht dabei, weil sie die Stelle genauer benennt als die Ausgabe:
+
+  | Abschnitt | Satz beginnt mit | falsch seit | warum |
+  |---|---|---|---|
+  | Exclusions & Features | „Exclusion löschen: alle Eckpunkte …" | 050, Etappe 5 | nennt „den Papierkorb in der Karten-Werkzeugleiste"; die Auswahlleiste ist ganz von der Karte verschwunden, der Papierkorb steht im Inspektor |
+  | Mehrfachauswahl | „Rechteck / Lasso: mehrere Punkte …" | 050, Etappe 3 | verweist auf „Punkt / Verschieben"; diesen Knopf gibt es nicht mehr, er war reine Doppelung des Zeigers |
+  | Mobil / Android | „Bedienung: auf kleinen Displays …" | 050, Etappe 3 | sagt, der Knopf blende „die Werkzeugleiste" ein; er öffnet die **Seitenleiste**, und eine Werkzeugleiste gibt es seit Etappe 3 als eigenes, anderes Ding |
+  | Ansicht & Speichern | „Karteninfo: Abmessungen und Hinweise …" | 050, Etappe 4 | die Karteninfo ist kein Fenster auf der Karte mehr, sie steht im Inspektor |
+  | Ansicht & Speichern | „Auswahl-Werkzeugleiste: Mauszeiger, Rechteck …" | 050, Etappe 5 | auf der Karte liegt keine Auswahlleiste mehr; die Auswahlwerkzeuge stehen in der Werkzeugleiste, Löschen, Auswahl aufheben und Begradigen im Inspektor |
+  | Ansicht & Speichern | „Sidebar: Direkt unter ‚Karten' …" | 050, Etappe 6 | weder „Karten" noch „Messen & Prüfen" existiert noch als Abschnitt; übrig sind Karten verbinden, Feature-Navigation, Koordinatenbezug |
+  | Ansicht & Speichern | „Karteninfo & Legende: liegen direkt untereinander …" | 050, Etappe 2 | die Legende ist ein fester Streifen und lässt sich nicht mehr aufklappen |
+
+  **Zwei Einträge dieser Liste waren zu streng und sind zurückgenommen:**
+  „Einpassen / Zoom: Kartenansicht anpassen." und „Raster: Schrittweite frei
+  einstellen; Snap-to-Grid kann beim Ziehen verwendet werden." nennen gar
+  keinen Ort. Beide Sätze stimmen weiterhin – falsch war nicht der Satz,
+  sondern die frühere Behauptung über ihn. Eine Liste bekannter Fehler, die
+  Richtiges enthält, ist beim nächsten Lesen genauso teuer wie eine
+  unvollständige.
 
   Die Liste beim Fortschreiten der Etappen ergänzen, statt am Ende alles neu
   zu lesen.
