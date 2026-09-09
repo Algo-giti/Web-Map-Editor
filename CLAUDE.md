@@ -945,20 +945,21 @@ Verbinden dabei zu verlieren wäre schlechter als eine Etappe mit einem
 sichtbaren Rest. Die Schlussmessung wird in Etappe 7 gemacht, im selben Browser
 und mit demselben Skript wie die Ausgangswerte.
 
-**Nach Etappe 6 stehen in der Seitenleiste noch genau drei Abschnitte:**
-Karten verbinden, Feature-Navigation, Koordinatenbezug.
+**Nach 7b und 7c steht in der Seitenleiste noch genau ein Abschnitt:**
+Karten verbinden. Feature-Navigation und Koordinatenbezug sind in den Inspektor
+gezogen – die Navigation mit 7b, der Koordinatenbezug mit 7c.
 
-**Feature-Navigation und Koordinatenbezug ziehen NICHT vorzeitig in den
-Inspektor**, obwohl sie thematisch dorthin gehören. Drei Gründe, alle drei
-zählen:
+**Die frühere Regel „Feature-Navigation und Koordinatenbezug ziehen NICHT
+vorzeitig in den Inspektor" ist damit erledigt, nicht gebrochen.** Sie hieß
+*nicht vorzeitig*, und ihr Zeitpunkt war Etappe 7; sie hat genau das getan,
+wozu sie da war – die beiden Umzüge fanden in einer Etappe statt und nicht in
+zweien. Der dritte ihrer drei Gründe ist eingelöst: die Höhenentscheidung wurde
+**einmal mit allen Blöcken** getroffen und nicht zweimal mit halbem Bestand.
 
-- Die Hülle bleibt wegen „Karten verbinden" ohnehin stehen. Der Umzug brächte
-  also keinen Abschnitt weniger, nur einen Umzug mehr.
-- Zwei weitere Faltblöcke kosten den Inspektor mindestens 42 px plus Lücken.
-  Das reißt die **20 px Reserve bei 900 px**, die oben als verbindlich stehen.
-- Die Höhenentscheidung wird in Etappe 7 **einmal mit allen Blöcken** getroffen,
-  nicht zweimal mit halbem Bestand. Zweimal messen heißt, die erste Messung
-  wegzuwerfen.
+Was die beiden Umzüge tatsächlich gekostet haben, steht unten bei der
+verbindlichen Reserve. Die dort früher genannte Befürchtung („zwei weitere
+Faltblöcke kosten mindestens 42 px plus Lücken") war der Größenordnung nach
+richtig: gemessen sind es zwei Blöcke à 20 bzw. 21 px plus je 10 px Lücke.
 
 **„Karten verbinden" zieht mit Etappe 7 in die Werkzeugleiste** – es ist ein
 Modus (Start/Ende beider Perimeter festlegen), kein Menübefehl. Bis dahin steht
@@ -1307,16 +1308,28 @@ Spalte scrollen.** Nicht „keine Fenstergröße scrollt" – das war die Fassun
 Etappe 6 b3 und ist mit der Fahrtrichtung im Punktzustand aufgegeben worden.
 Der Überlauf bei 800 px ist damit der **zugelassene** Fall, kein Zielverlust.
 
-**Der verbindliche Wert ist: 20 px Reserve bei 900 px.** Das ist die Zahl, die
-der nächste Block schlagen muss, der in den Punktzustand will. Gemessen mit
-ausgewähltem Startpunkt (Rolle sichtbar), 1600 px breit, deutsch und englisch
-identisch:
+**Der verbindliche Wert ist: 12 px Reserve bei 900 px – und 11 px, sobald der
+Bezugspunkt-Fold seine Kurzform hat.** Beide Zahlen stehen hier mit ihrer
+Bedingung, weil sonst nach dem nächsten Schritt eine Zahl dastünde, die niemand
+nachzieht: sie sähe plausibel aus. Der Fold aus 7c misst **20 px** statt der
+21 px seiner vier Geschwister, weil ihm als einzigem die
+`.fold-summary`-Kurzform fehlt; bekommt er sie, wächst er auf 21 px und die
+Reserve sinkt auf 11 px. **Bis dahin gilt 12, danach 11.**
+
+Das ist die Zahl, die der nächste Block schlagen muss, der in den Punktzustand
+will. Gemessen mit ausgewähltem Startpunkt (Rolle sichtbar), 1600 px breit,
+deutsch und englisch identisch:
 
 | Fensterhöhe | Spalte | Inhalt | Reserve |
 |---|---|---|---|
-| 1000 px | 859 | 739 | 120 px |
-| 900 px | 759 | 739 | **20 px** |
-| 800 px | 659 | 739 | −80 px, zugelassen |
+| 1000 px | 859 | 747 | 112 px |
+| 900 px | 759 | 747 | **12 px** (11 px mit Kurzform) |
+| 800 px | 659 | 747 | −88 px, zugelassen |
+
+Zum Vergleich der Stand vor 7b und 7c, damit die Kosten der beiden Umzüge
+ablesbar bleiben: Inhalt 739 px, Reserve 120 / **20** / −80 px. Die beiden
+Faltblöcke haben zusammen 8 px mehr gekostet, als die 42-px-Schätzung oben
+erwarten ließ – zwei Blöcke à 20 bzw. 21 px plus zweimal 10 px Lücke.
 
 **Gemessen wird als Summe der Blöcke plus Lücken plus Polsterung – nicht über
 `scrollHeight`.** `scrollHeight` wird auf `clientHeight` geklemmt, solange der
@@ -2336,6 +2349,13 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `.section-accent-*` in b3. Dazu `.map-info-window` samt Unterregeln, die
   schon seit Etappe 4 verwaist war und keiner Prüfung auffiel.
 
+  Dazugekommen ist mit 7c ein **vorbestehender** Fall, der die Prüfung
+  ebenfalls fände: `.section-accent-slate` hat kein Markup mehr. Anders als die
+  oben genannten stammt er nicht aus dem Umbau – er stand schon vorher da und
+  ist beim Umzug des Koordinatenbezugs nur aufgefallen, weil dessen
+  Nachbarregel `.section-accent-cyan` tatsächlich verwaiste und entfernt wurde.
+  Stehengelassen, weil er nicht zu 7c gehört; er gehört hierher.
+
   Kein Laufzeitfehler, aber genau die Klasse, gegen die `check-dom-ids.mjs`
   gebaut wurde: tote Verweise, die niemand sieht. Machbar mit Bordmitteln –
   Klassenselektoren aus dem `<style>`-Block sammeln, gegen die
@@ -2576,20 +2596,72 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Prüfung, die eine dieser Eigenschaften anders beantwortet, ist kein Zusatz
   mehr, sondern ein Widerspruch.
 
-  **3. Abrunden zwischen zwei Punkten.** Zwei Punkte wählen, die Ecke dazwischen
-  im Radius der Mäherabmessung inklusive Spielraum abrunden. Viertes
-  Umformwerkzeug neben Begradigen, Reduzieren und Rechtwinklig: **gleicher
-  Faltblock, gleiche Vorschau-Regel wie in Etappe 7f entschieden, gleiche
-  Auswahlbedingung wie das Begradigen** – genau zwei Punkte desselben Rings,
-  also `getSelectedSection()` als Quelle.
+  **3. Abrunden – zwei Betriebsarten, EIN Werkzeug.** Ecken im Radius der
+  Mäherabmessung inklusive Spielraum abrunden. Viertes Umformwerkzeug neben
+  Begradigen, Reduzieren und Rechtwinklig, im selben Faltblock.
 
-  Offen bleibt, **welcher Radius genau**: halbe Breite, volle Breite, oder frei
-  einstellbar mit der Geometrie als Vorschlag.
+  | Betriebsart | Auswahl | Wirkung |
+  |---|---|---|
+  | eine Ecke | genau zwei Punkte desselben Rings | die Ecke zwischen ihnen |
+  | alle Ecken | ganzes Feature ausgewählt (Lasso, Rechteck oder „Ganzes Feature auswählen") | jede Ecke des Features, mit denselben Werten inklusive Spielraum |
+
+  **Das ist ein Werkzeug mit zwei Betriebsarten und nicht zwei Werkzeuge.**
+  Ausdrücklich so festgehalten, weil daraus sonst später zwei Einträge in der
+  Werkzeugleiste entstehen, die dasselbe tun – unterschieden nur dadurch, wie
+  viel gerade ausgewählt ist, und das sieht der Nutzer der Leiste nicht an.
+
+  **Die Auswahlbedingungen sind keine neuen.** Jede der beiden Betriebsarten
+  fällt mit einer zusammen, die es schon gibt – und daran hängt, dass die
+  Vorschau-Regel aus Etappe 7f für **beide** Fälle gilt und nicht nur für einen:
+
+  - Der **Alle-Ecken-Fall** deckt sich mit der Bedingung, die Reduzieren und
+    Rechtwinklig in 7f bekommen: die Vorschau erscheint erst, wenn **alle**
+    Punkte eines Features ausgewählt sind – statt wie heute schon bei einem
+    einzigen über den Rückfall auf `getWholeFeatureTarget()`.
+  - Der **Zwei-Punkte-Fall** deckt sich mit dem Begradigen, das unverändert bei
+    genau zwei Punkten desselben Rings bleibt (`getSelectedSection()`).
+
+  **Offen, als Entscheidung einzutragen: was gilt, wenn Lasso oder Rechteck
+  mehrere Features vollständig treffen** – alle abrunden oder ablehnen? Beides
+  ist vertretbar, und die Antwort gehört vor den Bau: ein Werkzeug, das
+  stillschweigend das erste Feature nimmt, wäre die schlechteste der drei
+  Möglichkeiten.
+
+  Offen bleibt außerdem, **welcher Radius genau**: halbe Breite, volle Breite,
+  oder frei einstellbar mit der Geometrie als Vorschlag.
 
   Nebenbei festzuhalten, weil es die Nachbarwerkzeuge unterscheidet: Abrunden
   **fügt Punkte hinzu**. Rechtwinklig entfernt ausdrücklich keinen, Reduzieren
   entfernt – ein Werkzeug, das welche einfügt, ist in dieser Gruppe neu und
   braucht eine Aussage dazu, wie viele.
+
+  **Kein eigenes Symbol für das Abrunden.** Entschieden, nicht offen: die drei
+  vorhandenen Umformwerkzeuge sind **reine Textknöpfe** im Faltblock – im
+  ganzen Transform-Block steht kein einziges `<svg>`. Ein Symbol allein für das
+  vierte wäre damit nicht Konsistenz, sondern deren Bruch. **Wenn die
+  Umformwerkzeuge Symbole bekommen, dann alle vier gemeinsam, als eigener
+  Punkt.**
+
+  Der Entwurf steht hier trotzdem, damit er für diesen Fall nicht neu erfunden
+  wird. Bildsprache ist die der Werkzeugleiste, und sie ist eng: `viewBox="0 0
+  24 24"`, gezeichnet mit 18 px, `fill:none`, `stroke:currentColor`,
+  `stroke-width:1.8`, runde Enden und Ecken, ganzzahliges Raster etwa zwischen
+  3 und 21. Fast jedes Symbol dort ist **ein** Pfad; nur Lasso und Messen haben
+  zwei.
+
+  ```svg
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M5 19V9a4 4 0 0 1 4-4h10"></path>
+    <path d="M5 9V5h4"></path>
+  </svg>
+  ```
+
+  Der erste Pfad ist der abgerundete Winkel: senkrecht von (5,19) hoch,
+  Viertelkreis mit Radius 4 um (9,9), waagerecht bis (19,5). Der zweite ist der
+  weggenommene Scheitel (5,5), der die Bogenenden tangential verbindet – das
+  Symbol zeigt damit die **Umformung** und nicht bloß ein Ergebnis.
+  **Rückfallebene, falls es bei 18 px zu unruhig wirkt:** der erste Pfad
+  allein; dann trägt das Wort „Abrunden" am Knopf die Bedeutung.
 
   **4. Umlaufsinn als Voraussetzung für 2 und 3.** Ohne Kenntnis der
   Umlaufrichtung ist „nach innen" nicht definiert: beim Perimeter liegt der
