@@ -17,7 +17,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-straighten.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
 
 const TOOL = "test-straighten";
 
@@ -305,7 +305,7 @@ try {
     .catch(() => null);
 
   page.once("dialog", (dialog) => dialog.accept());
-  await page.locator("#exportBtn").click();
+  await menueBefehl(page, "Datei", "GeoJSON speichern");
 
   const exportEvent = await pendingExport;
   check("Speichern ist trotz Validierungsfehler möglich", !!exportEvent);
@@ -363,7 +363,7 @@ try {
     .catch(() => null);
 
   page.once("dialog", (dialog) => dialog.accept());
-  await page.locator("#exportBtn").click();
+  await menueBefehl(page, "Datei", "GeoJSON speichern");
 
   const secondExport = await pendingSecond;
   check("Export nach dem Duplizieren", !!secondExport);

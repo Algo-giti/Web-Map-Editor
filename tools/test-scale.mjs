@@ -14,7 +14,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-scale.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
 
 const TOOL = "test-scale";
 
@@ -126,7 +126,7 @@ try {
   let downloaded = false;
   const note = () => { downloaded = true; };
   page.on("download", note);
-  await page.locator("#exportBtn").click();
+  await menueBefehl(page, "Datei", "GeoJSON speichern");
   await page.waitForTimeout(400);
   page.off("download", note);
 
@@ -163,7 +163,7 @@ try {
   await load(square(200, 1));
 
   const pending = page.waitForEvent("download", { timeout: 5000 }).catch(() => null);
-  await page.locator("#exportBtn").click();
+  await menueBefehl(page, "Datei", "GeoJSON speichern");
   const event = await pending;
 
   check("Export läuft", !!event);

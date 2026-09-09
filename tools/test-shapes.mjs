@@ -12,7 +12,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-shapes.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
 
 const TOOL = "test-shapes";
 
@@ -131,7 +131,7 @@ try {
 
   const exportMap = async () => {
     const pending = page.waitForEvent("download", { timeout: 5000 }).catch(() => null);
-    await page.locator("#exportBtn").click();
+    await menueBefehl(page, "Datei", "GeoJSON speichern");
     const ev = await pending;
     if (!ev) return null;
     const stream = await ev.createReadStream();

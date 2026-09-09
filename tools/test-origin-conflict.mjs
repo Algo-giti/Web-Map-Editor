@@ -17,7 +17,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-origin-conflict.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
 
 const TOOL = "test-origin-conflict";
 
@@ -132,7 +132,7 @@ try {
     };
     page.on("download", noteDownload);
 
-    await page.locator("#exportBtn").click();
+    await menueBefehl(page, "Datei", "GeoJSON speichern");
     await page.waitForTimeout(400);
     page.off("download", noteDownload);
 
@@ -162,7 +162,7 @@ try {
     .waitForEvent("download", { timeout: 5000 })
     .catch(() => null);
 
-  await page.locator("#exportBtn").click();
+  await menueBefehl(page, "Datei", "GeoJSON speichern");
 
   const download = await pendingDownload;
   let exported = null;

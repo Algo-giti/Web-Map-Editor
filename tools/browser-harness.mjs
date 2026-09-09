@@ -231,6 +231,28 @@ export async function launchBrowser(toolName) {
   }
 }
 
+/**
+ * Löst einen Menübefehl aus: Menü öffnen, Eintrag anklicken.
+ *
+ * Der Helfer kapselt AUSSCHLIESSLICH diese beiden Gesten. Das Lauschen auf
+ * `download` oder `dialog` bleibt beim Aufrufer und muss dort weiterhin VOR
+ * dem Aufruf stehen - ein Ereignis, auf das erst nach dem Auslösen gehört
+ * wird, ist verloren.
+ *
+ * Ein Eintrag ist nur im offenen Menü sichtbar; Playwright verlangt
+ * Sichtbarkeit für click(). Genau deshalb gibt es den Helfer: sonst stünde
+ * dieselbe Geste an über einem Dutzend Stellen.
+ */
+export async function menueBefehl(page, menue, eintrag) {
+  const titel = page.locator(".menu-title", { hasText: menue }).first();
+  await titel.click();
+
+  const panel = page.locator(".menu-panel:not([hidden])").first();
+  await panel.waitFor({ state: "visible" });
+
+  await panel.locator(".menu-item", { hasText: eintrag }).first().click();
+}
+
 /** Kleiner Zähler für Zusicherungen, gemeinsam von beiden Tests genutzt. */
 export function createChecker(toolName) {
   let failures = 0;

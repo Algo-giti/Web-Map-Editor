@@ -18,7 +18,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-merge.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
 
 const TOOL = "test-merge";
 
@@ -123,7 +123,7 @@ try {
       .waitForEvent("download", { timeout: 5000 })
       .catch(() => null);
 
-    await page.locator("#exportBtn").click();
+    await menueBefehl(page, "Datei", "GeoJSON speichern");
 
     const event = await pending;
     if (!event) return null;

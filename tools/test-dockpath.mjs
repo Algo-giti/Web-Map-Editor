@@ -17,7 +17,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-dockpath.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
 
 const TOOL = "test-dockpath";
 
@@ -299,7 +299,7 @@ try {
     .waitForEvent("download", { timeout: 5000 })
     .catch(() => null);
 
-  await page.locator("#exportBtn").click();
+  await menueBefehl(page, "Datei", "GeoJSON speichern");
   const exportEvent = await pendingExport;
 
   check("Speichern funktioniert", !!exportEvent);
