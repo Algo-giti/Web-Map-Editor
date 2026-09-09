@@ -95,8 +95,17 @@ try {
   const marks = page.locator('#vertexGroup circle[data-layer="perimeter"]');
   const counter = () => page.locator("#multiSelectionInfo").textContent();
 
+  /*
+   * Der Slot-Wechsel laeuft ueber das Menue "Karte", nicht ueber einen direkten
+   * Klick auf #mapAButton. Seit Etappe 6 b2 sind die beiden Knoepfe
+   * Menueeintraege (role="menuitemradio"), und ein Eintrag ist nur im
+   * geoeffneten Menue sichtbar - Playwright verlangt Sichtbarkeit fuer click().
+   *
+   * Die ids sind dabei unveraendert geblieben; kaputt war allein der Weg
+   * dorthin. Genau das tut auch ein Nutzer: Menue oeffnen, Karte waehlen.
+   */
   const switchTo = async (which) => {
-    await page.locator(`#map${which}Button`).click();
+    await menueBefehl(page, "Karte", `Karte ${which}`);
     await page.waitForTimeout(350);
     await expandSidebar();
   };
