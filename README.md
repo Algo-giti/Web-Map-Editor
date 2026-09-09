@@ -308,6 +308,17 @@ Repository herunterladen oder klonen und anschließend `index.html` im Browser
 öffnen. Ein Webserver ist nicht erforderlich.
 
 
+#########################################################
+## ❤️ Support this project
+
+If you like this project and want to support its development:
+
+[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-0070ba?logo=paypal&logoColor=white)](https://paypal.me/algochi)
+
+Thank you for your support!
+
+################################################
+
 ## Lizenz
 
 MIT License, siehe [LICENSE](LICENSE).
@@ -600,6 +611,16 @@ user-specific RTK coordinates.
 Download or clone the repository and open `index.html` in a browser. A web
 server is not required.
 
+#########################################################
+## ❤️ Support this project
+
+If you like this project and want to support its development:
+
+[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-0070ba?logo=paypal&logoColor=white)](https://paypal.me/algochi)
+
+Thank you for your support!
+
+################################################
 
 ## License
 
