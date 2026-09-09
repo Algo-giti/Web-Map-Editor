@@ -13,7 +13,13 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-reduce.mjs
 
-import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
+import {
+  createChecker,
+  indexUrl,
+  launchBrowser,
+  menueBefehl,
+  openAllFolds,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-reduce";
 
@@ -114,21 +120,20 @@ try {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "load" });
 
-  const expandSidebar = () =>
-    page.evaluate(() => {
-      /*
-       * Seit Etappe 5 D sind "Umformen" und "Kartenpruefung" im Inspektor
-       * einklappbar und beim ersten Start ZU. Wer ihre Knoepfe bedienen will,
-       * klappt sie auf - der Test tut dasselbe.
-       */
-      /*
-       * Seit Etappe 6 stehen die Werkzeugeinstellungen als eingeklapptes
-       * <details> unter ihrem Knopf im Inspektor (.tool-settings).
-       */
-      document.querySelectorAll(
-        "#sidebar details, .inspector-fold, .tool-settings"
-      ).forEach((section) => section.setAttribute("open", ""));
-    });
+  /*
+   * Die Faltgeste kommt aus dem browser-harness statt aus einer eigenen Kopie.
+   *
+   * Der Grund ist der Fehler, der diesen Test rot gemacht hat: die Kopie hier
+   * kannte "#sidebar details, .inspector-fold, .tool-settings" - und damit seit
+   * Etappe 7b nicht mehr die <details class="feature-card"> der
+   * Feature-Navigation, die mit 7b aus der Seitenleiste in den Inspektor
+   * gezogen ist. Die ids sind unveraendert; nur der Weg dorthin fuehrt jetzt
+   * durch einen zweiten Faltblock, den der alte Selektor nicht mehr traf.
+   *
+   * Eine Geste, die an sieben Stellen kopiert steht, wird an sechs davon
+   * vergessen. openAllFolds() ist die eine Stelle.
+   */
+  const expandSidebar = () => openAllFolds(page);
 
   await expandSidebar();
   await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");

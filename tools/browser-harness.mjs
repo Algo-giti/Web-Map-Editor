@@ -314,8 +314,20 @@ export function elementGetroffen(page, selector, { dy = 20 } = {}) {
  */
 export async function openAllFolds(page, menue = null) {
   await page.evaluate(() => {
+    /*
+     * "#featureNavigator details" ist seit Etappe 7b noetig und der Grund, warum
+     * dieser Selektor nicht raten darf: die Feature-Navigation baut je Feature
+     * ein eigenes <details class="feature-card">, und das ist zu, solange das
+     * Feature nicht ausgewaehlt ist. Bis 7b lag die Navigation in der
+     * Seitenleiste, wo "#sidebar details" diese Karten mitoeffnete; seit dem
+     * Umzug in den Inspektor trifft dort nichts mehr - ".inspector-fold" meint
+     * nur den aeusseren Block.
+     *
+     * Genau der Fall, vor dem der Absatz oben warnt: der Selektor hat nicht
+     * geworfen, er hat nur nichts mehr getan.
+     */
     document.querySelectorAll(
-      "#sidebar details, .inspector-fold, .tool-settings"
+      "#sidebar details, .inspector-fold, .tool-settings, #featureNavigator details"
     ).forEach((d) => d.setAttribute("open", ""));
   });
 
