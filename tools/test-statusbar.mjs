@@ -493,6 +493,23 @@ try {
     (await sichtbareFelder()).join(",") === "Karte,Maßstab",
     (await sichtbareFelder()).join(","));
 
+  /*
+   * Und zwar, WEIL sie data-optional tragen - nicht, weil sie an dritter,
+   * vierter und fuenfter Stelle stehen. Die Zusicherung vergleicht die
+   * Markierung mit dem berechneten Stil; eine Rueckkehr zu :nth-of-type()
+   * faellt damit auf, sobald jemand ein Feld dazwischenschiebt.
+   */
+  const markierungGegenWirkung = await page.evaluate(() =>
+    [...document.querySelectorAll("#statusBar .status-field")].map((f) => ({
+      feld: f.querySelector(".status-label").textContent.trim(),
+      markiert: f.hasAttribute("data-optional"),
+      weg: getComputedStyle(f).display === "none",
+    })));
+
+  check("genau die markierten Felder sind weg, und nur sie",
+    markierungGegenWirkung.every((f) => f.markiert === f.weg),
+    JSON.stringify(markierungGegenWirkung));
+
   check("Zähler und Koordinaten bleiben",
     await page.evaluate(() =>
       getComputedStyle(document.getElementById("multiSelectionInfo")).display !== "none"));

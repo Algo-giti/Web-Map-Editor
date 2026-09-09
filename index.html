@@ -2540,13 +2540,11 @@
     /* Zeile 2 bleibt unberührt - sie spannt ohnehin über alle Spalten. */
     .status-bar { grid-template-columns:minmax(0,auto) auto minmax(0,1fr) auto auto; }
     /*
-     * Raster weicht wie Bezugspunkt und Prüfung: alle drei sind
-     * nachschlagbar - das Raster im Rasterfenster, die beiden anderen in der
-     * Seitenleiste. Dateiname und Maßstab bleiben.
+     * Raster, Bezugspunkt und Prüfung weichen: alle drei sind nachschlagbar -
+     * das Raster im Rasterfenster, die beiden anderen in der Seitenleiste.
+     * Dateiname und Maßstab bleiben, sie tragen kein data-optional.
      */
-    .status-bar > .status-field:nth-of-type(3),
-    .status-bar > .status-field:nth-of-type(4),
-    .status-bar > .status-field:nth-of-type(5) { display:none; }
+    .status-bar > .status-field[data-optional] { display:none; }
     .status-counter { grid-column:4; }
     .status-bar > .hud { grid-column:5; }
   }
@@ -3959,17 +3957,25 @@
       nachschlagbar. Sie ist zugleich die Schrittweite der Pfeiltasten -
       beides steht im title, weil die Kurzform dafür keinen Platz hat.
     -->
-    <div class="status-field" title="Rasterweite und Schrittweite der Pfeiltasten">
+    <!--
+      data-optional heisst: dieses Feld weicht, wenn es eng wird. Es steht am
+      Feld selbst und nicht als Position in der Medienregel - eine Regel wie
+      :nth-of-type(3) beschreibt, an welcher STELLE etwas steht, nicht was es
+      ist. Ein neues Feld davor verschiebt die Bedeutung dann lautlos; genau
+      das ist beim Einbau des Rasterfeldes passiert.
+    -->
+    <div class="status-field" data-optional
+         title="Rasterweite und Schrittweite der Pfeiltasten">
       <span class="status-label">Raster</span>
       <span id="gridShort" class="status-value">0,10 m</span>
     </div>
 
-    <div class="status-field">
+    <div class="status-field" data-optional>
       <span class="status-label">Bezugspunkt</span>
       <span id="originShort" class="status-value">nicht gesetzt</span>
     </div>
 
-    <div class="status-field">
+    <div class="status-field" data-optional>
       <span class="status-label">Prüfung</span>
       <span id="validationShort" class="status-value">nicht geprüft</span>
     </div>
