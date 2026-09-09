@@ -1697,6 +1697,53 @@
   #deletePointBtn { grid-column:1 / -1; }
 
   /*
+   * Die beiden Auswahlaktionen stehen aus demselben Grund nebeneinander:
+   * „Auswahl löschen" und „Auswahl aufheben" sind ein Paar - beide beenden die
+   * Auswahl, das eine mit und das andere ohne die Punkte.
+   *
+   * Der Anlass ist gemessen: gestapelt kostet der Block 90 px, nebeneinander
+   * 40 px. Die 50 px sind der Platz, mit dem Feature-Navigation und
+   * Koordinatenbezug in den Inspektor passen, ohne dass das Höhenziel fällt.
+   *
+   * Dieselben zwei Schritte wie bei den Punktknöpfen, und aus demselben Grund:
+   * die deutschen Beschriftungen passen sonst nicht in die 139-px-Spalte.
+   * Knöpfe tragen white-space:nowrap, ein zu langer Text liefe still über den
+   * Rand. Gemessen bei 16 px: „Auswahl löschen" 149 px (10 zu viel),
+   * „Auswahl aufheben" 164 px (25 zu viel).
+   *
+   *   1. 14 px statt 16 - wie die vier Punktknöpfe. Das allein reicht NICHT:
+   *      „Auswahl aufheben" bleibt bei 146 px und damit 7 px zu breit.
+   *   2. Waagerechte Polsterung von 11 auf 6 px. Zusammen ergibt das 121 und
+   *      136 px, also +18 und +3 px Luft.
+   *
+   * Die Beschriftungen bleiben WORTGLEICH. „Löschen" und „Aufheben" hätten
+   * bequem gepasst, aber „Auswahl löschen" steht direkt unter „Punkt löschen"
+   * des Punktblocks - dort ist das Wort „Auswahl" der ganze Unterschied.
+   *
+   * Die 3 px im deutschen Fall sind dünn. Wer eine dieser beiden
+   * Beschriftungen ändert, misst nach.
+   */
+  /*
+   * Auf `.app:not(.inspector-collapsed)` eingeschränkt, und das ist kein
+   * Zierrat: die Regel, die den Inhalt beim Einklappen ausblendet, lautet
+   * `.app.inspector-collapsed .inspector > *:not(.inspector-head)` und wiegt
+   * vier Klassen. Ein id-Selektor schlägt jede Zahl von Klassen - ohne diese
+   * Einschränkung stünde der Block im eingeklappten Inspektor weiter da, und
+   * seine beiden Knöpfe wären Tabstopps in einem 34-px-Streifen.
+   *
+   * Richtig ist, die Regel NICHT zutreffen zu lassen, statt sie zu
+   * überschreien. Gefunden hat es die vorhandene Zusicherung „der Umschalter
+   * ist der einzige Tabstopp im eingeklappten Inspektor".
+   */
+  .app:not(.inspector-collapsed) #inspectorSelection {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px;
+  }
+
+  #inspectorSelection button { font-size:14px; padding:8px 6px; }
+
+  /*
    * Die Spalte ist 139 px breit: 320 abzüglich Polsterung, Rollbalken und
    * Abstand, halbiert. Gemessen, nicht gerechnet - der Rollbalken kostet
    * 12 px, und genau der schmale Fall muss halten.
@@ -3144,18 +3191,6 @@
         </div>
       </details>
 
-      <details class="section sidebar-collapsible section-accent-slate" id="featureNavigationSection">
-        <summary class="sidebar-collapsible-summary">
-          <span>Feature-Navigation</span>
-          <span id="featureNavigationCount" class="feature-count">0</span>
-        </summary>
-        <div class="sidebar-collapsible-body">
-          <div id="featureNavigator" class="feature-nav" aria-live="polite">
-            Keine Karte geladen.
-          </div>
-        </div>
-      </details>
-
 
       <details id="originSection" class="section sidebar-collapsible section-accent-cyan">
         <summary class="sidebar-collapsible-summary"><span>Koordinatenbezug</span></summary>
@@ -3756,6 +3791,30 @@
           Auswahl aufheben
         </button>
       </div>
+
+      <!--
+        FEATURE-NAVIGATION.
+
+        Sie wählt aus und zeigt das Ausgewählte - das ist die Aufgabe des
+        Inspektors, und deshalb steht sie hier statt in der Seitenleiste.
+        Verschoben, nicht kopiert: die drei ids sind unverändert.
+
+        Wie Bestand, Umformen und Kartenprüfung ein Faltblock, und wie diese
+        beim Start ZU. Anders als jene aber OHNE localStorage: der Wunsch,
+        die Navigation offen zu haben, ist an die Karte gebunden, an der man
+        gerade arbeitet, nicht an den Arbeitsplatz.
+      -->
+      <details id="featureNavigationSection" class="inspector-block inspector-fold">
+        <summary>
+          <span class="inspector-section-title">Feature-Navigation</span>
+          <span id="featureNavigationCount" class="fold-summary">0</span>
+        </summary>
+        <div class="fold-body">
+          <div id="featureNavigator" class="feature-nav" aria-live="polite">
+            Keine Karte geladen.
+          </div>
+        </div>
+      </details>
 
       <!--
         BESTAND: was die Karte an Search Wire und Docking-Pfad hat, und was

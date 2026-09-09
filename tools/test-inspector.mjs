@@ -916,6 +916,40 @@ try {
   check("bei 900 px Höhe passt es ebenfalls", await passt(), await hoehen());
 
   /*
+   * Die Auswahlknoepfe stehen seit Etappe 7b nebeneinander - dieselbe
+   * Anordnung und derselbe Grund wie bei den Punktknoepfen. Geprueft wird die
+   * WIRKUNG: beide in einer Zeile, und ihre Beschriftung laeuft nicht ueber
+   * den Rand. scrollWidth meldet den Ueberlauf bei overflow:visible nicht,
+   * deshalb die Eigenbreite einer Kopie mit width:max-content - und die Kopie
+   * muss IM Block haengen, sonst erbt sie 16 px statt der 14.
+   */
+  const auswahlknoepfe = await page.evaluate(() => {
+    const block = document.getElementById("inspectorSelection");
+    const knoepfe = [...block.querySelectorAll("button")];
+
+    return knoepfe.map((btn) => {
+      const kopie = btn.cloneNode(true);
+      kopie.style.cssText =
+        "position:absolute;visibility:hidden;left:-9999px;width:max-content;";
+      block.appendChild(kopie);
+      const eigen = kopie.getBoundingClientRect().width;
+      kopie.remove();
+
+      const r = btn.getBoundingClientRect();
+      return {text: btn.textContent.trim(), oben: Math.round(r.top),
+              luft: Math.round(r.width - eigen)};
+    });
+  });
+
+  check("die beiden Auswahlknöpfe stehen in einer Zeile",
+    auswahlknoepfe.length === 2 &&
+    auswahlknoepfe[0].oben === auswahlknoepfe[1].oben,
+    JSON.stringify(auswahlknoepfe));
+
+  check("und keine Beschriftung läuft über den Rand",
+    auswahlknoepfe.every((k) => k.luft >= 0), JSON.stringify(auswahlknoepfe));
+
+  /*
    * Bei 800 px darf die Spalte scrollen - das ist der ZUGELASSENE Fall, kein
    * Zielverlust. Das Höhenziel lautet seit Etappe 6 b3 "bis 900 px
    * scrollfrei", nicht "keine Fenstergröße scrollt": die Fahrtrichtung des
