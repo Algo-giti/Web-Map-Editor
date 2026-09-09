@@ -1559,7 +1559,8 @@
   .app.inspector-collapsed { --inspector-col:34px; }
 
   .inspector {
-    width:320px;
+    /* Eine Quelle mit der Rasterspalte von `main`, wie bei der Leiste. */
+    width:var(--inspector-col);
     min-width:0;
     display:flex;
     flex-direction:column;
@@ -1615,9 +1616,10 @@
    *
    * Ausgeblendet wird der INHALT, nicht die Breite: eine Spalte, die ihren
    * Inhalt nur überläuft, würde ihn weiterhin anzeigen.
+   *
+   * Kein width mehr: dieselbe Klasse setzt oben --inspector-col auf 34px.
    */
   .app.inspector-collapsed .inspector {
-    width:34px;
     padding:12px 4px;
     overflow:hidden;
   }
@@ -1817,7 +1819,13 @@
      am Symbol. Die Zeichenwerkzeuge benutzt man selten und muss sie treffen.
      ----------------------------------------------------------------------- */
   .tool-rail {
-    width:168px;
+    /*
+     * Dieselbe Quelle wie die Rasterspalte von `main`. Vorher stand die 168
+     * zweimal da - an .app als Variable und hier als Wert -, und die 56 des
+     * eingeklappten Zustands ebenso. Zwei Orte fuer dieselbe Breite laufen
+     * auseinander, sobald jemand nur einen davon anfasst.
+     */
+    width:var(--rail-col);
     flex:0 0 auto;
     display:flex;
     flex-direction:column;
@@ -1851,7 +1859,11 @@
    * Die Tooltips bleiben in jedem Fall: verschwinden darf der Platz der
    * Erklärung, nicht die Erklärung.
    */
-  .tool-rail.is-collapsed { width:56px; padding:10px 6px; }
+  /*
+   * Kein width mehr: .app.rail-collapsed setzt --rail-col auf 56px, und beide
+   * Klassen werden in applyToolRailState() immer gemeinsam gesetzt.
+   */
+  .tool-rail.is-collapsed { padding:10px 6px; }
   .tool-rail.is-collapsed .tool-label { display:none; }
   .tool-rail.is-collapsed .tool-group-title {
     text-align:center; font-size:9px; padding:2px 0 4px;
@@ -2469,8 +2481,17 @@
     border:1px solid var(--line); background:rgba(8,13,22,.96); color:var(--text); font-size:12px;
     box-shadow:0 10px 30px rgba(0,0,0,.35); }
   .pill { display:inline-block; padding:2px 7px; border-radius:999px; border:1px solid var(--line); font-size:11px; }
+  /*
+   * Nur die Seitenleiste wird hier enger; Leiste und Inspektor behalten ihre
+   * Variablen. Vorher standen deren Breiten als feste 168px/320px auch hier -
+   * und weil die Leiste unter 1000px erzwungen eingeklappt ist, reservierte
+   * das Raster 168px fuer ein 56px breites Element.
+   */
   @media(max-width:980px) {
-    main { grid-template-columns:minmax(300px, 340px) 168px minmax(0,1fr) 320px; }
+    main {
+      grid-template-columns:
+        minmax(300px, 340px) var(--rail-col) minmax(0,1fr) var(--inspector-col);
+    }
   }
 
   /*

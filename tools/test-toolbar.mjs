@@ -379,6 +379,47 @@ try {
 
   check("und wird ebenfalls gemerkt", (await railWidth()) === 168, String(await railWidth()));
 
+  /*
+   * Die Leiste und ihre Rasterspalte muessen dieselbe Breite haben. Sie lasen
+   * ihre Zahl frueher aus zwei Quellen - der Variablen an .app und einem
+   * eigenen width - und konnten auseinanderlaufen; unter 980 px taten sie es
+   * auch: das Raster reservierte 168 px fuer ein 56 px breites Element.
+   *
+   * Geprueft wird die WIRKUNG in beiden Zustaenden, nicht der Quelltext: die
+   * berechnete Spaltenbreite gegen die gemessene Elementbreite.
+   */
+  const spalteGegenLeiste = () =>
+    page.evaluate(() => {
+      const spalten = getComputedStyle(document.querySelector("main"))
+        .gridTemplateColumns.split(" ");
+      return {
+        spalte: Math.round(parseFloat(spalten[1])),
+        leiste: Math.round(
+          document.getElementById("toolRail").getBoundingClientRect().width),
+      };
+    });
+
+  let paar = await spalteGegenLeiste();
+  check("ausgeklappt fuellt die Leiste ihre Rasterspalte genau",
+    paar.spalte === paar.leiste, JSON.stringify(paar));
+
+  await page.locator("#toolRailToggle").click();
+  await page.waitForTimeout(250);
+
+  paar = await spalteGegenLeiste();
+  check("eingeklappt ebenso", paar.spalte === paar.leiste, JSON.stringify(paar));
+
+  /* Und auch dort, wo die Enge erzwungen ist und eine eigene Medienregel gilt. */
+  await page.setViewportSize({ width: 940, height: 800 });
+  await page.waitForTimeout(300);
+
+  paar = await spalteGegenLeiste();
+  check("und bei erzwungener Enge unter 980 px auch",
+    paar.spalte === paar.leiste, JSON.stringify(paar));
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(250);
+
   /* ---------------------------------------------------------------- */
   console.log("Übersetzung");
 

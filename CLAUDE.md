@@ -1026,6 +1026,27 @@ Seitenleiste braucht weiterhin eine zweite mit **drei** Spalten, weil
 `display:none` sie aus der Rasterzuordnung nimmt und die übrigen sonst eine
 Spalte nach vorn rutschen.
 
+**Und die Elemente lesen dieselben Variablen, statt ihre Breite zu
+wiederholen.** `.tool-rail` trägt `width:var(--rail-col)`, `.inspector`
+`width:var(--inspector-col)`. Die eingeklappten Werte stehen ebenfalls nur
+einmal, nämlich an `.app.rail-collapsed` (56 px) und
+`.app.inspector-collapsed` (34 px); die Regeln für den eingeklappten Zustand
+setzen nur noch Polsterung und Überlauf. **Jede der vier Zahlen steht damit an
+genau einer Stelle.**
+
+Das war bis zur Nachlese von Etappe 6 nicht so, und es hatte eine Wirkung: die
+Medienregel für ≤ 980 px wiederholte `168px` und `320px` als feste Werte.
+Unterhalb von 1000 px ist die Leiste aber **erzwungen eingeklappt** – das
+Raster reservierte dort also 168 px für ein 56 px breites Element und 320 px
+für einen Inspektor, den man auf 34 px einklappen konnte, ohne dass die Karte
+etwas davon hatte. Bei 940 × 800 blieben der Karte 112 px Breite, egal was man
+einklappte. Seit die Regel die Variablen benutzt, sind es 224 px ausgeklappt
+und 510 px eingeklappt.
+
+`tools/test-toolbar.mjs` sichert das als Wirkung ab: die berechnete
+Rasterspalte muss die gemessene Elementbreite treffen – ausgeklappt,
+eingeklappt und bei erzwungener Enge unter 980 px.
+
 **Die Rasterspalten sind fest, nicht `auto`.** Ein `auto`-Track nimmt sich
 seine max-content-Breite, sobald Platz frei wird – beim Einklappen der
 Seitenleiste wuchs die Spalte der Werkzeugleiste von 168 auf 659 px und fraß
