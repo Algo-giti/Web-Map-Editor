@@ -20,7 +20,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-i18n-dynamic.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
 
 const TOOL = "test-i18n-dynamic";
 
@@ -79,7 +79,7 @@ try {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "load" });
   await expandSidebar();
-  await page.uncheck("#showMowerPreview");
+  await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   await page.locator("#fileInput").setInputFiles({
     name: "i18n.geojson",

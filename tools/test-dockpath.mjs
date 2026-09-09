@@ -84,7 +84,7 @@ try {
     });
 
   await expandSidebar();
-  await page.uncheck("#showMowerPreview");
+  await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   const load = async (body) => {
     await page.locator("#fileInput").setInputFiles({

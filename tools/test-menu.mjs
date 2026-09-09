@@ -23,7 +23,7 @@
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-menu.mjs
 
 import {
-  createChecker, indexUrl, launchBrowser, menueBefehl,
+  createChecker, elementGetroffen, indexUrl, launchBrowser, menueBefehl,
 } from "./browser-harness.mjs";
 
 const TOOL = "test-menu";
@@ -125,18 +125,9 @@ try {
   await page.locator("#menuFileBtn").click();
   await page.waitForTimeout(200);
 
+  const trefferDatei = await elementGetroffen(page, "#menuFile");
   check("das offene Panel wird an seiner eigenen Stelle getroffen",
-    await page.evaluate(() => {
-      const panel = document.getElementById("menuFile");
-      const r = panel.getBoundingClientRect();
-      const treffer = document.elementFromPoint(r.left + r.width / 2, r.top + 20);
-      return panel.contains(treffer);
-    }),
-    await page.evaluate(() => {
-      const r = document.getElementById("menuFile").getBoundingClientRect();
-      const t = document.elementFromPoint(r.left + r.width / 2, r.top + 20);
-      return t ? (t.id || t.className || t.tagName) : "nichts";
-    }));
+    trefferDatei.ok, trefferDatei.grund);
 
   await page.keyboard.press("Escape");
   await page.waitForTimeout(150);
@@ -294,6 +285,140 @@ try {
 
   check("der zweite Escape bricht die Zeichnung ab",
     !(await sichtbar("#inspectorDraw")));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Ansicht: eine Ebene ausschalten wirkt im SVG");
+
+  await load();
+
+  /*
+   * Geprueft wird die WIRKUNG, nicht der Ankreuzzustand: checkbox.checked
+   * waere auch dann false, wenn syncVisibility() gar nicht liefe.
+   */
+  const perimeterSichtbar = () =>
+    page.evaluate(() => {
+      const el = document.querySelector('#svg [data-layer="perimeter"]');
+      return !!el && getComputedStyle(el).display !== "none";
+    });
+
+  check("der Perimeter ist zunächst sichtbar", await perimeterSichtbar());
+
+  await page.locator("#menuViewBtn").click();
+  await page.waitForTimeout(200);
+
+  const trefferAnsicht = await elementGetroffen(page, "#menuView");
+  check("das Ansicht-Panel wird an seiner eigenen Stelle getroffen",
+    trefferAnsicht.ok, trefferAnsicht.grund);
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+
+  await menueBefehl(page, "Ansicht", "Perimeter");
+  await page.waitForTimeout(250);
+
+  check("nach dem Ausschalten ist er im SVG weg", !(await perimeterSichtbar()));
+
+  await menueBefehl(page, "Ansicht", "Perimeter");
+  await page.waitForTimeout(250);
+
+  check("und nach dem Wiedereinschalten wieder da", await perimeterSichtbar());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Karte: zwei Slots als Radiogruppe");
+
+  const marker = () =>
+    page.locator('#vertexGroup circle[data-layer="perimeter"]').count();
+
+  const angekreuzt = () =>
+    page.evaluate(() => [...document.querySelectorAll(".menu-map-slot")]
+      .map((b) => `${b.dataset.mapId}:${b.getAttribute("aria-checked")}`)
+      .join(" "));
+
+  check("Karte A ist nach dem Laden angekreuzt",
+    (await angekreuzt()) === "A:true B:false", await angekreuzt());
+
+  check("Karte B ist ohne Datei gesperrt",
+    await page.locator("#mapBButton").isDisabled());
+
+  await page.locator("#secondFileInput").setInputFiles({
+    name: "zweite.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(JSON.stringify({
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: { name: "perimeter" },
+        geometry: { type: "Polygon", coordinates: [[
+          [0, 0], [30, 0], [30, 10], [20, 20], [10, 20], [0, 10], [0, 0],
+        ]] },
+      }],
+    })),
+  });
+  await page.waitForTimeout(500);
+
+  check("nach dem Laden ist B angekreuzt",
+    (await angekreuzt()) === "A:false B:true", await angekreuzt());
+
+  const marktB = await marker();
+  check("und B liegt mit sechs Punkten auf der Karte", marktB === 6, String(marktB));
+
+  await page.locator("#menuMapBtn").click();
+  await page.waitForTimeout(200);
+
+  const trefferKarte = await elementGetroffen(page, "#menuMap");
+  check("das Karte-Panel wird an seiner eigenen Stelle getroffen",
+    trefferKarte.ok, trefferKarte.grund);
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+
+  await menueBefehl(page, "Karte", "Karte A");
+  await page.waitForTimeout(400);
+
+  /*
+   * Die Wirkung steht im SVG, nicht im Attribut: A hat vier Eckpunkte, B
+   * sechs. Ein Test nur auf aria-checked bestünde auch, wenn activateMap()
+   * gar nicht liefe.
+   */
+  const marktA = await marker();
+  check("der Wechsel bringt Karte A mit vier Punkten zurück",
+    marktA === 4, String(marktA));
+  check("und das Kreuz sitzt wieder bei A",
+    (await angekreuzt()) === "A:true B:false", await angekreuzt());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Sprachwechsel: die Menüs und die abgeleiteten Slot-Texte");
+
+  const slotTitel = () =>
+    page.evaluate(() => document.querySelector("#mapAButton .map-slot-title")
+      .textContent.trim());
+  const menueTitel = () =>
+    page.evaluate(() => [...document.querySelectorAll(".menu-title")]
+      .map((t) => t.textContent.trim()).join(" "));
+
+  check("deutsch nennt Karte A aktiv", (await slotTitel()) === "Karte A · aktiv",
+    await slotTitel());
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  check("die Menütitel sind übersetzt",
+    (await menueTitel()) === "File View Map Help", await menueTitel());
+  check("und der abgeleitete Slot-Text auch",
+    (await slotTitel()) === "Map A · active", await slotTitel());
+
+  /*
+   * Der Rückweg ist der eigentliche Prüfstein. Der Schnappschuss hält
+   * "Karte A · nicht geladen" fest - stünde das hier, wäre der Text als
+   * Schnappschuss behandelt worden statt neu aufgebaut.
+   */
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  check("zurück auf Deutsch stehen die Menütitel wieder da",
+    (await menueTitel()) === "Datei Ansicht Karte Hilfe", await menueTitel());
+  check("und der Slot-Text ist neu aufgebaut, nicht aus dem Schnappschuss",
+    (await slotTitel()) === "Karte A · aktiv", await slotTitel());
 
   /* ---------------------------------------------------------------- */
   check("keine Konsolenfehler", consoleErrors.length === 0,

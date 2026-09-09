@@ -400,6 +400,36 @@ meldete: eine Klassenregel mit `display:flex` schlägt die Browser-Vorgabe
 Dasselbe gilt für „ist der Knopf gesperrt?": seit die Zeichenknöpfe über
 `aria-disabled` sperren, sagt `element.disabled` nichts mehr.
 
+**Und `display` ist nicht das letzte Wort: was über seinen Container
+hinausragt, wird zusätzlich auf Trefferbarkeit geprüft.**
+`getComputedStyle(el).display` prüft eine Eigenschaft **des Elements selbst** –
+ein abschneidender Vorfahr sitzt eine Ebene höher und bleibt dabei unsichtbar.
+`display` beantwortet „will sichtbar sein", die Trefferprüfung „ist sichtbar":
+`document.elementFromPoint()` liefert, was der Browser an dieser Stelle
+tatsächlich zeichnet.
+
+Gefunden hat das nicht der Test, sondern ein Bildschirmabzug: die Kopfzeile
+trug `overflow:hidden`, die Menüpanels hängen unter ihr. Sie waren gerechnet
+da – Rechteck, Höhe, `display:flex` –, sichtbar und anklickbar nicht, und
+`elementFromPoint()` lieferte an ihrer Stelle die Werkzeugleiste. Alle
+Menütests waren grün, während das Menü unsichtbar war. Die Kopfzeile trägt
+deshalb jetzt `overflow-x:clip` mit `overflow-y:visible` – `clip` ist der eine
+Wert, der sich mit `visible` auf der anderen Achse verträgt, `hidden` erzwänge
+dort `auto`.
+
+`elementGetroffen(page, selektor)` in `tools/browser-harness.mjs` ist dafür da.
+**Jedes Element, das absichtlich über seinen Container hinausragt, bekommt
+diese Zusicherung**: die vier Menüpanels, die schwebenden Fenster über der
+Karte, jedes künftige Overlay.
+
+**Die klemmenden Vorfahren sind gemessen, nicht vermutet.** Über der
+Menüleiste liegen `header` (`clip`/`visible`, schneidet also senkrecht nicht),
+darüber `.app`, `body` und `html` mit je `overflow:hidden`. Die drei schneiden
+wirklich, haben aber Platz: unter dem längsten Panel („Ansicht", 351 px)
+bleiben bei 1280 × 800 noch 402 px. Wer ein Fenster **über der Karte**
+platziert, hat dagegen `.viewer` mit `overflow:hidden` über sich – dort ist
+die Grenze eng, und ein Fenster muss innerhalb der Kartenfläche bleiben.
+
 #### Eine Zusicherung über ein Ausbleiben beweist nichts
 
 **Jeder Test, der einen Auslöser prüft, braucht mindestens eine Zusicherung,
@@ -1987,7 +2017,14 @@ an ein GitHub Release hängen. Die Anwendung ist eine einzige `index.html`, die
 direkt aus dem Repository und über GitHub Pages läuft – ein Archiv enthielte
 dieselbe Datei nur ein zweites Mal. Entwickelt wird laufend auf `main` weiter.
 
-Ein Release besteht damit aus: Versionsnummer in `index.html` hochziehen,
+**Die Ausgabenummer steht in `index.html` an genau EINER Stelle:** der
+Versionszeile im Hilfe-Menü (`.menu-note`, „Ausgabe 050"). Sie stand vorher
+zusätzlich im Dateikopf und im Kopf des Script-Blocks – drei Stellen, von
+denen zwei niemand sieht und die beim Taggen auseinanderlaufen. Beim Taggen
+wird sie **dort** hochgesetzt, sonst nirgends in der Datei; die Baseline in
+`AGENTS.md`, `docs/DEVELOPMENT.md` und dieser Datei zieht wie bisher nach.
+
+Ein Release besteht damit aus: Versionszeile im Hilfe-Menü hochsetzen,
 beide Changelogs (`CHANGELOG.md` **und** `CHANGELOG_EN.md`) pflegen, die
 Baseline in `AGENTS.md`, `docs/DEVELOPMENT.md` und dieser Datei nachziehen,
 Prüfungen aus Abschnitt 4 laufen lassen, committen und den Commit taggen

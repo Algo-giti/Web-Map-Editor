@@ -13,7 +13,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-reduce.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
 
 const TOOL = "test-reduce";
 
@@ -131,7 +131,7 @@ try {
     });
 
   await expandSidebar();
-  await page.uncheck("#showMowerPreview");
+  await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   await page.locator("#fileInput").setInputFiles({
     name: "reduce.geojson",

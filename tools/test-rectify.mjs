@@ -83,7 +83,7 @@ try {
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: "load" });
     await expandSidebar();
-    await page.uncheck("#showMowerPreview");
+    await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
     await page.locator("#fileInput").setInputFiles({
       name: "rectify.geojson",

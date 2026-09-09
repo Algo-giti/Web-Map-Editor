@@ -144,7 +144,7 @@ try {
   await upload("#secondFileInput", "b.geojson", mapWith(60));
 
   /* Karte B ist nach dem Laden aktiv. Zurück auf A. */
-  await page.locator("#mapAButton").click();
+  await menueBefehl(page, "Karte", "Karte A");
   await page.waitForTimeout(300);
   await expand();
 
@@ -217,7 +217,7 @@ try {
     await expand();
     await upload("#fileInput", "a.geojson", aBody);
     await upload("#secondFileInput", "b.geojson", bBody);
-    await page.locator("#mapAButton").click();
+    await menueBefehl(page, "Karte", "Karte A");
     await page.waitForTimeout(250);
     await expand();
   };

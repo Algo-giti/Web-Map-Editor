@@ -91,7 +91,7 @@ try {
     });
 
   await expandSidebar();
-  await page.uncheck("#showMowerPreview");
+  await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   await page.locator("#fileInput").setInputFiles({
     name: "synthetic-line.geojson",

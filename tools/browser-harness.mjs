@@ -251,6 +251,75 @@ export async function menueBefehl(page, menue, eintrag) {
   await panel.waitFor({ state: "visible" });
 
   await panel.locator(".menu-item", { hasText: eintrag }).first().click();
+
+  /*
+   * Ein Kontrollkästchen lässt das Menü bewusst offen - wer eine Ebene
+   * ausschaltet, will oft gleich die nächste. Für den Test ist ein offenes
+   * Panel über der Karte aber ein Hindernis, deshalb hier zumachen.
+   */
+  if (await page.locator(".menu-panel:not([hidden])").count()) {
+    await page.keyboard.press("Escape");
+    await page.locator(".menu-panel:not([hidden])").first()
+      .waitFor({ state: "hidden" })
+      .catch(() => {});
+  }
+}
+
+/**
+ * Wird das Element an seinen EIGENEN Koordinaten wirklich getroffen?
+ *
+ * getComputedStyle(el).display prüft eine Eigenschaft des Elements selbst -
+ * ein abschneidender Vorfahr sitzt eine Ebene höher und bleibt dabei
+ * unsichtbar. `display` beantwortet "will sichtbar sein", diese Prüfung
+ * "ist sichtbar": elementFromPoint liefert, was der Browser an dieser Stelle
+ * tatsächlich zeichnet.
+ *
+ * Genau das hat der erste Bildschirmabzug der Menüleiste gefunden und kein
+ * Test: header trug overflow:hidden, die Panels waren gerechnet da, sichtbar
+ * und anklickbar nicht - und elementFromPoint lieferte den toolRail.
+ *
+ * Für jedes Element, das absichtlich über seinen Container hinausragt:
+ * Menüpanels, die schwebenden Fenster über der Karte, Overlays.
+ */
+export function elementGetroffen(page, selector, { dy = 20 } = {}) {
+  return page.evaluate(([sel, abstand]) => {
+    const el = document.querySelector(sel);
+    if (!el) return { ok: false, grund: "Element fehlt" };
+
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return { ok: false, grund: "keine Ausdehnung" };
+
+    const treffer = document.elementFromPoint(r.left + r.width / 2, r.top + abstand);
+
+    return {
+      ok: !!treffer && el.contains(treffer),
+      grund: treffer
+        ? (treffer.id || treffer.className || treffer.tagName)
+        : "nichts",
+    };
+  }, [selector, dy]);
+}
+
+/**
+ * Öffnet alles, was einen Wert verdecken könnte: die Faltbereiche von
+ * Seitenleiste und Inspektor - und optional ein Menü der Leiste.
+ *
+ * Die Faltbereiche ersatzlos wegzulassen wäre die schlechtere Wahl: ein
+ * Selektor, der nichts mehr trifft, wirft nicht, er tut nur nichts - und der
+ * Test bestünde weiter, ohne noch etwas zu prüfen.
+ */
+export async function openAllFolds(page, menue = null) {
+  await page.evaluate(() => {
+    document.querySelectorAll(
+      "#sidebar details, .inspector-fold, .tool-settings"
+    ).forEach((d) => d.setAttribute("open", ""));
+  });
+
+  if (menue) {
+    await page.locator(".menu-title", { hasText: menue }).first().click();
+    await page.locator(".menu-panel:not([hidden])").first()
+      .waitFor({ state: "visible" });
+  }
 }
 
 /** Kleiner Zähler für Zusicherungen, gemeinsam von beiden Tests genutzt. */

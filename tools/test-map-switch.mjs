@@ -16,7 +16,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-map-switch.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
 
 const TOOL = "test-map-switch";
 
@@ -77,7 +77,7 @@ try {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "load" });
   await expandSidebar();
-  await page.uncheck("#showMowerPreview");
+  await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   const upload = async (selector, name, body) => {
     await page.locator(selector).setInputFiles({
