@@ -2312,6 +2312,15 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Messwerkzeug, Kartenprüfung, Feature-Erstellung und das komplette
   Auswahlmodell. Der Titel führt in die Irre; eine Aufteilung wäre sinnvoll,
   ist aber ein großer Diff ohne Funktionsgewinn.
+- **Die 1000-px-Schwelle steht als einzige Layout-Schwelle in JS, alle
+  anderen in CSS.** `TOOL_RAIL_NARROW_QUERY = "(max-width: 1000px)"` erzwingt
+  das Einklappen der Werkzeugleiste; die Schwellen bei 1100, 980, 900 und 760
+  px stehen als `@media`-Regeln. Das ist heute richtig so - der erzwungene
+  Zustand läuft über dieselbe Klasse wie der Handschalter, nicht über eine
+  Medienregel, und genau das steht oben als Entscheidung. Es bleibt aber die
+  eine Stelle, an der eine Layout-Schwelle nicht dort steht, wo die anderen
+  stehen. Nur vermerkt, nichts geändert.
+
 - **`tools/check-privacy.mjs` ist nur heuristisch** – erkennt keine privaten
   Daten unter untypischen Schlüsselnamen. Ersetzt keine manuelle
   Diff-Prüfung vor einem Release.

@@ -15886,6 +15886,26 @@ function mergeMapSlots() {
     })
   );
 
+  /*
+   * Ein Linien-Feature ohne erkennbaren Typ wird hier ANGEHÄNGT, nicht
+   * zusammengeführt - der Editor weiss nichts über es, und Wegwerfen wäre
+   * schlimmer als Verdoppeln. Genau dadurch kann das Ergebnis aber neben dem
+   * Docking-Pfad aus Karte A einen zweiten, unerkannten daneben tragen: zwei
+   * leere Platzhalter sehen gleich aus, und der Unterschied steht nur im
+   * Namen.
+   *
+   * Das Ergebnis bleibt unverändert - gemeldet wird nur, WAS angehängt wurde.
+   * Ein stiller Zuwachs ist der Fehler, nicht der Zuwachs selbst.
+   */
+  const namenloseLinien = bAdditionalFeatures.filter(feature => {
+    const geometryType = feature?.geometry?.type;
+
+    return (
+      (geometryType === "LineString" || geometryType === "MultiLineString") &&
+      featureTypeState(feature) !== "supported"
+    );
+  });
+
   merged.features.push(...bAdditionalFeatures);
 
   /*
@@ -15969,10 +15989,33 @@ function mergeMapSlots() {
   renderFeatureNavigator();
   updateMapSlotUi();
 
+  const grundmeldung =
+    "Karte A und B wurden verbunden. Der neue Perimeter ist geschlossen; " +
+    "Karte B wurde aus dem Arbeitsbereich entfernt.";
+
+  if (!namenloseLinien.length) {
+    setEditStatus(grundmeldung, "ok");
+    return;
+  }
+
   setEditStatus(
-    "Karte A und B wurden verbunden. Der neue Perimeter ist geschlossen; Karte B wurde aus dem Arbeitsbereich entfernt.",
+    `${grundmeldung} Aus Karte B wurden ${namenloseLinien.length} Linien ` +
+    `ohne erkennbaren Typ unverändert übernommen ` +
+    `(${namenloseLinien.map(beschreibeUnbekannteLinie).join(", ")}). ` +
+    `Sie können neben einem gleichartigen Feature aus Karte A stehen - ` +
+    `die Kartenprüfung nennt sie.`,
     "ok"
   );
+}
+
+
+/** Nennt eine Linie ohne erkennbaren Typ so, dass man sie in der Datei findet. */
+function beschreibeUnbekannteLinie(feature) {
+  const name = String(feature?.properties?.name ?? "").trim();
+
+  return name
+    ? `„${name}“ mit ${countLineFeaturePoints(feature)} Punkten`
+    : `ohne Namen, mit ${countLineFeaturePoints(feature)} Punkten`;
 }
 
 

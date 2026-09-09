@@ -137,6 +137,27 @@ try {
   const countByName = (collection, name) =>
     collection.features.filter((f) => f.properties?.name === name).length;
 
+  /**
+   * Zaehlt die Features der AKTIVEN Karte nach Typ - ueber getFeatureType(),
+   * also nach derselben Regel, nach der der Editor selbst entscheidet.
+   *
+   * Die drei Zusicherungen an dieser Stelle fragten frueher den Pruefbericht,
+   * ob er schweigt. Ein Bericht schweigt aber auch, wenn er nichts prueft, und
+   * zwei leere Platzhalter sehen im Bericht gleich aus, egal wie sie heissen.
+   * Gezaehlt wird deshalb das Ergebnis.
+   */
+  const typen = () =>
+    page.evaluate(() => {
+      const zaehlung = {};
+
+      for (const feature of data.features) {
+        const typ = getFeatureType(feature);
+        zaehlung[typ] = (zaehlung[typ] || 0) + 1;
+      }
+
+      return zaehlung;
+    });
+
   /* ---------------------------------------------------------------- */
   console.log("Gegenprobe: die Slots sind getrennt");
 
@@ -152,10 +173,22 @@ try {
   await page.waitForTimeout(300);
   const reportA = await page.locator("#validationReport").textContent();
 
-  check("Kartenprüfung sieht nur einen Perimeter",
-    !reportA.includes("Perimeter-Features"), reportA.slice(0, 200));
-  check("Kartenprüfung meldet kein doppeltes Docking",
-    !reportA.includes("Docking-Features"), reportA.slice(0, 200));
+  check("der Bericht ist überhaupt gefüllt",
+    reportA.trim().length > 0, `${reportA.length} Zeichen`);
+
+  /*
+   * Gezaehlt statt befragt: genau ein Perimeter, genau ein Docking-Pfad, und
+   * KEIN Feature vom Typ "other" - ein unerkannter Dockpfad aus Karte B
+   * landete genau dort und waere im Bericht nicht als Doppelung zu sehen.
+   */
+  const typenA = await typen();
+
+  check("Karte A hat genau einen Perimeter",
+    typenA.perimeter === 1, JSON.stringify(typenA));
+  check("Karte A hat genau einen Docking-Pfad",
+    typenA.dockpoints === 1, JSON.stringify(typenA));
+  check("und kein Feature ohne erkennbaren Typ",
+    (typenA.other || 0) === 0, JSON.stringify(typenA));
 
   const onlyA = await exportActive();
   check("Export der aktiven Karte gelingt", !!onlyA);
@@ -202,10 +235,35 @@ try {
   await page.waitForTimeout(300);
   const reportMerged = await page.locator("#validationReport").textContent();
 
-  check("Kartenprüfung meldet danach keine doppelten Features",
-    !reportMerged.includes("Docking-Features vorhanden") &&
-    !reportMerged.includes("Search-Wire-Features vorhanden"),
-    reportMerged.slice(0, 260));
+  check("der Bericht ist auch danach gefüllt",
+    reportMerged.trim().length > 0, `${reportMerged.length} Zeichen`);
+
+  /*
+   * Dieselbe Zaehlung am Ergebnis. Der Perimeterring muss ausserdem so viele
+   * eindeutige Punkte tragen wie A und B zusammen - sonst waere "genau ein
+   * Perimeter" auch dann erfuellt, wenn Bs Punkte gar nicht angekommen sind.
+   */
+  const typenMerged = await typen();
+
+  check("das Ergebnis hat genau einen Perimeter",
+    typenMerged.perimeter === 1, JSON.stringify(typenMerged));
+  check("genau einen Docking-Pfad und eine Search Wire",
+    typenMerged.dockpoints === 1 && typenMerged.searchwire === 1,
+    JSON.stringify(typenMerged));
+  check("und kein Feature ohne erkennbaren Typ",
+    (typenMerged.other || 0) === 0, JSON.stringify(typenMerged));
+
+  check("der Perimeterring trägt die Punkte beider Karten",
+    await page.evaluate(() => {
+      const ring = data.features.find((f) => getFeatureType(f) === "perimeter")
+        .geometry.coordinates[0];
+
+      /* Letzter Punkt ist der technische Ringschluss. */
+      return ring.length - 1 === 8;
+    }),
+    await page.evaluate(() =>
+      String(data.features.find((f) => getFeatureType(f) === "perimeter")
+        .geometry.coordinates[0].length)));
 
   /* ---------------------------------------------------------------- */
   console.log("Genau ein befüllter Pfad gewinnt");
@@ -267,6 +325,55 @@ try {
   check("nach dem Löschen wieder freigegeben",
     await page.locator("#mergeMapsBtn").isEnabled(),
     await page.locator("#mergeStatus").textContent());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Eine Linie ohne erkennbaren Typ wird angehängt UND genannt");
+
+  /*
+   * Der positive Gegenfall. Ohne ihn bestuenden die Zaehlungen oben auch
+   * dann, wenn der Editor unerkannte Linien stillschweigend wegwuerfe - und
+   * genau das soll er NICHT tun.
+   *
+   * Karte B traegt hier einen Docking-Pfad, dessen Name nicht zu den sechs
+   * bekannten Schreibweisen gehoert. getFeatureType() liefert dafuer "other",
+   * der Merge haengt ihn an (Wegwerfen waere schlimmer als Verdoppeln) - und
+   * muss das sagen.
+   */
+  const mitUnbenanntemDock = JSON.parse(mapWith(60));
+  mitUnbenanntemDock.features.push({
+    type: "Feature",
+    properties: { name: "dockingpfad" },
+    geometry: { type: "LineString", coordinates: [] },
+  });
+
+  await reset(mapWith(0), JSON.stringify(mitUnbenanntemDock));
+
+  const vorher = await typen();
+  check("Karte A hat vorher kein Feature ohne erkennbaren Typ",
+    (vorher.other || 0) === 0, JSON.stringify(vorher));
+
+  check("Verbinden ist möglich", await page.locator("#mergeMapsBtn").isEnabled());
+
+  await page.locator("#mergeMapsBtn").click();
+  await page.waitForTimeout(600);
+  await expand();
+
+  const nachher = await typen();
+
+  check("die unerkannte Linie ist im Ergebnis angekommen",
+    (nachher.other || 0) === 1, JSON.stringify(nachher));
+  check("und hat den echten Docking-Pfad nicht verdrängt",
+    nachher.dockpoints === 1, JSON.stringify(nachher));
+
+  /*
+   * Die Wirkung, um die es geht: der Zuwachs wird GENANNT. Ein stiller
+   * Zuwachs ist der Fehler, nicht der Zuwachs selbst.
+   */
+  const meldung = await page.locator("#editStatus").textContent();
+
+  check("die Meldung nennt die unerkannte Linie",
+    meldung.includes("ohne erkennbaren Typ") && meldung.includes("dockingpfad"),
+    meldung);
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
