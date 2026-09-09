@@ -2469,6 +2469,176 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Konflikt sperrt den Export inzwischen vollständig. Bleibt als Merkposten,
   falls die Sperre je gelockert wird.
 
+- **Nach dem Umbau zu entscheiden: Dateigröße und Struktur von `index.html`.**
+  Offene Frage, **kein Auftrag** – und ausdrücklich **nicht während Etappe 7
+  anzufassen**: die Datei umzustrukturieren hieße, jede Fundstelle in dieser
+  Datei gleichzeitig zu verschieben, und CLAUDE.md nennt durchgehend
+  Bezeichner statt Zeilennummern genau deshalb, weil Bezeichner beim Umbau
+  stabil bleiben sollen.
+
+  **Der Befund, der die Frage aufwirft:** über 330 globale Funktionen liegen in
+  einem einzigen Gültigkeitsbereich (Abschnitt 6). Etappe 6 hat pro Teilschritt
+  mindestens eine Tatsache zutage gefördert, die an mehreren Orten stand –
+  doppelte `id`s im Markup, eine zweite Fassung von `isWholeFeatureSelected()`,
+  doppelte Schlüssel in `I18N_EN`, Breitenwerte in einer Medienregel neben den
+  Rastervariablen, verwaiste CSS-Regeln. Das ist kein Zufall, sondern eine
+  Folge dieses Zustands: wer eine Hilfsfunktion schreibt, sieht die 9 000
+  Zeilen weiter unten nicht.
+
+  **Die Randbedingung, die den naheliegenden Weg ausschließt:** ES-Module über
+  `<script type="module">` unterliegen CORS, und ein `file://`-Dokument hat
+  keinen Origin – der Browser lehnt jeden Import ab. Aufteilen in mehrere
+  Dateien scheitert damit genau an dem, was die Datei autark macht. Ein
+  Build-Schritt, der wieder zusammenfügt, gäbe „kein Build, keine
+  Dependencies" auf.
+
+  **Nicht verwechseln: klassische `<script src>` unterliegen CORS nicht** und
+  laden auch über `file://`. Sie lösen die Frage trotzdem nicht – der
+  Gültigkeitsbereich bliebe ein einziger, gewonnen wäre nur die Trennung in
+  Dateien, und bezahlt würde sie mit der Autarkie: `index.html` allein liefe
+  dann nicht mehr. **Das ist hier nicht gemessen, sondern aus dem
+  Browserverhalten abgeleitet** – wer den Weg ernsthaft erwägt, probiert ihn
+  vorher aus.
+
+  **Zu entscheiden ist in dieser Reihenfolge, und die Reihenfolge ist der
+  eigentliche Inhalt dieses Eintrags:**
+
+  1. **Zuerst messen.** Zeilen und Bytes getrennt nach Markup, CSS und JS; die
+     zehn größten Funktionen; die Verteilung der ~330 Funktionen auf Themen;
+     und welche Themen heute über die Datei verstreut liegen statt beieinander.
+     Ohne diese Zahlen ist jede Antwort auf 2. und 3. geraten.
+  2. **Dann: lösen Namensräume das Problem oder verschieben sie es nur?** Und
+     vor allem: **was lösen sie ausdrücklich nicht?** Ein Objekt, das dreißig
+     Funktionen bündelt, beseitigt die stille Doppelvergabe innerhalb seines
+     Namens – aber weder die Streuung eines Themas über die Datei noch die
+     Länge noch die Frage, ob jemand beim Schreiben den Namensraum trifft.
+     Anmerkung zur Ehrlichkeit: **die „geplanten Namensräume" stehen bisher
+     nirgends im Repository**, weder hier noch in `AGENTS.md`. Sie sind eine
+     Absicht, kein aufgeschriebener Entwurf.
+  3. **Erst danach: ob überhaupt geteilt wird.** Ein Zusammenbau aus mehreren
+     Quelldateien mit eingechecktem Erzeugnis wäre technisch möglich, erzeugt
+     aber **zwei Wahrheiten**: Quelle und Erzeugnis laufen still auseinander,
+     sobald jemand am Erzeugnis editiert – und am Erzeugnis wird editiert
+     werden, weil es die Datei ist, die im Browser läuft und auf die jede
+     Fehlersuche zeigt. Das ist dieselbe Fehlerklasse, die Etappe 6 fünfmal
+     gezeigt hat, nur größer: eine Tatsache an zwei Orten, ohne Prüfung, die
+     das Auseinanderlaufen meldet.
+
+- **Nach dem UI-Umbau: fünf zusammenhängende Punkte um die Mähergeometrie.**
+  Eintrag, **kein Auftrag** – und ausdrücklich **ein Paket, keine fünf
+  Einzelpunkte**. Die Reihenfolge ist die Abhängigkeit: **1 und 4 tragen 2 und
+  3**, deshalb wird nichts davon einzeln vorgezogen. Wer 2 oder 3 ohne 1 baut,
+  hat keine Abmessung, gegen die er prüft; wer sie ohne 4 baut, verschiebt mit
+  gleicher Wahrscheinlichkeit in die falsche Richtung – und das Ergebnis sieht
+  dabei plausibel aus.
+
+  **1. Genaue Mähergeometrie (Grundlage).** Statt Länge und Breite: Abstand
+  GPS-Antenne zur Front, GPS zum Heck, Gesamtbreite, Spielraum. **Der
+  Bezugspunkt liegt damit nicht mehr in der Mitte** – der Körper ist
+  unsymmetrisch um den Punkt.
+
+  - **Was das an `renderSelectedMower()` ändert:** die Funktion zeichnet heute
+    durchgehend symmetrisch, und zwar nicht an einer Stelle, sondern in jedem
+    Teil. Der Rumpf sitzt auf `-mowerLength/2` / `-mowerWidth/2`, die Frontspitze
+    auf `+mowerLength/2`, die Räder auf `±mowerWidth/2`, Mittelpunkt und Pfeil
+    sind Bruchteile der Länge. Jede dieser Zahlen müsste stattdessen gegen
+    *vorn* und *hinten* getrennt gerechnet werden. Mitbetroffen sind der
+    Tooltip in `bindMowerEvents()` und die Größenzeile in
+    `updateMowerOrientationInfo()`, die beide „L × B" ausgeben.
+  - **Was mit `mowerLengthInput` / `mowerWidthInput` geschieht – ersetzt,
+    abgeleitet oder daneben – ist zu entscheiden.** Zur Entscheidung gehört
+    dieser Befund: **die Breite ist nicht nur Darstellung.** `mowerWidth` ist
+    die Schwelle der Korridorprüfung und geht als `mowerWidth²` in
+    `reduceAreaAbsoluteThreshold()` ein; die Oberfläche sagt das inzwischen
+    selbst. Ein Ersetzen muss diesen beiden Stellen also eine definierte
+    Nachfolge geben, ein Danebenstellen erzeugt zwei Breiten.
+  - **Vierter Verbraucher, leicht zu übersehen:** der Vergleichs-Baseline eines
+    ausgewählten Punktes speichert `mowerLength` und `mowerWidth` **mit** und
+    zeichnet den Ghost daraus. Eine neue Geometrie muss dort mitreisen, sonst
+    zeigt der Vergleichsmäher weiter den alten Körper.
+  - **Ob der Spielraum ein eigener Wert ist oder eingerechnet wird, ist eine
+    Entscheidung, keine Ableitung.** Für einen eigenen Wert spricht, dass er in
+    2 und 3 wieder auftaucht und eingerechnet dort unsichtbar wäre; dagegen
+    spricht ein Feld mehr. Eingerechnet lässt sich hinterher nicht mehr
+    unterscheiden, was Fahrzeugmaß und was Sicherheitsabstand war.
+
+  **2. Kollisionsprüfung eines ausgewählten Bereichs.** Einen gewählten Bereich
+  gegen Fahrzeugabmessung plus Spielraum prüfen. **Zu entscheiden ist, ob die
+  vorhandene Korridorprüfung der Kartenprüfung mitwächst** – sie benutzt heute
+  schlicht `const threshold = mowerWidth` – **oder ob eine zweite Prüfung
+  daneben entsteht.** Zwei Antworten auf „passt der Mäher hier durch" wären
+  eine Tatsache an zwei Orten.
+
+  Wer die zweite Prüfung erwägt, übernimmt damit auch alles, was an der ersten
+  schon entschieden ist: `segmentDistance()` in geschlossener Form statt
+  Abtastung, der `pointIsMowable()`-Filter, `GEOMETRY_CHECK_PAIR_BUDGET`, die
+  Sperre bei unbekanntem Maßstab und die Einstufung als Warnung. Eine zweite
+  Prüfung, die eine dieser Eigenschaften anders beantwortet, ist kein Zusatz
+  mehr, sondern ein Widerspruch.
+
+  **3. Abrunden zwischen zwei Punkten.** Zwei Punkte wählen, die Ecke dazwischen
+  im Radius der Mäherabmessung inklusive Spielraum abrunden. Viertes
+  Umformwerkzeug neben Begradigen, Reduzieren und Rechtwinklig: **gleicher
+  Faltblock, gleiche Vorschau-Regel wie in Etappe 7f entschieden, gleiche
+  Auswahlbedingung wie das Begradigen** – genau zwei Punkte desselben Rings,
+  also `getSelectedSection()` als Quelle.
+
+  Offen bleibt, **welcher Radius genau**: halbe Breite, volle Breite, oder frei
+  einstellbar mit der Geometrie als Vorschlag.
+
+  Nebenbei festzuhalten, weil es die Nachbarwerkzeuge unterscheidet: Abrunden
+  **fügt Punkte hinzu**. Rechtwinklig entfernt ausdrücklich keinen, Reduzieren
+  entfernt – ein Werkzeug, das welche einfügt, ist in dieser Gruppe neu und
+  braucht eine Aussage dazu, wie viele.
+
+  **4. Umlaufsinn als Voraussetzung für 2 und 3.** Ohne Kenntnis der
+  Umlaufrichtung ist „nach innen" nicht definiert: beim Perimeter liegt der
+  Mähbereich innerhalb, bei einer Exclusion außerhalb.
+
+  - **Er wird berechnet, nicht abgefragt** – vorzeichenbehaftete Fläche
+    (Shoelace) je Ring. Der Nutzer sieht ihn, er trägt ihn nicht ein.
+  - **Er gilt je Ring, nicht je Feature:** ein Loch läuft entgegengesetzt zum
+    äußeren Ring.
+  - Er betrifft **jede** Verschiebung nach innen oder außen, also 2 und 3
+    gleichermaßen.
+  - **Nachgesehen, wie gefordert: die Formel ist bereits da.**
+    `polygonAreaMeters()` summiert genau die Shoelace-Terme
+    (`x1*y2 - x2*y1`) und wirft das Vorzeichen erst in der letzten Zeile mit
+    `Math.abs()` weg. Der Umlaufsinn ist damit **eine vorhandene Quelle, keine
+    neue Formel** – er liegt ein `Math.abs()` entfernt. **Aber:** die Funktion
+    liest ausschließlich `coordinates[0]`. Für „je Ring" muss sie verallgemeinert
+    werden oder ein Geschwister auf Ringebene bekommen, und **das ist dieselbe
+    Entscheidung wie beim Punkt „Löcher in Polygonen"** weiter oben – nicht
+    zweimal getrennt beantworten.
+  - **Nicht verwechseln mit `getVertexOrientation()`.** Das liefert die
+    Fahrtrichtung aus der Punktfolge und sagt nichts darüber, welche Seite
+    innen liegt.
+
+  **5. Eigener Befund für die Kartenprüfung.** GeoJSON schreibt für Polygone
+  einen Umlaufsinn vor; CaSSAndRA-Dateien halten das nicht zwingend ein.
+  **Als Entscheidung einzutragen, nicht als Auftrag: meldet der Editor einen
+  abweichenden Umlaufsinn nur, oder korrigiert er ihn?** Korrigieren heißt,
+  fremde Dateien umzuschreiben – dieselbe Frage wie bei den Löchern in
+  Polygonen, die heute editierbar, aber nicht validiert sind.
+
+  Zwei Dinge, die der Entscheidung vorliegen sollten:
+
+  - **Der Wortlaut der Norm ist zweigeteilt, und beide Hälften zählen.**
+    RFC 7946, Abschnitt 3.1.6: „A linear ring MUST follow the right-hand rule
+    with respect to the area it bounds, i.e., exterior rings are
+    counterclockwise, and holes are clockwise." Unmittelbar danach jedoch:
+    „For backwards compatibility, parsers SHOULD NOT reject Polygons that do
+    not follow the right-hand rule." **Ein `MUST` für den Schreiber, ein
+    ausdrückliches Nicht-Ablehnen für den Leser.** Ein Fehler wäre danach die
+    falsche Einstufung; eine Warnung passt. (Gegen den RFC-Text nachgelesen,
+    nicht aus dem Gedächtnis.)
+  - **Das Haus hat dazu schon eine Linie:** die Befunde aus
+    `collectGeometryFindings()` sind sämtlich Warnungen, weil der Editor zu
+    wenig über die Absicht des Nutzers weiß, und der Export vergibt `idx` nicht
+    neu, weil Speichern nichts still verändern soll. Beides zeigt in dieselbe
+    Richtung – **es ist trotzdem eine Entscheidung und keine Ableitung**, denn
+    der Umlaufsinn ist anders als `idx` normativ festgelegt.
+
 ---
 
 ## 8. Getroffene Entscheidungen (Rückfragen geklärt)
