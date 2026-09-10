@@ -1177,6 +1177,101 @@ Sinn, als er zu haben schien:
   Etappe 7d wird daraus ein geführter Modus – und der bedient **dasselbe
   Fenster**, es zieht also nichts noch einmal um.
 
+**Für Etappe 7d vorgemerkt: beide Karten gleichzeitig aktiv – als DRITTER
+ZUSTAND, nicht als Schalter.** Eintrag, **kein Auftrag**; die fünf Punkte
+darunter sind zu **entscheiden**, bevor gebaut wird.
+
+Gemeint ist beides zugleich: **sichtbar und bearbeitbar**, und gezielt
+wählbar. Der heutige Einzelmodus bleibt unverändert, das Gleichzeitige tritt
+daneben. Das Menü „Karte" bekommt deshalb neben „Karte A" und „Karte B" einen
+**dritten Eintrag „Beide"**.
+
+**Warum ein dritter Eintrag und kein Schalter über den beiden:** die zwei
+Slot-Einträge sind eine Radiogruppe (`role="menuitemradio"`), und `aria-checked`
+ist seit Etappe 6 die **einzige** Quelle des aktiven Zustands – die frühere
+Klasse `active` war eine zweite und ist genau deshalb entfallen. Ein Schalter
+daneben führte diese zweite Quelle wieder ein: „A angekreuzt **und**
+gleichzeitig beide" wäre ein Zustand, den `updateMapSlotUi()` nicht ausdrücken
+kann, ohne zu lügen. Als dritter Eintrag bleibt die Regel **genau einer ist
+gewählt** – einer davon heißt eben „beide".
+
+**1. Wohin geht ein neu gesetzter Punkt?** Ein Klick trifft eine Stelle, aber
+nicht eindeutig eine Karte: die Perimeter dürfen sich überlappen. Drei
+Antworten, die zu diesem Programm passen:
+
+| Antwort | was sie für die Bedienung heißt |
+|---|---|
+| **Eine der beiden bleibt Zielkarte**, die andere ist nur mitbearbeitbar | Das Neue landet immer vorhersagbar; der Preis ist ein **vierter** Zustand („beide, Ziel A" / „beide, Ziel B") oder eine zweite Anzeige neben `aria-checked` – und damit genau die zweite Quelle, die der dritte Eintrag vermeiden sollte |
+| **Die Karte des zuletzt angefassten Features** | Kein zusätzlicher Zustand, und es trifft meistens die Absicht. Aber die Zielkarte ist dann **abgeleitet und unsichtbar**; wer nichts angefasst hat, hat keine – der erste Klick nach dem Umschalten wäre unbestimmt |
+| **Zeichnen ist im Zustand „beide" gesperrt**, mit Grund | Ehrlich und billig: die Zeichenknöpfe tragen ihren Ablehnungsgrund schon heute in `data-blocked-reason`. „Beide" wäre dann ein Ansichts- und Umform-Zustand, kein Zeichenzustand |
+
+Die dritte ist die einzige, die ohne neuen verborgenen Zustand auskommt. Sie
+schränkt dafür ein, was der Modus kann. **Das ist die Abwägung, nicht die
+Antwort.**
+
+**2. Worauf wirken die Umformwerkzeuge bei gemischter Auswahl? Nachgesehen:
+der Fall lässt sich heute gar nicht ausdrücken.** Ein Punktdeskriptor aus
+`enumerateEditableVertices()` besteht aus `featureIndex`, `containerPath` und
+`pointIndex` – **er trägt keinen Slot**. `getSelectedSection()` und
+`getWholeFeatureTarget()` lösen ihn über `data.features?.[featureIndex]` auf,
+und `data` ist die **eine** globale Kartendatenstruktur, die `activateMap()`
+auf den aktiven Slot zeigen lässt. „Feature 3" heißt damit „Feature 3 der
+aktiven Karte", und beide Karten haben ein Feature 3.
+
+Daraus folgt: **eine gemischte Auswahl ist keine Erweiterung, sondern ein
+Umbau des Auswahlmodells.** Entweder bekommt der Deskriptor ein
+Slot-Feld – dann müssen alle Stellen mit, die heute `featureIndex` gegen `data`
+auflösen, einschließlich `mapSlots`-Sicherung und -Rückholung (die laut
+Abschnitt 2 schon einmal an sieben Stellen gleichzeitig anzufassen war) –,
+oder die Auswahl bleibt slot-rein und „beide" heißt nur: beide **sichtbar**,
+bearbeitbar bleibt eine. Die zweite Lesart ist erheblich kleiner und
+widerspricht der Formulierung „sichtbar UND bearbeitbar"; **welche gilt, ist zu
+entscheiden.**
+
+**3. Was zeigt der Inspektor, besonders beim Bezugspunkt?** `referenceOrigin`
+ist global und beschreibt die physische RTK-Basis; der Konflikt wird aus
+`slot.fileOrigin` gegen `referenceOrigin` **abgeleitet**
+(`getSlotOriginConflict()`), und `getActiveOriginConflict()` sieht nur den
+aktiven Slot an. Im Zustand „beide" gäbe es zwei Slots und damit zwei mögliche
+Befunde – **derselbe Fall, den `getMergeOriginIssue()` heute schon über beide
+Slots durchläuft und der das Verbinden sperrt.** Naheliegend ist deshalb, für
+„beide" dieselbe Funktion zu benutzen statt einer neuen. Zu entscheiden bleibt,
+**ob ein Widerspruch den Zustand „beide" ebenso sperrt wie das Verbinden**:
+zwei Karten mit wirklich verschiedenen Basen gleichzeitig zu bearbeiten hieße,
+sie in einem Rahmen zu zeigen, in dem eine von beiden falsch liegt – und zwar
+**still**, denn die Geometrie sieht plausibel aus.
+
+**4. Was zeigt die Statuszeile als Dateinamen?** Heute baut
+`updateMapSlotUi()` den Text als `Karte ${activeMapId} · ${currentFilename}`
+plus `*` bei ungespeicherten Änderungen; `currentFilename` ist eine globale
+Variable, die `activateMap()` aus dem aktiven Slot setzt. Für „beide" gibt es
+keinen einen Namen. Zu entscheiden: beide Namen nebeneinander (das Feld ist
+eine **Kurzform** und wird ab 1000 px ohnehin gekappt – siehe die Regel „wird
+eine länger als eine Zeile, ist es keine Kurzform mehr"), nur der Name der
+Zielkarte aus Punkt 1, oder ein eigener Text wie „Karte A + B". Die
+Dirty-Markierung `*` trifft dieselbe Frage ein zweites Mal: sie gilt heute je
+Slot.
+
+**5. Woran hängt heute, dass genau ein Slot aktiv ist – die Fundstellen:**
+
+| Datei | Stelle |
+|---|---|
+| `index.html` | `updateMapSlotUi()` setzt `aria-checked` aus `activeMapId === "A"` bzw. `"B"` – der Zustand steht **nur** dort |
+| `index.html` | `activateMap()` setzt `data`, `currentFilename`, `dataDirty`, `selectedVertex`, `selectedVertices` auf **einen** Slot |
+| `index.html` | `getActiveSlot()` / `getActiveOriginConflict()` – ein Slot |
+| `index.html` | Exportname und `slot.originalFilename` gehen über `currentFilename` |
+| `tools/test-menu.mjs` | „Karte A ist nach dem Laden angekreuzt" prüft die Zeichenkette `"A:true B:false"` über **beide** Knöpfe – diese Zusicherung bricht bei einem dritten Zustand als Erste |
+| `tools/test-menu.mjs` | „Karte B ist ohne Datei gesperrt"; „deutsch nennt Karte A aktiv" (`"Karte A · aktiv"`) und die englische Entsprechung |
+| `tools/test-menu.mjs` | „der Wechsel bringt Karte A mit vier Punkten zurück" – zählt Marker, prüft also die **Wirkung** des Umschaltens, nicht nur das Attribut |
+| `tools/test-map-switch.mjs` | die ganze Datei: Auswahl je Slot, „auf Karte B ist die Auswahl leer", „Karte A hat weiterhin zwei" |
+| `tools/test-merge.mjs` | `menueBefehl(page, "Karte", "Karte A")` an drei Stellen, danach Zusicherungen über „Karte A hat genau einen Perimeter" |
+| `tools/test-origin-conflict.mjs` | lädt A und B nacheinander und prüft, dass der **aktive** Bezugspunkt unverändert bleibt |
+
+Ein dritter Eintrag verändert damit mindestens `test-menu.mjs` (Radiogruppe)
+und berührt die drei anderen. **Wer 7d baut, fasst diese Zusicherungen im
+selben Schritt an** – das ist genau die Regel „UI-Element verschieben – Wege
+statt Bezeichner", nur für einen hinzukommenden Zustand statt für einen Umzug.
+
 **Warum nicht in den Inspektor?** Gemessen, nicht erwogen: ein weiterer
 Faltblock kostet dort 30 bis 31 px (20–21 px Block plus 10 px Lücke) und
 brächte die verbindliche Reserve bei 900 px Fensterhöhe von 12 px auf rund
@@ -2252,7 +2347,7 @@ lon = east  / (111111·cos(lat0)) + lon0
   `parseScale()` (endlich, > 0) analog zu `parseOrigin()`. Geschrieben wird das
   Feld nur bei bekanntem Maßstab.
 - **Der Bezugspunkt musste neu eingeführt werden** – im Projekt gab es vorher
-  keinerlei WGS84-Bezug, der Ursprung war hart E=0/N=0. Er wird in der
+  keinerlei WGS84-Bezug, der Ursprung war hart E=0/N=0. Er wird im
   Inspektor unter "Koordinatenbezug" gepflegt (bis Etappe 7c in der
   Seitenleiste), in `localStorage`
   (`webMapEditor.referenceOrigin`) gemerkt und zusätzlich als
@@ -2458,9 +2553,10 @@ Status-Update-Referenzen. Reine Syntaxprüfung erkennt diese Fehlerklasse
 manuelle Grep-Suche nach Variablennamen bleibt zusätzlich nötig, da das
 Skript nur IDs, keine Variablennamen prüft.
 
-**Release-Nummerierung und -Packaging:** Baseline aktuell **Ausgabe 049**,
-nächstes substantielles Release **Ausgabe 050**. Ausgabe 050 nicht anlegen,
-bevor eine substantielle Änderung tatsächlich angefragt wurde.
+**Release-Nummerierung und -Packaging:** Baseline aktuell **Ausgabe 050**
+(der Oberflächenumbau), nächstes substantielles Release **Ausgabe 051**.
+Ausgabe 051 nicht anlegen, bevor eine substantielle Änderung tatsächlich
+angefragt wurde.
 
 **Es gibt keine Release-ZIPs.** Kein Archiv bauen, keines einchecken, keines
 an ein GitHub Release hängen. Die Anwendung ist eine einzige `index.html`, die
@@ -2478,7 +2574,7 @@ Ein Release besteht damit aus: Versionszeile im Hilfe-Menü hochsetzen,
 beide Changelogs (`CHANGELOG.md` **und** `CHANGELOG_EN.md`) pflegen, die
 Baseline in `AGENTS.md`, `docs/DEVELOPMENT.md` und dieser Datei nachziehen,
 Prüfungen aus Abschnitt 4 laufen lassen, committen und den Commit taggen
-(`v049`, `v050`, …). Die Tags sind der Rollback-Mechanismus – jeder frühere
+(`v050`, `v051`, …). Die Tags sind der Rollback-Mechanismus – jeder frühere
 Stand bleibt auscheckbar, ohne Binärdateien in der Git-Historie.
 
 **Vor jedem Release, mindestens:**
@@ -2697,6 +2793,30 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   benutzt, bearbeitet ist nicht geprüft. **Beim Wiederaufnehmen einer Liste ist
   „daran wurde schon gearbeitet" kein Grund zum Überspringen, sondern einer zum
   Hinsehen.**
+
+  **Vierte Lücke, gefunden beim Absuchen des übrigen Bestands für Zug 3:
+  gesucht wurde nach Namen, nicht nach Sachverhalten.** Der entfallene
+  Mobilknopf `#mobilePanelBtn` stand in beiden READMEs unter dem Wort
+  **„Bedienleiste"** bzw. **„control panel"** – einem Wort, das weder „Sidebar"
+  noch „Seitenleiste" enthält und damit durch jedes Muster fiel, das nach den
+  Bezeichnern der verschwundenen Elemente suchte. Gefunden wurde die Stelle
+  erst, als das Muster um die **Umschreibungen** erweitert wurde, unter denen
+  ein Bedienelement in Prosa auftaucht.
+
+  **Die vier Lücken zusammen, weil sie erst nebeneinander eine Regel ergeben:**
+
+  | Gesucht wurde nach | Übersehen wurde dadurch | Fundstelle |
+  |---|---|---|
+  | Ortsangaben | Nennungen ohne Ort | „Punkte löschen", der achte Satz |
+  | Fließtexten | Beschriftungen | „Rechteck / Lasso:" |
+  | noch nicht Bearbeitetem | schon einmal Angefasstem | „Karteninfo:" |
+  | Namen | Sachverhalten unter anderem Wort | „Bedienleiste" / „control panel" |
+
+  Alle vier sind derselbe Fehler in vier Kleidern: **das Suchmuster war enger
+  als der Bestand, und sein Ergebnis wurde für vollständig gehalten.** Wer das
+  nächste Mal einen Bestand absucht, prüft das Muster gegen mindestens einen
+  bekannten Treffer, den es finden **muss** – und nennt beim Melden, wonach
+  gesucht wurde, nicht nur, was gefunden wurde.
 
   **Zwei Einträge der früheren Liste waren zu streng und wurden zurückgenommen:**
   „Einpassen / Zoom: Kartenansicht anpassen." und „Raster: Schrittweite frei

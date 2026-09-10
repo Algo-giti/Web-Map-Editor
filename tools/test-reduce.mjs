@@ -133,9 +133,8 @@ try {
    * Eine Geste, die an sieben Stellen kopiert steht, wird an sechs davon
    * vergessen. openAllFolds() ist die eine Stelle.
    */
-  const expandSidebar = () => openAllFolds(page);
 
-  await expandSidebar();
+  await openAllFolds(page);
   await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   await page.locator("#fileInput").setInputFiles({
@@ -144,7 +143,7 @@ try {
     buffer: Buffer.from(syntheticMap()),
   });
   await page.waitForTimeout(400);
-  await expandSidebar();
+  await openAllFolds(page);
 
   const status = () => page.locator("#reduceStatus").textContent();
   const applyButton = page.locator("#reduceApplyBtn");
@@ -195,7 +194,7 @@ try {
     String(await page.locator("#selectionGhostGroup .reduce-preview-node").count()));
 
   /* Search Wire ist Feature 2; der Perimeter hat seit 7f ebenfalls einen Knopf. */
-  await expandSidebar();
+  await openAllFolds(page);
   await page.locator('[data-action="select-whole-feature"][data-feature-index="2"]')
     .click();
   await page.waitForTimeout(300);
@@ -281,7 +280,7 @@ try {
    * Perimeter einen solchen Knopf hat - .first() waere seitdem der Perimeter.
    * Die Exclusion ist Feature 1.
    */
-  await expandSidebar();
+  await openAllFolds(page);
   await page.locator('[data-action="select-whole-feature"][data-feature-index="1"]')
     .click();
   await page.waitForTimeout(300);

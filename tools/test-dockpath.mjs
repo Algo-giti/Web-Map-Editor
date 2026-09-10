@@ -80,9 +80,8 @@ try {
    * zunaechst keinen einzigen Test. Eine Geste an sieben Stellen wird an sechs
    * davon vergessen.
    */
-  const expandSidebar = () => openAllFolds(page);
 
-  await expandSidebar();
+  await openAllFolds(page);
   await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   const load = async (body) => {
@@ -92,7 +91,7 @@ try {
       buffer: Buffer.from(body),
     });
     await page.waitForTimeout(400);
-    await expandSidebar();
+    await openAllFolds(page);
   };
 
   /** Klickt eine Position in Metern auf die Karte. */

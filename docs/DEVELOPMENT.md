@@ -43,11 +43,11 @@ Substantial changes should increment the release number sequentially.
 
 Current baseline:
 
-- Ausgabe 049
+- Ausgabe 050
 
 Next substantial release:
 
-- Ausgabe 050
+- Ausgabe 051
 
 Previous releases stay reachable through their git tags.
 
@@ -57,7 +57,7 @@ For each release:
 2. update documentation where relevant
 3. update both changelogs
 4. run the checks (see `CLAUDE.md` section 4)
-5. tag the release commit (`v049`, `v050`, ...)
+5. tag the release commit (`v050`, `v051`, ...)
 
 **There are no release archives.** Do not build a ZIP, do not commit one, and
 do not attach one to a GitHub Release. The application is a single
@@ -116,7 +116,7 @@ lon = east  / (111111*cos(lat0)) + lon0
 
 Internally the editor always works in relative metres; absolute maps are
 converted once on import and back on export. `lat0`/`lon0` is not part of the
-GeoJSON file - it is maintained in the sidebar under "Koordinatenbezug",
+GeoJSON file - it is maintained in the inspector under "Koordinatenbezug",
 remembered in `localStorage` and additionally written to the FeatureCollection
 as a non-standard `referenceOrigin` field, which CaSSAndRA's import ignores.
 
@@ -246,14 +246,19 @@ This is important for:
 
 ### Selection tools
 
-The map toolbar contains:
+The toolbar on the left contains, in group "Auswaehlen" (select):
 
 - pointer
-- rectangle
+- box
 - lasso
-- move
-- delete
+
+The inspector on the right contains, once something is selected:
+
+- delete selection
 - clear selection
+
+Neither group sits on the map any more; the map only carries the zoom/fit
+toolbar.
 
 Modifier behavior:
 
@@ -262,8 +267,9 @@ Modifier behavior:
 
 ### Full Exclusion deletion
 
-If all editable vertices of an Exclusion are selected, the trash action should
-delete the complete Exclusion feature.
+If all editable vertices of an Exclusion are selected, "Auswahl loeschen"
+(delete selection) in the inspector should delete the complete Exclusion
+feature.
 
 Partial selection should continue to delete only selected vertices while
 preserving valid polygon geometry.

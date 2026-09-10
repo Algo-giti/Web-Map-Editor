@@ -69,15 +69,14 @@ try {
    * Mal kopierte Faltgeste") und beschrieb openAllFolds() als ihre Buendelung;
    * aufgerufen hat den Helfer danach kein einziger Test.
    */
-  const expand = () => openAllFolds(page);
 
-  await expand();
+  await openAllFolds(page);
   await page.locator("#fileInput").setInputFiles({
     name: "shapes.geojson", mimeType: "application/geo+json",
     buffer: Buffer.from(baseMap),
   });
   await page.waitForTimeout(450);
-  await expand();
+  await openAllFolds(page);
 
   /*
    * Klickt eine Position in Metern auf die Karte.
@@ -134,7 +133,7 @@ try {
       buffer: Buffer.from(baseMap),
     });
     await page.waitForTimeout(450);
-    await expand();
+    await openAllFolds(page);
   };
 
   const exportMap = async () => {

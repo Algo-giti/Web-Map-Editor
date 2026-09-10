@@ -75,13 +75,12 @@ try {
    * zunaechst keinen einzigen Test. Eine Geste an sieben Stellen wird an sechs
    * davon vergessen.
    */
-  const expandSidebar = () => openAllFolds(page);
 
   const load = async (body) => {
     await page.goto(indexUrl(), { waitUntil: "load" });
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: "load" });
-    await expandSidebar();
+    await openAllFolds(page);
     await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
     await page.locator("#fileInput").setInputFiles({
@@ -90,7 +89,7 @@ try {
       buffer: Buffer.from(body),
     });
     await page.waitForTimeout(400);
-    await expandSidebar();
+    await openAllFolds(page);
   };
 
   const marks = page.locator('#vertexGroup circle[data-layer="exclusion"]');
@@ -187,7 +186,7 @@ try {
    * Etappe 7f auch der Perimeter einen solchen Knopf hat - die Exclusion ist
    * Feature 1.
    */
-  await expandSidebar();
+  await openAllFolds(page);
   await page.locator('[data-action="select-whole-feature"][data-feature-index="1"]')
     .click();
   await page.waitForTimeout(300);
@@ -270,7 +269,7 @@ try {
 
   await page.locator("#undoBtn").click();
   await page.waitForTimeout(400);
-  await expandSidebar();
+  await openAllFolds(page);
 
   const restored = await exportRing();
 
@@ -343,7 +342,7 @@ try {
   await page.reload({ waitUntil: "load" });
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(300);
-  await expandSidebar();
+  await openAllFolds(page);
 
   check("der Abschnitt ist übersetzt",
     (await page.locator("#rectifyApplyBtn").textContent())

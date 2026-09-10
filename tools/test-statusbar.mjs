@@ -71,7 +71,6 @@ try {
    * zunaechst keinen einzigen Test. Eine Geste an sieben Stellen wird an sechs
    * davon vergessen.
    */
-  const expandSidebar = () => openAllFolds(page);
 
   const text = (id) => page.locator(`#${id}`).textContent();
 
@@ -116,7 +115,7 @@ try {
     buffer: Buffer.from(MAP),
   });
   await page.waitForTimeout(400);
-  await expandSidebar();
+  await openAllFolds(page);
 
   check("Dateiname nennt Slot und Datei",
     (await text("filename")).includes("Karte A") &&
@@ -156,7 +155,13 @@ try {
   check("die Kurzform nennt Zahlen", /\d/.test(short), short);
   check("sie nennt Warnungen", short.includes("Warnung"), short);
   check("sie bleibt kurz", short.length <= 30, `${short.length}: ${short}`);
-  check("der ausführliche Bericht bleibt in der Seitenleiste",
+  /*
+   * Der Bericht steht seit Etappe 5 im Inspektor, nicht mehr in der
+   * Seitenleiste - die es seit 7e ueberhaupt nicht mehr gibt. Gemessen hat
+   * diese Zusicherung immer #validationReport, also die richtige Stelle; nur
+   * ihre Beschriftung nannte die falsche.
+   */
+  check("der ausführliche Bericht bleibt im Inspektor",
     (await text("validationReport")).length > short.length,
     String((await text("validationReport")).length));
 

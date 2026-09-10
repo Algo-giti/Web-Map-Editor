@@ -102,7 +102,6 @@ try {
    * Mal kopierte Faltgeste") und beschrieb openAllFolds() als ihre Buendelung;
    * aufgerufen hat den Helfer danach kein einziger Test.
    */
-  const expand = () => openAllFolds(page);
 
   /*
    * Die Verbinden-Bedienung liegt seit Etappe 7e in einem Kartenfenster, das
@@ -120,7 +119,7 @@ try {
     await page.locator("#mergeWindow").waitFor({ state: "visible" });
   };
 
-  await expand();
+  await openAllFolds(page);
 
   await openMergeWindow();
 
@@ -131,7 +130,7 @@ try {
       buffer: Buffer.from(body),
     });
     await page.waitForTimeout(400);
-    await expand();
+    await openAllFolds(page);
     await openMergeWindow();
   };
 
@@ -185,7 +184,7 @@ try {
   /* Karte B ist nach dem Laden aktiv. Zurück auf A. */
   await menueBefehl(page, "Karte", "Karte A");
   await page.waitForTimeout(300);
-  await expand();
+  await openAllFolds(page);
   await openMergeWindow();
 
   await page.locator("#validateMapBtn").click();
@@ -226,7 +225,7 @@ try {
 
   await page.locator("#mergeMapsBtn").click();
   await page.waitForTimeout(500);
-  await expand();
+  await openAllFolds(page);
   await openMergeWindow();
 
   const merged = await exportActive();
@@ -292,13 +291,13 @@ try {
     await page.goto(indexUrl(), { waitUntil: "load" });
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: "load" });
-    await expand();
+    await openAllFolds(page);
     await openMergeWindow();
     await upload("#fileInput", "a.geojson", aBody);
     await upload("#secondFileInput", "b.geojson", bBody);
     await menueBefehl(page, "Karte", "Karte A");
     await page.waitForTimeout(250);
-    await expand();
+    await openAllFolds(page);
     await openMergeWindow();
   };
 
@@ -309,7 +308,7 @@ try {
 
   await page.locator("#mergeMapsBtn").click();
   await page.waitForTimeout(500);
-  await expand();
+  await openAllFolds(page);
   await openMergeWindow();
 
   const fromB = await exportActive();
@@ -343,7 +342,7 @@ try {
   /* Nach dem Löschen eines Pfades muss es wieder gehen. */
   await page.locator("#deleteDockBtn").click();
   await page.waitForTimeout(400);
-  await expand();
+  await openAllFolds(page);
   await openMergeWindow();
 
   check("nach dem Löschen wieder freigegeben",
@@ -380,7 +379,7 @@ try {
 
   await page.locator("#mergeMapsBtn").click();
   await page.waitForTimeout(600);
-  await expand();
+  await openAllFolds(page);
   await openMergeWindow();
 
   const nachher = await typen();

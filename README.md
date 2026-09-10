@@ -64,22 +64,29 @@ GeoJSON- oder fremder RTK-Formate wird nicht zugesichert.
 - Polygonringe automatisch geschlossen halten
 - Start- und Endpunkt eines geschlossenen Rings neu festlegen
 
-### Auswahlwerkzeuge direkt auf der Karte
+### Auswahlwerkzeuge
 
-- Mauszeiger
-- Rechteckauswahl
+In der Werkzeugleiste links, Gruppe „Auswählen":
+
+- Zeiger
+- Rahmen
 - Lasso
-- Verschieben
-- Papierkorb
+
+Im Inspektor rechts, sobald etwas ausgewählt ist:
+
+- Auswahl löschen
 - Auswahl aufheben
+
+Dazu:
+
 - `Strg + Klick` zum Ergänzen/Entfernen einzelner Punkte
-- Auswahlzähler direkt in der Karten-Werkzeugleiste
+- Auswahlzähler in der Statuszeile am unteren Rand
 - Mouseover-Tooltips
 - Touch-Bedienung für mobile Browser
 
-Wenn alle editierbaren Eckpunkte einer Exclusion ausgewählt sind, löscht der
-Papierkorb die **komplette Exclusion**. Bei Teilselektionen werden nur die
-ausgewählten Punkte gelöscht, sofern die Polygongeometrie gültig bleibt.
+Wenn alle editierbaren Eckpunkte einer Exclusion ausgewählt sind, entfernt
+„Auswahl löschen" die **komplette Exclusion**. Bei Teilselektionen werden nur
+die ausgewählten Punkte gelöscht, sofern die Polygongeometrie gültig bleibt.
 
 ### Ganze Features verschieben und Exclusions duplizieren
 
@@ -203,8 +210,8 @@ Sunray-Darstellung als auch in absolutem WGS84.
 - Feature-Typen werden im CaSSAndRA-Vokabular geführt (`perimeter`,
   `exclusion`, `search wire`, `dockpoints`); ein abweichender Anzeigename in
   `properties.label` bleibt beim Speichern erhalten
-- **Koordinatenbezug:** RTK-Basisposition (lat/lon) in der Seitenleiste
-  eintragen. Sie steht in CaSSAndRA unter *Settings → Robot* und ist nicht Teil
+- **Koordinatenbezug:** RTK-Basisposition (lat/lon) im Inspektor unter
+  „Koordinatenbezug" eintragen. Sie steht in CaSSAndRA unter *Settings → Robot* und ist nicht Teil
   der GeoJSON-Datei
 - **Koordinaten beim Speichern:** wahlweise *wie geladen* oder
   *absolut WGS84 (CaSSAndRA)*
@@ -232,7 +239,7 @@ ausdünnen.
 - Toleranz in Metern frei einstellbar, Vorgabe 0,02 m (Größenordnung des
   RTK-Rauschens)
 - Vorschau der neuen Geometrie und der wegfallenden Punkte auf der Karte
-- Punktzahl vorher/nachher direkt in der Seitenleiste
+- Punktzahl vorher/nachher direkt im Inspektor
 - Perimeter, Exclusion, Search Wire und Docking-Pfad
 - geschlossene Ringe bleiben geschlossen; Polygone behalten mindestens 3
   Eckpunkte, offene Linien mindestens 2
@@ -289,8 +296,10 @@ umgeschaltet werden. Deutsch ist beim Start die Standardsprache.
 ### Desktop und Android
 
 Die Oberfläche ist responsiv und für Desktop-Browser sowie Chrome unter
-Android ausgelegt. Auf kleinen Displays kann die Bedienleiste separat
-ein-/ausgeblendet werden.
+Android ausgelegt. Auf kleinen Displays stehen Werkzeugleiste, Karte und
+Inspektor untereinander, und die Seite scrollt; alle Befehle bleiben über die
+Menüleiste erreichbar. Am Desktop lassen sich Werkzeugleiste und Inspektor
+unabhängig voneinander einklappen.
 
 ## Datenschutz
 
@@ -365,21 +374,28 @@ third-party RTK formats is not guaranteed.
 - keep polygon rings closed automatically
 - redefine the start and end vertices of a closed ring
 
-### Selection tools directly on the map
+### Selection tools
+
+In the toolbar on the left, group "Auswählen" (Select):
 
 - pointer
-- rectangle selection
-- lasso selection
-- move
-- trash/delete
+- box
+- lasso
+
+In the inspector on the right, as soon as something is selected:
+
+- delete selection
 - clear selection
+
+In addition:
+
 - `Ctrl + click` to add or remove individual points
-- selection counter directly in the map toolbar
+- selection counter in the status bar at the bottom
 - hover tooltips
 - touch-friendly controls for mobile browsers
 
-When all editable vertices of an exclusion are selected, the trash button
-deletes the **entire exclusion feature**. Partial selections delete only the
+When all editable vertices of an exclusion are selected, "Delete selection"
+removes the **entire exclusion feature**. Partial selections delete only the
 selected vertices, provided the resulting polygon remains valid.
 
 ### Move whole features and duplicate exclusions
@@ -504,7 +520,7 @@ Sunray representation and in absolute WGS84.
   `search wire`, `dockpoints`); a different display name in
   `properties.label` is preserved when saving
 - **Coordinate reference:** enter the RTK base position (lat/lon) in the
-  sidebar. In CaSSAndRA it lives under *Settings → Robot* and is not part of
+  inspector under "Koordinatenbezug". In CaSSAndRA it lives under *Settings → Robot* and is not part of
   the GeoJSON file
 - **Coordinates on save:** either *as loaded* or *absolute WGS84 (CaSSAndRA)*
 - absolute maps are detected on load and converted to local East/North metres
@@ -528,7 +544,7 @@ Douglas-Peucker algorithm.
 - tolerance in metres is freely configurable, default 0.02 m (the magnitude of
   RTK noise)
 - preview of the new geometry and of the points that would be dropped
-- point count before/after directly in the sidebar
+- point count before/after directly in the inspector
 - perimeter, exclusion, Search Wire and docking path
 - closed rings stay closed; polygons keep at least 3 vertices, open lines at
   least 2
@@ -582,8 +598,9 @@ toggle in the upper-right corner. German is the default language at startup.
 ### Desktop and Android
 
 The interface is responsive and designed for desktop browsers as well as
-Chrome on Android. On small screens, the control panel can be shown or hidden
-separately.
+Chrome on Android. On small screens the toolbar, map and inspector are stacked
+and the page scrolls; every command stays reachable from the menu bar. On the
+desktop the toolbar and the inspector collapse independently of each other.
 
 ## Privacy
 

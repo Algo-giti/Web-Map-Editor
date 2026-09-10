@@ -87,9 +87,8 @@ try {
    * zunaechst keinen einzigen Test. Eine Geste an sieben Stellen wird an sechs
    * davon vergessen.
    */
-  const expandSidebar = () => openAllFolds(page);
 
-  await expandSidebar();
+  await openAllFolds(page);
   await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   await page.locator("#fileInput").setInputFiles({
@@ -267,7 +266,7 @@ try {
     buffer: Buffer.from(JSON.stringify(mixedMap)),
   });
   await page.waitForTimeout(400);
-  await expandSidebar();
+  await openAllFolds(page);
 
   /* Zwei Exclusions à 4 editierbare Ecken; die beiden anderen bekommen nichts. */
   check("nur unterstützte Features bekommen Punktmarker",

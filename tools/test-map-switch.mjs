@@ -70,12 +70,11 @@ try {
    * zunaechst keinen einzigen Test. Eine Geste an sieben Stellen wird an sechs
    * davon vergessen.
    */
-  const expandSidebar = () => openAllFolds(page);
 
   await page.goto(indexUrl(), { waitUntil: "load" });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "load" });
-  await expandSidebar();
+  await openAllFolds(page);
   await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   const upload = async (selector, name, body) => {
@@ -85,7 +84,7 @@ try {
       buffer: Buffer.from(body),
     });
     await page.waitForTimeout(400);
-    await expandSidebar();
+    await openAllFolds(page);
   };
 
   await upload("#fileInput", "a.geojson", mapWith(0));
@@ -106,7 +105,7 @@ try {
   const switchTo = async (which) => {
     await menueBefehl(page, "Karte", `Karte ${which}`);
     await page.waitForTimeout(350);
-    await expandSidebar();
+    await openAllFolds(page);
   };
 
   /**

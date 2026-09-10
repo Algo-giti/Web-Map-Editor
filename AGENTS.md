@@ -27,14 +27,14 @@ Project name:
 
 Current baseline:
 
-**Ausgabe 049**
+**Ausgabe 050**
 
 Next substantial release:
 
-**Ausgabe 050**
+**Ausgabe 051**
 
 Substantial releases are numbered sequentially. Each release commit is
-tagged (`v049`, `v050`, ...); those tags are the rollback mechanism.
+tagged (`v050`, `v051`, ...); those tags are the rollback mechanism.
 
 There are no release archives. Do not build one.
 
@@ -173,7 +173,7 @@ lon = east  / (111111*cos(lat0)) + lon0
 ```
 
 `lat0`/`lon0` is not part of the GeoJSON file, so the editor maintains it
-separately under "Koordinatenbezug" in the sidebar and can save either
+separately under "Koordinatenbezug" in the inspector and can save either
 relative or absolute WGS84 coordinates.
 
 Internally the editor always computes in relative metres. Convert only on
@@ -260,8 +260,8 @@ Do not reintroduce the previous bug where one visibly selected point showed
 
 ## Exclusion deletion
 
-If all editable vertices of one Exclusion are selected, the trash action must
-delete the complete Exclusion feature.
+If all editable vertices of one Exclusion are selected, "Auswahl loeschen"
+(delete selection) in the inspector must delete the complete Exclusion feature.
 
 This must work with:
 
@@ -567,7 +567,7 @@ A release therefore consists of:
 2. update `CHANGELOG.md` **and** `CHANGELOG_EN.md`
 3. update the baseline in `AGENTS.md`, `docs/DEVELOPMENT.md` and `CLAUDE.md`
 4. run the checks (see `CLAUDE.md` section 4)
-5. commit and tag it (`v049`, `v050`, ...)
+5. commit and tag it (`v050`, `v051`, ...)
 
 The tags are the rollback mechanism: every previous state stays checkoutable
 without storing binaries in the git history.
