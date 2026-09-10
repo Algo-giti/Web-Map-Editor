@@ -176,6 +176,36 @@ try {
     /9 → \d+ Punkte/.test(await status()), await status());
   check("Reduzieren ist freigegeben", await applyButton.isEnabled());
 
+  /*
+   * Etappe 7f: die Vorschau kommt erst beim GANZEN Feature.
+   *
+   * Die drei Zusicherungen daneben sind der Grund, warum das Ausbleiben hier
+   * etwas beweist: der Punkt traegt sichtbar den Auswahlring, die Statuszeile
+   * rechnet bereits mit dem ganzen Feature, und der Knopf ist freigegeben. Die
+   * Verarbeitung findet also statt - nur die Vorschau haelt sich zurueck.
+   */
+  check("genau ein Punkt ist ausgewählt",
+    (await page.locator("#vertexGroup circle.selected").count()) === 1,
+    String(await page.locator("#vertexGroup circle.selected").count()));
+  check("bei einem Punkt gibt es noch keine Vorschaulinie",
+    (await page.locator("#selectionGhostGroup .straighten-preview-line").count()) === 0,
+    String(await page.locator("#selectionGhostGroup .straighten-preview-line").count()));
+  check("und keine wegfallenden Punkte",
+    (await page.locator("#selectionGhostGroup .reduce-preview-node").count()) === 0,
+    String(await page.locator("#selectionGhostGroup .reduce-preview-node").count()));
+
+  /* Search Wire ist Feature 2; der Perimeter hat seit 7f ebenfalls einen Knopf. */
+  await expandSidebar();
+  await page.locator('[data-action="select-whole-feature"][data-feature-index="2"]')
+    .click();
+  await page.waitForTimeout(300);
+
+  check("alle neun Punkte sind ausgewählt",
+    (await page.locator(
+      "#vertexGroup circle.selected, #vertexGroup circle.multi-selected").count()) === 9,
+    String(await page.locator(
+      "#vertexGroup circle.selected, #vertexGroup circle.multi-selected").count()));
+
   check("Vorschaulinie ist gezeichnet",
     (await page.locator("#selectionGhostGroup .straighten-preview-line").count()) >= 1);
   check("wegfallende Punkte sind markiert",
@@ -199,6 +229,23 @@ try {
 
   /* ---------------------------------------------------------------- */
   console.log("Abschnitt zwischen zwei Punkten");
+
+  /*
+   * Vorher die Auswahl aufheben. Der vorige Abschnitt hat das ganze Feature
+   * gewaehlt, und ein einfacher Klick auf einen bereits markierten Punkt HEBT
+   * die Gruppe nicht auf - das ist gewolltes Verhalten, damit man sie ziehen
+   * kann. Ohne das Aufheben bliebe der Zustand "ganzes Feature", und der
+   * naechste Klick ergaebe keinen Abschnitt.
+   */
+  const clearButton = page.locator("#clearMultiSelectionBtn");
+  if (await clearButton.isEnabled()) await clearButton.click();
+  await page.waitForTimeout(200);
+
+  const markiert = () => page.locator(
+    "#vertexGroup circle.selected, #vertexGroup circle.multi-selected").count();
+
+  check("danach ist kein Punkt mehr markiert",
+    (await markiert()) === 0, String(await markiert()));
 
   await wireMarks.nth(2).click();
   await page.waitForTimeout(150);
@@ -229,9 +276,14 @@ try {
    * bei 60 Punkten auf 38 m Umfang liegen die Marker so dicht, dass sich
    * benachbarte Kreise am Bildschirm überdecken. Das ist eine Eigenheit des
    * Testaufbaus, kein Fehler der Anwendung - ein Nutzer würde hineinzoomen.
+   *
+   * Die Feature-Nummer steht am Selektor, weil seit Etappe 7f auch der
+   * Perimeter einen solchen Knopf hat - .first() waere seitdem der Perimeter.
+   * Die Exclusion ist Feature 1.
    */
   await expandSidebar();
-  await page.locator('[data-action="select-whole-feature"]').first().click();
+  await page.locator('[data-action="select-whole-feature"][data-feature-index="1"]')
+    .click();
   await page.waitForTimeout(300);
 
   check("Ring wird als ganzes Feature erkannt",

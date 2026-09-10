@@ -126,6 +126,19 @@ try {
   check("Statuszeile erklärt die Auswahl",
     (await status()).includes("Punkt des Features auswählen"), await status());
 
+  /*
+   * Seit Etappe 7f traegt auch der Perimeter den Knopf "Ganzes Feature
+   * auswaehlen". Vorher entschied canMoveWholeFeature() darueber, und die
+   * beantwortet eine andere Frage - ob sich ein Feature per Flaechen-Drag
+   * verschieben laesst. Der Perimeter darf das bewusst nicht, ausgewaehlt
+   * werden koennen muss er trotzdem: seit 7f haengt der Zeitpunkt der Vorschau
+   * daran. Gezaehlt statt auf Sichtbarkeit geprueft - die Karten der
+   * Navigation sind zu, solange ihr Feature nicht ausgewaehlt ist.
+   */
+  check("der Perimeter hat einen Knopf 'Ganzes Feature auswählen'",
+    (await page.locator(
+      '[data-action="select-whole-feature"][data-feature-index="0"]').count()) === 1);
+
   /* ---------------------------------------------------------------- */
   console.log("Verzogenes Rechteck");
 
@@ -145,6 +158,45 @@ try {
   check("die größte Verschiebung steht dabei",
     /größte Verschiebung [\d.,]+ m/.test(before), before);
   check("Button ist freigegeben", await applyButton.isEnabled());
+
+  /*
+   * Etappe 7f: die Vorschau erscheint erst beim GANZEN Feature.
+   *
+   * Ein Ausbleiben allein bewiese nichts - es bestuende auch, wenn die Vorschau
+   * gar nicht mehr gebaut wuerde. Deshalb steht daneben eine Zusicherung, die
+   * nur bei tatsaechlich vorhandener Auswahl gelingt: genau ein Punktmarker
+   * traegt den Auswahlring, und die Statuszeile des Werkzeugs rechnet bereits
+   * mit diesem Feature.
+   */
+  check("genau ein Punkt ist ausgewählt",
+    (await page.locator("#vertexGroup circle.selected").count()) === 1,
+    String(await page.locator("#vertexGroup circle.selected").count()));
+  check("bei einem Punkt gibt es noch keine Vorschaulinie",
+    (await page.locator("#selectionGhostGroup .rectify-preview-line").count()) === 0,
+    String(await page.locator("#selectionGhostGroup .rectify-preview-line").count()));
+  check("und keine markierten Punkte",
+    (await page.locator("#selectionGhostGroup .rectify-preview-node").count()) === 0,
+    String(await page.locator("#selectionGhostGroup .rectify-preview-node").count()));
+
+  /*
+   * Ganzes Feature waehlen - der Knopf steht in der Feature-Navigation.
+   *
+   * Vorher noch einmal aufklappen: die Navigation wird bei jeder
+   * Auswahlaenderung neu gebaut, und die Karten der nicht ausgewaehlten
+   * Features entstehen dabei ZU. Die Feature-Nummer steht dran, weil seit
+   * Etappe 7f auch der Perimeter einen solchen Knopf hat - die Exclusion ist
+   * Feature 1.
+   */
+  await expandSidebar();
+  await page.locator('[data-action="select-whole-feature"][data-feature-index="1"]')
+    .click();
+  await page.waitForTimeout(300);
+
+  check("alle vier Ecken sind ausgewählt",
+    (await page.locator("#vertexGroup circle.selected, #vertexGroup circle.multi-selected")
+      .count()) === 4,
+    String(await page.locator("#vertexGroup circle.selected, #vertexGroup circle.multi-selected")
+      .count()));
 
   check("Vorschaulinie ist gezeichnet",
     (await page.locator("#selectionGhostGroup .rectify-preview-line").count()) >= 1);

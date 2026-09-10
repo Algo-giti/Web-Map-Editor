@@ -274,6 +274,27 @@ try {
     (await page.locator("#vertexGroup circle").count()) === 8,
     String(await page.locator("#vertexGroup circle").count()));
 
+  /*
+   * Dieselbe Grenze in der Feature-Navigation. Seit Etappe 7f entscheidet dort
+   * isSupportedFeature() ueber den Knopf "Ganzes Feature auswaehlen" - vorher
+   * trug die Typliste in canMoveWholeFeature() diesen Filter mit. Faellt er
+   * weg, erscheint der Knopf an Features ohne Punktmarker, die anschliessend in
+   * jedem Werkzeug denselben Ablehnungsgrund liefern.
+   *
+   * Die Karte hat vier Features: Exclusion (0), "mow path" (1), Exclusion (2)
+   * und eine namenlose Linie (3). Nur 0 und 2 sind unterstuetzt.
+   */
+  const featureKnopf = (index) => page.locator(
+    `[data-action="select-whole-feature"][data-feature-index="${index}"]`).count();
+
+  check("beide Exclusions haben den Knopf 'Ganzes Feature auswählen'",
+    (await featureKnopf(0)) === 1 && (await featureKnopf(2)) === 1,
+    `${await featureKnopf(0)} / ${await featureKnopf(2)}`);
+  check("das Feature mit unbekanntem Namen hat ihn nicht",
+    (await featureKnopf(1)) === 0, String(await featureKnopf(1)));
+  check("das Feature ohne properties ebenfalls nicht",
+    (await featureKnopf(3)) === 0, String(await featureKnopf(3)));
+
   /* Die Geometrie der nicht unterstützten Features wird trotzdem gezeichnet. */
   check("nicht unterstützte Features bleiben sichtbar",
     (await page.locator('#geometryGroup path[data-layer="other"]').count()) >= 2,

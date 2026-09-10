@@ -11127,6 +11127,30 @@ function renderMergePreview() {
 
 
 /**
+ * Darf die Vorschau eines Umformwerkzeugs jetzt erscheinen?
+ *
+ * Etappe 7f, eine Regel fuer alle Vorschauen statt drei Zeitpunkte: ein
+ * Abschnitt (zwei Punkte desselben Rings) zeigt wie bisher sofort; das ganze
+ * Feature erst, wenn es auch wirklich GANZ ausgewaehlt ist.
+ *
+ * Vorher genuegte ein einziger Punkt, weil getWholeFeatureTarget() auf das
+ * ganze Feature zurueckfaellt, sobald die Auswahl eindeutig zu einem gehoert.
+ * Wer einen Punkt verschieben wollte, bekam damit ungefragt die Vorschau eines
+ * Werkzeugs, nach dem er nicht gefragt hat.
+ *
+ * Die Regel betrifft NUR den Zeitpunkt der Vorschau. Worauf die Werkzeuge
+ * selbst wirken, aendert sie nicht - das entscheiden weiterhin
+ * getReduceTarget() und getWholeFeatureTarget().
+ */
+function previewSelectionAllows(target) {
+  if (!target.ok) return false;
+  if (target.mode !== "feature") return true;
+
+  return isWholeFeatureSelected(target.featureIndex);
+}
+
+
+/**
  * Zeichnet die Vorschau der Begradigung in die vorhandene Ghost-Gruppe.
  *
  * Bewusst kein eigenes Overlay-System und keine eigene SVG-Gruppe: die
@@ -11136,7 +11160,7 @@ function renderMergePreview() {
  */
 function renderReducePreview(worldUnitsPerPixel) {
   const target = getReduceTarget();
-  if (!target.ok) return;
+  if (!previewSelectionAllows(target)) return;
 
   const analysis = analyzeReduction(target, reduceTolerance);
   if (!analysis.removed.length || analysis.belowMinimum) return;
@@ -11187,7 +11211,7 @@ function renderReducePreview(worldUnitsPerPixel) {
  */
 function renderRectifyPreview(worldUnitsPerPixel) {
   const target = getWholeFeatureTarget();
-  if (!target.ok) return;
+  if (!previewSelectionAllows(target)) return;
 
   const analysis = analyzeRectify(target);
   if (!analysis || !analysis.snapped || analysis.maxShift === 0) return;
@@ -16444,7 +16468,23 @@ function renderFeatureNavigator() {
     const actions = document.createElement("div");
     actions.className = "feature-actions";
 
-    if (canMoveWholeFeature(feature) && descriptors.length) {
+    /*
+     * Der Knopf erscheint an JEDEM unterstuetzten Feature, auch am Perimeter.
+     *
+     * Vorher stand hier canMoveWholeFeature(): diese Funktion beantwortet aber
+     * eine andere Frage, naemlich ob sich ein Feature per Flaechen-Drag
+     * verschieben laesst - und der Perimeter darf das bewusst nicht. Auswaehlen
+     * ist nicht Verschieben. Seit Etappe 7f haengt daran zusaetzlich der
+     * Zeitpunkt der Werkzeugvorschauen, und ohne den Knopf gaebe es am
+     * Perimeter keinen zumutbaren Weg, alle Punkte zu waehlen.
+     *
+     * isSupportedFeature() ist Pflicht und keine Verzierung: die alte Typliste
+     * trug neben der Verschiebeerlaubnis auch den Filter gegen nicht
+     * unterstuetzte Features mit, und getFeatureDescriptors() filtert nicht.
+     * Ohne ihn erschiene der Knopf an Features ohne Punktmarker, die in jedem
+     * Werkzeug denselben Ablehnungsgrund liefern.
+     */
+    if (descriptors.length > 0 && isSupportedFeature(feature)) {
       const selectFeatureButton = document.createElement("button");
       selectFeatureButton.type = "button";
       selectFeatureButton.textContent =
