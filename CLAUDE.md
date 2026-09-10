@@ -197,7 +197,7 @@ Sie zerfallen in **zwei Stufen**, und diese Trennung ist beabsichtigt:
 | Stufe | Skripte | Abhängigkeiten | Status |
 |---|---|---|---|
 | statisch | `check-all.mjs` (4.1) | keine | **Pflicht** vor jeder Rückmeldung "fertig" |
-| Browser | siebzehn Skripte, gestartet über `tools/run-browser-tests.mjs` (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
+| Browser | die Skripte der Tabelle in 4.2, gestartet über `tools/run-browser-tests.mjs` | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
 
 `check-all.mjs` läuft mit Node-Bordmitteln und muss das bleiben – es ist die
 Stufe, die in **jeder** Umgebung ohne Vorbereitung durchläuft. Die
@@ -300,8 +300,8 @@ Zwei Fallstricke dabei:
 
 ### 4.2 Browsertests (optional, real gerendert)
 
-Siebzehn Skripte öffnen `index.html` in einem echten Browser über eine
-`file://`-URL – die Datei hat keine externen Ressourcen und keine
+Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
+über eine `file://`-URL – die Datei hat keine externen Ressourcen und keine
 `fetch()`-Aufrufe, ein Webserver ist also nicht nötig.
 
 | Skript | Gegenstand |
@@ -475,8 +475,8 @@ Wenn `playwright-core` fehlt oder kein Browser startet, brechen die Skripte
 auch kein bestandener Test, und genau das muss ein Exit-Code sagen können.
 
 **Die 0 an dieser Stelle war das Falsche zugesichert.** Sie machte einen Lauf
-ohne Browser von einem bestandenen ununterscheidbar: siebzehn Skripte, die alle
-mit 0 enden, weil keines starten konnte, sehen aus wie siebzehn bestandene
+ohne Browser von einem bestandenen ununterscheidbar: lauter Skripte, die alle
+mit 0 enden, weil keines starten konnte, sehen aus wie ebenso viele bestandene
 Tests. `tools/run-browser-tests.mjs` zählt 2 deshalb als **übersprungen** und
 meldet den Lauf ausdrücklich als *nicht gelaufen*.
 
@@ -567,19 +567,42 @@ angefasst werden):
 
 | Datei | Zusicherung |
 |---|---|
-| `test-merge.mjs` | „Kartenprüfung sieht nur einen Perimeter" |
-| `test-merge.mjs` | „Kartenprüfung meldet kein doppeltes Docking" |
-| `test-merge.mjs` | „Kartenprüfung meldet danach keine doppelten Features" |
-| `test-reduce.mjs` | „Ring ist nach dem Reduzieren noch geschlossen" |
-| `test-dockpath.mjs` | „drei Punkte erzeugen keinen Docking-Befund" |
+| `test-reduce.mjs` | „Ring ist nach dem Reduzieren noch geschlossen" (`test-reduce.mjs:307`) |
+| `test-dockpath.mjs` | „drei Punkte erzeugen keinen Docking-Befund" (`test-dockpath.mjs:287`) |
 
-Alle fünf lesen einen Prüfbericht oder einen Knopfzustand, nachdem sie einen
-Auslöser gefeuert haben, und würden auch bei einem leeren Bericht bzw. einem
-wirkungslosen Klick bestehen.
+Beide lesen einen Prüfbericht, nachdem sie „Karte prüfen" gedrückt haben, und
+prüfen darin auf das **Ausbleiben** einer Zeichenkette (`!report.includes(…)`).
+Sie bestünden auch bei einem leeren Bericht.
 
-Die sechste ist mit Etappe 5b erledigt: `test-shapes.mjs` prüfte „Werkzeug
-startet nicht" nach einem Klick mit Radius 0 – das bestand auch, wenn der
-Klick gar nichts auslöste. Geprüft wird jetzt die Wirkung: der Abschluss ist
+**Drei Einträge sind gestrichen, weil sie erledigt sind – und die Streichung
+kommt drei Etappen zu spät.** `test-merge.mjs` trug „Kartenprüfung sieht nur
+einen Perimeter", „Kartenprüfung meldet kein doppeltes Docking" und
+„Kartenprüfung meldet danach keine doppelten Features". Etappe 7a1 (`8bd2b9f`)
+hat genau diese drei entfernt und durch Zählungen am Ergebnis ersetzt:
+
+| gestrichener Eintrag | erledigt durch |
+|---|---|
+| „Kartenprüfung sieht nur einen Perimeter" | „Karte A hat genau einen Perimeter" (`test-merge.mjs:204`) und „das Ergebnis hat genau einen Perimeter" (`:267`) – beide zählen `typen()` |
+| „Kartenprüfung meldet kein doppeltes Docking" | „Karte A hat genau einen Docking-Pfad" (`:206`) und „genau einen Docking-Pfad und eine Search Wire" (`:269`) |
+| „Kartenprüfung meldet danach keine doppelten Features" | „und kein Feature ohne erkennbaren Typ" (`:208` und `:272`) sowie „beide Exclusions übernommen" (`:237`) |
+
+**Die Lehre daraus steht schon in dieser Datei, nur andersherum.** Der
+dokumentierte Fall ist „bearbeitet gilt als geprüft" – ein Eintrag, an dem
+gearbeitet wurde, wird beim nächsten Durchgang übersprungen. Hier war es die
+Gegenrichtung: **repariert, aber nicht ausgetragen.** Die Reparatur stand sogar
+im selben Dokument beschrieben („der Gewinn der Umstellung aus 7a1 von ‚den
+Prüfbericht befragen' auf ‚das Ergebnis zählen'"), nur eben nicht in dieser
+Liste. Eine Liste offener Punkte, die Erledigtes führt, kostet beim nächsten
+Lesen genauso viel wie eine, der etwas fehlt – und sie bindet die Planung:
+„sie werden mitgezogen, wenn die betroffenen Tests ohnehin angefasst werden"
+hätte in Etappe 7d-3 zu einer Suche nach drei Zusicherungen geführt, die es
+nicht mehr gibt. **Wer einen Punkt dieser Datei behebt, streicht ihn im selben
+Commit.**
+
+Die sechste des ursprünglichen Bestandes ist schon mit Etappe 5b erledigt und
+damals ausgetragen worden, wie es sich gehört: `test-shapes.mjs` prüfte
+„Werkzeug startet nicht" nach einem Klick mit Radius 0 – das bestand auch,
+wenn der Klick gar nichts auslöste. Geprüft wird jetzt die Wirkung: der Abschluss ist
 gesperrt, der Grund steht sichtbar da, ein gültiger Wert gibt ihn wieder frei,
 und danach entsteht die Form wirklich. Eine reine Verneinung ohne Auslöser – etwa
 `!pointInRing(...)` in `test-geometry.mjs` – ist davon nicht betroffen: dort
@@ -632,12 +655,19 @@ Kartendatei im Repository und es wird keine gelesen.
 
 **Es gibt keinen Ordner für Beispiel- oder Testkarten, und es soll keiner
 geben.** Entschieden, damit die Frage nicht neu gestellt wird. Zwei Gründe, und
-beide tragen für sich: eine geteilte Fixture-Datei koppelte achtzehn Skripte
-aneinander – wer sie für einen Test erweitert, ändert die Ausgangslage der
-anderen siebzehn mit, ohne es zu sehen; heute steht die Karte **neben** der
-Zusicherung, die sie erklärt. Und `tools/check-privacy.mjs` meldet **jede von
-git getrackte Datei** auf `.json`/`.geojson` mit `FeatureCollection` als
-**Fehler**; ein Beispielordner verlangte also zwingend eine Ausnahme in der
+beide tragen für sich: eine geteilte Fixture-Datei koppelte **jedes Skript in
+`tools/`, das sich eine Testkarte baut**, aneinander – wer sie für einen Test
+erweitert, ändert die Ausgangslage aller übrigen mit, ohne es zu sehen; heute
+steht die Karte **neben** der Zusicherung, die sie erklärt.
+
+Gezählt sind das die Browsertests aus der Tabelle in 4.2 **plus
+`tools/test-cassandra.mjs`**, das als einziges statische Skript eine Karte
+liest. Die Zahl stand hier früher ausgeschrieben da, ohne zu sagen, was sie
+zählt – und ließ sich deshalb mit der Zahl der Browsertests verwechseln, die
+um eins kleiner ist.
+
+Der zweite Grund: `tools/check-privacy.mjs` meldet **jede von git getrackte
+Datei** auf `.json`/`.geojson` mit `FeatureCollection` als **Fehler**; ein Beispielordner verlangte also zwingend eine Ausnahme in der
 einzigen automatisierten Schutzschicht gegen eingecheckte Kartendaten. Die
 Ausnahme wäre die eigentliche Entscheidung, nicht der Ordner.
 
@@ -3504,6 +3534,45 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | `test-validation.mjs` | `#validationReport .validation-item.warning` / `.error` / `.info` | `.count()` |
   | `test-validation.mjs` | `#validationReport` im englischen Durchlauf | `textContent()` |
   | `test-scale.mjs` | `#validationReport` nach „Karte prüfen" | `textContent()` |
+
+- **Die Auftrennstelle überlebt ihre eigene Kante.** Befund vom 10.09.2026,
+  Stand `d012fc6`, im Browser gemessen – **Reproduktionsfall, kein Auftrag.**
+
+  `slot.cutEdgeChosen` ist ein Boolean über eine **vergangene Geste**, nicht
+  über den heutigen Ring. Jede Geometrieänderung an Punkt 0 oder am letzten
+  Punkt verschiebt die Auftrennstelle, ohne dass die Marke fällt – der
+  Infoblock behauptet weiter, der Nutzer habe diese Stelle gewählt.
+
+  Ausgangslage in beiden Fällen: Perimeter `[[40,0],[40,40],[0,40],[0,0]]`
+  nach „Auftrennstelle setzen", Marke `true`, Infoblock „Karte A ·
+  Auftrennstelle gewählt. · Startpunkt E 40.00 / N 0.00 m · Endpunkt
+  E 0.00 / N 0.00 m".
+
+  | Eingriff | Ring danach | Marke | Infoblock danach |
+  |---|---|---|---|
+  | Punkt 0 löschen (der gewählte Startpunkt) | `[[40,40],[0,40],[0,0]]` | **`true`** | „Auftrennstelle gewählt.", Startpunkt **E 40.00 / N 40.00 m** |
+  | Punkt hinter dem letzten einfügen | `[[40,40],[0,40],[0,0],[20,20]]` | **`true`** | „Auftrennstelle gewählt.", Endpunkt **E 20.00 / N 20.00 m** |
+
+  Im zweiten Fall nennt die Anzeige einen Punkt, den es beim Wählen noch gar
+  nicht gab. **Das ist dieselbe Klasse wie der Befund, der Etappe 7d ausgelöst
+  hat:** eine stille Überschreibung der Auftrennstelle, die nichts meldet – nur
+  dass sie hier nicht von einem zweiten Knopf kommt, sondern von einer ganz
+  gewöhnlichen Punktbearbeitung.
+
+  **Nicht gemessen ist das Verschieben** von Punkt 0 bzw. des letzten Punktes –
+  weder mit der Maus noch über die E/N-Felder noch mit den Pfeiltasten. Der
+  Verdacht liegt nahe, dass die Marke auch dort stehen bleibt, während sich die
+  Kante verändert; **er ist aber ungeprüft und darf bis zur Messung nicht als
+  Befund zitiert werden.**
+
+  Zu entscheiden ist, was die Marke überhaupt behaupten soll: „der Nutzer hat
+  einmal gewählt" (heutiges Verhalten, dann muss die Anzeige anders lauten)
+  oder „die aktuelle Auftrennstelle ist gewählt" (dann muss die Marke bei jeder
+  Änderung an Punkt 0 oder am letzten Punkt fallen). Die Hausregel
+  „abgeleitet, nicht gespeichert" zeigt auf die zweite Lesart; die
+  ausdrückliche Begründung, mit der die Marke in 7d-1 **doch** gespeichert
+  wurde, zeigt auf die erste. Beides ist vertretbar, und die Antwort gehört vor
+  den Bau.
 
 - **Die Mähbahnen-Vorschau ist geplant, aber nicht gebaut.** Sie war für
   Ausgabe 049 vorgesehen und wurde herausgenommen, um den Release nicht
