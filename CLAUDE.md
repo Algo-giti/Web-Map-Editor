@@ -2975,6 +2975,14 @@ dieses Repository schon einmal richtig gemacht hat.
 - **`.vertex:hover`** ist die einzige Rückmeldung, dass ein Punkt überhaupt
   treffbar ist, bevor man ihn antippt. Auf Touch gibt es sie nicht, und die
   Trefferfläche eines Markers ist damit unsichtbar.
+- **Die Erklärtexte von `#setStartPointBtn` und `#setEndPointBtn` stehen nur
+  im `title`.** Mit Etappe 7d-2 dazugekommen, und beide tragen eine Aussage,
+  die nirgends sonst steht: dass die zwei Knöpfe **dieselbe** Drehung auslösen
+  und die zweite Geste die erste überschreibt. Auf dem Zielgerät erscheint
+  keiner der beiden Texte. Der Nachbarknopf „Auftrennstelle setzen" macht es im
+  selben Fenster bereits richtig – sein Ablehnungsgrund steht sichtbar in einem
+  `.tool-reason`-Feld –, aber das ist der **Grund**, nicht die **Erklärung**;
+  die Trennung, um die es in dieser Etappe geht, verläuft genau hier.
 
 **Nicht mitentschieden ist die Antwort.** Ein zweites `.tool-reason`-Feld für
 jeden Knopf wäre der naheliegende Weg und der falsche – der Inspektor trägt
@@ -3535,6 +3543,39 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | `test-validation.mjs` | `#validationReport` im englischen Durchlauf | `textContent()` |
   | `test-scale.mjs` | `#validationReport` nach „Karte prüfen" | `textContent()` |
 
+- **Dezimaltrennzeichen: der Editor benutzt zwei, und keines von beiden
+  wechselt mit der Sprache.** Befund vom 10.09.2026, Stand `4202533`, in beiden
+  Sprachen im Browser gemessen – **kein Auftrag, an der Formatierung ist nichts
+  geändert.**
+
+  | Ort | deutsch | englisch | Funktion |
+  |---|---|---|---|
+  | Inspektor, E/N-Felder (`#pointEastInput`, `#pointNorthInput`) | `40,50` | **`40,50`** | `formatMeters()`, `index.html:11755` – `toLocaleString("de-DE")` |
+  | Statuszeile, Rasterfeld (`#gridShort`) | `0,10 m` | **`0,10 m`** | `formatGridMeters()`, `index.html:15362` – `toLocaleString("de-DE")` |
+  | Statuszeile, Cursor-Koordinaten (`#hud`) | `E: 20.25 m` | `E: 20.25 m` | `toFixed(2)`, `index.html:17733` |
+  | Verbinden-Fenster (`#mergeAInfo`, `#mergeBInfo`) | `E 0.00 / N 40.50 m` | `E 0.00 / N 40.50 m` | `formatEndpoint()`, `index.html:15655` – `toFixed(2)` |
+
+  **Zwei Befunde, nicht einer.** Erstens stehen Komma und Punkt nebeneinander:
+  `toLocaleString("de-DE")` an zwei Orten, `toFixed()` an zwei anderen.
+  Zweitens – und das ist der schwerere – ist `"de-DE"` **fest verdrahtet**: die
+  englische Oberfläche zeigt `40,50`, wo ein englischer Leser einen
+  Tausendertrenner erwartet. Der Punkt der `toFixed()`-Stellen ist im
+  Englischen also zufällig richtig und im Deutschen falsch, der Komma-Stellen
+  genau umgekehrt.
+
+  **Wer das vereinheitlicht, fasst nicht nur die Ausgabe an.** Die E/N-Felder
+  sind **Eingaben**: was dort steht, wird zurückgelesen. Ein einheitliches
+  Format muss deshalb in beiden Sprachen auch **geparst** werden. Heute leistet
+  das `parseLocaleNumber()` (`index.html:11764`), das Komma und Punkt gleich
+  behandelt – nachgemessen: `"40,50"` und `"40.50"` liefern beide `40.5`. Diese
+  Toleranz ist die Voraussetzung dafür, dass sich an der Anzeige überhaupt
+  etwas ändern lässt, ohne Eingaben zu brechen; sie darf beim Vereinheitlichen
+  nicht wegfallen.
+
+  Zur Herkunft, damit niemand die Stelle für neu hält: `formatEndpoint()` ist
+  seit Etappe 7d-1 unverändert, 7d-2 hat nur die Beschriftungen ringsum
+  ausgetauscht. Der Punkt im Verbinden-Fenster stand vorher genauso da.
+
 - **Die Auftrennstelle überlebt ihre eigene Kante.** Befund vom 10.09.2026,
   Stand `d012fc6`, im Browser gemessen – **Reproduktionsfall, kein Auftrag.**
 
@@ -3564,6 +3605,21 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Verdacht liegt nahe, dass die Marke auch dort stehen bleibt, während sich die
   Kante verändert; **er ist aber ungeprüft und darf bis zur Messung nicht als
   Befund zitiert werden.**
+
+  **Dieselbe Lücke ein zweites Mal, an den beiden alten Punktknöpfen.** Die
+  zweite Punktgeste überschreibt die erste – „Startpunkt setzen" auf einen
+  Punkt und danach „Endpunkt setzen" auf einen anderen lässt vom ersten nichts
+  übrig –, und **die Statuszeile meldet beide Male Erfolg**: „Punkte neu
+  nummeriert: Start = 1, Ende = n". **Eine Meldung beim Überschreiben fehlt.**
+  Das ist genau der Befund, aus dem Etappe 7d entstanden ist; 7d-1 bis 7d-3
+  haben ihn benannt, belegt und zugesichert, aber nicht behoben – die beiden
+  Knöpfe verhalten sich unverändert.
+
+  **Wohin die Behebung gehört, entscheidet der 7d-4-Plan.** Zwei Zuordnungen
+  sind vertretbar und schließen einander nicht aus: als **7d-4**, weil es
+  derselbe Gegenstand ist und die Marke ohnehin angefasst wird; oder als Teil
+  von **8b**, weil die Erklärung, die das Überschreiben ankündigt, heute im
+  `title` steht und auf dem Zielgerät nie erscheint. **Nicht vorwegnehmen.**
 
   Zu entscheiden ist, was die Marke überhaupt behaupten soll: „der Nutzer hat
   einmal gewählt" (heutiges Verhalten, dann muss die Anzeige anders lauten)

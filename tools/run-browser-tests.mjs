@@ -49,7 +49,7 @@ function findBrowserTests() {
  *
  * Die Tabelle dort ist die Dokumentation, dieses Verzeichnis die Wirklichkeit.
  * Läuft beides auseinander, ist eine von beiden falsch - der Läufer sagt
- * welche, statt die Prosazahl "siebzehn" zu glauben.
+ * welche, statt einer Zahl im Fließtext zu glauben.
  */
 function documentedTests() {
   const text = readFileSync(join(repoRoot, "CLAUDE.md"), "utf8");
