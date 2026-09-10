@@ -400,6 +400,517 @@ try {
     meldung);
 
   /* ---------------------------------------------------------------- */
+  console.log("Auftrennstelle: setzen, ueberschreiben, zuruecknehmen");
+
+  /*
+   * Bis hierher hat kein einziger Test dieses Verzeichnisses je einen Start-
+   * oder Endpunkt gesetzt - saemtliche Merge-Zusicherungen liefen gegen die
+   * Reihenfolge, die zufaellig in der Datei stand. Genau deshalb konnte die
+   * stille Ueberschreibung durch die beiden Punktknoepfe beliebig lange
+   * bestehen: die Fuehrung war nie geprueft.
+   *
+   * Geprueft wird ausschliesslich die SICHTBARE Wirkung - der Text in
+   * #mergeAInfo / #mergeBInfo und in #mergeStatus -, nie slot.cutEdgeChosen
+   * oder eine andere interne Groesse. Die Marke ist ein Speicherdetail; wie
+   * sie dargestellt wird, kann sich aendern, ohne dass diese Zusicherungen
+   * etwas anderes bedeuten sollen.
+   */
+
+  /** Nackte Karte fuer die Auftrennstelle - Punktfolge von Hand nachrechenbar. */
+  const cutMap = (ring, exclusion = null) => JSON.stringify({
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: { name: "perimeter" },
+        geometry: { type: "Polygon", coordinates: [[...ring, ring[0]].map(rel)] },
+      },
+      ...(exclusion ? [{
+        type: "Feature",
+        idx: 0,
+        properties: { name: "exclusion" },
+        geometry: {
+          type: "Polygon",
+          coordinates: [[...exclusion, exclusion[0]].map(rel)],
+        },
+      }] : []),
+      /* Leere Platzhalter, sonst spraeche der Singleton-Konflikt gegen das Verbinden. */
+      { type: "Feature", properties: { name: "dockpoints" },
+        geometry: { type: "LineString", coordinates: [] } },
+      { type: "Feature", properties: { name: "search wire" },
+        geometry: { type: "LineString", coordinates: [] } },
+    ],
+  });
+
+  const RING_A = [[0, 0], [40, 0], [40, 40], [0, 40]];
+  const EXCLUSION_A = [[10, 10], [20, 10], [20, 20], [10, 20]];
+  const RING_B = [[-20, 40], [-60, 40], [-60, 0], [-20, 0]];
+  const RING_B_GEDREHT = [[-20, 0], [-60, 0], [-60, 40], [-20, 40]];
+
+  /**
+   * Die Punktfolge des Perimeters als Zeichenkette, im Format der Anzeige.
+   *
+   * Verglichen wird die WELTkoordinate mit toFixed(2), nicht der Rohwert aus
+   * der Datei: 40 / 111111 * 111111 ist in Gleitkomma nicht zwingend wieder
+   * genau 40. Das Ergebnis ist trotzdem ein exakter Zeichenkettenvergleich -
+   * keine Toleranz, nur dieselbe Rundung, die der Nutzer auch sieht.
+   */
+  const perimeterFolge = () => page.evaluate(() => {
+    const feature = data.features.find((f) => getFeatureType(f) === "perimeter");
+    const ring = feature.geometry.coordinates[0];
+
+    /* Der letzte Eintrag ist der technische Ringschluss, kein eigener Punkt. */
+    return ring.slice(0, -1)
+      .map((point) => {
+        const [east, north] = toWorld(point);
+        return `${east.toFixed(2)}/${north.toFixed(2)}`;
+      })
+      .join(" ");
+  });
+
+  const folge = (punkte) =>
+    punkte.map(([e, n]) => `${e.toFixed(2)}/${n.toFixed(2)}`).join(" ");
+
+  const mergeText = async (selector) =>
+    (await page.locator(selector).innerText()).replace(/\s+/g, " ").trim();
+
+  /**
+   * Findet den Punktmarker ueber seine KOORDINATE, nicht ueber seinen Index.
+   *
+   * Der Index ist genau die Groesse, die das Auftrennen veraendert - ein Test,
+   * der Punkte ueber Indizes anspricht, waehlt nach jeder Drehung etwas
+   * anderes aus und merkt es nicht. Die Marker tragen ihre Weltlage in cx/cy,
+   * wobei cy nach unten zeigt und deshalb das negative North ist.
+   */
+  const markerSchluessel = ([east, north], layer = "perimeter") =>
+    page.evaluate(([e, n, ebene]) => {
+      const treffer = [...document.querySelectorAll("circle.vertex")].filter(
+        (circle) =>
+          circle.dataset.layer === ebene &&
+          Math.abs(Number(circle.getAttribute("cx")) - e) < 0.005 &&
+          Math.abs(Number(circle.getAttribute("cy")) + n) < 0.005
+      );
+
+      return treffer.length === 1 ? treffer[0].dataset.vertexKey : null;
+    }, [east, north, layer]);
+
+  /**
+   * Auswahl aufheben und neu setzen.
+   *
+   * Zweimal Escape: das erste schliesst das Verbinden-Fenster, das zweite hebt
+   * die Auswahl auf. Ein Klick auf einen BEREITS markierten Punkt hebt die
+   * Gruppe naemlich nicht auf - sie bleibt bestehen, damit man sie ziehen kann.
+   * Wer das uebersieht, waehlt beim zweiten Paar drei Punkte aus und bekommt
+   * einen Ablehnungsgrund, der wie ein Fehler des Knopfes aussieht.
+   *
+   * Das Fenster muss dabei ohnehin zu sein: es steht unten links ueber der
+   * Karte, und ein Marker darunter ist nicht anklickbar.
+   */
+  const waehlePunkte = async (koordinaten, layer = "perimeter") => {
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(150);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+
+    const vorher = (await page.locator("#multiSelectionInfo").innerText()).trim();
+
+    check(`Vorbedingung: die Auswahl ist leer (${koordinaten.length} ${layer})`,
+      vorher.startsWith("0"),
+      `#multiSelectionInfo meldet "${vorher}" statt "0 ausgewaehlt" - zwei ` +
+      `Escape haben die vorige Auswahl nicht aufgehoben`);
+
+    let ersterKlick = true;
+
+    for (const koordinate of koordinaten) {
+      const schluessel = await markerSchluessel(koordinate, layer);
+
+      check(`Marker ${layer} bei E ${koordinate[0]} / N ${koordinate[1]} ist eindeutig`,
+        schluessel !== null,
+        "kein oder mehr als ein Marker an dieser Stelle");
+
+      await page.locator(`circle.vertex[data-vertex-key="${schluessel}"]`).click(
+        ersterKlick ? {} : { modifiers: ["Control"] }
+      );
+      ersterKlick = false;
+    }
+
+    await page.waitForTimeout(250);
+  };
+
+  const A_UNGESETZT =
+    "Karte A Auftrennstelle aus der Datei. " +
+    "Startpunkt E 0.00 / N 0.00 m Endpunkt E 0.00 / N 40.00 m";
+
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
+
+  check("Vorlage: Karte A steht auf der Dateireihenfolge",
+    (await perimeterFolge()) === folge(RING_A), await perimeterFolge());
+  check("und der Infoblock nennt die Reihenfolge aus der Datei",
+    (await mergeText("#mergeAInfo")) === A_UNGESETZT,
+    await mergeText("#mergeAInfo"));
+
+  /* --- 1. Setzen, und das Ergebnis zaehlen ------------------------- */
+
+  await waehlePunkte([[0, 0], [40, 0]]);
+  await openMergeWindow();
+
+  check("Auftrennstelle: der Knopf ist bei zwei benachbarten Punkten frei",
+    await page.locator("#setMergeCutBtn").isEnabled(),
+    await page.locator("#mergeCutReason").textContent());
+
+  await page.locator("#setMergeCutBtn").click();
+  await page.waitForTimeout(400);
+  await openMergeWindow();
+
+  const A_GESETZT =
+    "Karte A Auftrennstelle gewählt. " +
+    "Startpunkt E 40.00 / N 0.00 m Endpunkt E 0.00 / N 0.00 m";
+
+  check("der Ring steht danach auf [40,0] und traegt dieselben vier Punkte",
+    (await perimeterFolge()) === folge([[40, 0], [40, 40], [0, 40], [0, 0]]),
+    await perimeterFolge());
+  check("der Infoblock nennt die gewaehlte Stelle mit beiden Punkten",
+    (await mergeText("#mergeAInfo")) === A_GESETZT,
+    await mergeText("#mergeAInfo"));
+
+  const infoGetroffen = await elementGetroffen(page, "#mergeAInfo");
+  check("und der Infoblock ist wirklich getroffen, nicht nur gerechnet da",
+    infoGetroffen.ok, JSON.stringify(infoGetroffen));
+
+  /* Dieselbe Kante, umgekehrt angeklickt. */
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
+  await waehlePunkte([[40, 0], [0, 0]]);
+  await openMergeWindow();
+  await page.locator("#setMergeCutBtn").click();
+  await page.waitForTimeout(400);
+  await openMergeWindow();
+
+  check("die umgekehrte Klickreihenfolge liefert denselben Ring",
+    (await perimeterFolge()) === folge([[40, 0], [40, 40], [0, 40], [0, 0]]),
+    await perimeterFolge());
+  check("und denselben Infotext",
+    (await mergeText("#mergeAInfo")) === A_GESETZT,
+    await mergeText("#mergeAInfo"));
+
+  /* --- 2. Die Schlusskante ----------------------------------------- */
+
+  /*
+   * Die Kante vom letzten zum ersten Punkt ist der Fall, in dem sich die
+   * Reihenfolge NICHT aendert - eine frisch geladene Datei ist dort ohnehin
+   * schon aufgetrennt. Genau deshalb traegt hier allein der Infotext die
+   * Zusicherung: ein Ringvergleich wuerde auch bestehen, wenn der Knopf gar
+   * nichts getan haette.
+   */
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
+  await waehlePunkte([[0, 40], [0, 0]]);
+  await openMergeWindow();
+
+  check("Schlusskante: der Knopf ist frei",
+    await page.locator("#setMergeCutBtn").isEnabled(),
+    await page.locator("#mergeCutReason").textContent());
+
+  await page.locator("#setMergeCutBtn").click();
+  await page.waitForTimeout(400);
+  await openMergeWindow();
+
+  const A_SCHLUSSKANTE =
+    "Karte A Auftrennstelle gewählt. " +
+    "Startpunkt E 0.00 / N 0.00 m Endpunkt E 0.00 / N 40.00 m";
+
+  check("Schlusskante: der Ring bleibt unveraendert",
+    (await perimeterFolge()) === folge(RING_A), await perimeterFolge());
+  check("und trotzdem wechselt der Infotext von der Datei auf die Wahl",
+    (await mergeText("#mergeAInfo")) === A_SCHLUSSKANTE,
+    await mergeText("#mergeAInfo"));
+
+  /* --- 6. Undo ----------------------------------------------------- */
+
+  /*
+   * Der Schlusskanten-Fall isoliert die Marke: die Geometrie ist vor und nach
+   * dem Undo dieselbe, es kann also nur der Infotext zurueckspringen. Gelingt
+   * das, reist die Marke im Snapshot mit - ohne diese Zusicherung stuende die
+   * Behauptung "cloneMapSlot() klont tief" ungeprueft da.
+   */
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await page.keyboard.press("Control+z");
+  await page.waitForTimeout(400);
+  await openMergeWindow();
+
+  check("Undo im Schlusskanten-Fall: der Ring ist unveraendert",
+    (await perimeterFolge()) === folge(RING_A), await perimeterFolge());
+  check("und allein der Infotext springt auf die Dateireihenfolge zurueck",
+    (await mergeText("#mergeAInfo")) === A_UNGESETZT,
+    await mergeText("#mergeAInfo"));
+
+  /* Und im Drehfall zurueck: Ring UND Infotext. */
+  await waehlePunkte([[0, 0], [40, 0]]);
+  await openMergeWindow();
+  await page.locator("#setMergeCutBtn").click();
+  await page.waitForTimeout(400);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await page.keyboard.press("Control+z");
+  await page.waitForTimeout(400);
+  await openMergeWindow();
+
+  check("Undo im Drehfall: der Ring steht wieder auf der Dateireihenfolge",
+    (await perimeterFolge()) === folge(RING_A), await perimeterFolge());
+  check("und der Infotext ebenfalls",
+    (await mergeText("#mergeAInfo")) === A_UNGESETZT,
+    await mergeText("#mergeAInfo"));
+
+  /* --- 3. Die Ueberschreibung durch die beiden alten Knoepfe -------- */
+
+  /*
+   * "Ende E setzen" ist identisch mit "Start E+1 setzen" - beide Knoepfe
+   * loesen dieselbe Drehung aus. Wer sie nacheinander benutzt, loescht die
+   * erste Wahl, und NICHTS meldet das: beide geben dieselbe Erfolgsmeldung
+   * aus. Der Zwischenstand wird deshalb mitgeprueft, sonst bewiese der
+   * Endstand nicht, dass ueberhaupt zweimal gedreht wurde.
+   */
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
+
+  await waehlePunkte([[40, 0]]);
+  await openAllFolds(page);
+  await page.locator("#setStartPointBtn").click();
+  await page.waitForTimeout(400);
+
+  check("Startpunkt setzen dreht den Ring auf [40,0]",
+    (await perimeterFolge()) === folge([[40, 0], [40, 40], [0, 40], [0, 0]]),
+    await perimeterFolge());
+
+  await waehlePunkte([[40, 40]]);
+  await openAllFolds(page);
+  await page.locator("#setEndPointBtn").click();
+  await page.waitForTimeout(400);
+
+  check("Endpunkt setzen ueberschreibt die erste Geste vollstaendig",
+    (await perimeterFolge()) === folge([[0, 40], [0, 0], [40, 0], [40, 40]]),
+    await perimeterFolge());
+
+  /* --- 7. Ablehnung mit Grund -------------------------------------- */
+
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
+
+  await waehlePunkte([[0, 0], [40, 40]]);
+  await openMergeWindow();
+
+  check("zwei nicht benachbarte Punkte: der Knopf ist gesperrt",
+    await page.locator("#setMergeCutBtn").isDisabled());
+  check("und der Grund steht sichtbar unter dem Knopf",
+    (await page.locator("#mergeCutReason").textContent()).trim() ===
+      "Auftrennen: die beiden Punkte müssen benachbart sein – zwischen ihnen liegen weitere.",
+    await page.locator("#mergeCutReason").textContent());
+
+  await waehlePunkte([[10, 10], [20, 10]], "exclusion");
+  await openMergeWindow();
+
+  check("zwei benachbarte Punkte einer Exclusion: der Knopf ist gesperrt",
+    await page.locator("#setMergeCutBtn").isDisabled());
+  check("und der Grund nennt den Perimeter",
+    (await page.locator("#mergeCutReason").textContent()).trim() ===
+      "Auftrennen: aufgetrennt wird der Perimeter, nicht dieses Feature.",
+    await page.locator("#mergeCutReason").textContent());
+
+  /* --- 8. Sprache: A geladen, B nicht ------------------------------ */
+
+  /*
+   * Gemessen wird OHNE weitere Aktion nach dem Wechsel: die Texte des
+   * Fensters entstehen abgeleitet, und updateMergePanel() haengt erst seit
+   * Etappe 7d-1 in refreshDerivedUi(). Vorher passierte beim Sprachwechsel an
+   * dieser Stelle schlicht nichts - eine Uebersetzungsluecke war deshalb in
+   * BEIDEN Sprachen unsichtbar.
+   */
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await openMergeWindow();
+
+  const T_CUT_DE = "Trennt den Perimeter der aktiven Karte an der Kante zwischen den beiden ausgewählten Punkten auf. Die Geometrie ändert sich dabei nicht, nur die Reihenfolge: der eine Punkt wird Startpunkt, der andere Endpunkt.";
+  const T_START_DE = "Dreht den Ring so, dass der ausgewählte Punkt Punkt 1 wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Endpunkt setzen“ auf dem Punkt davor bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.";
+  const T_END_DE = "Dreht den Ring so, dass der ausgewählte Punkt letzter Punkt wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Startpunkt setzen“ auf dem Punkt danach bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.";
+  const T_CUT_EN = "Cuts the perimeter of the active map open at the edge between the two selected points. The geometry does not change, only the order: one point becomes the start point, the other the end point.";
+  const T_START_EN = "Rotates the ring so that the selected point becomes point 1. Start point and end point are the same rotation: “Set end point” on the preceding point does exactly the same, and the second of the two gestures overwrites the first.";
+  const T_END_EN = "Rotates the ring so that the selected point becomes the last point. Start point and end point are the same rotation: “Set start point” on the following point does exactly the same, and the second of the two gestures overwrites the first.";
+
+  const titel = (id) => page.locator(`#${id}`).getAttribute("title");
+
+  check("deutsch: der Auftrennknopf traegt seinen vollen Erklaertext",
+    (await titel("setMergeCutBtn")) === T_CUT_DE, await titel("setMergeCutBtn"));
+  check("deutsch: Startpunkt setzen nennt die Ueberschreibung",
+    (await titel("setStartPointBtn")) === T_START_DE, await titel("setStartPointBtn"));
+  check("deutsch: Endpunkt setzen ebenso",
+    (await titel("setEndPointBtn")) === T_END_DE, await titel("setEndPointBtn"));
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+  await openMergeWindow();
+
+  check("englisch: Karte B ohne Datei",
+    (await mergeText("#mergeBInfo")) === "Map B Not loaded.",
+    await mergeText("#mergeBInfo"));
+  check("englisch: der Infoblock von Karte A ist vollstaendig uebersetzt",
+    (await mergeText("#mergeAInfo")) ===
+      "Map A Cut edge from the file. Start point E 0.00 / N 0.00 m End point E 0.00 / N 40.00 m",
+    await mergeText("#mergeAInfo"));
+  check("englisch: die Statuszeile des Fensters nennt die Vorgabe",
+    (await mergeText("#mergeStatus")) ===
+      "Load a second map, then choose the cut edge for each map.",
+    await mergeText("#mergeStatus"));
+  check("englisch: der Auftrennknopf traegt seinen vollen Erklaertext",
+    (await titel("setMergeCutBtn")) === T_CUT_EN, await titel("setMergeCutBtn"));
+  check("englisch: Set start point nennt die Ueberschreibung",
+    (await titel("setStartPointBtn")) === T_START_EN, await titel("setStartPointBtn"));
+  check("englisch: Set end point ebenso",
+    (await titel("setEndPointBtn")) === T_END_EN, await titel("setEndPointBtn"));
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+  await openMergeWindow();
+
+  check("zurueck auf deutsch: die drei Erklaertexte stehen wieder wortgleich da",
+    (await titel("setMergeCutBtn")) === T_CUT_DE &&
+    (await titel("setStartPointBtn")) === T_START_DE &&
+    (await titel("setEndPointBtn")) === T_END_DE,
+    `${await titel("setMergeCutBtn")} | ${await titel("setStartPointBtn")}`);
+  check("und der Infoblock ebenfalls",
+    (await mergeText("#mergeAInfo")) === A_UNGESETZT,
+    await mergeText("#mergeAInfo"));
+
+  /* --- 5. Ungesetzt, und die einseitigen Faelle -------------------- */
+
+  await upload("#secondFileInput", "cut-b.geojson", cutMap(RING_B));
+  await menueBefehl(page, "Karte", "Karte A");
+  await page.waitForTimeout(300);
+  await openAllFolds(page);
+  await openMergeWindow();
+
+  const OHNE_WAHL =
+    "Auftrennstelle nicht gewählt – für beide Karten gilt die Reihenfolge aus der Datei. " +
+    "Neue Kanten: A Ende → B Start 20.00 m · B Ende → A Start 20.00 m";
+
+  check("beide Karten ungesetzt: der Infoblock von A nennt die Datei",
+    (await mergeText("#mergeAInfo")) === A_UNGESETZT,
+    await mergeText("#mergeAInfo"));
+  check("der Infoblock von B ebenso",
+    (await mergeText("#mergeBInfo")) ===
+      "Karte B Auftrennstelle aus der Datei. " +
+      "Startpunkt E -20.00 / N 40.00 m Endpunkt E -20.00 / N 0.00 m",
+    await mergeText("#mergeBInfo"));
+  check("und die Statuszeile nennt beide Karten",
+    (await mergeText("#mergeStatus")) === OHNE_WAHL,
+    await mergeText("#mergeStatus"));
+
+  /* Nur A gewaehlt. */
+  await waehlePunkte([[0, 0], [40, 0]]);
+  await openMergeWindow();
+  await page.locator("#setMergeCutBtn").click();
+  await page.waitForTimeout(400);
+  await openMergeWindow();
+
+  check("nur Karte A gewaehlt: die Statuszeile nennt genau die andere Seite",
+    (await mergeText("#mergeStatus")).startsWith(
+      "Auftrennstelle nur für Karte A gewählt – für Karte B gilt die Reihenfolge aus der Datei."),
+    await mergeText("#mergeStatus"));
+
+  /* Nur B gewaehlt: A zuruecknehmen, dann auf Karte B setzen. */
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await page.keyboard.press("Control+z");
+  await page.waitForTimeout(400);
+
+  await menueBefehl(page, "Karte", "Karte B");
+  await page.waitForTimeout(300);
+  await openAllFolds(page);
+
+  await waehlePunkte([[-20, 40], [-60, 40]]);
+  await openMergeWindow();
+  await page.locator("#setMergeCutBtn").click();
+  await page.waitForTimeout(400);
+  await openMergeWindow();
+
+  check("nur Karte B gewaehlt: die Statuszeile nennt genau die andere Seite",
+    (await mergeText("#mergeStatus")).startsWith(
+      "Auftrennstelle nur für Karte B gewählt – für Karte A gilt die Reihenfolge aus der Datei."),
+    await mergeText("#mergeStatus"));
+
+  /* --- 4. Gekreuzte Bruecken: Warnung, keine Sperre ---------------- */
+
+  /*
+   * Karte B liegt hier gedreht in der Datei: ihr Startpunkt ist der untere,
+   * ihr Endpunkt der obere. Damit laufen die beiden neuen Kanten
+   * A-Ende -> B-Start und B-Ende -> A-Start ueber Kreuz.
+   */
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A));
+  await upload("#secondFileInput", "cut-b-gedreht.geojson", cutMap(RING_B_GEDREHT));
+  await menueBefehl(page, "Karte", "Karte A");
+  await page.waitForTimeout(300);
+  await openAllFolds(page);
+  await openMergeWindow();
+
+  const MIT_KREUZUNG =
+    "Auftrennstelle nicht gewählt – für beide Karten gilt die Reihenfolge aus der Datei. " +
+    "Neue Kanten: A Ende → B Start 44.72 m · B Ende → A Start 44.72 m " +
+    "Die beiden neuen Kanten kreuzen sich. Eine andere Auftrennstelle vermeidet das.";
+
+  check("gekreuzte Bruecken: die Statuszeile nennt die Kreuzung",
+    (await mergeText("#mergeStatus")) === MIT_KREUZUNG,
+    await mergeText("#mergeStatus"));
+  check("und traegt die Warnklasse",
+    (await page.locator("#mergeStatus").getAttribute("class")) ===
+      "merge-status warning",
+    await page.locator("#mergeStatus").getAttribute("class"));
+
+  const warnungGetroffen = await elementGetroffen(page, "#mergeStatus");
+  check("die Warnung ist wirklich getroffen, nicht nur gerechnet da",
+    warnungGetroffen.ok, JSON.stringify(warnungGetroffen));
+
+  check("Warnung, keine Sperre: Verbinden bleibt frei",
+    await page.locator("#mergeMapsBtn").isEnabled());
+
+  /*
+   * Trotz Warnung verbinden. Der neue Ring ist die offene Kette von Karte A,
+   * gefolgt von der offenen Kette von Karte B - von Hand hergeleitet:
+   *
+   *   A: (0,0) (40,0) (40,40) (0,40)
+   *   B: (-20,0) (-60,0) (-60,40) (-20,40)
+   *   Ergebnis: acht Punkte in genau dieser Reihenfolge, danach der
+   *   Ringschluss zurueck auf (0,0).
+   *
+   * Die Kreuzung bleibt darin sichtbar - das Verbinden repariert sie nicht,
+   * es hat nur nicht widersprochen.
+   */
+  await page.locator("#mergeMapsBtn").click();
+  await page.waitForTimeout(600);
+  await openAllFolds(page);
+
+  const ERGEBNIS = [
+    [0, 0], [40, 0], [40, 40], [0, 40],
+    [-20, 0], [-60, 0], [-60, 40], [-20, 40],
+  ];
+
+  check("das Ergebnis traegt genau acht Punkte in der hergeleiteten Reihenfolge",
+    (await perimeterFolge()) === folge(ERGEBNIS), await perimeterFolge());
+
+  /* Gegenprobe: ungedrehtes B, exakter Statustext statt "kein Kreuzungssatz". */
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A));
+  await upload("#secondFileInput", "cut-b.geojson", cutMap(RING_B));
+  await menueBefehl(page, "Karte", "Karte A");
+  await page.waitForTimeout(300);
+  await openAllFolds(page);
+  await openMergeWindow();
+
+  check("Gegenprobe ungedreht: die Statuszeile lautet exakt ohne Kreuzungssatz",
+    (await mergeText("#mergeStatus")) === OHNE_WAHL,
+    await mergeText("#mergeStatus"));
+  check("und traegt die unauffaellige Klasse",
+    (await page.locator("#mergeStatus").getAttribute("class")) ===
+      "merge-status ok",
+    await page.locator("#mergeStatus").getAttribute("class"));
+
+  /* ---------------------------------------------------------------- */
   console.log("Das Fenster ist in jeder Fenstergroesse wirklich getroffen");
 
   /*
