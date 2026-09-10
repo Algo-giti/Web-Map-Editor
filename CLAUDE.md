@@ -422,6 +422,28 @@ Beide Fälle sind derselbe Fehler: **etwas als getan gemeldet, weil es gedacht
 war.** Wer eine Zahl oder eine Umstellung in eine Nachricht schreibt, hat sie
 vorher gemessen bzw. im eigenen Diff gesehen.
 
+**Dritter Fall, und diesmal eine Aufzählung statt einer Umstellung:** die
+Nachricht von `3d6cd9f` (Etappe 7d-3c) beschreibt die eingetragene Messtabelle
+als „acht Eingriffe mit Ring und Infotext danach – Punkt 0 und letzter Punkt
+**je** mit Pfeiltaste, E/N-Feld und Maus, dazu Rechtwinklig, Reduzieren und
+Begradigen".
+
+| | |
+|---|---|
+| die Nachricht sagt | beide Punkte je über drei Wege bewegt – sechs Bewegungszeilen, mit den drei Werkzeugen zusammen neun |
+| der Diff enthält | fünf Bewegungszeilen: Punkt 0 über Pfeiltaste, E-Feld und Maus, der **letzte Punkt nur über Pfeiltaste und Maus**. Der letzte Punkt über das E/N-Feld ist nicht gemessen |
+
+Die Zahl „acht" ist richtig, die Aufzählung darunter ergäbe neun und
+widerspricht ihr damit selbst. **Nachträglich richtiggestellt wurde die
+Nachricht nicht** – `3d6cd9f` war zum Zeitpunkt des Befundes bereits
+veröffentlicht, und ein `--amend` hätte einen Force-Push auf einen
+veröffentlichten Commit verlangt. Der Eintrag hier ist die Richtigstellung.
+
+**Daraus die engere Regel: eine Aufzählung wird gegen den Diff gezählt, nicht
+nur gelesen.** Der Fehler wäre beim Schreiben aufgefallen, wenn die Zahl vor
+der Aufzählung mit der Länge der Aufzählung verglichen worden wäre – die beiden
+standen im selben Satz.
+
 #### Einrichtung
 
 `playwright-core` ist **bewusst keine Abhängigkeit im Repo** (kein
@@ -3655,6 +3677,56 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Zur Herkunft, damit niemand die Stelle für neu hält: `formatEndpoint()` ist
   seit Etappe 7d-1 unverändert, 7d-2 hat nur die Beschriftungen ringsum
   ausgetauscht. Der Punkt im Verbinden-Fenster stand vorher genauso da.
+
+  **Nachtrag vom 10.09.2026, Stand `3d6cd9f`, im Browser gemessen: es ist nicht
+  nur eine Uneinheitlichkeit, sondern ein DEFEKT.** Der Tausendertrenner ist an
+  beiden `toLocaleString`-Stellen aktiv – `useGrouping` ist weder in
+  `formatMeters()` noch in `formatGridMeters()` gesetzt, und die Vorgabe lautet
+  `true`. Ab 1000 schreibt die Anzeige damit einen Punkt, den
+  `parseLocaleNumber()` nicht mehr lesen kann: `String(value).replace(",", ".")`
+  ersetzt nur das **erste** Komma, aus `"1.234,50"` wird `"1.234.50"`, daraus
+  `NaN`, daraus `null`.
+
+  **Die oben genannte Toleranz trägt deshalb nur unterhalb von 1000.** Gemessen:
+
+  | Eingabe | Ergebnis |
+  |---|---|
+  | `"1234,5"` / `"1234.5"` | `1234.5` – wie beschrieben |
+  | `"1.234,5"` / `"1.234,50"` | **`null`** |
+  | `"1,234.5"` | **`null`** |
+
+  **Reproduktionsfall, deutsch und englisch identisch** – ein Punkt, dessen E
+  bei 1234,5 liegt:
+
+  | Schritt | Feld danach | Weltmeter | Statuszeile |
+  |---|---|---|---|
+  | E auf `1234,5` gesetzt | `1.234,50` | 1234,5 | „Punkt auf E=1.234,50 m … gesetzt." |
+  | Feld **unverändert** mit Enter bestätigt | `1.234,50` | 1234,5 | **„Bitte gültige Zahlen für East und North eingeben."** |
+  | nur die letzte Ziffer auf `1.234,56` | **`1.234,56`** | **1234,5** | **„Bitte gültige Zahlen …"** |
+  | Gegenprobe `999,50`, unverändert Enter | `999,50` | 999,5 | „Die Koordinate wurde nicht verändert." |
+  | Gegenprobe `999,50` → `999,56` | `999,56` | 999,56 | „Punkt auf E=999,56 m … gesetzt." |
+
+  **Die Folge: ein Punkt ab 1000 Einheiten Abstand vom Nullpunkt lässt sich
+  über die E/N-Felder überhaupt nicht mehr bearbeiten**, und der Editor lehnt
+  dabei seine eigene Anzeige als „ungültige Zahl" ab. In der dritten Zeile
+  widersprechen sich zusätzlich Anzeige (`1.234,56`) und Zustand (1234,5), bis
+  das nächste Neuzeichnen das Feld überschreibt.
+
+  **Kein Wert ändert sich, den der Nutzer nicht geändert hat** – die
+  Weltkoordinate bleibt in jedem Fall stehen. Der Defekt ist Unbedienbarkeit,
+  nicht stille Datenveränderung.
+
+  **Das Verlassen des Feldes löst nichts aus.** An `#pointEastInput` und
+  `#pointNorthInput` hängt allein ein `keydown`-Handler auf Enter; einen
+  `blur`- oder `change`-Handler gibt es nicht. Wer das Feld verlässt, sieht
+  deshalb noch die Meldung des vorigen Enter – das ist beim Messen leicht für
+  eine Reaktion auf das Verlassen zu halten.
+
+  **Für den, der es behebt:** eine reine Änderung an `parseLocaleNumber()` ist
+  die kleinere Hälfte. Die Toleranz gegenüber Komma **und** Punkt muss bleiben,
+  und ein Format, das den Trenner weglässt (`useGrouping:false`), berührt auch
+  `formatGridMeters()` und damit die Statuszeile. Welche der beiden Seiten
+  nachgibt, ist eine Entscheidung und steht hier nicht.
 
 - **Die Auftrennstelle überlebt ihre eigene Kante.** Befund vom 10.09.2026,
   Stand `d012fc6`, im Browser gemessen – **Reproduktionsfall, kein Auftrag.**
