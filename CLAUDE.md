@@ -1250,6 +1250,71 @@ Stufe davor: es gab überhaupt keine Zusicherung. Mit 7d-3 gibt es sie.
 | 7d-2 | „Auftrennstelle setzen" bei genau zwei benachbarten Punkten desselben Rings; `mergeAInfo`/`mergeBInfo` nennen die gewählte Stelle |
 | 7d-3 | Zusicherungen, die das **Ergebnis** zählen – und die Überschreibung durch die beiden alten Knöpfe belegen |
 
+**Die Auftrennstelle ist keine neue Auswahlbedingung, sondern der Fall, den das
+Begradigen ablehnt.** `getSelectedSection()` gibt bei zwei **benachbarten**
+Punkten den Grund `"adjacent"` zurück, weil zwischen ihnen nichts zu
+begradigen ist – und genau diese Lage ist die aufzutrennende Kante.
+`getMergeCutTarget()` ruft deshalb dieselbe Funktion und dreht ihr Urteil um,
+statt die Kette aus Feature-, Ring- und Typprüfungen ein zweites Mal
+hinzuschreiben. Hinzu kommen nur zwei Bedingungen, die das Begradigen nicht
+braucht: es muss der **Perimeter** sein, und sein Ring muss **geschlossen**
+sein.
+
+**Die Drehung steht seit 7d-2 an genau einer Stelle** (`rotateRingToStart()`).
+Drei Wege lösen sie aus – „Startpunkt setzen", „Endpunkt setzen",
+„Auftrennstelle setzen" –, aber es gibt nur einen Rechenweg. Drei Kopien wären
+genau dort auseinandergelaufen, wo der Unterschied ohnehin schwer zu sehen
+ist.
+
+**Der Knopf liegt im Verbinden-Fenster, nicht im Inspektor** – obwohl er an
+der Auswahl hängt und damit nach der Hausregel dorthin gehörte. Der Grund ist
+gemessen und derselbe wie bei 7e: ein weiterer Knopf im Inspektor kostet dort
+rund 40 px, und die verbindliche Reserve bei 900 px Fensterhöhe beträgt 12 px.
+Sein Ablehnungsgrund steht **sichtbar** unter ihm in einem `.tool-reason`-Feld,
+nicht im Tooltip – dieselbe Entscheidung wie bei den Zeichenknöpfen (Etappe 3)
+und den Umformwerkzeugen (Etappe 5).
+
+**Seine Freigabe hängt an `updateSelectionPanel()`, nicht an
+`updateMergePanel()`.** Das ist kein Schönheitsfehler, sondern notwendig:
+`updateMergePanel()` läuft an Kartenwechseln und Geometrieänderungen, aber
+**nicht** an einer reinen Auswahländerung – der Knopf bliebe stehen, wie er
+zufällig zuletzt war.
+
+**Für 7d-3 vorgemerkt, weil es heute nur im Scratchpad gemessen ist:**
+
+- **Undo holt die Auftrennstelle zurück** – Ring **und** Marke. Diese
+  Zusicherung gehört in den Bestand, denn sie belegt, dass `cutEdgeChosen` im
+  Snapshot mitreist; ohne sie stünde die Behauptung „`cloneMapSlot()` klont
+  tief" ungeprüft da. Gemessen: nach dem Auftrennen und einem Undo steht der
+  Ring wieder auf der Dateireihenfolge und der Infoblock wieder auf
+  „Auftrennstelle aus der Datei."
+- Dazu: die Überschreibung durch die beiden alten Knöpfe (Start setzen, Ende
+  setzen, Ring steht auf E+1), die Warnung bei gekreuzten Brücken, und der
+  Vorgabetext bei ungesetzter Stelle.
+
+**Fallstrick für genau diese Tests, schon einmal zugeschlagen:** ein Klick auf
+einen **bereits markierten** Punkt hebt die Gruppe **nicht** auf. Wer im selben
+Test nacheinander zwei verschiedene Paare wählt, hat beim zweiten Mal drei
+Punkte ausgewählt und bekommt den Grund „genau zwei … auswählen" – der Test
+sieht dann wie ein Fehler des Knopfes aus und ist einer des Skripts. Vorher
+`clearVertexSelection()` auslösen (Escape ohne offenes Fenster).
+
+**Sechs Texte des Verbinden-Fensters hatten keine englische Fassung** – nicht
+zwei, wie zunächst angenommen. Gefunden wurden sie erst, als 7d-1
+`updateMergePanel()` in `refreshDerivedUi()` einhängte: **ein Text, der nie auf
+dem abgeleiteten Weg lief, kann seine Übersetzungslücke gar nicht zeigen.** Die
+Lücke war in beiden Sprachen unsichtbar, weil beim Sprachwechsel schlicht
+nichts passierte. Betroffen waren „Kein gültiger Perimeter.",
+„Nicht geladen.", die beiden Sperrmeldungen zu Perimeter und Skalierung sowie
+die Koordinatenzeilen `Start:`/`Ende:` – letztere waren **ein einziger
+Textknoten mit Zahlen darin** und damit weder als Wörterbucheintrag noch als
+Muster erfassbar. Sie sind mit 7d-2 in einzelne Elemente zerlegt.
+
+**Die Regel daraus, allgemeiner als dieser Fall: wer eine Übersetzungslücke
+sucht, prüft zuerst, ob der Text beim Sprachwechsel überhaupt angefasst
+wird.** Ein Text, den niemand neu schreibt, sieht in beiden Sprachen richtig
+aus, solange man ihn nur ansieht.
+
 ### Der Zustand „Beide" – eigene Etappe, nicht 7d
 
 **Beide Karten gleichzeitig aktiv – als DRITTER ZUSTAND, nicht als Schalter.**
