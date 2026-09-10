@@ -388,8 +388,9 @@ try {
   /*
    * Die Leiste und ihre Rasterspalte muessen dieselbe Breite haben. Sie lasen
    * ihre Zahl frueher aus zwei Quellen - der Variablen an .app und einem
-   * eigenen width - und konnten auseinanderlaufen; unter 980 px taten sie es
-   * auch: das Raster reservierte 168 px fuer ein 56 px breites Element.
+   * eigenen width - und konnten auseinanderlaufen; in der erzwungenen Enge
+   * taten sie es auch: das Raster reservierte 168 px fuer ein 56 px breites
+   * Element.
    *
    * Geprueft wird die WIRKUNG in beiden Zustaenden, nicht der Quelltext: die
    * berechnete Spaltenbreite gegen die gemessene Elementbreite.
@@ -419,12 +420,19 @@ try {
   paar = await spalteGegenLeiste();
   check("eingeklappt ebenso", paar.spalte === paar.leiste, JSON.stringify(paar));
 
-  /* Und auch dort, wo die Enge erzwungen ist und eine eigene Medienregel gilt. */
+  /*
+   * Und auch dort, wo die Enge ERZWUNGEN ist. Die Schwelle dafuer sind
+   * 1000 px und sie steht in JS (TOOL_RAIL_NARROW_QUERY), nicht in einer
+   * Medienregel - die Zusicherung nannte frueher 980 px und meinte damit die
+   * Medienregel, die mit Etappe 7e entfallen ist. 940 liegt unter beiden
+   * Zahlen, gemessen hat der Test also immer das Richtige; benannt hat er es
+   * falsch.
+   */
   await page.setViewportSize({ width: 940, height: 800 });
   await page.waitForTimeout(300);
 
   paar = await spalteGegenLeiste();
-  check("und bei erzwungener Enge unter 980 px auch",
+  check("und bei erzwungener Enge unter 1000 px auch",
     paar.spalte === paar.leiste, JSON.stringify(paar));
 
   await page.setViewportSize({ width: 1440, height: 900 });

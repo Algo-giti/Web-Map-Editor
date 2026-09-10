@@ -363,9 +363,11 @@ Drei Eigenschaften, und jede hat einen konkreten Anlass:
   Lauf ohne Browser von einem bestandenen nicht zu unterscheiden.
 
 **Eine Faltgeste, nicht acht.** `openAllFolds(page, menue)` im Harness öffnet
-alle Faltbereiche – `#sidebar details`, `.inspector-fold`, `.tool-settings` und
-seit Etappe 7b auch `#featureNavigator details`, die Karten der
-Feature-Navigation. Der Helfer stand seit Etappe 6 b2 im Harness, dessen
+alle Faltbereiche – `.inspector-fold`, `.tool-settings` und seit Etappe 7b auch
+`#featureNavigator details`, die Karten der Feature-Navigation. `#sidebar
+details` stand bis Etappe 7e ebenfalls darin und ist mit der Seitenleiste
+entfallen: ein Selektor, der nichts mehr treffen **kann**, liest sich beim
+nächsten Mal wie eine Zusicherung. Der Helfer stand seit Etappe 6 b2 im Harness, dessen
 Nachricht ihn als Bündelung „der bisher acht Mal kopierten Faltgeste"
 beschrieb – **aufgerufen hat ihn danach kein einziger Test**, alle acht Kopien
 blieben stehen. Damit erreichte die Reparatur der Navigationskarten zunächst
@@ -570,7 +572,7 @@ gibt es keinen Auslöser, dessen Verarbeitung ausbleiben könnte.
 „Kartenprüfung" im Inspektor `<details>` und beim ersten Start **zu** – ein
 Klick auf einen Knopf darin läuft sonst in einen Playwright-Timeout
 ("element is not visible"). Die betroffenen Tests öffnen deshalb
-`#sidebar details, .inspector-fold`; genau das tut auch ein Nutzer.
+`.inspector-fold` – über `openAllFolds()`; genau das tut auch ein Nutzer.
 
 **Ein Klick auf einen bereits markierten Punkt HEBT die Gruppe nicht auf.**
 Das ist gewolltes Verhalten – man soll die Gruppe ziehen können –, und es ist
@@ -662,8 +664,9 @@ nicht stillschweigend als vollständig getestet ausgeben.
 4. Exclusion vollständig auswählen und löschen → gesamte Exclusion muss
    verschwinden, verbleibende Exclusions neu nummeriert, Undo stellt sie
    wieder her.
-5. Sprache umschalten (oben rechts) und Kernbereiche (Sidebar, Hilfe-Overlay,
-   Statusmeldungen) auf Übersetzung prüfen.
+5. Sprache umschalten (oben rechts) und Kernbereiche (Menüleiste,
+   Werkzeugleiste, Inspektor, Kartenfenster, Hilfe-Overlay, Statusmeldungen)
+   auf Übersetzung prüfen.
 6. "Karte prüfen" (Validierung) auslösen, Export testen.
 7. Bei UI-Strukturänderungen: Browserfenster verkleinern / mobile Ansicht
    testen (Toolbar-Overflow, Touch-Zielgrößen).
@@ -1022,8 +1025,9 @@ Feldern, sobald die Meldung in Zeile 2 umzog.
 
 **Die vier linken Angaben sind Kurzformen, und das ist wörtlich gemeint.** Wird
 eine länger als eine Zeile, ist es keine Kurzform mehr – der ausführliche Text
-bleibt, wo er hingehört: der Prüfbericht in der Seitenleiste, der
-Maßstabshinweis im Kartenfeld, der Bezugspunkt unter „Koordinatenbezug".
+bleibt, wo er hingehört: der Prüfbericht im Faltblock „Kartenprüfung" des
+Inspektors, der Maßstabshinweis im Kartenfeld, der Bezugspunkt im Faltblock
+„Koordinatenbezug" – ebenfalls im Inspektor, seit Etappe 7c.
 `tools/test-statusbar.mjs` prüft die Länge mit.
 
 **Der gemeinsame Platz: die jüngere Meldung gewinnt – mit einer Ausnahme.**
@@ -1055,7 +1059,7 @@ Bezugspunkt und Prüfung (ab 900 px). Zuletzt weichen würden Dateiname und
 Maßstab; die flüchtige Meldung und die beiden rechten Anzeigen bleiben immer.
 
 Maßgeblich ist die **Nachschlagbarkeit**: Bezugspunkt und Prüfergebnis stehen
-vollständig in der Seitenleiste, wer sie braucht, findet sie dort wieder. Die
+vollständig im Inspektor, wer sie braucht, findet sie dort wieder. Die
 flüchtige Meldung ist nirgends nachschlagbar – sie ist weg, sobald die nächste
 kommt, und wer sie verpasst, kann sie nicht wiederholen. Der Auswahlzähler und
 die Cursor-Koordinaten beschreiben, was gerade passiert; sie sind ohne die
@@ -1083,7 +1087,9 @@ vergleichbar:
 | 1280 × 800 | 920 × 736 = **677 120 px²** |
 
 **Stand nach Etappe 5 D**, gemessen. Der obere Block ist der *Zwischenstand*:
-Seitenleiste **und** Inspektor stehen gleichzeitig, was mit Etappe 6 endet.
+Seitenleiste **und** Inspektor stehen gleichzeitig. Dieser Zustand endete mit
+Etappe 7e, nicht mit Etappe 6 – die Hülle blieb stehen, bis „Karten verbinden"
+ein Ziel hatte.
 
 | Fenster | alles offen | Leiste zu | Inspektor zu | beide zu |
 |---|---|---|---|---|
@@ -1123,9 +1129,11 @@ ein Fenster wurde und kein Faltblock.
 
 **Geändert gegenüber der ursprünglichen Etappenplanung: „Seitenleiste
 auflösen" und die Schlussmessung rücken von Etappe 6 nach Etappe 7.** Etappe 6
-füllt die vier Menüs, aber „Karten verbinden" hat noch kein Ziel – es wird mit
-Etappe 7 ein Werkzeug der Leiste. Solange bleibt seine Hülle stehen, und mit
-ihr zwei weitere Abschnitte (siehe unten). Die Hülle zu entfernen und das
+füllt die vier Menüs, aber „Karten verbinden" hat noch kein Ziel. Solange
+bleibt seine Hülle stehen, und mit ihr zwei weitere Abschnitte (siehe unten).
+Das Ziel wurde mit Etappe 7e ein **Kartenfenster** und nicht, wie hier
+ursprünglich geplant, ein Werkzeug der Leiste; ein geführter Modus kommt
+frühestens mit 7d und bedient dann dasselbe Fenster. Die Hülle zu entfernen und das
 Verbinden dabei zu verlieren wäre schlechter als eine Etappe mit einem
 sichtbaren Rest. Die Schlussmessung wird in Etappe 7 gemacht, im selben Browser
 und mit demselben Skript wie die Ausgangswerte.
@@ -1251,14 +1259,17 @@ die ihren Inhalt überlaufen lässt, zeigte ihn weiterhin an. Der Test sichert
 zu, dass im eingeklappten Zustand genau **ein** Tabstopp übrig bleibt: der
 Umschalter selbst.
 
-**Die drei festen Rasterspalten stehen als Variablen an `.app`**
-(`--sidebar-col`, `--rail-col`, `--inspector-col`), nicht als eigene Regel je
-Kombination. Mit drei unabhängig einklappbaren Bereichen gäbe es sonst acht
-Regeln, die alle dasselbe Raster wiederholen – und die achte vergisst
-irgendwann jemand. `main` hat damit genau **eine** Rastervorlage; die
-Seitenleiste braucht weiterhin eine zweite mit **drei** Spalten, weil
-`display:none` sie aus der Rasterzuordnung nimmt und die übrigen sonst eine
-Spalte nach vorn rutschen.
+**Die festen Rasterspalten stehen als Variablen an `.app`** (`--rail-col`,
+`--inspector-col`), nicht als eigene Regel je Kombination. Mit unabhängig
+einklappbaren Bereichen gäbe es sonst eine Regel je Kombination, die alle
+dasselbe Raster wiederholen – und die letzte vergisst irgendwann jemand. `main`
+hat damit genau **eine** Rastervorlage mit **drei** Spalten: Werkzeugleiste,
+Karte, Inspektor.
+
+Bis Etappe 7e gab es eine dritte Variable `--sidebar-col` und eine **zweite**
+Vorlage für den Fall, dass die Seitenleiste auf `display:none` stand – sie fiel
+sonst aus der Rasterzuordnung, und die übrigen Spalten rutschten eine nach
+vorn. Beides ist mit der Seitenleiste entfallen.
 
 **Und die Elemente lesen dieselben Variablen, statt ihre Breite zu
 wiederholen.** `.tool-rail` trägt `width:var(--rail-col)`, `.inspector`
@@ -1269,7 +1280,8 @@ setzen nur noch Polsterung und Überlauf. **Jede der vier Zahlen steht damit an
 genau einer Stelle.**
 
 Das war bis zur Nachlese von Etappe 6 nicht so, und es hatte eine Wirkung: die
-Medienregel für ≤ 980 px wiederholte `168px` und `320px` als feste Werte.
+Medienregel für ≤ 980 px wiederholte `168px` und `320px` als feste Werte – die
+Regel selbst ist mit Etappe 7e entfallen, der Absatz bleibt als Historie.
 Unterhalb von 1000 px ist die Leiste aber **erzwungen eingeklappt** – das
 Raster reservierte dort also 168 px für ein 56 px breites Element und 320 px
 für einen Inspektor, den man auf 34 px einklappen konnte, ohne dass die Karte
@@ -1286,10 +1298,12 @@ seine max-content-Breite, sobald Platz frei wird – beim Einklappen der
 Seitenleiste wuchs die Spalte der Werkzeugleiste von 168 auf 659 px und fraß
 den Gewinn auf.
 
-**Zwischenstand-Schalter der Seitenleiste:** `#sidebarToggle` ist der Behelf
-für die Zeit, in der Seitenleiste und Inspektor gleichzeitig stehen, und
-**entfällt mit Etappe 6**. Bewusst **ohne** `localStorage`: der Zustand ist
-vorübergehend und soll nicht in eine spätere Ausgabe überleben.
+**Zwischenstand-Schalter der Seitenleiste:** `#sidebarToggle` **war** der
+Behelf für die Zeit, in der Seitenleiste und Inspektor gleichzeitig standen,
+und ist mit Etappe 6 b1 entfallen – bewusst ohne `localStorage`, damit der
+vorübergehende Zustand nicht in eine spätere Ausgabe überlebt. Er steht hier
+nur noch als Beispiel: **ein Behelf bekommt kein Gedächtnis.**
+`tools/test-inspector.mjs` sichert seine Abwesenheit zu.
 
 **Menüleiste: der Alt-Buchstabe ist ABGELEITET, nicht gesetzt.** Er ist der
 erste Buchstabe des Menütitels **in der laufenden Sprache** – deutsch
@@ -1382,8 +1396,10 @@ nichts sagte das. **Die Freigabelogik war dabei korrekt** – nachgemessen über
 vier Kartenvarianten; kaputt war nur die Erklärung, seit der Knopf ohne seine
 Nachbarn „verlängern" und „löschen" in der Leiste steht.
 
-Die Knöpfe der Seitenleiste behalten das native `disabled`: sie stehen in
-ihrer Gruppe, dort erklärt sich der Zustand aus den Nachbarn.
+Die Knöpfe des Inspektors behalten das native `disabled`: sie stehen in ihrem
+Block bei ihresgleichen, dort erklärt sich der Zustand aus den Nachbarn und aus
+dem `.tool-reason`-Feld darunter. Bis Etappe 7e galt derselbe Satz für die
+Knöpfe der Seitenleiste.
 
 **Abschließen hat EINE Bedingung: `canFinishFeatureDrawing()`.** Sie versorgt
 den Abschluss-Knopf, Enter und den Doppelklick. Vorher zählte der Enter-Pfad
@@ -1450,7 +1466,8 @@ die anders zählt als der Code, ist eine Falle.
 E/N-Felder hängt an den IDs, nicht am Ort, und überlebt den Umzug – die Datei
 enthält kein `<form>` und **kein einziges `tabindex`**, die Tab-Reihenfolge
 folgt also reiner DOM-Reihenfolge. Sie ändert sich durch den Umbau gewollt:
-Kopfzeile → Werkzeugleiste → Karte → Inspektor → Seitenleiste. Der Test
+Kopfzeile → Werkzeugleiste → Karte → Inspektor; seit Etappe 7e endet sie dort,
+weil die Seitenleiste entfallen ist. Der Test
 sichert Enter, die Reihenfolge innerhalb des Blocks und die Abwesenheit von
 Tabstopps im ausgeblendeten Block zu.
 
@@ -1706,9 +1723,9 @@ Fehlerzustand behaupten, wo keiner ist.
 gleichzeitig `active` und gesperrt – man soll es nicht neu starten können –,
 und `opacity:.4` fraß seine Hervorhebung auf. Deshalb wirkte „Rahmen" kräftig
 und ein laufendes Zeichenwerkzeug blass. Die Dämpfungsregeln tragen jetzt
-`:not(.active)`, in der Leiste **und** bei den Seitenleistenknöpfen: „Search
-Wire verlängern" und „Docking-Pfad verlängern" sind während des Verlängerns
-ebenfalls beides zugleich.
+`:not(.active)`, in der Leiste **und** im Inspektor: „Search Wire verlängern"
+und „Docking-Pfad verlängern" – seit Etappe 6 b3 im Block „Bestand" – sind
+während des Verlängerns ebenfalls beides zugleich.
 
 **Nie `button.textContent` auf einem Knopf mit Symbol.** Das löscht das SVG
 mitsamt der Beschriftung. `updateMeasurementUi()` tat genau das und hat den
@@ -2236,7 +2253,8 @@ lon = east  / (111111·cos(lat0)) + lon0
   Feld nur bei bekanntem Maßstab.
 - **Der Bezugspunkt musste neu eingeführt werden** – im Projekt gab es vorher
   keinerlei WGS84-Bezug, der Ursprung war hart E=0/N=0. Er wird in der
-  Sidebar unter "Koordinatenbezug" gepflegt, in `localStorage`
+  Inspektor unter "Koordinatenbezug" gepflegt (bis Etappe 7c in der
+  Seitenleiste), in `localStorage`
   (`webMapEditor.referenceOrigin`) gemerkt und zusätzlich als
   Nicht-Standard-Feld `referenceOrigin` auf der FeatureCollection
   mitgeschrieben. CaSSAndRAs Import wertet ausschließlich `features` aus und
@@ -2559,9 +2577,20 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Auswahlmodell. Der Titel führt in die Irre; eine Aufteilung wäre sinnvoll,
   ist aber ein großer Diff ohne Funktionsgewinn.
 - **Die 1000-px-Schwelle steht als einzige Layout-Schwelle in JS, alle
-  anderen in CSS.** `TOOL_RAIL_NARROW_QUERY = "(max-width: 1000px)"` erzwingt
-  das Einklappen der Werkzeugleiste; die Schwellen bei 1100, 980, 900 und 760
-  px stehen als `@media`-Regeln. Das ist heute richtig so - der erzwungene
+  anderen in CSS.** Die Zahlen, damit die eine nicht wieder für eine der
+  anderen gehalten wird:
+
+  | Schwelle | Ort | Wirkung |
+  |---|---|---|
+  | 1100 px | `@media` | die Werkzeugleiste zeigt Text |
+  | **1000 px** | **JS**, `TOOL_RAIL_NARROW_QUERY = "(max-width: 1000px)"` | die Werkzeugleiste klappt **erzwungen** ein |
+  | 900 px | `@media` | Statusfelder mit `data-optional` weichen |
+  | 760 px | `@media` | mobiles Layout: alles untereinander |
+
+  Eine Schwelle bei **980 px** gibt es nicht mehr – sie gehörte zur zweiten
+  Rastervorlage der Seitenleiste und ist mit Etappe 7e entfallen. Wer in
+  Kommentaren oder Zusicherungen „unter 980 px" liest, meint die 1000er aus JS;
+  in `tools/test-toolbar.mjs` stand genau das und ist mit 7g richtiggestellt. Das ist heute richtig so - der erzwungene
   Zustand läuft über dieselbe Klasse wie der Handschalter, nicht über eine
   Medienregel, und genau das steht oben als Entscheidung. Es bleibt aber die
   eine Stelle, an der eine Layout-Schwelle nicht dort steht, wo die anderen
@@ -2624,7 +2653,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | Mobil / Android | „Bedienung: auf kleinen Displays …" | 050, Etappe 3, verschärft in 7e | sagte zuerst das Falsche über den Knopf (er öffnete die Seitenleiste, nicht die Werkzeugleiste); **seit 7e gibt es weder den Knopf noch die Seitenleiste** – auf einem Telefon stehen Werkzeugleiste, Karte und Inspektor untereinander |
   | Ansicht & Speichern | „Karteninfo: Abmessungen und Hinweise …" | 050, Etappe 4 | die Karteninfo ist kein Fenster auf der Karte mehr, sie steht im Inspektor |
   | Ansicht & Speichern | „Auswahl-Werkzeugleiste: Mauszeiger, Rechteck …" | 050, Etappe 5 | auf der Karte liegt keine Auswahlleiste mehr; die Auswahlwerkzeuge stehen in der Werkzeugleiste, Löschen, Auswahl aufheben und Begradigen im Inspektor |
-  | Ansicht & Speichern | „Sidebar: Direkt unter ‚Karten' …" | 050, Etappe 6 | weder „Karten" noch „Messen & Prüfen" existiert noch als Abschnitt; übrig sind Karten verbinden, Feature-Navigation, Koordinatenbezug |
+  | Ansicht & Speichern | „Sidebar: Direkt unter ‚Karten' …" | 050, Etappe 6, verschärft in 7e | zuerst stimmten die genannten Abschnitte nicht mehr; **seit 7e gibt es die Sidebar überhaupt nicht mehr** – der Satz beschreibt ein Bedienelement, das aus der Anwendung verschwunden ist |
   | Ansicht & Speichern | „Karteninfo & Legende: liegen direkt untereinander …" | 050, Etappe 2 | die Legende ist ein fester Streifen und lässt sich nicht mehr aufklappen |
 
   **Zwei Einträge dieser Liste waren zu streng und sind zurückgenommen:**
