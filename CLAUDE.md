@@ -1091,17 +1091,35 @@ Seitenleiste **und** Inspektor stehen gleichzeitig, was mit Etappe 6 endet.
 | 1440 × 900 | −50,2 % | −40,8 % | −26,2 % | −16,8 % |
 | 1280 × 800 | −58,0 % | −47,1 % | −30,1 % | −19,2 % |
 
-**Vorschau auf Etappe 7**, wenn die Seitenleiste verschwindet und nur noch
-Werkzeugleiste, Karte und Inspektor nebeneinanderstehen – gemessen, indem die
-Seitenleiste eingeklappt wird. Die Zahlen sind unverändert die aus der Messung
-zu Etappe 5 D; sie sind **nicht** neu gerechnet, nur der Etappe zugeordnet, in
-der sie eintreten:
+**Schlussmessung nach Etappe 7e**, als die Seitenleiste fiel und nur noch
+Werkzeugleiste, Karte und Inspektor nebeneinanderstehen. Gemessen im selben
+Browser und mit demselben Skript wie die Ausgangswerte, gegen die Baseline oben:
 
 | Fenster | Leiste offen, Inspektor offen | Leiste zu, Inspektor offen | beide zu |
 |---|---|---|---|
-| 1920 × 1080 | −15,2 % | −8,5 % | **+8,4 %** |
-| 1440 × 900 | −20,0 % | −10,6 % | **+13,5 %** |
-| 1280 × 800 | −22,9 % | −12,0 % | **+15,8 %** |
+| 1920 × 1080 | 1 344 648 px², −15,2 % | 1 449 816 px², −8,5 % | 1 718 370 px², **+8,4 %** |
+| 1440 × 900 | 722 568 px², −20,0 % | 807 576 px², −10,6 % | 1 024 650 px², **+13,5 %** |
+| 1280 × 800 | 521 928 px², −22,9 % | 595 736 px², −12,0 % | 784 210 px², **+15,8 %** |
+
+**Alle neun Werte treffen die frühere Vorschau exakt – Abweichung null.** Das
+ist kein Zufall und auch kein Verdienst: die Vorschau war seinerzeit gemessen,
+indem die Seitenleiste **eingeklappt** wurde, und eine entfernte Seitenleiste
+ergibt dasselbe Raster wie eine eingeklappte. Der Wert der Übereinstimmung liegt
+darin, dass die Vorhersage damit als Methode bestätigt ist, nicht darin, dass
+sie überraschte.
+
+**Der vierte Messwert, und er ist der eigentliche Gewinn:** bei **940 × 800** –
+einer Breite, die keine der drei Standardgrößen trifft und in der die Leiste
+erzwungen eingeklappt ist – wuchs die Kartenfläche von 147 616 px² auf
+**371 676 px², also um +151,8 %**. Eingeklappt von 336 090 auf 560 150 px²,
+**+66,7 %**. Dort saß der 940-px-Befund aus der Nachlese zu Etappe 6: das Raster
+reservierte eine Spalte für eine Seitenleiste, die der Karte nichts zurückgab.
+Für diese Breite gibt es keinen Vorschauwert, gegen den sich halten ließe – sie
+kam als vierte Messgröße erst mit 7e dazu, und genau deshalb.
+
+**Die Reserve des Inspektors bei 900 px ist unverändert 12 px**, deutsch und
+englisch – nachgemessen nach 7e. Sie ist der Grund, aus dem „Karten verbinden"
+ein Fenster wurde und kein Faltblock.
 
 **Geändert gegenüber der ursprünglichen Etappenplanung: „Seitenleiste
 auflösen" und die Schlussmessung rücken von Etappe 6 nach Etappe 7.** Etappe 6
@@ -1112,9 +1130,12 @@ Verbinden dabei zu verlieren wäre schlechter als eine Etappe mit einem
 sichtbaren Rest. Die Schlussmessung wird in Etappe 7 gemacht, im selben Browser
 und mit demselben Skript wie die Ausgangswerte.
 
-**Nach 7b und 7c steht in der Seitenleiste noch genau ein Abschnitt:**
-Karten verbinden. Feature-Navigation und Koordinatenbezug sind in den Inspektor
-gezogen – die Navigation mit 7b, der Koordinatenbezug mit 7c.
+**Seit Etappe 7e gibt es die Seitenleiste nicht mehr.** Feature-Navigation und
+Koordinatenbezug sind in den Inspektor gezogen (7b und 7c), „Karten verbinden"
+in ein Kartenfenster (7e); danach fiel die Hülle mitsamt `--sidebar-col`, der
+980-px-Regel, `.section`, `.sidebar-collapsible*`, `#mobilePanelBtn` und der
+Mobilausnahme. `main` hat seitdem **drei** Rasterspalten: Werkzeugleiste, Karte,
+Inspektor.
 
 **Die frühere Regel „Feature-Navigation und Koordinatenbezug ziehen NICHT
 vorzeitig in den Inspektor" ist damit erledigt, nicht gebrochen.** Sie hieß
@@ -1128,21 +1149,51 @@ verbindlichen Reserve. Die dort früher genannte Befürchtung („zwei weitere
 Faltblöcke kosten mindestens 42 px plus Lücken") war der Größenordnung nach
 richtig: gemessen sind es zwei Blöcke à 20 bzw. 21 px plus je 10 px Lücke.
 
-**„Karten verbinden" zieht mit Etappe 7 in die Werkzeugleiste** – es ist ein
-Modus (Start/Ende beider Perimeter festlegen), kein Menübefehl. Bis dahin steht
-es unverändert in der Seitenleiste, und im Menü „Karte" steht **kein grauer
-Eintrag** dafür: ein deaktivierter Eintrag mit dem Grund „zieht später um"
-behauptet Unerreichbarkeit, während der Befehl zehn Zentimeter weiter links
-funktioniert. Dieselbe Regel hält Zoom, Einpassen und „Karte prüfen" aus den
-Menüs heraus, und sie verbietet einen Platzhalter für die noch ungebaute
-Mähbahnen-Vorschau.
+**„Karten verbinden" liegt seit 7e in einem Kartenfenster**, geöffnet über
+einen **echten** Eintrag im Menü „Karte". Die frühere Fassung dieses Absatzes
+sagte „es ist ein Modus, kein Menübefehl" und hielt den Eintrag heraus – das
+wird hier **richtiggestellt, nicht gelöscht**, denn der Satz hatte einen engeren
+Sinn, als er zu haben schien:
 
-**`#mobilePanelBtn` bleibt ebenfalls bis Etappe 7.** Unter 760 px steht die
-Seitenleiste auf `display:none`, und **nur** dieser Knopf setzt
-`aside.mobile-open`. Nachgemessen bei 400 × 800: ohne ihn sind die drei
-verbliebenen Abschnitte auf einem Telefon nicht erreichbar. Er geht mit der
-Hülle, nicht vorher – zusammen mit `.mobile-panel-btn` und der Mobilausnahme
-der Seitenleiste.
+- Er richtete sich gegen einen **grauen** Eintrag, der Unerreichbarkeit
+  behauptet hätte, während der Befehl zehn Zentimeter weiter links in der
+  Seitenleiste funktionierte. **Diese Regel gilt unverändert** und hält
+  weiterhin Zoom, Einpassen und „Karte prüfen" aus den Menüs heraus; sie
+  verbietet auch einen Platzhalter für die noch ungebaute Mähbahnen-Vorschau.
+  Ein Eintrag, der das Fenster öffnet, **in dem der Befehl liegt**, behauptet
+  dagegen nichts Falsches.
+- **Verbinden ist heute kein Modus.** Es besteht aus zwei Statuszeilen
+  (`mergeAInfo`, `mergeBInfo`), einem Kontrollkästchen (`showMergePreview`),
+  einer Meldung (`mergeStatus`) und einem Auslöser (`mergeMapsBtn`); Start und
+  Ende beider Perimeter kommen aus den **Punktknöpfen des Inspektors**. Mit
+  Etappe 7d wird daraus ein geführter Modus – und der bedient **dasselbe
+  Fenster**, es zieht also nichts noch einmal um.
+
+**Warum nicht in den Inspektor?** Gemessen, nicht erwogen: ein weiterer
+Faltblock kostet dort 30 bis 31 px (20–21 px Block plus 10 px Lücke) und
+brächte die verbindliche Reserve bei 900 px Fensterhöhe von 12 px auf rund
+**−19 px** – das Höhenziel „bis 900 px scrollfrei" wäre gebrochen. Ein Fenster
+kostet null Höhe, solange es zu ist.
+
+**Und warum nicht ein Block, der nur bei zwei geladenen Karten erscheint?**
+Das hätte die Höhe gerettet, widerspricht aber der Hausregel des Inspektors: die
+Umformwerkzeuge stehen ausdrücklich auch dann da, wenn sie nicht gehen, weil man
+sonst nie erfährt, was man dafür tun müsste.
+
+**`#mobilePanelBtn` ist mit 7e entfallen**, zusammen mit `.mobile-panel-btn`,
+`aside.mobile-open` und der Mobilausnahme. Er war bis dahin der **einzige** Weg
+zum Verbinden-Befehl auf einem Telefon – nachgemessen bei 400 × 800: ohne ihn
+hatte `#mergeMapsBtn` dort einen Kasten von 0 × 0 und `isVisible() === false`.
+Genau deshalb durfte er erst gehen, als der Befehl ein anderes Ziel hatte.
+`tools/test-toolbar.mjs` hält den erreichten Zustand fest: bei 400 × 800 sind
+Menüleiste, Werkzeugleiste, Karte, Inspektor und Statuszeile vorhanden, das
+Verbinden-Fenster ist über das Menü erreichbar und wirklich getroffen, und
+weder `#sidebar` noch `#mobilePanelBtn` existieren noch.
+
+Der Inspektor war von `aside { display:none }` nie betroffen: `.inspector` ist
+eine Klasse und schlägt den Elementselektor. Die Regel galt allein der
+Seitenleiste – das steht jetzt als Kommentar an der Stelle, damit es niemand
+für eine Lücke hält.
 
 Erst mit beiden eingeklappten Leisten liegt die Fläche **über** dem
 Ausgangswert. Das ist der ehrliche Stand: **wer mehr erwartet, erwartet das
@@ -2570,7 +2621,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   |---|---|---|---|
   | Exclusions & Features | „Exclusion löschen: alle Eckpunkte …" | 050, Etappe 5 | nennt „den Papierkorb in der Karten-Werkzeugleiste"; die Auswahlleiste ist ganz von der Karte verschwunden, der Papierkorb steht im Inspektor |
   | Mehrfachauswahl | „Rechteck / Lasso: mehrere Punkte …" | 050, Etappe 3 | verweist auf „Punkt / Verschieben"; diesen Knopf gibt es nicht mehr, er war reine Doppelung des Zeigers |
-  | Mobil / Android | „Bedienung: auf kleinen Displays …" | 050, Etappe 3 | sagt, der Knopf blende „die Werkzeugleiste" ein; er öffnet die **Seitenleiste**, und eine Werkzeugleiste gibt es seit Etappe 3 als eigenes, anderes Ding |
+  | Mobil / Android | „Bedienung: auf kleinen Displays …" | 050, Etappe 3, verschärft in 7e | sagte zuerst das Falsche über den Knopf (er öffnete die Seitenleiste, nicht die Werkzeugleiste); **seit 7e gibt es weder den Knopf noch die Seitenleiste** – auf einem Telefon stehen Werkzeugleiste, Karte und Inspektor untereinander |
   | Ansicht & Speichern | „Karteninfo: Abmessungen und Hinweise …" | 050, Etappe 4 | die Karteninfo ist kein Fenster auf der Karte mehr, sie steht im Inspektor |
   | Ansicht & Speichern | „Auswahl-Werkzeugleiste: Mauszeiger, Rechteck …" | 050, Etappe 5 | auf der Karte liegt keine Auswahlleiste mehr; die Auswahlwerkzeuge stehen in der Werkzeugleiste, Löschen, Auswahl aufheben und Begradigen im Inspektor |
   | Ansicht & Speichern | „Sidebar: Direkt unter ‚Karten' …" | 050, Etappe 6 | weder „Karten" noch „Messen & Prüfen" existiert noch als Abschnitt; übrig sind Karten verbinden, Feature-Navigation, Koordinatenbezug |

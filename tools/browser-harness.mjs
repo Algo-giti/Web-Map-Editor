@@ -323,11 +323,15 @@ export async function openAllFolds(page, menue = null) {
      * Umzug in den Inspektor trifft dort nichts mehr - ".inspector-fold" meint
      * nur den aeusseren Block.
      *
+     * "#sidebar details" ist mit Etappe 7e entfallen: die Seitenleiste gibt es
+     * nicht mehr. Ein Selektor, der nichts mehr treffen KANN, gehoert nicht
+     * stehengelassen - er sieht beim naechsten Lesen wie eine Zusicherung aus.
+     *
      * Genau der Fall, vor dem der Absatz oben warnt: der Selektor hat nicht
      * geworfen, er hat nur nichts mehr getan.
      */
     document.querySelectorAll(
-      "#sidebar details, .inspector-fold, .tool-settings, #featureNavigator details"
+      ".inspector-fold, .tool-settings, #featureNavigator details"
     ).forEach((d) => d.setAttribute("open", ""));
   });
 

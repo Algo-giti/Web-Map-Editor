@@ -18,7 +18,13 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-toolbar.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import {
+  createChecker,
+  elementGetroffen,
+  indexUrl,
+  launchBrowser,
+  menueBefehl,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-toolbar";
 
@@ -393,7 +399,11 @@ try {
       const spalten = getComputedStyle(document.querySelector("main"))
         .gridTemplateColumns.split(" ");
       return {
-        spalte: Math.round(parseFloat(spalten[1])),
+        /*
+         * Seit Etappe 7e hat main DREI Spalten: Leiste, Karte, Inspektor. Die
+         * Leiste ist damit die erste; bis dahin stand die Seitenleiste davor.
+         */
+        spalte: Math.round(parseFloat(spalten[0])),
         leiste: Math.round(
           document.getElementById("toolRail").getBoundingClientRect().width),
       };
@@ -434,6 +444,66 @@ try {
   check("kein deutscher Rest in der Leiste",
     !english.includes("Auswählen") && !english.includes("Zeichnen"),
     english.slice(0, 120));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Mobil: 400x800, alles erreichbar");
+
+  /*
+   * Seit Etappe 7e gibt es die Seitenleiste nicht mehr, und mit ihr ist
+   * #mobilePanelBtn entfallen. Der Knopf war bis dahin der EINZIGE Weg zum
+   * Verbinden-Befehl auf einem Telefon - nachgemessen: ohne ihn hatte
+   * #mergeMapsBtn dort einen Kasten von 0x0 und isVisible() === false.
+   *
+   * Deshalb steht hier die Gegenprobe: sechs Dinge muessen bei 400x800
+   * erreichbar sein, und das letzte ausdruecklich.
+   */
+  await page.setViewportSize({ width: 400, height: 800 });
+  await page.goto(indexUrl(), { waitUntil: "load" });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "load" });
+  await page.waitForTimeout(300);
+
+  for (const [name, selektor] of [
+    ["Menueleiste", ".menu-bar"],
+    ["Werkzeugleiste", "#toolRail"],
+    ["Karte", "#viewer"],
+    ["Inspektor", "#inspector"],
+    ["Statuszeile", "#statusBar"],
+  ]) {
+    const sichtbar = await page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return "fehlt";
+      const r = el.getBoundingClientRect();
+      return getComputedStyle(el).display !== "none" && r.width > 0 && r.height > 0
+        ? "da" : `${getComputedStyle(el).display} ${Math.round(r.width)}x${Math.round(r.height)}`;
+    }, selektor);
+
+    check(`${name} ist bei 400x800 vorhanden`, sichtbar === "da", String(sichtbar));
+  }
+
+  /*
+   * Der Verbinden-Befehl, und zwar ueber den Weg, den ein Nutzer geht: Menue
+   * "Karte" oeffnen, Eintrag anklicken, Knopf bedienen. Die Trefferpruefung
+   * statt display - das Fenster liegt in der Kartenflaeche, die auf einem
+   * Telefon unter der Werkzeugleiste steht.
+   */
+  await menueBefehl(page, "Karte", "Karten verbinden…");
+  await page.locator("#mergeWindow").waitFor({ state: "visible" });
+  await page.waitForTimeout(250);
+
+  const treffer = await elementGetroffen(page, "#mergeWindow");
+  check("das Verbinden-Fenster ist bei 400x800 getroffen",
+    treffer.ok, JSON.stringify(treffer));
+  check("und der Verbinden-Knopf ist dort bedienbar",
+    await page.locator("#mergeMapsBtn").isVisible());
+
+  /* Die Huelle ist wirklich weg - nicht nur unsichtbar. */
+  check("es gibt keine Seitenleiste mehr",
+    (await page.locator("#sidebar").count()) === 0,
+    String(await page.locator("#sidebar").count()));
+  check("und keinen mobilen Bedienknopf",
+    (await page.locator("#mobilePanelBtn").count()) === 0,
+    String(await page.locator("#mobilePanelBtn").count()));
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

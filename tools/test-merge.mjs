@@ -22,6 +22,7 @@ import {
   createChecker,
   indexUrl,
   launchBrowser,
+  elementGetroffen,
   menueBefehl,
   openAllFolds,
 } from "./browser-harness.mjs";
@@ -103,7 +104,25 @@ try {
    */
   const expand = () => openAllFolds(page);
 
+  /*
+   * Die Verbinden-Bedienung liegt seit Etappe 7e in einem Kartenfenster, das
+   * ueber das Menue "Karte" aufgeht - vorher stand sie im letzten Abschnitt
+   * der Seitenleiste, die mit dieser Etappe entfallen ist. Die fuenf ids sind
+   * unveraendert; nur der Weg dorthin ist ein anderer.
+   *
+   * Das Fenster bleibt offen, bis ein anderes geoeffnet oder Escape gedrueckt
+   * wird - einmal oeffnen genuegt also. Es steht unten links und deckt die
+   * Karte nur dort ab.
+   */
+  const openMergeWindow = async () => {
+    if (await page.locator("#mergeWindow").isVisible()) return;
+    await menueBefehl(page, "Karte", "Karten verbinden…");
+    await page.locator("#mergeWindow").waitFor({ state: "visible" });
+  };
+
   await expand();
+
+  await openMergeWindow();
 
   const upload = async (selector, name, body) => {
     await page.locator(selector).setInputFiles({
@@ -113,6 +132,7 @@ try {
     });
     await page.waitForTimeout(400);
     await expand();
+    await openMergeWindow();
   };
 
   /** Liest die aktive Karte über den Export zurück. */
@@ -166,6 +186,7 @@ try {
   await menueBefehl(page, "Karte", "Karte A");
   await page.waitForTimeout(300);
   await expand();
+  await openMergeWindow();
 
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(300);
@@ -206,6 +227,7 @@ try {
   await page.locator("#mergeMapsBtn").click();
   await page.waitForTimeout(500);
   await expand();
+  await openMergeWindow();
 
   const merged = await exportActive();
   check("Export des Ergebnisses gelingt", !!merged);
@@ -271,11 +293,13 @@ try {
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: "load" });
     await expand();
+    await openMergeWindow();
     await upload("#fileInput", "a.geojson", aBody);
     await upload("#secondFileInput", "b.geojson", bBody);
     await menueBefehl(page, "Karte", "Karte A");
     await page.waitForTimeout(250);
     await expand();
+    await openMergeWindow();
   };
 
   /* Nur Karte B hat einen echten Docking-Pfad. */
@@ -286,6 +310,7 @@ try {
   await page.locator("#mergeMapsBtn").click();
   await page.waitForTimeout(500);
   await expand();
+  await openMergeWindow();
 
   const fromB = await exportActive();
   check("Export gelingt", !!fromB);
@@ -319,6 +344,7 @@ try {
   await page.locator("#deleteDockBtn").click();
   await page.waitForTimeout(400);
   await expand();
+  await openMergeWindow();
 
   check("nach dem Löschen wieder freigegeben",
     await page.locator("#mergeMapsBtn").isEnabled(),
@@ -355,6 +381,7 @@ try {
   await page.locator("#mergeMapsBtn").click();
   await page.waitForTimeout(600);
   await expand();
+  await openMergeWindow();
 
   const nachher = await typen();
 
@@ -372,6 +399,60 @@ try {
   check("die Meldung nennt die unerkannte Linie",
     meldung.includes("ohne erkennbaren Typ") && meldung.includes("dockingpfad"),
     meldung);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Das Fenster ist in jeder Fenstergroesse wirklich getroffen");
+
+  /*
+   * Nicht getComputedStyle, sondern die Trefferpruefung: display beantwortet
+   * "will sichtbar sein", elementFromPoint "ist sichtbar". Ueber dem Fenster
+   * liegt .viewer mit overflow:hidden - ein Fenster, das ueber die
+   * Kartenflaeche hinausragt, waere gerechnet da und trotzdem nicht bedienbar.
+   * Genau so waren in Etappe 6 alle Menuetests gruen, waehrend das Menue
+   * unsichtbar war.
+   */
+  for (const [breite, hoehe] of [[1920, 1080], [1440, 900], [1280, 800], [400, 800]]) {
+    await page.setViewportSize({ width: breite, height: hoehe });
+    await page.waitForTimeout(250);
+
+    /*
+     * In JEDER Groesse neu oeffnen, nicht nur wenn zu: openMapWindow() setzt
+     * den Fokus in das Fenster, und erst der bringt es auf einem Telefon in
+     * den Blick - dort scrollt die Seite, und die Karte samt Fenster steht
+     * unterhalb von Menue und Werkzeugleiste. Ohne das Neuoeffnen prueft man
+     * bei 400 px eine Stelle, an der der Browser gar nichts zeichnet.
+     */
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(150);
+    await menueBefehl(page, "Karte", "Karten verbinden…");
+    await page.locator("#mergeWindow").waitFor({ state: "visible" });
+    await page.waitForTimeout(200);
+
+    const treffer = await elementGetroffen(page, "#mergeWindow");
+    check(`Fenster ist bei ${breite}x${hoehe} getroffen`,
+      treffer.ok, JSON.stringify(treffer));
+    check(`und der Verbinden-Knopf ist bei ${breite}x${hoehe} sichtbar`,
+      await page.locator("#mergeMapsBtn").isVisible());
+  }
+
+  /*
+   * Escape schliesst und gibt den Fokus an den Menueeintrag zurueck - dieselbe
+   * Zusicherung, die die beiden anderen Kartenfenster tragen.
+   */
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+
+  check("Escape schliesst das Fenster",
+    !(await page.locator("#mergeWindow").isVisible()));
+  /*
+   * Der Fokus geht an den Menuetitel, nicht an den Eintrag selbst: der Eintrag
+   * ist bei geschlossenem Menue unsichtbar, und focusVisibleOpener() weicht
+   * dann bewusst auf ".menu-title" aus. Ein Fokus auf einem unsichtbaren
+   * Element waere fuer die Tastatur eine Sackgasse.
+   */
+  check("und der Fokus steht auf dem Menue, das den Eintrag traegt",
+    (await page.evaluate(() => document.activeElement?.id)) === "menuMapBtn",
+    await page.evaluate(() => document.activeElement?.id));
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
