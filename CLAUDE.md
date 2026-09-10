@@ -2118,6 +2118,63 @@ Features unbekannten Typs werden bewusst aus beiden Karten angehängt statt
 zusammengeführt: der Editor weiß nichts über sie, und Wegwerfen wäre schlimmer
 als Verdoppeln.
 
+**Ein Feature nimmt genau EINEN Weg – und daran hing der Verdopplungsfehler.**
+Der Filter, der `bAdditionalFeatures` bildet, lautet heute
+`type !== "perimeter" && !MERGE_SINGLETON_TYPES.includes(type)`. Der zweite
+Teil ist die Reparatur aus `d05345e` (07.09.); vorher entfernte der Filter
+**nur den Perimeter**, und die beiden Singletons liefen dadurch durch **beide**
+Wege – einmal angehängt, einmal über `mergeSingletonFeatures()`
+zusammengeführt. Das Ergebnis trug dann zwei Docking-Pfade und zwei
+Search Wires.
+
+**`mergeSingletonFeatures()` war dabei immer richtig.** Der Fehler saß in der
+**Arbeitsteilung**, nicht in der Rechnung – eine Fehlersuche in der
+Zusammenführungsfunktion wäre ergebnislos geblieben. Wer hier etwas ändert,
+prüft deshalb zuerst, ob ein Feature genau einen Weg nimmt, und erst danach,
+was auf dem Weg passiert.
+
+**Warum der Fehler so selten sichtbar war:** er zeigt sich **nur, wenn beide
+Karten leere Platzhalter tragen.** Hat auch nur eine Seite einen befüllten
+Pfad, bricht `getMergeSingletonConflict()` vorher ab, und es wird gar nicht
+verbunden. Leere Platzhalter sind aber der Normalfall, nicht die Ausnahme:
+CaSSAndRA schreibt Docking-Pfad und Search Wire **immer** in den Export, auch
+ohne Punkte. Der Fehler traf also die gewöhnlichste Ausgangslage und blieb
+trotzdem lange unbemerkt, weil zwei leere Platzhalter gleich aussehen – der
+Unterschied steht nur im Namen.
+
+**Nachträglich diagnostiziert an zwei echten Nutzerkarten** (nicht im
+Repository). Beide trugen je einen leeren Docking-Pfad und eine leere Search
+Wire; das fehlerhafte Ergebnis hatte 18 Features mit
+`{perimeter: 1, dockpoints: 2, searchwire: 2, exclusion: 13}`. **Die
+Zusatzfeatures waren korrekt benannt und `supported`** – nicht, wie zunächst
+vermutet, vom Typ `other` mit einem Namen, den `FEATURE_TYPE_BY_NAME` nicht
+kennt. Der heutige Stand liefert mit denselben Dateien 16 Features und
+`{perimeter: 1, dockpoints: 1, searchwire: 1, exclusion: 13}`, in beiden
+Ladereihenfolgen.
+
+**Die Zusicherungen von 7a1 hätten den Fehler gefunden – belegt, nicht
+geschlossen.** Wird in einer Arbeitskopie **nur** die eine Bedingung
+`!MERGE_SINGLETON_TYPES.includes(type)` entfernt, reißen in
+`tools/test-merge.mjs` **fünf** Zusicherungen, darunter „genau ein
+Docking-Pfad" mit dem Wert 2. Das ist genau der Gewinn der Umstellung aus 7a1
+von „den Prüfbericht befragen" auf „das Ergebnis zählen": die alten Fassungen
+lasen einen Bericht und hätten auch bei leerem Bericht bestanden.
+
+**Einschränkung dazu, damit der Beleg nicht mehr behauptet, als er zeigt:** der
+echte Vorgängerstand `d05345e^` ließ sich nicht gegenprüfen – er kennt die
+Menüleiste noch nicht, und der heutige Test kann ihn nicht bedienen. Der Beleg
+isoliert die Bedingung deshalb im **heutigen** Code. Über die Zusicherungen
+sagt das mehr, über den damaligen Build weniger.
+
+**Die Lehre, und sie gilt über diesen Fall hinaus: ein offener Punkt ohne
+Reproduktionsfall kann längst behoben sein und trotzdem die Planung binden.**
+Dieser hier hat es getan – die Reihenfolge der Etappe 7 war nach ihm gerichtet,
+und die Behebung lag zu diesem Zeitpunkt schon Wochen zurück; die
+Beispieldatei, die den Fehler zeigte, war neun Tage **älter** als die
+Reparatur. **Wer einen Fehler notiert, notiert das Datum des Befundes dazu** –
+sonst lässt sich später nicht entscheiden, ob ein Punkt noch offen ist oder nur
+noch dasteht.
+
 **Ganze Features verschieben:** Unterstützt für Exclusion, Search Wire,
 Docking (Ziehen direkt an der Geometrie). Der komplette Perimeter ist
 absichtlich **nicht** direkt draggable, um versehentliches Verschieben zu
@@ -2781,7 +2838,8 @@ Handyfassung, ein Fassungsschalter, oder eine Sperre unterhalb von 744 px.
 
 ### Etappe 9 – der Inspektor wird entdoppelt, dann zieht der Prüfbericht um
 
-**Eintrag, kein Auftrag; der Plan folgt, wenn 7a2 und 7d durch sind.**
+**Eintrag, kein Auftrag; der Plan folgt, wenn 7d durch ist.** 7a2 ist mit der
+Merge-Diagnose erledigt, siehe „Verbinden und Singletons“ in Abschnitt 5.
 Ausgelöst durch die Beobachtung, der Inspektor trage zu viel, und den
 Vorschlag, Bestand, Koordinatenbezug, Kartenprüfung und Feature-Navigation aus
 der Spalte in ein Menü zu nehmen. **Die Messung sagt etwas anderes**, und die
