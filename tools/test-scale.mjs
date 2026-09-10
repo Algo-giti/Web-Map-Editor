@@ -14,7 +14,13 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-scale.mjs
 
-import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
+import {
+  createChecker,
+  indexUrl,
+  launchBrowser,
+  menueBefehl,
+  openAllFolds,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-scale";
 
@@ -120,7 +126,16 @@ try {
   check("Sperre nennt den Grund",
     (await page.locator("#snapPointToGrid").getAttribute("title")).includes("Maßstab"));
 
-  /* Absolutes Speichern muss abgelehnt werden, ohne eine Datei zu schreiben. */
+  /*
+   * Absolutes Speichern muss abgelehnt werden, ohne eine Datei zu schreiben.
+   *
+   * Der Faltblock wird vorher geoeffnet: #exportFrameSelect ist unveraendert,
+   * steht aber seit Etappe 7c im Inspektor unter "Koordinatenbezug" statt in
+   * der Seitenleiste, und dieser Faltblock ist beim Start ZU. Nur der Weg
+   * dorthin ist ein anderer - ueber den Helfer, nicht ueber eine eigene Kopie
+   * der Faltgeste.
+   */
+  await openAllFolds(page);
   await page.selectOption("#exportFrameSelect", "absolute");
 
   let downloaded = false;
