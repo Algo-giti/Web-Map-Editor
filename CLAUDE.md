@@ -2743,6 +2743,154 @@ Zielgrößen für den Finger lösen sich von der Breite; und die Erklärungen fi
 einen Ort, den ein Finger erreicht. **Was Etappe 8 nicht ist:** eine
 Handyfassung, ein Fassungsschalter, oder eine Sperre unterhalb von 744 px.
 
+### Etappe 9 – der Inspektor wird entdoppelt, dann zieht der Prüfbericht um
+
+**Eintrag, kein Auftrag; der Plan folgt, wenn 7a2 und 7d durch sind.**
+Ausgelöst durch die Beobachtung, der Inspektor trage zu viel, und den
+Vorschlag, Bestand, Koordinatenbezug, Kartenprüfung und Feature-Navigation aus
+der Spalte in ein Menü zu nehmen. **Die Messung sagt etwas anderes**, und die
+Zahlen stehen hier, damit der nächste Leser nicht wieder bei den Faltblöcken
+anfängt.
+
+**Gemessen im Zustand „ganzes Feature"** (Exclusion #0 mit vier Punkten,
+Auslieferungszustand: alle fünf Faltblöcke zu), bei 1920 × 1080, 1440 × 900 und
+1280 × 800:
+
+| Bestandteil | Höhe |
+|---|---|
+| Kopfblock | 64 px |
+| `#inspectorMulti` („Gruppe") | 110 px |
+| `#inspectorFeature` („Feature") | **274 px** |
+| `#inspectorSelection` (die beiden Auswahlknöpfe) | 37 px |
+| die fünf Faltblöcke zusammen | 104 px (21 + 21 + 21 + 21 + 20) |
+| acht Lücken à 10 px + 24 px Polsterung | 104 px |
+| **Inhalt** | **693 px** |
+
+**Die Blockhöhen sind bei allen drei Breiten identisch** – die Spalte ist fest
+320 px breit, die Fensterbreite spielt für den Inspektor keine Rolle. Es
+unterscheidet sich nur die verfügbare Höhe: 915 / 735 / 635 px, also **Reserve
++222 / +42 / −58 px**. Eng wird es über die Fensterhöhe, nie über die Breite.
+
+**Die Zahl, die die Richtung entscheidet:**
+
+| | inkl. Lücken | Anteil am Inhalt |
+|---|---|---|
+| die vier vorgeschlagenen Blöcke, zugeklappt | 123 px | **17,7 %** |
+| davon Bestand + Kartenprüfung + Koordinatenbezug | 92 px | 13,3 % |
+| **der Auswahlzustand darüber** | **451 px** | **65,1 %** |
+| davon `#inspectorFeature` allein | 274 px | 39,5 % |
+
+Alle vier herauszunehmen brächte 1280 × 800 von −58 auf +65 px – gerade über
+die Kante –, während zwei Drittel des Inhalts unangetastet blieben.
+
+#### 9a – Doppelungen im Auswahlzustand
+
+**106 px, kein Umzug, kein Ortswechsel.** Der billigste verfügbare Gewinn, und
+mehr als Bestand, Kartenprüfung und Koordinatenbezug zusammen (92 px).
+
+Bei ausgewähltem Exclusion-Feature sagt der **Kopfblock** „4 Punkte
+ausgewählt" und „Exclusion #0 · vollständig"; **`#inspectorMulti`** sagt „Alle
+4 Punkte von Exclusion #0."; **`#inspectorFeature`** sagt „Typ: Exclusion #0"
+und „Punkte: 4". **„Exclusion #0" steht dreimal in der Spalte, „4 Punkte"
+ebenfalls dreimal.** Dazu erklären zwei Hinweissätze à 35 px beide dasselbe
+Verschieben („Einen markierten Punkt ziehen verschiebt die ganze Gruppe…" und
+„Verschieben durch Ziehen an der Geometrie auf der Karte…").
+
+Aufgeschlüsselt, damit beim Planen nicht neu gemessen werden muss:
+
+| Block | Zeilen |
+|---|---|
+| `#inspectorFeature` (274) | Überschrift 15 · Typ 31 · Punkte 31 · Fläche 31 · idx 31 · Knopf „Exclusion duplizieren" 40 · Hinweis 35 |
+| `#inspectorMulti` (110) | Überschrift 15 · „Alle 4 Punkte von Exclusion #0." 40 · Hinweis 35 |
+| `#inspectorSelection` (37) | die beiden Knöpfe nebeneinander |
+
+**Beim Planen zu entscheiden, nicht jetzt: welche der drei Stellen die Angabe
+trägt – und warum.** Nicht „die kürzeste gewinnt", sondern **die, an der man
+sie sucht**. Das ist eine Frage über die Lesegewohnheit, nicht über Pixel; wer
+sie mit einer Höhenrechnung beantwortet, hat sie nicht beantwortet.
+
+**Derselbe Befund ist in Etappe 5 schon einmal gelöst worden:** `#pointMeta`
+wiederholte Punktnummer, Feature und Geometrietyp – also genau das, was der
+feste Kopfblock seit Etappe 4 sagt. Übrig blieb die Punktrolle, und nur für
+Start- und Endpunkt. Den Kopfblock einzuführen und die Wiederholung darunter
+stehen zu lassen war damals ein halber Umbau; **hier steht die andere Hälfte
+desselben Umbaus noch aus.**
+
+#### 9b – Prüfbericht ins Fenster
+
+**Nicht wegen der 21 px.** Der Grund ist, dass der Bericht heute hinter einem
+zugeklappten Block steht, den niemand öffnet – die Faltblöcke klappen
+absichtlich nie von selbst auf –, und dass die Zusicherungen darauf **329
+Zeichen bei `isVisible() === false`** belegen. `textContent()` und `.count()`
+tragen durch ein geschlossenes `<details>` hindurch; die Zusicherung beweist
+damit „der Text steht im DOM", nicht „der Nutzer kann ihn lesen". Betroffen
+sind `tools/test-validation.mjs` (viermal) und `tools/test-scale.mjs`.
+
+**Im Fenster kann `elementGetroffen()` beide Teile zeigen:** der Inhalt stimmt
+**und** der Weg dorthin existiert. Damit ist der offene Punkt „Zusicherungen
+auf unsichtbaren Inhalt" nicht wegdefiniert, sondern eingelöst.
+
+Dazu kommt: ein Bericht mit dutzenden Zeilen gehört ohnehin nicht in eine
+320-px-Spalte.
+
+**VORHER zu entscheiden – die Überdeckung.** Ein Prüfbefund ist ein
+`<button>`, der über `selectWholeFeature()` **auf die Karte springt**. Liegt
+das Fenster über der Karte, kann das angesprungene Feature darunter landen.
+Die Kartenfenster sitzen heute unten links (`left:12px; bottom:12px`,
+`min(300px, …)`), weil oben rechts die Zoom-Leiste liegt. Drei Antworten:
+
+| Antwort | was sie kostet |
+|---|---|
+| **Fenster verschiebbar machen** | eine Zieh-Mechanik, die es im ganzen Editor noch nicht gibt, plus die Frage, ob die Position gemerkt wird – also ein neuer `localStorage`-Schlüssel oder ein Zustand, der bei jedem Start zurückspringt |
+| **Den Sprung in die freie Fläche einpassen** | `selectWholeFeature()` bekommt eine zweite Aufgabe und muss die Fenstergeometrie kennen; die Einpassung hinge dann davon ab, welches Fenster gerade offen ist – eine Kopplung zwischen Auswahl und Fensterzustand, die es heute nicht gibt |
+| **Andocken statt schweben** | kostet dauerhaft Kartenfläche, solange der Bericht offen ist, und bricht mit dem Muster der drei vorhandenen Fenster – dafür entfällt die Überdeckung vollständig |
+
+**Der Faltblock hatte dieses Problem nicht, weil er außerhalb der Karte liegt.**
+Das gehört ausdrücklich dazu: der Umzug **erzeugt** ein Problem, das die
+heutige Lösung nicht hat, und er ist trotzdem richtig – aber nur, wenn die
+Frage vorher beantwortet ist und nicht hinterher auffällt.
+
+#### 9c – Feature-Navigation
+
+**Erst danach**, wenn 9b gezeigt hat, wie sich ein springendes Fenster
+verhält. Der Grund ist stärker als bei der Prüfung: die Navigation ist der
+Block, der aufgeklappt am weitesten wächst – **21 px zu, 614 px offen** – und
+sie wird bei jeder Auswahländerung neu gebaut.
+
+**Die Überdeckung trifft sie in härterer Form:** ein Klick in der Navigation
+wählt ein Feature auf der Karte aus, das Fenster steht also bei **jeder**
+Benutzung möglicherweise vor dem Ergebnis. Bei der Prüfung ist der Sprung die
+Ausnahme, hier ist er der Zweck.
+
+#### Was NICHT gemacht wird, mit Begründung
+
+- **Bestand bleibt in der Spalte.** Drei Ablehnungsgründe verweisen wörtlich
+  auf seine Knöpfe: „Es existiert bereits eine Search Wire. Verwende „Search
+  Wire verlängern" oder lösche sie zuerst." und dieselbe Form für den
+  Docking-Pfad. Hinter einem Menütitel müsste der Text den **Ort** nennen – und
+  ein Ort in einem Text ist genau das, was veraltet. Etappe 7g hat gerade acht
+  solche Sätze richtiggestellt.
+- **Koordinatenbezug bleibt in der Spalte.** Der dokumentierte Grund – der
+  Block klappt bei einem Konflikt selbst auf, als einzige Ausnahme von
+  „Faltblöcke klappen nie von selbst auf" – gilt **gegen ein Menü, nicht gegen
+  ein Fenster**: ein Fenster kann offen bleiben, `openMapWindow()` gibt es. Er
+  wird trotzdem nicht gebraucht, denn 20 px sind es nicht wert, den einzigen
+  selbsttätigen Warnpfad der Anwendung umzubauen.
+- **Kein Menü für die vier.** Ein Menüeintrag kann keinen Warnzustand offen
+  halten. Das schließt die ursprünglich vorgeschlagene Form aus, unabhängig
+  davon, welche Blöcke am Ende umziehen.
+
+#### Planung
+
+**Das Hilfe-Overlay wird Etappe 10.** Das folgt genau dem Grund, aus dem es
+zurückgestellt wurde: geschrieben wird, **wenn die Anordnung feststeht**. Zöge
+der Prüfbericht nach der Neufassung in ein Fenster, wäre das Overlay zweimal zu
+schreiben – der Aufwand, den die Zurückstellung vermeiden sollte. **Die
+Fehlerliste bleibt bis dahin offen und nimmt auf, was dieser Umbau falsch
+macht.**
+
+---
+
 **UI-Element verschieben – Wege statt Bezeichner:** Etappe 7 hat drei
 Browsertests repariert, die seit b2, 7b und 7c rot waren, und die Ursache war
 jedes Mal dieselbe: **ein Umzug hat den WEG zu einem Element geändert, ohne
@@ -2944,7 +3092,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Ausgaben überlebt. Die manuelle Volltextsuche aus Abschnitt 5 ("UI-Element
   entfernen") bleibt deshalb Pflicht.
 - **Das Hilfe-Overlay beschreibt die Anordnung in Prosa und veraltet mit
-  jeder Etappe des Oberflächenumbaus.** Es wird in Etappe 9 vollständig neu
+  jeder Etappe des Oberflächenumbaus.** Es wird in Etappe 10 vollständig neu
   geschrieben, wenn die Anordnung feststeht – vorher wäre es zweimal Arbeit.
   Bis dahin steht hier die Liste der Sätze, die **jetzt schon falsch** sind,
   damit dort keine Neulektüre nötig ist. Die Fundstelle ist der Abschnitt des
