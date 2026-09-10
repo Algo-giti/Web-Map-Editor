@@ -3641,11 +3641,46 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   dass sie hier nicht von einem zweiten Knopf kommt, sondern von einer ganz
   gewöhnlichen Punktbearbeitung.
 
-  **Nicht gemessen ist das Verschieben** von Punkt 0 bzw. des letzten Punktes –
-  weder mit der Maus noch über die E/N-Felder noch mit den Pfeiltasten. Der
-  Verdacht liegt nahe, dass die Marke auch dort stehen bleibt, während sich die
-  Kante verändert; **er ist aber ungeprüft und darf bis zur Messung nicht als
-  Befund zitiert werden.**
+  **Die offenen Messungen sind mit dem 7d-4-Befund nachgeholt** (Stand
+  `1a0c325`, 10.09.2026). Ausgangslage überall: Ring
+  `40.00/0.00 40.00/40.00 0.00/40.00 0.00/0.00`, Auftrennstelle gesetzt,
+  Infoblock „Startpunkt E 40.00 / N 0.00 m · Endpunkt E 0.00 / N 0.00 m".
+
+  | Eingriff | Ring danach | Infotext danach |
+  |---|---|---|
+  | Punkt 0, Pfeiltaste nach rechts | `40.10/0.00 …` | „gewählt.", Startpunkt **E 40.10 / N 0.00 m** |
+  | letzter Punkt, Pfeiltaste nach oben | `… 0.00/0.10` | „gewählt.", Endpunkt **E 0.00 / N 0.10 m** |
+  | Punkt 0 über das E-Feld auf 45,00 | `45.00/0.00 …` | „gewählt.", Startpunkt **E 45.00 / N 0.00 m** |
+  | Punkt 0 mit der Maus gezogen | `43.20/0.00 … 3.20/0.00` | „gewählt.", Startpunkt **E 43.20**, Endpunkt **E 3.20** |
+  | letzter Punkt mit der Maus, Auswahl vorher leer | `… -3.20/0.00` | „gewählt.", Endpunkt **E -3.20 / N 0.00 m** |
+  | Rechtwinklig, ganzes Feature | `39.75/0.75 39.25/40.25 -0.25/39.75 0.25/0.25` | „gewählt.", Startpunkt **E 39.75 / N 0.75**, Endpunkt **E 0.25 / N 0.25** |
+  | Reduzieren, ganzes Feature, Toleranz 1,00 m | 5 → 4 Punkte, es fiel ein **Innenpunkt** | unverändert richtig |
+  | Begradigen, zwei Punkte desselben Rings | Innenpunkt auf `20.00/20.00` gezogen | unverändert richtig |
+
+  **Alle drei Bewegungswege verhalten sich gleich** – Maus, E/N-Feld,
+  Pfeiltaste –, und es gibt keinen Bearbeitungsweg, der die Marke fallen ließe.
+  Der Infoblock nennt dabei jedes Mal den **heutigen** ersten und letzten Punkt:
+  er behauptet „gewählt" und zeigt Koordinaten, die der Nutzer nie gewählt hat.
+
+  **Der Mausfall bewegt zwei Punkte, nicht einen.** Nach `applyMergeCut()`
+  bleiben **beide** Endpunkte ausgewählt, und ein Zug am einen Marker zieht die
+  ganze Gruppe – deshalb wanderten Start und Ende oben um dieselben 3,20 m. Wer
+  den letzten Punkt allein bewegen will, hebt die Auswahl vorher auf.
+
+  **Zwei Fälle sind weiterhin NICHT gemessen**, und beide sind nur deshalb
+  offen, weil sie sich auf einem Rechteck nicht herstellen ließen:
+
+  - **Reduzieren entfernt den letzten Punkt.** Punkt 0 bleibt nach der
+    Hausregel immer erhalten; der letzte Punkt ist in der offenen Folge
+    `[0 … n-1, 0]` dagegen ein Innenpunkt und **kann** fallen. In der Messung
+    fiel ein anderer, weil er der flachste war.
+  - **Begradigen erfasst Punkt 0.** Das setzte voraus, dass der Innenbereich
+    des gewählten Abschnitts über die Schlusskante läuft;
+    `interiorIndicesBetween()` wählte beide Male den nicht umlaufenden Weg.
+
+  Beide dürfen bis zur Messung **nicht als Befund zitiert werden** – aus dem
+  Verhalten der übrigen Wege folgt zwar, was zu erwarten ist, aber erwartet ist
+  nicht gemessen.
 
   **Dieselbe Lücke ein zweites Mal, an den beiden alten Punktknöpfen.** Die
   zweite Punktgeste überschreibt die erste – „Startpunkt setzen" auf einen
@@ -3670,6 +3705,45 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   ausdrückliche Begründung, mit der die Marke in 7d-1 **doch** gespeichert
   wurde, zeigt auf die erste. Beides ist vertretbar, und die Antwort gehört vor
   den Bau.
+
+- **`selectedVertex` steht nach `applyMergeCut()` auf dem Endpunkt, obwohl die
+  Funktion ihn auf `null` setzt.** Befund vom 10.09.2026, Stand `1a0c325`, im
+  Browser gemessen – **Reproduktionsfall, kein Auftrag.**
+
+  `applyMergeCut()` setzt ausdrücklich `selectedVertex = null` und füllt allein
+  `selectedVertices` mit den beiden Endpunkten. Unmittelbar nach dem Klick auf
+  „Auftrennstelle setzen" steht `selectedVertex` trotzdem auf `3`, also auf dem
+  letzten Punkt des gedrehten Rings.
+
+  **Die sichtbare Folge ist ein fehlender Marker.** Die Mähervorschau
+  **ersetzt** den Marker des ausgewählten Punktes (`mowerReplacesPoint` in
+  `renderGeometry()`); weil `selectedVertex` gesetzt ist, greift sie. Gemessen
+  bei einem Ring aus vier Punkten:
+
+  ```
+  Ring:   [[40,0],[40,40],[0,40],[0,0]]
+  Marker: 0:0:0@40/0   0:0:1@40/-40   0:0:2@0/-40      -> DREI Marker
+  selectedVertices: [0, 3]   selectedVertex: 3
+  ```
+
+  Der Marker des Endpunkts fehlt, an seiner Stelle steht der Mäher.
+
+  **Noch nicht ermittelt, und beides gehört vor eine Entscheidung:**
+
+  - **Wer `selectedVertex` danach schreibt.** In Frage kommen
+    `afterGeometryEdit()`, `syncActiveSlotFromGlobals()` und `activateMap()`,
+    die alle drei die Auswahl anfassen; nachgesehen ist es nicht.
+  - **Ob dem Nutzer damit ein Griff fehlt.** Der Endpunkt ist über den Mäher
+    weiterhin auswählbar, sofern der Mäher dieselbe Trefferfläche hat – und ob
+    er das tut, ist ebenfalls nicht gemessen. Ist die Fläche kleiner oder
+    versetzt, ist der Endpunkt nach dem Auftrennen schwerer zu greifen als
+    jeder andere Punkt, und zwar genau in dem Moment, in dem man ihn ansehen
+    will.
+
+  **Für Tests ist das ein Fallstrick**, und er hat beim Messen zu 7d-4 sofort
+  zugeschlagen: ein Skript, das den Marker des Endpunkts über seine Koordinate
+  sucht, findet ihn nicht und läuft in einen Playwright-Timeout. Vorher die
+  Auswahl aufheben – dann stehen wieder alle Marker da.
 
 - **Die Mähbahnen-Vorschau ist geplant, aber nicht gebaut.** Sie war für
   Ausgabe 049 vorgesehen und wurde herausgenommen, um den Release nicht
