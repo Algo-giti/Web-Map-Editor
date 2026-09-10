@@ -2526,9 +2526,222 @@ Schritt pro `pointermove`. Tastatur-Nudging ebenfalls sinnvoll gruppieren.
 (3) ggf. `I18N_PATTERNS`-Regex anpassen, (4) beide Sprachen testen. Das
 Übersetzungssystem nicht ohne konkreten Grund umbauen.
 
-**Mobile/Android:** Chrome-auf-Android-Kompatibilität erhalten – Touch-
+**Mobile/Android – geänderte Etappenplanung, Etappe 8.** Die frühere Fassung
+dieser Regel lautete „Chrome-auf-Android-Kompatibilität erhalten – Touch-
 Zielgrößen, Seiten-Scrolling, Karteninteraktion, Toolbar-Overflow,
-Formulargrößen. Desktop-Verhalten dabei nicht brechen.
+Formulargrößen. Desktop-Verhalten dabei nicht brechen." Sie gilt in dieser
+Form nicht mehr.
+
+**Entscheidung: das Telefon fällt als Zielgerät heraus. Zielgeräte sind
+Desktop und Tablet.** Der Grund ist nicht die Technik, sondern der Umfang: der
+Editor trägt eine Menüleiste mit vier Menüs, eine dreigruppige Werkzeugleiste,
+einen Inspektor mit sieben Zuständen und fünf Faltblöcken, drei Kartenfenster
+und eine zweizeilige Statuszeile. Auf 400 px Breite lässt sich das stapeln,
+aber nicht bedienen – und eine eigene **reduzierte Handyfassung wird nicht
+gebaut**, weil sie eine zweite Oberfläche wäre, die neben der ersten gepflegt
+werden müsste. Das ist dieselbe Fehlerklasse wie ein eingechecktes Erzeugnis
+neben seiner Quelle: eine Tatsache an zwei Orten.
+
+**Was die Entscheidung ausdrücklich NICHT heißt:** der Editor wird bei 400 px
+**nicht gesperrt und nicht abgewiesen**. Kein Hinweisbildschirm, keine
+Mindestbreite, keine Weiche. Wer dort etwas ansehen will, soll es können. Es
+wird nur nichts mehr dafür gebaut und nichts mehr dafür gemessen.
+
+**1. Die neue untere Zielgröße: 744 px – und die heutige Schwelle liegt
+falsch.** Übliche Tablet-Breiten in CSS-Pixeln:
+
+| Gerät | Hochformat | Querformat |
+|---|---|---|
+| iPad mini 8,3" | **744** | 1133 |
+| ältere iPads, viele Android-Tablets | 768 / 800 | 1024 / 1280 |
+| iPad 10,9" | 820 | 1180 |
+| iPad Air / Pro 11" | 834 | 1194 |
+| Surface Pro | 912 | 1368 |
+| iPad Pro 13" | 1024 | 1366 |
+
+Das Feld beginnt also bei **744** und ist ab 1024 unauffällig. Die heutige
+Schwelle von **760 px schneidet mitten hindurch**: ein iPad mini im
+Hochformat (744) bekommt das Telefon-Layout, ein iPad bei 768 das
+Desktop-Layout – zwei Tablets derselben Familie auf verschiedenen Seiten einer
+Grenze, die für Telefone gedacht war. Das ist kein Fehler des alten Entwurfs,
+sondern eine Folge der Umwidmung.
+
+**Entschieden: die Grenze ist 744 px, nicht 768.** Eine Grenze soll das
+kleinste Zielgerät **einschließen**, nicht knapp daneben liegen. Bei 768 fiele
+das iPad mini im Hochformat wieder heraus – wir hätten dieselbe Trennung
+24 px weiter rechts und denselben Befund in einem Jahr noch einmal.
+
+**Gemessen und zugesichert wird an 744, 768, 834 und 1024 px**, zusätzlich zu
+den drei Desktop-Größen. **Unterhalb von 744: darf schlecht aussehen, darf
+nicht abweisen.**
+
+**Die 760er-Schwelle lag schon vor dieser Entscheidung falsch.** Das ist kein
+Nebensatz: sie schnitt **mitten durch dieselbe Gerätefamilie** – iPad mini
+hochkant 744 auf der einen, iPad hochkant 768 auf der anderen Seite. Selbst als
+reine Telefon/Nicht-Telefon-Grenze war sie damit schon unbrauchbar, weil sie
+zwei Geräte trennte, die sich in der Bedienung nicht unterscheiden. Die
+Umwidmung auf Tablets hat den Fehler nicht erzeugt, sondern sichtbar gemacht.
+
+**2. Was trägt die 760-px-Schwelle noch?** Nachgesehen – sie hängt an
+**genau zwei `@media`-Blöcken in CSS und sonst nirgends**:
+
+| Ort | Inhalt |
+|---|---|
+| `@media(max-width:760px)`, erster Block | Inspektor auf volle Breite, Werkzeugleiste waagerecht mit Umbruch, `.tool-rail-toggle` ausgeblendet |
+| `@media(max-width:760px)`, zweiter Block | Seiten-Scrolling statt fester Fensterhöhe, klebende Kopfzeile, Menüleiste in eigener Zeile, Marke verkleinert, `main` als Spalte, Inspektor über der Karte (`order:1` / `order:2`), Kartenhöhe 68 vh, **44-px-Zielgrößen** und **16 px Schriftgröße** in Eingabefeldern |
+
+**Kein `matchMedia` in JS hängt daran** – die einzige Schwelle in JS ist
+`TOOL_RAIL_NARROW_QUERY = "(max-width: 1000px)"`. **Kein Test sichert 760 zu**;
+die kleinste geprüfte Breite ist 400 × 800 in `tools/test-toolbar.mjs`
+(„Mobil: 400 × 800, alles erreichbar"), daneben 860 px in
+`tools/test-statusbar.mjs` und 940 px in `tools/test-toolbar.mjs`. In der Doku
+steht sie einmal, in der Schwellentabelle in Abschnitt 7.
+
+**Sie fällt nicht, sie wird die Tablet-Grenze – bei 744 statt bei 760.** Die
+Inhalte des zweiten Blocks sind zum größten Teil genau das, was ein Tablet im
+Hochformat braucht; siehe Punkt 3.
+
+**3. Was ist heute mobilspezifisch gebaut – und trägt es auf einem Tablet?**
+
+| Verhalten | auf einem Tablet |
+|---|---|
+| Inspektor gestapelt **über** der Karte, volle Breite, kein eigener Scrollbereich | **trägt** im Hochformat bei 744–834 px; im Querformat ab 1024 px ist es **überflüssig** und sogar schlechter als die Spalte |
+| Werkzeugleiste waagerecht mit Umbruch, `.tool-rail-toggle` ausgeblendet | **trägt** im Hochformat. Dass der Umschalter verschwindet, ist dort richtig – eine waagerechte Leiste hat nichts einzuklappen |
+| Seiten-Scrolling statt fester Fensterhöhe | **trägt**; auf einem Tablet ist die Höhe im Hochformat ähnlich knapp |
+| Kartenhöhe `68vh`, mindestens 420 px, höchstens 760 px | **trägt**, ist aber nie an einem Tablet gemessen worden |
+| 44-px-Zielgrößen für Menütitel, Menüeinträge, Kopfzeilenknöpfe und Inspektorknöpfe | **trägt und ist der wichtigste Punkt** – ein Tablet wird mit dem Finger bedient, unabhängig von der Breite. Fiele der Block ersatzlos, bekäme ein Tablet im **Querformat** Desktop-Zielgrößen |
+| `font-size:16px` in Eingabefeldern gegen Androids Formular-Zoom | **trägt** auf Android-Tablets, ist auf einem iPad folgenlos |
+| Statuszeile: `data-optional`-Felder weichen ab 900 px | hängt **nicht** an 760, sondern an 900. Bezugspunkt und Prüfergebnis weichen damit auf **jedem** Tablet im Hochformat – nachschlagbar im Inspektor, also regelkonform, aber es ist der Normalfall und nicht mehr der Ausnahmefall |
+| Marke verkleinert, Menüleiste in eigener Zeile | **überflüssig** ab etwa 820 px, dort passt beides nebeneinander |
+
+**Der Befund daraus, und er ist der eigentliche Inhalt der Etappe: der eine
+`@media`-Block vermischt zwei Dinge, die nichts miteinander zu tun haben.**
+
+| hängt an der **Breite** | hängt an der **Bedienart** |
+|---|---|
+| Inspektor gestapelt über der Karte | **44-px-Zielgrößen** für Menütitel, Menüeinträge, Kopfzeilen- und Inspektorknöpfe |
+| Werkzeugleiste waagerecht mit Umbruch, Umschalter ausgeblendet | **16 px Schriftgröße** in Eingabefeldern gegen Androids Formular-Zoom |
+| Seiten-Scrolling statt fester Fensterhöhe | |
+| Kartenhöhe `68vh` | |
+| Marke verkleinert, Menüleiste in eigener Zeile | |
+
+**Die rechte Spalte trägt in JEDER Breite.** Ein Tablet wird mit dem Finger
+bedient, ob es 744 px breit ist oder 1366. **Fiele der Block ersatzlos, bekäme
+ein Tablet im Querformat Desktop-Zielgrößen** – also 28-px-Knöpfe für einen
+Finger, und das auf dem Gerät, das gerade zum Zielgerät erklärt wurde. Die
+rechte Spalte gehört deshalb nicht an eine Breitenschwelle, sondern an das
+Eingabegerät (`pointer: coarse` / `any-pointer: coarse`), oder sie gilt
+unbedingt.
+
+**Und ein Feld, das an der falschen Zahl hängt:** die `data-optional`-Felder
+der Statuszeile weichen ab **900 px**, nicht ab 760. Bezugspunkt und
+Prüfergebnis verschwinden damit auf **jedem** Tablet im Hochformat – 744, 768,
+820, 834 liegen alle darunter. Das ist regelkonform, weil beide im Inspektor
+nachschlagbar sind, aber es ist damit der Normalfall des Zielgeräts und nicht
+mehr der Ausnahmefall eines schmalen Fensters. Ob 900 dafür der richtige Wert
+bleibt, ist mitzuentscheiden.
+
+**4. WAS DIE ENTSCHEIDUNG NICHT ERLEDIGT: Berührungsbedienung ist nicht
+Bildschirmbreite.** Ein Tablet hat keine Maus, in **jeder** Breite. Nachgesehen
+und gemessen:
+
+- **Zwanzig `title`-Attribute im Markup und zwölf weitere per JS gesetzt** sind
+  die einzige Stelle, an der die **Wirkung** eines Bedienelements erklärt wird.
+  Darunter die drei Umformwerkzeuge über `TRANSFORM_TOOL_HELP` (welche Punkte
+  sich bewegen, welche bleiben, was ausdrücklich *nicht* geschieht), die
+  Zeichen- und Prüfwerkzeuge der Leiste, „Auswahl löschen" und „Auswahl
+  aufheben", die reinen Symbolknöpfe Einpassen/Zoom, die Fensteröffner, der
+  Sprachumschalter und die Ebene „Sonstiges". **Auf einem Touchgerät erscheint
+  keines davon.**
+- **Der schärfste Fall ist die Strg-Erklärung**: „Rechteckauswahl: Rahmen um
+  Punkte ziehen. Mit Strg wird zur bestehenden Auswahl hinzugefügt." Sie steht
+  **nur** im Tooltip und beschreibt eine Taste, die es auf einem Tablet
+  ebenfalls nicht gibt – zwei Ausschlüsse in einem Satz. Dasselbe gilt für das
+  Lasso.
+- **Die Cursor-Koordinaten der Statuszeile** kommen ausschließlich aus dem
+  `pointermove`-Handler am `svg`. Ohne schwebenden Zeiger bleibt das Feld leer,
+  bis ein Finger die Karte berührt – und zeigt dann die Stelle **unter dem
+  Finger**. Eines der beiden ständig wechselnden Felder der Statuszeile ist auf
+  einem Tablet also praktisch tot.
+- **`.vertex:hover`** ist die einzige Rückmeldung, dass ein Punkt überhaupt
+  treffbar ist, bevor man ihn antippt.
+
+**Was davon NICHT betroffen ist, und warum es die Richtung zeigt:** der
+**Ablehnungsgrund** eines gesperrten Werkzeugs ist erreichbar – die
+Zeichenknöpfe tragen ihn in `data-blocked-reason` und geben ihn beim Klick in
+die Statuszeile aus, die Inspektorwerkzeuge tragen ihn sichtbar im
+`.tool-reason`-Feld. Das wurde in den Etappen 3 und 5 genau mit der Begründung
+entschieden, dass ein `title` auf Touch nie erscheint. **Der Grund ist also
+schon umgezogen, die Erklärung noch nicht.**
+
+---
+
+### Etappe 8b – „Erklärung ohne Hover"
+
+**Eine eigene Etappe, keine Randnotiz.** Sie ist das, was die Entscheidung
+„kein Telefon" **nicht** erledigt, sondern erst recht fällig macht: Tablets
+sind jetzt das erklärte Ziel, und sie haben keine Maus.
+
+**Zur Nummer:** sie steht als 8b und nicht als eigene Zahl, weil 9 (Inspektor)
+und 10 (Hilfe-Overlay) vergeben sind und sie **vor** dem Overlay liegen muss –
+sie verschiebt Erklärungen an sichtbare Orte, und das Overlay beschreibt
+Orte. Inhaltlich ist sie eine eigenständige Etappe mit eigenem Commit; die
+Zahl ist eine Reihenfolge, keine Einordnung als Nachtrag.
+
+**Der Befund in einem Satz: 32 Tooltips sind die einzige Stelle, an der die
+Wirkung eines Bedienelements erklärt wird, und auf dem Zielgerät erscheint
+keiner davon.** Zwanzig stehen im Markup, zwölf werden per JS gesetzt.
+
+**Der schärfste Fall, wörtlich:** „Rechteckauswahl: Rahmen um Punkte ziehen.
+**Mit Strg wird zur bestehenden Auswahl hinzugefügt.**" – Hover **und** Strg,
+zwei Ausschlüsse in einem Satz. Auf einem Tablet gibt es weder das eine noch
+das andere, und die Aussage steht nirgends sonst. Dasselbe gilt für das Lasso.
+
+**Der Weg steht schon im Haus.** Der Ablehnungsgrund ist genau aus diesem Grund
+bereits aus dem `title` herausgezogen worden – in die Statuszeile
+(`data-blocked-reason`, ausgegeben von `runToolAction()`) und in das sichtbare
+`.tool-reason`-Feld des Inspektors, entschieden in den Etappen 3 und 5 mit der
+Begründung, dass ein `title` auf Touch nie erscheint. **Der Grund ist
+umgezogen, die Erklärung nicht.** Die Etappe wiederholt eine Bewegung, die
+dieses Repository schon einmal richtig gemacht hat.
+
+**Was ausdrücklich dazugehört, weil es dieselbe Wurzel hat:**
+
+- **Die Cursor-Koordinaten der Statuszeile.** Sie kommen ausschließlich aus dem
+  `pointermove`-Handler am `svg`. Ohne schwebenden Zeiger bleibt das Feld leer,
+  bis ein Finger die Karte berührt – und zeigt dann die Stelle **unter dem
+  Finger**, die man nicht sehen kann. Eines der beiden ständig wechselnden
+  Felder der Statuszeile ist auf dem Zielgerät praktisch tot.
+- **`.vertex:hover`** ist die einzige Rückmeldung, dass ein Punkt überhaupt
+  treffbar ist, bevor man ihn antippt. Auf Touch gibt es sie nicht, und die
+  Trefferfläche eines Markers ist damit unsichtbar.
+
+**Nicht mitentschieden ist die Antwort.** Ein zweites `.tool-reason`-Feld für
+jeden Knopf wäre der naheliegende Weg und der falsche – der Inspektor trägt
+schon zu viel (siehe Etappe 9). Aufzuschreiben ist zuerst, **welche der 32
+Erklärungen überhaupt gebraucht werden**: eine Erklärung, die nur den
+Knopfnamen wiederholt, ist auch am Desktop nichts wert, und die Hausregel
+„der Tooltip erklärt, er benennt nicht" ist bereits formuliert.
+
+**5. Der Schalter „vollständige Fassung" existiert nicht.** Nachgesehen: es
+gibt sechs `localStorage`-Schlüssel – `referenceOrigin`, `toolRailCollapsed`,
+`inspectorCollapsed` und die drei Faltblock-Schlüssel –, und keiner davon ist
+ein Fassungsschalter. Im ganzen Repository steht kein „vollständige Fassung",
+keine „Vollversion", kein „full version". Er war ein Vorhaben und ist nie
+gebaut worden.
+
+**Ohne Handyfassung hat er auch keinen Zweck mehr** und wird nicht gebaut: Es
+gäbe keine zweite Fassung, zwischen der er umschalten könnte. Ein Schalter, der
+von einer vollständigen Oberfläche auf dieselbe vollständige Oberfläche
+umschaltet, wäre ein Bedienelement ohne Wirkung. **Das ist damit entschieden
+und keine offene Frage mehr** – die Regel „kein neuer `localStorage`-Schlüssel
+ohne dauerhaften Wunsch dahinter" gilt unverändert.
+
+**Was Etappe 8 damit ist:** die Trennung von Breite und Eingabegerät. Die
+Schwelle bekommt einen Wert, der zum Tablet-Feld passt statt zum Telefon; die
+Zielgrößen für den Finger lösen sich von der Breite; und die Erklärungen finden
+einen Ort, den ein Finger erreicht. **Was Etappe 8 nicht ist:** eine
+Handyfassung, ein Fassungsschalter, oder eine Sperre unterhalb von 744 px.
 
 **UI-Element verschieben – Wege statt Bezeichner:** Etappe 7 hat drei
 Browsertests repariert, die seit b2, 7b und 7c rot waren, und die Ursache war
