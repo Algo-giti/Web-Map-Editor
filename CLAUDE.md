@@ -197,7 +197,7 @@ Sie zerfallen in **zwei Stufen**, und diese Trennung ist beabsichtigt:
 | Stufe | Skripte | Abhängigkeiten | Status |
 |---|---|---|---|
 | statisch | `check-all.mjs` (4.1) | keine | **Pflicht** vor jeder Rückmeldung "fertig" |
-| Browser | siebzehn Skripte (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
+| Browser | siebzehn Skripte, gestartet über `tools/run-browser-tests.mjs` (4.2) | `playwright-core` + Browser, beides außerhalb des Repos | optional, aber bei UI- oder Geometrieänderungen dringend empfohlen |
 
 `check-all.mjs` läuft mit Node-Bordmitteln und muss das bleiben – es ist die
 Stufe, die in **jeder** Umgebung ohne Vorbereitung durchläuft. Die
@@ -331,6 +331,76 @@ Neue Browsertests binden diese Datei ein, statt die Suche zu duplizieren.
 Zusammen sind sie der automatisierte Ersatz für den in `AGENTS.md` geforderten
 "Browser-Laufzeittest" bei strukturellen UI-Änderungen.
 
+#### Der Läufer – und warum es ihn gibt
+
+**Gestartet werden sie über `tools/run-browser-tests.mjs`.** Machart wie
+`tools/check-all.mjs`: nur Node-Bordmittel, keine Abhängigkeit, und **bewusst nicht
+in `tools/check-all.mjs` eingehängt** – die statische Stufe muss in jeder Umgebung
+ohne Vorbereitung durchlaufen.
+
+```bash
+PLAYWRIGHT_CORE_PATH="$SCRATCH" node tools/run-browser-tests.mjs
+```
+
+Drei Eigenschaften, und jede hat einen konkreten Anlass:
+
+- **Er ermittelt seine Liste, statt sie aufzuzählen.** Ein Browsertest ist für
+  ihn ein Skript in `tools/`, das `tools/browser-harness.mjs` einbindet. Eine
+  Handliste wäre eine zweite Quelle und würde beim nächsten neuen Test
+  vergessen. Gegen die Tabelle oben gleicht er ab und nennt bei Abweichung
+  beide Richtungen – ein neu angelegter Test fällt damit nicht mehr still aus
+  dem Lauf.
+
+  **Nebenwirkung, die beim Schreiben dieses Abschnitts zugeschlagen hat:** der
+  Abgleich liest jeden blanken Dateinamen auf `.mjs` aus diesem Abschnitt, der
+  in Rückstrichen steht. Ein Skript, das **kein** Browsertest ist, wird hier deshalb mit
+  Pfad geschrieben – `tools/check-all.mjs`, `tools/browser-harness.mjs`,
+  `tools/run-browser-tests.mjs` –, sonst meldet der Läufer es als
+  „dokumentiert, aber nicht in tools/".
+- **Er trennt bestanden / gerissen / übersprungen** und gibt immer alle drei
+  Zeilen aus. Grün ist er nur, wenn tatsächlich gelaufen wurde.
+- **Übersprungen heißt Exit-Code 2**, nicht 0 (siehe unten). Vorher war ein
+  Lauf ohne Browser von einem bestandenen nicht zu unterscheiden.
+
+**Eine Faltgeste, nicht acht.** `openAllFolds(page, menue)` im Harness öffnet
+alle Faltbereiche – `#sidebar details`, `.inspector-fold`, `.tool-settings` und
+seit Etappe 7b auch `#featureNavigator details`, die Karten der
+Feature-Navigation. Der Helfer stand seit Etappe 6 b2 im Harness, dessen
+Nachricht ihn als Bündelung „der bisher acht Mal kopierten Faltgeste"
+beschrieb – **aufgerufen hat ihn danach kein einziger Test**, alle acht Kopien
+blieben stehen. Damit erreichte die Reparatur der Navigationskarten zunächst
+niemanden. Seit Etappe 7 f rufen **elf Skripte** den Helfer auf, und
+`setAttribute("open", …)` steht im ganzen `tools/`-Verzeichnis an genau einer
+Stelle. **Keine neunte Kopie anlegen** – auch nicht unter anderem Namen; drei
+der acht hießen `expand()` statt `expandSidebar()` oder standen inline.
+
+#### Eine Behauptung ist kein Beleg
+
+**„Alle 17 Browsertests grün" stand neun Berichte lang in Commit-Nachrichten,
+ohne je gemessen worden zu sein** – in b2, b3, b4, n1, n2, n3, 7a1, 7b und 7c.
+Tatsächlich brach `test-map-switch.mjs` seit b2 ab, ab 7b zusätzlich
+`test-reduce.mjs`, ab 7c `test-scale.mjs`. Möglich war das, weil es keinen
+Läufer gab: gestartet wurde von Hand als Shell-Schleife, und
+`node tools/x.mjs | tail -1` wirft den Exit-Status in der Pipe weg. Dazu kam
+die 0 für „übersprungen".
+
+**Daraus die Regel: eine Testzahl im Bericht gilt nur, wenn sie aus
+`tools/run-browser-tests.mjs` stammt.** Nicht aus einer Schleife, nicht aus
+der Erinnerung, nicht aus „ich habe die betroffenen laufen lassen".
+
+**Dieselbe Wurzel, zweiter Fall: eine Commit-Nachricht behauptet nichts, was
+im Diff nicht steht.** b2s Nachricht sagt wörtlich, „die sechs
+`uncheck(#showMowerPreview)` und die zwei Klicks auf `#mapAButton` laufen über
+`menueBefehl()`" – der Diff zu `test-map-switch.mjs` bestand aus dem Import und
+**einem** umgestellten `uncheck`. Dieselbe Nachricht beschrieb `openAllFolds()`
+als Bündelung der acht Kopien, ohne eine einzige davon umzustellen. Zweimal in
+einer Etappe wurde ein Helfer gebaut, in der Nachricht als übernommen
+beschrieben und nicht übernommen.
+
+Beide Fälle sind derselbe Fehler: **etwas als getan gemeldet, weil es gedacht
+war.** Wer eine Zahl oder eine Umstellung in eine Nachricht schreibt, hat sie
+vorher gemessen bzw. im eigenen Diff gesehen.
+
 #### Einrichtung
 
 `playwright-core` ist **bewusst keine Abhängigkeit im Repo** (kein
@@ -426,6 +496,22 @@ dort `auto`.
 **Jedes Element, das absichtlich über seinen Container hinausragt, bekommt
 diese Zusicherung**: die vier Menüpanels, die schwebenden Fenster über der
 Karte, jedes künftige Overlay.
+
+**Dritter Fall derselben Regel: ein geschlossenes `<details>` rendert seinen
+Inhalt nicht – meldet aber `display` und einen Kasten.** Die Regel ist eine,
+die Fälle sind drei: abschneidender `overflow`-Vorfahr, Spezifitätsfalle,
+nicht gerendertes `<details>`.
+
+Gemessen in Etappe 7 c: der Knopf „Ganzes Feature auswählen" der
+Feature-Navigation hatte `getComputedStyle(...).display === "block"` und ein
+Rechteck von 264 × 40 px, war aber nicht anklickbar, weil das umgebende
+`<details class="feature-card">` zu war. Eine Zusicherung auf `display` hätte
+den Fall **nicht** gesehen. Umgekehrt gilt: `textContent()` und `.count()`
+tragen durch ein geschlossenes `<details>` hindurch – nachgemessen 329 Zeichen
+und drei Treffer bei zugeklapptem Prüfblock.
+
+Praktisch heißt das: **vor jedem Klick und jeder Eingabe die Faltbereiche
+öffnen**, und zwar über `openAllFolds()` aus dem Harness.
 
 **Die klemmenden Vorfahren sind gemessen, nicht vermutet.** Über der
 Menüleiste liegen `header` (`clip`/`visible`, schneidet also senkrecht nicht),
@@ -2203,6 +2289,21 @@ Schritt pro `pointermove`. Tastatur-Nudging ebenfalls sinnvoll gruppieren.
 Zielgrößen, Seiten-Scrolling, Karteninteraktion, Toolbar-Overflow,
 Formulargrößen. Desktop-Verhalten dabei nicht brechen.
 
+**UI-Element verschieben – Wege statt Bezeichner:** Etappe 7 hat drei
+Browsertests repariert, die seit b2, 7b und 7c rot waren, und die Ursache war
+jedes Mal dieselbe: **ein Umzug hat den WEG zu einem Element geändert, ohne
+dass eine `id` verschwand.** Die Slot-Knöpfe wurden Menüeinträge, die
+Feature-Navigation zog in einen Faltblock, der Bezugspunkt ebenso. Die Regel
+„jede `id` ist ein Literal" schützt den **Bezeichner**, nicht den **Zugang** –
+`check-dom-ids.mjs` findet nichts, weil nichts fehlt.
+
+Daraus: **wer ein Bedienelement verschiebt, prüft im selben Schritt, welche
+Tests es anfassen und ob ihr Weg dorthin noch trägt.** Ein Element, das vorher
+frei lag und jetzt in einem Menü oder einem Faltblock steht, braucht dort einen
+Öffnungsschritt – `menueBefehl()` bzw. `openAllFolds()`. Der Läufer macht so
+etwas sichtbar, aber erst **nach** dem Umzug; in b2 lagen zwischen Umzug und
+Befund neun Berichte.
+
 **UI-Element entfernen – Pflichtsuche:** Beim Entfernen jedes UI-Elements
 **immer** im gesamten Script suchen nach: Element-ID, verwandte
 Variablennamen, Event-Listener, Init-Code, Enable/Disable-Zuweisungen,
@@ -2353,12 +2454,15 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `.section-accent-*` in b3. Dazu `.map-info-window` samt Unterregeln, die
   schon seit Etappe 4 verwaist war und keiner Prüfung auffiel.
 
-  Dazugekommen ist mit 7c ein **vorbestehender** Fall, der die Prüfung
-  ebenfalls fände: `.section-accent-slate` hat kein Markup mehr. Anders als die
+  Dazugekommen sind mit Etappe 7 zwei **vorbestehende** Fälle, die die Prüfung
+  ebenfalls fände: `.feature-nav-feature` – die Karten der Feature-Navigation
+  tragen `feature-card`, die Regel hat also nie ein Markup gehabt – und
+  `.section-accent-slate`, das kein Markup mehr hat. Anders als die
   oben genannten stammt er nicht aus dem Umbau – er stand schon vorher da und
   ist beim Umzug des Koordinatenbezugs nur aufgefallen, weil dessen
-  Nachbarregel `.section-accent-cyan` tatsächlich verwaiste und entfernt wurde.
-  Stehengelassen, weil er nicht zu 7c gehört; er gehört hierher.
+  Nachbarregel `.section-accent-cyan` tatsächlich verwaiste und entfernt wurde;
+  `.feature-nav-feature` fiel bei der Fehlersuche in 7c auf. Beide
+  stehengelassen, weil sie nicht zu den Umzügen gehören; sie gehören hierher.
 
   Kein Laufzeitfehler, aber genau die Klasse, gegen die `check-dom-ids.mjs`
   gebaut wurde: tote Verweise, die niemand sieht. Machbar mit Bordmitteln –
@@ -2483,6 +2587,28 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   eines Features"), das Begradigen an einer strengeren („genau zwei Punkte").
   Wer den Zeitpunkt vereinheitlicht, vereinheitlicht damit auch, ob das
   Begradigen weiterhin früher zeigt als die beiden anderen.
+
+- **Zusicherungen auf unsichtbaren Inhalt – offene Frage, kein Auftrag.**
+  `test-validation.mjs` und `test-scale.mjs` sichern den Inhalt von Elementen
+  zu, die `isVisible() === false` melden: `textContent()` und `.count()` tragen
+  durch ein geschlossenes `<details>` hindurch. Gemessen bei zugeklapptem
+  `#inspectorValidation`: **329 Zeichen Text, drei `.validation-item`-Treffer,
+  `isVisible()` falsch.** Die Zusicherung belegt damit „der Text steht im DOM",
+  nicht „der Nutzer kann ihn lesen".
+
+  **Vertretbar ist das**, weil die Kurzform in der Kopfzeile des Faltblocks und
+  in der Statuszeile steht und das Nicht-Aufklappen eine bewusste Regel ist –
+  die vollständige Zusicherung hätte aber zwei Teile: *der Inhalt stimmt*, und
+  *der Weg dorthin existiert*.
+
+  Die Fundstellen, damit sie beim Entscheiden nicht neu gesucht werden:
+
+  | Skript | Stelle | Zugriff |
+  |---|---|---|
+  | `test-validation.mjs` | `#validationReport` im Prüfblock | `textContent()` |
+  | `test-validation.mjs` | `#validationReport .validation-item.warning` / `.error` / `.info` | `.count()` |
+  | `test-validation.mjs` | `#validationReport` im englischen Durchlauf | `textContent()` |
+  | `test-scale.mjs` | `#validationReport` nach „Karte prüfen" | `textContent()` |
 
 - **Die Mähbahnen-Vorschau ist geplant, aber nicht gebaut.** Sie war für
   Ausgabe 049 vorgesehen und wurde herausgenommen, um den Release nicht
