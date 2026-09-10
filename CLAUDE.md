@@ -1168,8 +1168,8 @@ auflösen" und die Schlussmessung rücken von Etappe 6 nach Etappe 7.** Etappe 6
 füllt die vier Menüs, aber „Karten verbinden" hat noch kein Ziel. Solange
 bleibt seine Hülle stehen, und mit ihr zwei weitere Abschnitte (siehe unten).
 Das Ziel wurde mit Etappe 7e ein **Kartenfenster** und nicht, wie hier
-ursprünglich geplant, ein Werkzeug der Leiste; ein geführter Modus kommt
-frühestens mit 7d und bedient dann dasselbe Fenster. Die Hülle zu entfernen und das
+ursprünglich geplant, ein Werkzeug der Leiste. Der hier früher angekündigte
+geführte Modus kommt **nicht** – siehe die Richtigstellung unten. Die Hülle zu entfernen und das
 Verbinden dabei zu verlieren wäre schlechter als eine Etappe mit einem
 sichtbaren Rest. Die Schlussmessung wird in Etappe 7 gemacht, im selben Browser
 und mit demselben Skript wie die Ausgangswerte.
@@ -1209,13 +1209,85 @@ Sinn, als er zu haben schien:
 - **Verbinden ist heute kein Modus.** Es besteht aus zwei Statuszeilen
   (`mergeAInfo`, `mergeBInfo`), einem Kontrollkästchen (`showMergePreview`),
   einer Meldung (`mergeStatus`) und einem Auslöser (`mergeMapsBtn`); Start und
-  Ende beider Perimeter kommen aus den **Punktknöpfen des Inspektors**. Mit
-  Etappe 7d wird daraus ein geführter Modus – und der bedient **dasselbe
-  Fenster**, es zieht also nichts noch einmal um.
+  Ende beider Perimeter kommen aus den **Punktknöpfen des Inspektors**. Der
+  frühere Zusatz „mit Etappe 7d wird daraus ein geführter Modus – und der
+  bedient dasselbe Fenster" ist **richtiggestellt, nicht gelöscht**: es bleibt
+  bei keinem Modus. Der Grund steht unmittelbar darunter.
 
-**Für Etappe 7d vorgemerkt: beide Karten gleichzeitig aktiv – als DRITTER
-ZUSTAND, nicht als Schalter.** Eintrag, **kein Auftrag**; die fünf Punkte
-darunter sind zu **entscheiden**, bevor gebaut wird.
+**Warum aus 7d kein geführter Modus wurde – Richtigstellung mit Grund.** Der
+Satz entstand, **bevor bekannt war, dass Start und Ende gar keine zwei Größen
+sind, sondern eine**: die Drehung des Rings. Ein Modus hätte den Nutzer durch
+vier Abfragen geführt, von denen je zwei dasselbe verstellen – er hätte die
+Überschreibung **geführt statt sie zu beheben**.
+
+**Der Befund im Einzelnen.** `getPerimeterEndpoints()` liest `unique[0]` als
+Start und `unique[letzter]` als Ende – beide aus derselben Ringreihenfolge.
+`setSelectedAsPolygonStart()` dreht den Ring auf `[S …, … S-1]`,
+`setSelectedAsPolygonEnd()` auf `[E+1 …, … E]`. Daraus folgt:
+
+> **„Ende E setzen" ist identisch mit „Start E+1 setzen".** Wer beide Gesten
+> nacheinander ausführt, **löscht die erste** – außer E ist zufällig der
+> direkte Vorgänger von S. **Nichts meldet das**; beide Knöpfe geben sogar
+> dieselbe Erfolgsmeldung aus („Punkte neu nummeriert: Start = 1, Ende = n").
+
+**Pro Karte wählt der Nutzer damit EINE Kante, die aufgetrennt wird** – zwei
+Freiheitsgrade, nicht vier. Genau so heißt es seit 7d-1 auch in der
+Oberfläche: **Auftrennstelle**.
+
+**Warum es nie auffiel – und das ist der eigentlich teure Teil des Befundes:**
+im ganzen Verzeichnis `tools/` wird **kein einziges Mal** ein Start- oder
+Endpunkt gesetzt. Sämtliche Merge-Zusicherungen laufen gegen die Reihenfolge,
+die zufällig in der Datei steht. **Die Führung war nie geprüft**, deshalb
+konnte die stumme Überschreibung beliebig lange bestehen. Das ist dieselbe
+Klasse wie „eine Zusicherung über ein Ausbleiben beweist nichts", nur eine
+Stufe davor: es gab überhaupt keine Zusicherung. Mit 7d-3 gibt es sie.
+
+**Was 7d stattdessen ist – drei Teilschritte, kein Modus:**
+
+| Teilschritt | Inhalt |
+|---|---|
+| 7d-1 | `mergeStatus` nennt die Vorgabe, statt „Bereit." zu behaupten; die beiden neuen Kanten werden auf Kreuzungen geprüft – **Warnung, keine Sperre** |
+| 7d-2 | „Auftrennstelle setzen" bei genau zwei benachbarten Punkten desselben Rings; `mergeAInfo`/`mergeBInfo` nennen die gewählte Stelle |
+| 7d-3 | Zusicherungen, die das **Ergebnis** zählen – und die Überschreibung durch die beiden alten Knöpfe belegen |
+
+### Der Zustand „Beide" – eigene Etappe, nicht 7d
+
+**Beide Karten gleichzeitig aktiv – als DRITTER ZUSTAND, nicht als Schalter.**
+Eintrag, **kein Auftrag**; die fünf Punkte darunter sind zu **entscheiden**,
+bevor gebaut wird.
+
+**Der Eintrag stand ursprünglich unter 7d und ist mit 7d-1 herausgelöst
+worden.** Drei Gründe, und jeder trägt für sich:
+
+1. **Das Verbinden braucht ihn nicht.** Weder in der heutigen Fassung noch in
+   der von 7d. Beide Auftrennstellen lassen sich nacheinander wählen; ein
+   Kartenwechsel dazwischen ist ein Menübefehl.
+2. **Die Hälfte „sichtbar" existiert längst.** `renderOtherMapOverlay()`
+   zeichnet die inaktive Karte gedämpft **mitsamt hervorgehobenem Start- und
+   Endpunkt ihres Perimeters**. Was „Beide" wirklich hinzufügt, ist allein
+   **bearbeitbar** – also genau die Frage 2 unten, die mit „heute nicht
+   darstellbar" beantwortet ist.
+3. **Die Größe passt nicht zu 7d.** 7d ist ein Schritt an drei Funktionen;
+   „Beide" ist ein Umbau am Auswahlmodell.
+
+**Der teure Teil ist NICHT das Feld im Deskriptor.** Das ist die naheliegende
+Fehleinschätzung, deshalb steht sie hier ausdrücklich: einen Slot an
+`enumerateEditableVertices()` anzuhängen ist eine Stelle, und die Auflösung
+gegen `data` betrifft geschätzt 20 bis 30 weitere (Grobmaß: 114 Vorkommen von
+`featureIndex`, 64 von `data.features`). Die Historie ist sogar schon fertig –
+`createWorkspaceSnapshot()` hält beide Slots.
+
+**Teuer ist die Folgefrage: was tut JEDES Werkzeug bei gemischter Auswahl?**
+Begradigen, Reduzieren, Rechtwinklig, Löschen, Verschieben, die E/N-Felder –
+sobald eine Auswahl zwei Slots enthalten *kann*, braucht jedes davon eine
+Antwort, und keine davon ist ableitbar. **Das ist der Aufwand, nicht die
+Umstellung.**
+
+**Die kleine Lesart wird NICHT dazugenommen.** „Beide" nur als *sichtbar*, mit
+slot-reiner Auswahl, wäre billig – und wäre **die Hälfte des Gemeinten unter
+demselben Namen**. Ein Nutzer, der den Eintrag „Beide" wählt und dann nur eine
+Karte bearbeiten kann, hat keinen reduzierten Zustand vor sich, sondern einen
+falsch beschrifteten. Entweder beides, oder der Eintrag heißt anders.
 
 Gemeint ist beides zugleich: **sichtbar und bearbeitbar**, und gezielt
 wählbar. Der heutige Einzelmodus bleibt unverändert, das Gleichzeitige tritt
@@ -1304,7 +1376,7 @@ Slot.
 | `tools/test-origin-conflict.mjs` | lädt A und B nacheinander und prüft, dass der **aktive** Bezugspunkt unverändert bleibt |
 
 Ein dritter Eintrag verändert damit mindestens `test-menu.mjs` (Radiogruppe)
-und berührt die drei anderen. **Wer 7d baut, fasst diese Zusicherungen im
+und berührt die drei anderen. **Wer „Beide" baut, fasst diese Zusicherungen im
 selben Schritt an** – das ist genau die Regel „UI-Element verschieben – Wege
 statt Bezeichner", nur für einen hinzukommenden Zustand statt für einen Umzug.
 
