@@ -18,7 +18,13 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-merge.mjs
 
-import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
+import {
+  createChecker,
+  indexUrl,
+  launchBrowser,
+  menueBefehl,
+  openAllFolds,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-merge";
 
@@ -89,21 +95,13 @@ try {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "load" });
 
-  const expand = () =>
-    page.evaluate(() => {
-      /*
-       * Seit Etappe 5 D sind "Umformen" und "Kartenpruefung" im Inspektor
-       * einklappbar und beim ersten Start ZU. Wer ihre Knoepfe bedienen will,
-       * klappt sie auf - der Test tut dasselbe.
-       */
-      /*
-       * Seit Etappe 6 stehen die Werkzeugeinstellungen als eingeklapptes
-       * <details> unter ihrem Knopf im Inspektor (.tool-settings).
-       */
-      document.querySelectorAll(
-        "#sidebar details, .inspector-fold, .tool-settings"
-      ).forEach((section) => section.setAttribute("open", ""));
-    });
+  /*
+   * Die Faltgeste kommt aus dem browser-harness. Sie stand bis 3f achtmal
+   * kopiert im Bestand - b2s Nachricht zaehlte sie bereits so ("die bisher acht
+   * Mal kopierte Faltgeste") und beschrieb openAllFolds() als ihre Buendelung;
+   * aufgerufen hat den Helfer danach kein einziger Test.
+   */
+  const expand = () => openAllFolds(page);
 
   await expand();
 

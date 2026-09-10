@@ -70,10 +70,13 @@ try {
       buffer: Buffer.from(body),
     });
     await page.waitForTimeout(450);
-    await page.evaluate(() => {
-      document.querySelectorAll("#sidebar details")
-        .forEach((section) => section.setAttribute("open", ""));
-    });
+
+    /*
+     * Faltgeste aus dem Harness statt einer eigenen, engeren Fassung: die hier
+     * oeffnete nur "#sidebar details" und traf damit seit dem Umzug der
+     * Abschnitte in den Inspektor fast nichts mehr.
+     */
+    await openAllFolds(page);
   };
 
   const width = () => page.locator("#widthStat").textContent();

@@ -12,7 +12,13 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-shapes.mjs
 
-import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
+import {
+  createChecker,
+  indexUrl,
+  launchBrowser,
+  menueBefehl,
+  openAllFolds,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-shapes";
 
@@ -57,11 +63,13 @@ try {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "load" });
 
-  const expand = () =>
-    page.evaluate(() => {
-      document.querySelectorAll("#sidebar details")
-        .forEach((s) => s.setAttribute("open", ""));
-    });
+  /*
+   * Die Faltgeste kommt aus dem browser-harness. Sie stand bis 3f achtmal
+   * kopiert im Bestand - b2s Nachricht zaehlte sie bereits so ("die bisher acht
+   * Mal kopierte Faltgeste") und beschrieb openAllFolds() als ihre Buendelung;
+   * aufgerufen hat den Helfer danach kein einziger Test.
+   */
+  const expand = () => openAllFolds(page);
 
   await expand();
   await page.locator("#fileInput").setInputFiles({

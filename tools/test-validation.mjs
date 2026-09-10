@@ -15,7 +15,12 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-validation.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import {
+  createChecker,
+  indexUrl,
+  launchBrowser,
+  openAllFolds,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-validation";
 
@@ -78,10 +83,7 @@ try {
     });
     await page.waitForTimeout(400);
 
-    await page.evaluate(() => {
-      document.querySelectorAll("#sidebar details")
-        .forEach((section) => section.setAttribute("open", ""));
-    });
+    await openAllFolds(page);
 
     await page.locator("#validateMapBtn").click();
     await page.waitForTimeout(400);
@@ -254,10 +256,7 @@ try {
   });
   await page.waitForTimeout(400);
 
-  await page.evaluate(() => {
-    document.querySelectorAll("#sidebar details")
-      .forEach((section) => section.setAttribute("open", ""));
-  });
+  await openAllFolds(page);
 
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(400);
