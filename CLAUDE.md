@@ -695,8 +695,8 @@ unterschiedliche Polygon-Vertices. Erster eindeutiger Punkt = Start, letzter
 eindeutiger Punkt = Ende.
 
 **Exclusion-Löschung:** Sind alle editierbaren Vertices einer Exclusion
-ausgewählt (Rechteck, Lasso oder Ctrl+Klick), löscht der Papierkorb die
-**komplette** Exclusion. Teilauswahl löscht nur die ausgewählten Punkte
+ausgewählt (Rahmen, Lasso oder Ctrl+Klick), entfernt „Auswahl löschen" im
+Inspektor die **komplette** Exclusion. Teilauswahl löscht nur die ausgewählten Punkte
 (mind. 3 verbleibende Vertices). Nach vollständiger Löschung: verbleibende
 Exclusions neu nummerieren, Undo muss funktionieren. Der frühere separate
 "Exclusion löschen"-Button im Punkteditor wurde entfernt – nicht ohne
@@ -2637,26 +2637,68 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 - **Das Hilfe-Overlay beschreibt die Anordnung in Prosa und veraltet mit
   jeder Etappe des Oberflächenumbaus.** Es wird in Etappe 9 vollständig neu
   geschrieben, wenn die Anordnung feststeht – vorher wäre es zweimal Arbeit.
-  Damit dort keine Neulektüre nötig ist, hier die Sätze, die **jetzt schon
-  falsch** sind. Die Fundstelle ist der Abschnitt des Overlays plus die
-  ersten Worte des Satzes – Zeilennummern verschieben sich mit jeder Änderung
-  und wären hier bereits beim Aufschreiben veraltet.
+  Bis dahin steht hier die Liste der Sätze, die **jetzt schon falsch** sind,
+  damit dort keine Neulektüre nötig ist. Die Fundstelle ist der Abschnitt des
+  Overlays plus die ersten Worte des Satzes – Zeilennummern verschieben sich
+  mit jeder Änderung und wären hier bereits beim Aufschreiben veraltet.
 
-  **Alle sechs sind in Ausgabe 050 falsch geworden**, also im laufenden,
-  noch nicht veröffentlichten Umbau; in Ausgabe 049 stimmte jeder von ihnen.
-  Die Etappe steht dabei, weil sie die Stelle genauer benennt als die Ausgabe:
+  **Die Liste ist derzeit leer: die acht bekannten Sätze sind mit Etappe 7g
+  behoben**, deutsch und englisch im selben Commit. Der Eintrag bleibt
+  trotzdem stehen, denn der Grund für ihn ist nicht erledigt – das Overlay
+  beschreibt weiterhin Anordnung in Prosa, und jede weitere Etappe kann es
+  wieder falsch machen. **Beim Fortschreiten der Etappen hier ergänzen**,
+  statt am Ende alles neu zu lesen.
 
-  | Abschnitt | Satz beginnt mit | falsch seit | warum |
-  |---|---|---|---|
-  | Exclusions & Features | „Exclusion löschen: alle Eckpunkte …" | 050, Etappe 5 | nennt „den Papierkorb in der Karten-Werkzeugleiste"; die Auswahlleiste ist ganz von der Karte verschwunden, der Papierkorb steht im Inspektor |
-  | Mehrfachauswahl | „Rechteck / Lasso: mehrere Punkte …" | 050, Etappe 3 | verweist auf „Punkt / Verschieben"; diesen Knopf gibt es nicht mehr, er war reine Doppelung des Zeigers |
-  | Mobil / Android | „Bedienung: auf kleinen Displays …" | 050, Etappe 3, verschärft in 7e | sagte zuerst das Falsche über den Knopf (er öffnete die Seitenleiste, nicht die Werkzeugleiste); **seit 7e gibt es weder den Knopf noch die Seitenleiste** – auf einem Telefon stehen Werkzeugleiste, Karte und Inspektor untereinander |
-  | Ansicht & Speichern | „Karteninfo: Abmessungen und Hinweise …" | 050, Etappe 4 | die Karteninfo ist kein Fenster auf der Karte mehr, sie steht im Inspektor |
-  | Ansicht & Speichern | „Auswahl-Werkzeugleiste: Mauszeiger, Rechteck …" | 050, Etappe 5 | auf der Karte liegt keine Auswahlleiste mehr; die Auswahlwerkzeuge stehen in der Werkzeugleiste, Löschen, Auswahl aufheben und Begradigen im Inspektor |
-  | Ansicht & Speichern | „Sidebar: Direkt unter ‚Karten' …" | 050, Etappe 6, verschärft in 7e | zuerst stimmten die genannten Abschnitte nicht mehr; **seit 7e gibt es die Sidebar überhaupt nicht mehr** – der Satz beschreibt ein Bedienelement, das aus der Anwendung verschwunden ist |
-  | Ansicht & Speichern | „Karteninfo & Legende: liegen direkt untereinander …" | 050, Etappe 2 | die Legende ist ein fester Streifen und lässt sich nicht mehr aufklappen |
+  **Was die Behebung an Lehre hinterlässt – der achte Satz.** Erfasst waren
+  sieben; falsch waren acht. Der fehlende war „Punkte löschen: einzeln oder
+  als Mehrfachauswahl …", der ebenfalls den Papierkorb nennt. Gefunden wurde
+  er erst beim Schreiben, weil die ursprüngliche Erfassung nach **Ortsangaben**
+  gesucht hatte – nach Sätzen also, die sagen, *wo* etwas liegt. „Punkte
+  löschen" nennt den Papierkorb ohne Ort und fiel deshalb durch das Muster.
+  **Eine Liste ist so vollständig wie ihr Suchmuster.** Wer die Liste beim
+  nächsten Mal fortschreibt, sucht deshalb nicht nur nach Orten, sondern auch
+  nach den **Bezeichnern verschwundener Bedienelemente** – hier hätte
+  „Papierkorb" allein alle acht gefunden.
 
-  **Zwei Einträge dieser Liste waren zu streng und sind zurückgenommen:**
+  **Dieselbe Lücke eine Ebene daneben: das Muster sah Fließtexte an, keine
+  Beschriftungen.** Ein Hilfesatz besteht aus zwei Teilen, und die Erfassung
+  prüfte nur einen. So kam „Rechteck / Lasso:" nicht auf die Liste, obwohl das
+  Auswahlwerkzeug seit Etappe 3 **„Rahmen"** heißt und „Rechteck" heute das
+  Zeichenwerkzeug für Rechteck-Exclusions ist – ihr *Fließtext* stand auf der
+  Liste, ihre *Beschriftung* wurde nie angesehen. Mit 7g ist sie auf
+  „Rahmen / Lasso:" richtiggestellt. **Beide Teile eines Satzes gehören ins
+  Muster.**
+
+  **Alle 32 Beschriftungen des Overlays sind daraufhin durchgesehen worden**
+  (nicht nur die geänderten). Dabei kam der fünfte Fall zutage:
+  **„Karteninfo:"** benannte das Fenster, das mit Etappe 4/5 in den Inspektor
+  gezogen ist – dort heißt der Block „Abmessungen", und vom alten Namen war in
+  `index.html` nur noch ein CSS-Kommentar an `.map-info-text` übrig. Sie heißt
+  jetzt **„Abmessungen:"**, englisch „Dimensions:". Ihr Rumpf ist dabei
+  entdoppelt worden – „Abmessungen: Abmessungen und Hinweise …" war die Folge
+  der Umbenennung, nicht der ursprüngliche Wortlaut; er nennt die Kennzahlen
+  jetzt einzeln.
+
+  **Warum gerade sie durchrutschte – und die Regel daraus.** Ihr *Rumpf* stand
+  auf der Liste und war bereits richtiggestellt; der Satz sah damit fertig aus,
+  und die Beschriftung wurde nicht mehr angesehen. Das ist die **dritte Lücke
+  desselben Durchgangs**, nach „Ortsangaben statt Nennungen ohne Ort" und
+  „Fließtexte statt Beschriftungen":
+
+  > **Ein Eintrag, an dem schon einmal gearbeitet wurde, wird beim nächsten
+  > Durchgang übersprungen, weil er als erledigt gilt.**
+
+  Das ist **dasselbe Muster, das dieses Repository schon zweimal teuer bezahlt
+  hat**, und zwar an Stellen, die mit Hilfetexten nichts zu tun haben:
+  `openAllFolds()` war gebaut und wurde deshalb für übernommen gehalten –
+  aufgerufen hat ihn kein einziger Test, alle acht Kopien blieben stehen. Und
+  b2s Umstellung der Slot-Klicks auf `menueBefehl()` war beschrieben und galt
+  deshalb als getan – im Diff stand eine einzige Zeile. Gebaut ist nicht
+  benutzt, bearbeitet ist nicht geprüft. **Beim Wiederaufnehmen einer Liste ist
+  „daran wurde schon gearbeitet" kein Grund zum Überspringen, sondern einer zum
+  Hinsehen.**
+
+  **Zwei Einträge der früheren Liste waren zu streng und wurden zurückgenommen:**
   „Einpassen / Zoom: Kartenansicht anpassen." und „Raster: Schrittweite frei
   einstellen; Snap-to-Grid kann beim Ziehen verwendet werden." nennen gar
   keinen Ort. Beide Sätze stimmen weiterhin – falsch war nicht der Satz,
@@ -2664,8 +2706,22 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Richtiges enthält, ist beim nächsten Lesen genauso teuer wie eine
   unvollständige.
 
-  Die Liste beim Fortschreiten der Etappen ergänzen, statt am Ende alles neu
-  zu lesen.
+  **Fünf Beschriftungen sind dabei mit umbenannt worden**, weil sie ein Ding
+  benannten, das es nicht mehr gibt: „Auswahl-Werkzeugleiste" → „Werkzeuge",
+  „Sidebar" → „Anordnung", „Karteninfo & Legende" → „Legende",
+  „Rechteck / Lasso" → „Rahmen / Lasso" und „Karteninfo" → „Abmessungen". Eine
+  Beschriftung ist Teil des Satzes; sie stehen zu lassen hätte den
+  richtiggestellten Rumpf unter eine falsche Überschrift gehängt.
+
+  **Jeder Hilfetext ist ein eigener Wörterbuchschlüssel** – der Rumpf einer,
+  die `<strong>`-Beschriftung ein zweiter. Eine Textänderung **tauscht** den
+  Schlüssel, sie ändert ihn nicht: der alte muss mit weg, sonst bleibt eine
+  tote Zeile in `I18N_EN` stehen. Genau eine solche stand dort bereits, eine
+  ältere, kürzere Fassung von „Punkte löschen" ohne Markup; sie ist mit 7g
+  entfallen. `tools/check-dom-ids.mjs` findet diese Klasse nicht – ein
+  verwaister Wörterbucheintrag ist kein Fehler, nur Ballast, der beim nächsten
+  Lesen wie eine gültige Übersetzung aussieht.
+
 - **31 Statustexte haben keine englische Fassung.** Sie wurden beim Umzug der
   Ausgaben in die Statuszeile systematisch erfasst: literale Argumente von
   `setEditStatus()`, `setMultiSelectionStatus()`, `setReduceStatus()`,
