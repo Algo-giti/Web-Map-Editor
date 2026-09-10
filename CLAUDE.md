@@ -246,6 +246,25 @@ Führt nacheinander aus:
   Kartendateien im Arbeitsverzeichnis: von git **getrackte** Karten sind ein
   Fehler, ungetrackte nur eine Warnung. Kein Beweis, aber ein schneller
   Alarm; vor jedem Release trotzdem `git diff` gegenlesen.
+
+  **Dazu seit Ausgabe 050: Namen aus ignorierten Ordnern.** Die
+  Privatsphäre-Regel verbietet ausdrücklich auch **Dateinamen** in
+  versionierten Dateien, und die Kartendatei-Prüfung findet die nicht – sie
+  sucht nach Dateien, nicht nach Namen darin. Genau so überlebte der Name
+  einer privaten Karte als fest verdrahteter Pfad in
+  `tools/test-cassandra.mjs`. Geprüft wird jetzt jeder Verweis, der **in**
+  einen über `.gitignore` ausgeschlossenen Ordner hineinzeigt; der Ordnername
+  selbst bleibt erlaubt, weil ein Skript ihn ansprechen muss, um ihn zu
+  durchsuchen.
+
+  **Die enge Form ist gemessen, nicht geraten.** Sie erzeugt null
+  Falschmeldungen im ganzen Repository, auch in der Prosa der Dokumentation.
+  Die naheliegende breite Form – jedes Literal auf `.json`/`.geojson` melden –
+  wurde verworfen, weil sie **38 Treffer** liefert, allesamt berechtigt:
+  synthetische Testkartennamen aus `setInputFiles()` und Erwähnungen von
+  `package.json`. Ein privater Name ist von einem synthetischen syntaktisch
+  nicht zu unterscheiden; die Prüfung kann deshalb nur den **Ort** erkennen,
+  nicht den Namen.
 - **`tools/test-cassandra.mjs`** – Unit-Tests der CaSSAndRA-Kompatibilität:
   Typ-Bezeichner und deren Aliasse, Label-Vorrang bei der Anzeige,
   `cos(lat)`-Skalierung, verlustfreier Rundlauf relativ → absolut → relativ
@@ -610,6 +629,23 @@ dort einen leeren String.
 
 Testkarten erzeugen die Skripte immer selbst und synthetisch. Es liegt keine
 Kartendatei im Repository und es wird keine gelesen.
+
+**Es gibt keinen Ordner für Beispiel- oder Testkarten, und es soll keiner
+geben.** Entschieden, damit die Frage nicht neu gestellt wird. Zwei Gründe, und
+beide tragen für sich: eine geteilte Fixture-Datei koppelte achtzehn Skripte
+aneinander – wer sie für einen Test erweitert, ändert die Ausgangslage der
+anderen siebzehn mit, ohne es zu sehen; heute steht die Karte **neben** der
+Zusicherung, die sie erklärt. Und `tools/check-privacy.mjs` meldet **jede von
+git getrackte Datei** auf `.json`/`.geojson` mit `FeatureCollection` als
+**Fehler**; ein Beispielordner verlangte also zwingend eine Ausnahme in der
+einzigen automatisierten Schutzschicht gegen eingecheckte Kartendaten. Die
+Ausnahme wäre die eigentliche Entscheidung, nicht der Ordner.
+
+**Daran hängt eine offene Frage, kein Auftrag: ein neuer Nutzer hat nichts zum
+Hineinladen.** Er kann den Editor öffnen und sieht „Keine Karte geladen"; die
+READMEs beschreiben das Format, liefern aber keine Datei. Ob und wie das
+gelöst wird – eine Karte, die der Editor auf Wunsch selbst erzeugt, wäre der
+Weg, der ohne Datei im Repository auskommt –, ist offen.
 
 ### 4.3 Was NICHT automatisiert getestet werden kann
 

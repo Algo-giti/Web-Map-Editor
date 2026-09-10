@@ -7,7 +7,7 @@
 // einem minimalen Sandkasten ausgeführt. Dadurch braucht das Projekt weiterhin
 // kein Build-System und keinen Browser für diese Prüfungen.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { extractDeclarations, readInlineScript } from "./extract-script.mjs";
 
 const NAMES = [
@@ -785,16 +785,47 @@ check("Export veraendert die Arbeitskopie nicht",
   JSON.stringify(app.buildExportCollection(false)) === JSON.stringify(workingCopy));
 
 /* -------------------------------------------------------------------- */
-const sampleMap = new URL("../test/herbine_2025_1.json", import.meta.url);
+/*
+ * Lokale Beispielkarten, falls vorhanden. Der Ordner test/ ist ueber
+ * .gitignore ausgeschlossen und enthaelt echte Nutzerkarten; er gehoert NICHT
+ * zu einem frischen Checkout, und das Ueberspringen ist deshalb kein Fehler.
+ *
+ * Gesucht wird nach IRGENDEINER .json/.geojson in diesem Ordner, nicht nach
+ * einem bestimmten Namen. Vorher stand hier ein fester Dateiname - und damit
+ * der Name einer privaten Karte in einer versionierten Datei, was die
+ * Privatsphaere-Regel ausdruecklich verbietet ("niemals ... Dateinamen ... in
+ * versionierte Dateien einbetten"). check-privacy.mjs findet das nicht: es
+ * sucht nach Kartendateien, nicht nach Namen darin.
+ *
+ * Nebenwirkung, die den Fall zugleich besser macht: der Test haengt nicht mehr
+ * an einer Datei, die nur eine Person hat. Wer irgendeine Karte dort ablegt,
+ * bekommt den Rundlauf - und bei mehreren laeuft er ueber jede einzelne.
+ */
+const sampleDir = new URL("../test/", import.meta.url);
+const sampleMaps = existsSync(sampleDir)
+  ? readdirSync(sampleDir)
+      .filter((name) => /\.(geojson|json)$/i.test(name))
+      .sort()
+  : [];
 
-if (existsSync(sampleMap)) {
-  console.log("Rundlauf mit lokaler Beispielkarte (nicht im Repository)");
+if (sampleMaps.length === 0) {
+  console.log("Rundlauf mit lokalen Beispielkarten: uebersprungen (keine Datei unter test/)");
+} else {
+  console.log(`Rundlauf mit lokalen Beispielkarten (nicht im Repository): ${sampleMaps.length}`);
+}
 
-  const sample = JSON.parse(readFileSync(sampleMap, "utf8"));
+for (const name of sampleMaps) {
+  const sample = JSON.parse(readFileSync(new URL(name, sampleDir), "utf8"));
+
+  /*
+   * Der Dateiname wird bewusst NICHT ausgegeben - er koennte selbst privat
+   * sein. Gezaehlt wird stattdessen die Position in der sortierten Liste.
+   */
+  const nr = sampleMaps.indexOf(name) + 1;
   const sampleOrigin = { lat: 52.5, lon: 13.4 };
   const before = app.collectCoords(sample).map((point) => [...point]);
 
-  check("Beispielkarte liegt relativ vor", !app.isAbsoluteWgs84Collection(sample));
+  check(`Beispielkarte ${nr} liegt relativ vor`, !app.isAbsoluteWgs84Collection(sample));
 
   app.relativeCollectionToAbsolute(sample, sampleOrigin, 111111);
   app.absoluteCollectionToRelative(sample, sampleOrigin);
@@ -809,10 +840,8 @@ if (existsSync(sampleMap)) {
     )
   );
 
-  check("Rundlauf der Beispielkarte verlustfrei", worst * 111111 < 1e-6,
+  check(`Rundlauf der Beispielkarte ${nr} verlustfrei`, worst * 111111 < 1e-6,
     `Abweichung ${(worst * 111111).toExponential(2)} m`);
-} else {
-  console.log("Rundlauf mit lokaler Beispielkarte: uebersprungen (keine Datei unter test/)");
 }
 
 /* -------------------------------------------------------------------- */
