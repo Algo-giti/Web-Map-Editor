@@ -123,6 +123,33 @@ try {
 
   await openMergeWindow();
 
+  /**
+   * Klickt einen Knopf, der gesperrt sein KANN - und sichert vorher benannt
+   * zu, dass er frei ist.
+   *
+   * Der Klick unterbleibt, wenn der Knopf gesperrt ist. Ohne das wird aus
+   * einer klaren, benannten Ablehnung ein stummer Timeout: Playwright wartet
+   * dreissig Sekunden auf einen Knopf, der nie frei wird, und der Lauf bricht
+   * ab, statt zu sagen, welche Zusicherung gerissen ist. Gemessen an der
+   * Mutation "Klickreihenfolge statt min/max": mit blosser Zusicherung riss
+   * die Zusicherung zwar, der Lauf endete danach trotzdem im Abbruch.
+   *
+   * Ein Helfer, nicht dreizehn Kopien - dieselbe Regel wie bei openAllFolds().
+   */
+  const klickeFreienKnopf = async (selektor, name, grundSelektor = null) => {
+    const frei = await page.locator(selektor).isEnabled();
+
+    check(name, frei,
+      grundSelektor
+        ? await page.locator(grundSelektor).textContent()
+        : `${selektor} ist gesperrt`);
+
+    if (!frei) return false;
+
+    await page.locator(selektor).click();
+    return true;
+  };
+
   const upload = async (selector, name, body) => {
     await page.locator(selector).setInputFiles({
       name,
@@ -223,7 +250,8 @@ try {
   /* ---------------------------------------------------------------- */
   console.log("Verbinden verdoppelt keine Singletons");
 
-  await page.locator("#mergeMapsBtn").click();
+  await klickeFreienKnopf("#mergeMapsBtn",
+    "Verbinden ist mit zwei geladenen Karten frei", "#mergeStatus");
   await page.waitForTimeout(500);
   await openAllFolds(page);
   await openMergeWindow();
@@ -304,9 +332,8 @@ try {
   /* Nur Karte B hat einen echten Docking-Pfad. */
   await reset(mapWith(0), mapWith(60, [[70, 5], [75, 5], [80, 5]]));
 
-  check("Verbinden ist möglich", await page.locator("#mergeMapsBtn").isEnabled());
-
-  await page.locator("#mergeMapsBtn").click();
+  await klickeFreienKnopf("#mergeMapsBtn", "Verbinden ist möglich",
+    "#mergeStatus");
   await page.waitForTimeout(500);
   await openAllFolds(page);
   await openMergeWindow();
@@ -340,7 +367,8 @@ try {
     mergeStatus);
 
   /* Nach dem Löschen eines Pfades muss es wieder gehen. */
-  await page.locator("#deleteDockBtn").click();
+  await klickeFreienKnopf("#deleteDockBtn",
+    "Docking-Pfad löschen ist bei vorhandenem Pfad frei");
   await page.waitForTimeout(400);
   await openAllFolds(page);
   await openMergeWindow();
@@ -375,9 +403,8 @@ try {
   check("Karte A hat vorher kein Feature ohne erkennbaren Typ",
     (vorher.other || 0) === 0, JSON.stringify(vorher));
 
-  check("Verbinden ist möglich", await page.locator("#mergeMapsBtn").isEnabled());
-
-  await page.locator("#mergeMapsBtn").click();
+  await klickeFreienKnopf("#mergeMapsBtn",
+    "Verbinden ist möglich", "#mergeStatus");
   await page.waitForTimeout(600);
   await openAllFolds(page);
   await openMergeWindow();
@@ -554,11 +581,9 @@ try {
   await waehlePunkte([[0, 0], [40, 0]]);
   await openMergeWindow();
 
-  check("Auftrennstelle: der Knopf ist bei zwei benachbarten Punkten frei",
-    await page.locator("#setMergeCutBtn").isEnabled(),
-    await page.locator("#mergeCutReason").textContent());
-
-  await page.locator("#setMergeCutBtn").click();
+  await klickeFreienKnopf("#setMergeCutBtn",
+    "Auftrennstelle: der Knopf ist bei zwei benachbarten Punkten frei",
+    "#mergeCutReason");
   await page.waitForTimeout(400);
   await openMergeWindow();
 
@@ -581,7 +606,8 @@ try {
   await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
   await waehlePunkte([[40, 0], [0, 0]]);
   await openMergeWindow();
-  await page.locator("#setMergeCutBtn").click();
+  await klickeFreienKnopf("#setMergeCutBtn",
+    "umgekehrte Klickreihenfolge: der Knopf ist frei", "#mergeCutReason");
   await page.waitForTimeout(400);
   await openMergeWindow();
 
@@ -605,11 +631,8 @@ try {
   await waehlePunkte([[0, 40], [0, 0]]);
   await openMergeWindow();
 
-  check("Schlusskante: der Knopf ist frei",
-    await page.locator("#setMergeCutBtn").isEnabled(),
-    await page.locator("#mergeCutReason").textContent());
-
-  await page.locator("#setMergeCutBtn").click();
+  await klickeFreienKnopf("#setMergeCutBtn",
+    "Schlusskante: der Knopf ist frei", "#mergeCutReason");
   await page.waitForTimeout(400);
   await openMergeWindow();
 
@@ -646,7 +669,8 @@ try {
   /* Und im Drehfall zurueck: Ring UND Infotext. */
   await waehlePunkte([[0, 0], [40, 0]]);
   await openMergeWindow();
-  await page.locator("#setMergeCutBtn").click();
+  await klickeFreienKnopf("#setMergeCutBtn",
+    "Drehfall: der Knopf ist frei", "#mergeCutReason");
   await page.waitForTimeout(400);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(150);
@@ -673,7 +697,8 @@ try {
 
   await waehlePunkte([[40, 0]]);
   await openAllFolds(page);
-  await page.locator("#setStartPointBtn").click();
+  await klickeFreienKnopf("#setStartPointBtn",
+    "Startpunkt setzen ist bei genau einem Punkt frei");
   await page.waitForTimeout(400);
 
   check("Startpunkt setzen dreht den Ring auf [40,0]",
@@ -694,7 +719,8 @@ try {
 
   await waehlePunkte([[40, 40]]);
   await openAllFolds(page);
-  await page.locator("#setEndPointBtn").click();
+  await klickeFreienKnopf("#setEndPointBtn",
+    "Endpunkt setzen ist als zweite Geste frei");
   await page.waitForTimeout(400);
 
   check("Endpunkt setzen ueberschreibt die erste Geste vollstaendig",
@@ -709,6 +735,42 @@ try {
   await openMergeWindow();
 
   check("und der Infoblock nennt danach die Punkte der ZWEITEN Geste",
+    (await mergeText("#mergeAInfo")) ===
+      "Karte A Auftrennstelle gewählt. " +
+      "Startpunkt E 0.00 / N 40.00 m Endpunkt E 40.00 / N 40.00 m",
+    await mergeText("#mergeAInfo"));
+
+  /*
+   * Der Ende-Knopf als ERSTE Geste - keine Zugabe, sondern die Deckung einer
+   * gemessenen Luecke.
+   *
+   * In der Folge darueber hat der Start-Knopf die Marke bereits gesetzt. Wird
+   * die Schreibzeile im Ende-Knopf GELOESCHT, bleibt sie von dort auf true
+   * stehen, die Drehung laeuft unveraendert, und die Zusicherung oben besteht
+   * weiter - gemessen, die Mutation blieb gruen. Nur ein true -> false reisst
+   * sie. Der Ende-Knopf braucht deshalb einen Fall, in dem er als einziger
+   * schreibt: frische Datei, Marke ungesetzt.
+   */
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
+  await openMergeWindow();
+
+  check("Vorbedingung: die Auftrennstelle ist nach dem Laden ungewaehlt",
+    (await mergeText("#mergeAInfo")) === A_UNGESETZT,
+    await mergeText("#mergeAInfo"));
+
+  await waehlePunkte([[40, 40]]);
+  await openAllFolds(page);
+  await klickeFreienKnopf("#setEndPointBtn",
+    "Endpunkt setzen ist als erste Geste frei");
+  await page.waitForTimeout(400);
+
+  check("Endpunkt setzen als erste Geste dreht den Ring hinter den Endpunkt",
+    (await perimeterFolge()) === folge([[0, 40], [0, 0], [40, 0], [40, 40]]),
+    await perimeterFolge());
+
+  await openMergeWindow();
+
+  check("und der Infoblock wechselt dabei von der Datei auf die Wahl",
     (await mergeText("#mergeAInfo")) ===
       "Karte A Auftrennstelle gewählt. " +
       "Startpunkt E 0.00 / N 40.00 m Endpunkt E 40.00 / N 40.00 m",
@@ -831,7 +893,8 @@ try {
   /* Nur A gewaehlt. */
   await waehlePunkte([[0, 0], [40, 0]]);
   await openMergeWindow();
-  await page.locator("#setMergeCutBtn").click();
+  await klickeFreienKnopf("#setMergeCutBtn",
+    "nur A: der Knopf ist frei", "#mergeCutReason");
   await page.waitForTimeout(400);
   await openMergeWindow();
 
@@ -852,7 +915,8 @@ try {
 
   await waehlePunkte([[-20, 40], [-60, 40]]);
   await openMergeWindow();
-  await page.locator("#setMergeCutBtn").click();
+  await klickeFreienKnopf("#setMergeCutBtn",
+    "nur B: der Knopf ist frei", "#mergeCutReason");
   await page.waitForTimeout(400);
   await openMergeWindow();
 
@@ -892,8 +956,7 @@ try {
   check("die Warnung ist wirklich getroffen, nicht nur gerechnet da",
     warnungGetroffen.ok, JSON.stringify(warnungGetroffen));
 
-  check("Warnung, keine Sperre: Verbinden bleibt frei",
-    await page.locator("#mergeMapsBtn").isEnabled());
+  /* Die Freigabe wird unmittelbar vor dem Klick zugesichert, siehe unten. */
 
   /*
    * Trotz Warnung verbinden. Der neue Ring ist die offene Kette von Karte A,
@@ -907,7 +970,8 @@ try {
    * Die Kreuzung bleibt darin sichtbar - das Verbinden repariert sie nicht,
    * es hat nur nicht widersprochen.
    */
-  await page.locator("#mergeMapsBtn").click();
+  await klickeFreienKnopf("#mergeMapsBtn",
+    "Warnung, keine Sperre: Verbinden bleibt frei", "#mergeStatus");
   await page.waitForTimeout(600);
   await openAllFolds(page);
 

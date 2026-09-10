@@ -649,6 +649,45 @@ Exit-Status davon getrennt lesen. Genau daran ist in Etappe 7d-3b der erste
 Durchgang gescheitert: zwei Mutationen sahen aus, als reiße keine Zusicherung,
 und eine davon hatte in Wahrheit den ganzen Lauf abgebrochen.
 
+**Die Zusicherung allein genügt nicht – der Klick muss unterbleiben.** Eine
+gerissene `check()`-Zusicherung bricht den Lauf nicht ab; unmittelbar danach
+klickt das Skript weiter, und der gesperrte Knopf liefert doch den Timeout.
+Gemessen in Etappe 7d-3d an der Mutation „Klickreihenfolge statt `min`/`max`":
+mit bloßem Wächter riss die benannte Zusicherung zwar, der Lauf endete
+trotzdem im Abbruch. `tools/test-merge.mjs` führt deshalb **alle dreizehn**
+Klicks auf sperrbare Knöpfe über den einen Helfer `klickeFreienKnopf()`, der
+zusichert **und** bei gesperrtem Knopf nicht klickt. Danach meldet dieselbe
+Mutation fünf benannte Zusicherungen und null Timeouts. Kein zweiter Helfer
+daneben – dieselbe Regel wie bei `openAllFolds()`.
+
+**Benannte Lücke: die Auftrennstelle im Undo-Snapshot ist nicht abgedeckt.**
+Gemessen in Etappe 7d-3d, Stand `3d6cd9f`.
+
+Mutiert wurde `cloneMapSlot()`: der Klon entsteht weiter über
+`structuredClone()`, verliert aber anschließend die Marke
+(`delete klon.cutEdgeChosen`). Damit reist `cutEdgeChosen` nicht mehr im
+Snapshot mit.
+
+**Die Mutation wirkt** – nachgemessen an der Folge *Auftrennstelle setzen →
+einen Punkt mit der Pfeiltaste verschieben → Undo*:
+
+| | Ring nach dem Undo | `#mergeAInfo` nach dem Undo |
+|---|---|---|
+| heil | `40.00/0.00 40.00/40.00 0.00/40.00 0.00/0.00` | „Auftrennstelle **gewählt**." |
+| mutiert | derselbe Ring | „Auftrennstelle **aus der Datei**." |
+
+**Kein Test sieht das:** `tools/test-merge.mjs` läuft mit der Mutation
+unverändert grün durch, 130 Zusicherungen, null FAIL, Exit 0.
+
+Der Grund ist die **Richtung** der vorhandenen Undo-Zusicherung. Sie prüft
+*ungesetzt → setzen → Undo → ungesetzt*, und dort liefert eine verlorene Marke
+dasselbe Ergebnis wie eine erhaltene. Erst die Gegenrichtung – *setzen →
+irgendeine andere Änderung → Undo → immer noch gesetzt* – trennt die beiden
+Fälle. **Die Lücke wird nicht hier geschlossen, sondern mit 7d-4**, das die
+Marke ohnehin anfasst: solange offen ist, ob sie „der Nutzer hat einmal
+gewählt" oder „die aktuelle Auftrennstelle ist gewählt" behaupten soll, würde
+eine Zusicherung hier das eine oder das andere vorwegnehmen.
+
 #### Hinweis für eigene Erweiterungen
 
 **Einklappbare Bereiche zuerst öffnen.** Seit Etappe 5 sind „Umformen" und
