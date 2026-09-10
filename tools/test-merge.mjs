@@ -680,6 +680,18 @@ try {
     (await perimeterFolge()) === folge([[40, 0], [40, 40], [0, 40], [0, 0]]),
     await perimeterFolge());
 
+  /*
+   * Auch die beiden alten Knoepfe setzen die Auftrennstelle - sie heissen nur
+   * anders. Ohne diese Zusicherung bliebe unbemerkt, wenn einer von beiden die
+   * Marke nicht mehr setzte: der Ring drehte sich weiter richtig, und der
+   * Infoblock behauptete weiter die Dateireihenfolge.
+   */
+  await openMergeWindow();
+
+  check("Startpunkt setzen nennt die Stelle danach als gewaehlt",
+    (await mergeText("#mergeAInfo")) === A_GESETZT,
+    await mergeText("#mergeAInfo"));
+
   await waehlePunkte([[40, 40]]);
   await openAllFolds(page);
   await page.locator("#setEndPointBtn").click();
@@ -688,6 +700,19 @@ try {
   check("Endpunkt setzen ueberschreibt die erste Geste vollstaendig",
     (await perimeterFolge()) === folge([[0, 40], [0, 0], [40, 0], [40, 40]]),
     await perimeterFolge());
+
+  /*
+   * Der Infoblock nennt nach der zweiten Geste die NEUEN Endpunkte - die
+   * Koordinaten der ersten Wahl kommen darin nicht mehr vor. Das ist die
+   * Ueberschreibung, von der sichtbaren Seite her gesehen.
+   */
+  await openMergeWindow();
+
+  check("und der Infoblock nennt danach die Punkte der ZWEITEN Geste",
+    (await mergeText("#mergeAInfo")) ===
+      "Karte A Auftrennstelle gewählt. " +
+      "Startpunkt E 0.00 / N 40.00 m Endpunkt E 40.00 / N 40.00 m",
+    await mergeText("#mergeAInfo"));
 
   /* --- 7. Ablehnung mit Grund -------------------------------------- */
 

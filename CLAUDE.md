@@ -608,6 +608,47 @@ und danach entsteht die Form wirklich. Eine reine Verneinung ohne Auslöser – 
 `!pointInRing(...)` in `test-geometry.mjs` – ist davon nicht betroffen: dort
 gibt es keinen Auslöser, dessen Verarbeitung ausbleiben könnte.
 
+#### Eine neue Zusicherung wird durch Mutation gegengeprüft
+
+**Ein Test, der beim ersten Lauf grün ist, hat noch nichts belegt.** Er belegt
+erst dann etwas, wenn gezeigt ist, dass er bei ausbleibender Wirkung **reißt**.
+Das ist die schärfere Fassung der Regel „eine Behauptung ist kein Beleg": dort
+ging es um Zahlen, die niemand gemessen hat, hier um Zusicherungen, die niemand
+zum Fallen gebracht hat.
+
+**Das Verfahren:** in einer **Arbeitskopie** genau eine Stelle des Bestandes so
+verändern, dass die zugesicherte Wirkung ausbleibt; den Test laufen lassen;
+danach die Arbeitskopie wieder herstellen und mit `git diff` belegen, dass
+nichts zurückgeblieben ist. Je Mutation gehören **Fundstelle, Änderung und die
+namentlich gerissenen Zusicherungen** in den Bericht.
+
+**Wird eine Schreibstelle mehrfach bedient, wird jede einzeln mutiert.** Die
+Auftrennstelle wird an drei Stellen gesetzt – `setSelectedAsPolygonStart()`,
+`setSelectedAsPolygonEnd()` und `applyMergeCut()`. Eine Mutation an einer davon
+sagt über die anderen beiden nichts; genau so blieb in Etappe 7d-3 zunächst
+unbemerkt, dass die beiden Punktknöpfe gar nicht abgedeckt waren.
+
+**Eine Mutation, die nicht reißt, ist eine benannte Lücke – keine Abdeckung.**
+Sie wird als solche gemeldet und nicht dadurch aus der Welt geschafft, dass man
+die Mutation umformuliert, bis sie doch reißt. Vorher ist allerdings zu prüfen,
+ob die Mutation überhaupt eine **Wirkung** hat: eine, die den Bestand gar nicht
+verändert, sagt über den Test nichts. Der Unterschied wird gemessen, nicht
+angenommen.
+
+**Reißen heißt: eine benannte Zusicherung meldet FAIL.** Ein Abbruch mit
+Zeitüberschreitung zählt zwar als roter Lauf, ist aber der schlechtere Befund –
+er nennt die Ursache nicht und kostet dreißig Sekunden je Fall. Wer einen Klick
+auf einen Knopf schreibt, der gesperrt sein **kann**, setzt deshalb eine
+Prüfung auf `isEnabled()` davor; sonst wird aus einer klaren Ablehnung ein
+stummer Timeout.
+
+**Beim Messen der Mutation nicht durch eine Pipe filtern.** `node tools/x.mjs |
+grep FAIL` wirft den Exit-Status weg – dieselbe Falle, die den Läufer nötig
+gemacht hat, nur eine Ebene tiefer. Die Ausgabe in eine Datei schreiben, den
+Exit-Status davon getrennt lesen. Genau daran ist in Etappe 7d-3b der erste
+Durchgang gescheitert: zwei Mutationen sahen aus, als reiße keine Zusicherung,
+und eine davon hatte in Wahrheit den ganzen Lauf abgebrochen.
+
 #### Hinweis für eigene Erweiterungen
 
 **Einklappbare Bereiche zuerst öffnen.** Seit Etappe 5 sind „Umformen" und
