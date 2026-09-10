@@ -17,7 +17,13 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-straighten.mjs
 
-import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
+import {
+  createChecker,
+  indexUrl,
+  launchBrowser,
+  menueBefehl,
+  openAllFolds,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-straighten";
 
@@ -74,21 +80,14 @@ try {
    * der übrigen Marker verschieben sich. Für diesen Test wird sie abgeschaltet,
    * damit die Marker stabil adressierbar bleiben.
    */
-  const expandSidebar = () =>
-    page.evaluate(() => {
-      /*
-       * Seit Etappe 5 D sind "Umformen" und "Kartenpruefung" im Inspektor
-       * einklappbar und beim ersten Start ZU. Wer ihre Knoepfe bedienen will,
-       * klappt sie auf - der Test tut dasselbe.
-       */
-      /*
-       * Seit Etappe 6 stehen die Werkzeugeinstellungen als eingeklapptes
-       * <details> unter ihrem Knopf im Inspektor (.tool-settings).
-       */
-      document.querySelectorAll(
-        "#sidebar details, .inspector-fold, .tool-settings"
-      ).forEach((section) => section.setAttribute("open", ""));
-    });
+  /*
+   * Die Faltgeste kommt aus dem browser-harness, nicht aus einer eigenen Kopie.
+   * openAllFolds() steht dort seit Etappe 6 b2 - er wurde nur nie benutzt, und
+   * deshalb erreichte die Reparatur in 3c (die Feature-Karten der Navigation)
+   * zunaechst keinen einzigen Test. Eine Geste an sieben Stellen wird an sechs
+   * davon vergessen.
+   */
+  const expandSidebar = () => openAllFolds(page);
 
   await expandSidebar();
   await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
