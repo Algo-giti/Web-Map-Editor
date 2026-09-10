@@ -572,6 +572,31 @@ Klick auf einen Knopf darin läuft sonst in einen Playwright-Timeout
 ("element is not visible"). Die betroffenen Tests öffnen deshalb
 `#sidebar details, .inspector-fold`; genau das tut auch ein Nutzer.
 
+**Ein Klick auf einen bereits markierten Punkt HEBT die Gruppe nicht auf.**
+Das ist gewolltes Verhalten – man soll die Gruppe ziehen können –, und es ist
+ein Fallstrick für jeden Test, der nach einer Feature-Auswahl den
+**Abschnittsfall** prüfen will: ohne vorheriges „Auswahl aufheben"
+(`#clearMultiSelectionBtn`) arbeitet er weiter im Zustand „ganzes Feature" und
+**bleibt dabei grün**, weil beide Zustände ein gültiges Ziel liefern. Genau das
+ist in `tools/test-reduce.mjs` aufgetreten, als 7f den vorigen Abschnitt auf
+eine Feature-Auswahl umstellte.
+
+Der Knopf ist gesperrt, wenn nichts ausgewählt ist – der Klick gehört deshalb
+hinter eine Prüfung auf `isEnabled()`, und daneben eine Zusicherung, dass
+danach wirklich kein Marker mehr markiert ist.
+
+**`.first()` auf einem Navigationsknopf ist seit 7f der Perimeter.** „Ganzes
+Feature auswählen" hängt seitdem an `isSupportedFeature()` statt an
+`canMoveWholeFeature()`, und der Perimeter hat den Knopf damit auch. Tests
+sprechen ihn über `[data-action="select-whole-feature"][data-feature-index="…"]`
+an; `.first()` traf vorher zufällig das gewünschte Feature und trifft es jetzt
+zufällig nicht mehr.
+
+Dazu: **die Navigation wird bei jeder Auswahländerung neu gebaut**, und die
+Karten nicht ausgewählter Features entstehen dabei **zu**. Vor einem Klick
+darauf gehört deshalb `openAllFolds()` – auch dann, wenn zu Beginn des Tests
+schon einmal aufgeklappt wurde.
+
 **Die Zoom-Leiste liegt über der Karte** (`.map-view-toolbar`, oben rechts).
 Ein Punktmarker darunter lässt sich nicht anklicken – Playwright meldet
 "subtree intercepts pointer events". Testpunkte deshalb nicht in die obere
@@ -876,6 +901,58 @@ Funktion, die auch das Reduzieren benutzt, wenn kein Abschnitt vorliegt.
   die gemeldete Verschiebung trägt dann „Einheiten" statt „m".
 - Wie beim Reduzieren läuft das Ergebnis vor dem Anwenden durch
   `newValidationErrors()`. Eine Anwendung ist ein Undo-Schritt.
+
+**Zeitpunkt der Werkzeugvorschauen – entschieden mit Etappe 7f.** Bis dahin
+stand hier eine Frage; sie lautete „wann erscheinen die Vorschauen?" und ist
+mit dieser Regel beantwortet:
+
+| Vorschau | Funktion | Ziel | erscheint, sobald |
+|---|---|---|---|
+| Begradigen | `renderStraightenPreview()` | `getSelectedSection()` | **genau zwei** Punkte desselben Rings eines unterstützten Features ausgewählt sind – unverändert |
+| Reduzieren | `renderReducePreview()` | `getReduceTarget()`: Abschnitt, sonst `getWholeFeatureTarget()` | im Abschnitt wie bisher; beim ganzen Feature erst, wenn **alle** seine Punkte ausgewählt sind – zusätzlich nur, wenn bei der eingestellten Toleranz überhaupt Punkte wegfielen und die Mindestpunktzahl hält |
+| Rechtwinklig | `renderRectifyPreview()` | `getWholeFeatureTarget()` | erst, wenn **alle** Punkte des Features ausgewählt sind – zusätzlich nur, wenn `analyzeRectify()` etwas verschiebt (`maxShift > 0`) |
+
+**Der Zeitpunkt hängt an genau einer Stelle: `previewSelectionAllows(target)`.**
+Beide betroffenen Vorschauen rufen sie auf. Drei Werkzeuge mit drei
+Zeitpunkten wären schlimmer als der vorige Zustand – dann müsste man sich
+merken, welches wann zeigt.
+
+**Was entfallen ist:** der Auslöser „ein Punkt genügt". `getWholeFeatureTarget()`
+fällt weiterhin auf das ganze Feature zurück, sobald die Auswahl eindeutig zu
+einem gehört – nur trägt dieser Rückfall keine Vorschau mehr. Wer einen Punkt
+verschieben will, bekommt nicht länger ungefragt die Vorschau eines Werkzeugs,
+nach dem er nicht gefragt hat.
+
+**Das Begradigen blieb unverändert, und das ist eine Entscheidung.** Zwei
+gewählte Punkte desselben Rings sind bereits eine eindeutige Absichtserklärung
+– man wählt sie nicht versehentlich, und es gibt genau ein Werkzeug, das darauf
+antwortet. Die naheliegende Alternative, den Zeitpunkt an den geöffneten
+Faltblock „Umformen" zu hängen, hätte das **verschlechtert**: sie hätte eine
+Geste, die schon eindeutig ist, von einem zweiten Zustand abhängig gemacht, den
+der Nutzer eigens herstellen muss.
+
+**Die Regel betrifft NUR den Zeitpunkt der Vorschau.** Worauf die Werkzeuge
+wirken, entscheiden weiterhin `getReduceTarget()` und `getWholeFeatureTarget()`
+– mit einem einzelnen gewählten Punkt melden Statuszeile und Knopf also
+weiterhin das ganze Feature. Ob das so bleiben soll, ist eine eigene Frage und
+wurde mit 7f ausdrücklich nicht mitentschieden.
+
+**Der Knopf „Ganzes Feature auswählen" hängt nicht mehr an
+`canMoveWholeFeature()`**, sondern an `descriptors.length > 0 &&
+isSupportedFeature(feature)`. Er erscheint damit auch am Perimeter – ohne ihn
+gäbe es dort keinen zumutbaren Weg, alle Punkte zu wählen, und der wird seit
+7f gebraucht.
+
+`canMoveWholeFeature()` ist unverändert und behält ihre Aufgabe beim
+Flächenziehen: der Perimeter bleibt bewusst nicht per Drag verschiebbar, das
+hängt an `.feature-movable`. **Auswählen ist nicht Verschieben** – die alte
+Bedingung beantwortete die falsche Frage.
+
+**`isSupportedFeature()` muss ausdrücklich danebenstehen.** Die alte Typliste
+trug **zwei** Aufgaben zugleich: die Verschiebeerlaubnis *und* den Filter gegen
+nicht unterstützte Features. `getFeatureDescriptors()` filtert nicht. Ohne den
+zweiten Teil erschiene der Knopf an Features ohne Punktmarker, die anschließend
+in jedem Werkzeug denselben Ablehnungsgrund liefern.
 
 **Abgeleitet oder flüchtig – die Kategorie jeder Statusquelle.** Bevor eine
 neue Ausgabe irgendwo eingebaut wird, gehört sie in genau eine der beiden
@@ -2558,36 +2635,6 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Nach dem Oberflächenumbau ansehen: entweder Löcher gar nicht erst editierbar
   machen, oder Prüfung und Flächenrechnung auf alle Ringe ausweiten. Beides ist
   eine Entscheidung, kein Nachtrag.
-- **Zu entscheiden mit Etappe 7: Wann erscheinen Werkzeugvorschauen?** Der
-  Inspektor wird dort ohnehin angefasst. Das hier ist eine **Entscheidung,
-  kein Auftrag** – der heutige Zustand ist benutzbar, nur zu eifrig.
-
-  Heute genügt ein Klick auf einen beliebigen Punkt, und die
-  Rechtwinklig-Vorschau liegt über dem ganzen Feature: `renderRectifyPreview()`
-  holt sein Ziel aus `getWholeFeatureTarget()`, und das fällt auf das ganze
-  Feature zurück, sobald die Auswahl eindeutig zu einem gehört. Ein einzelner
-  Punkt reicht. Wer einen Punkt verschieben will, bekommt ungefragt die
-  Vorschau eines Werkzeugs, nach dem er nicht gefragt hat.
-
-  **Naheliegend wäre: nur, solange der Faltblock „Umformen" offen ist.**
-
-  **Die Regel muss für ALLE Vorschauen gelten, nicht nur für Rechtwinklig.**
-  Drei Werkzeuge mit drei verschiedenen Zeitpunkten wären schlimmer als der
-  heutige Zustand – dann müsste man sich merken, welches wann zeigt.
-
-  Der Bestand, eine Zeile je Vorschau:
-
-  | Vorschau | Funktion | Ziel | erscheint, sobald |
-  |---|---|---|---|
-  | Begradigen | `renderStraightenPreview()` | `getSelectedSection()` | **genau zwei** Punkte desselben Rings eines unterstützten Features ausgewählt sind – ohne weitere Bedingung |
-  | Reduzieren | `renderReducePreview()` | `getReduceTarget()`: Abschnitt, sonst `getWholeFeatureTarget()` | **ein** Punkt genügt (Rückfall auf das ganze Feature) – zusätzlich nur, wenn bei der eingestellten Toleranz überhaupt Punkte wegfielen und die Mindestpunktzahl hält |
-  | Rechtwinklig | `renderRectifyPreview()` | `getWholeFeatureTarget()` | **ein** Punkt genügt – zusätzlich nur, wenn `analyzeRectify()` etwas verschiebt (`maxShift > 0`) |
-
-  Zwei der drei hängen also schon heute an derselben Bedingung („ein Punkt
-  eines Features"), das Begradigen an einer strengeren („genau zwei Punkte").
-  Wer den Zeitpunkt vereinheitlicht, vereinheitlicht damit auch, ob das
-  Begradigen weiterhin früher zeigt als die beiden anderen.
-
 - **Zusicherungen auf unsichtbaren Inhalt – offene Frage, kein Auftrag.**
   `test-validation.mjs` und `test-scale.mjs` sichern den Inhalt von Elementen
   zu, die `isVisible() === false` melden: `textContent()` und `.count()` tragen
