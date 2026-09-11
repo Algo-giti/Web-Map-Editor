@@ -1390,7 +1390,7 @@ Meldungen, und ziehen mit Etappe 5 in den Inspektor.
 
 **Ausblendreihenfolge bei schmalem Fenster**, und der Grund dafür: Zuerst
 verschwinden die Beschriftungen der linken Felder (ab 1180 px), dann
-Bezugspunkt und Prüfung (**ab 769 px**, bis Schritt 4 des dritten Durchgangs
+Bezugspunkt und Prüfung (**ab 959 px**, bis Schritt 3 des vierten Durchgangs
 900 px). Zuletzt weichen würden Dateiname und
 Maßstab; die flüchtige Meldung und die beiden rechten Anzeigen bleiben immer.
 
@@ -3356,12 +3356,23 @@ nachschlagbar ist – aber es ist der Normalfall des Zielgeräts.
 | **8b** | „Erklärung ohne Hover" – siehe den Abschnitt unten | Setzt 8a nicht voraus, ist aber der größere Brocken und sollte nicht mit einer Layout-Umstellung im selben Commit liegen |
 | **8c** – **entschieden, Umsetzung offen** | Die Schwelle der `data-optional`-Felder folgt dem ungünstigsten Inhalt: unter ihr darf nichts abgeschnitten werden. Messung und Entscheidung stehen im Abschnitt unten, die Umsetzung ist Schritt 3 des vierten Durchgangs | Erst sinnvoll, wenn 8a die Grenze festgelegt hat |
 
-### 8c – die Schwelle der `data-optional`-Felder, neu vermessen
+### 8c – ERLEDIGT mit Schritt 3 des vierten Durchgangs: die Schwelle ist 960 px
 
-**Nicht erledigt.** Der Wert 770 px aus dem dritten Durchgang steht weiter im
-CSS, aber die Messung, die ihn getragen hat, hält nicht – siehe die beiden
-Richtigstellungen unten. Die Umsetzung folgt mit Schritt 3 des vierten
-Durchgangs.
+**Die Schwelle steht bei 960 px**, als eine Stelle im CSS:
+`@media(max-width:959px)` im Block „Etappe 8c" – die Regel greift also
+unterhalb von 960 px. Der Test liest sie **aus dieser Regel**, statt sie als
+Zahl zu führen.
+
+| | |
+|---|---|
+| **Kriterium** | unter der Schwelle darf im ungünstigsten Inhalt **kein Textbehälter abgeschnitten** sein |
+| kleinster abschnittsfreier Wert, DE | **953 px** |
+| kleinster abschnittsfreier Wert, EN | **843 px** |
+| Maximum, aufgerundet auf 10 px | **960 px** |
+| CSS-Fundstelle | `@media(max-width:959px)`, Block „Etappe 8c" in `index.html` |
+
+**Die frühere Schwelle 770 px nahm den Feldern den Platz nicht zu früh,
+sondern zu spät:** zwischen 770 und 952 px standen sie da, aber gestaucht.
 
 **Entschieden (Projektinhaber, vierter Durchgang):** In der Stufe ohne
 Beschriftungen darf im ungünstigsten Inhalt **nichts abgeschnitten** werden.
@@ -3489,9 +3500,9 @@ beginnt bei 952 px. Die Differenz von 5 px stammt aus dem Inhalt – die
 Feldsumme liegt bei 800 statt 803 px –, nicht aus dem Verfahren. Die Aussage
 „die Kante liegt bei etwa 955 px" trägt in beiden Messungen.
 
-#### Befund: die Schwelle 770 px sichert nur die Feldzahl
+#### Befund: die Schwelle 770 px sicherte nur die Feldzahl – BEHOBEN mit Schritt 3
 
-**Zu beheben mit Schritt 3 des vierten Durchgangs.** Drei Teile:
+**Alle drei Teile sind ausgetragen**, der Befund bleibt als Beleg stehen:
 
 1. **Zwischen 770 und 952 px wird im ungünstigsten Inhalt gekürzt, ohne dass
    ein Feld weicht.** Das ist derselbe Fehler, den Etappe 6 an der Kopfzeile
@@ -3507,6 +3518,55 @@ Feldsumme liegt bei 800 statt 803 px –, nicht aus dem Verfahren. Die Aussage
 3. **Die Schwellen 769, 770 und 771 stehen als Literale im Test**, die
    CSS-Regel wird nicht gelesen und die Schwelle nicht gemessen; kein Test
    benutzt `matchMedia` für die Statuszeile.
+
+**Was Schritt 3 daraus gemacht hat:** die vier Summen-Zusicherungen und die
+drei Literale sind entfallen. An ihrer Stelle steht ein eigener Abschnitt, der
+den ungünstigsten Inhalt über Bedienung herstellt, die Schwelle aus der
+CSS-Regel liest und je Sprache zusichert: an der Schwelle sieben Felder und
+**kein** abgeschnittener Behälter, bei Schwelle−1 die schmale Fassung und
+ebenfalls kein abgeschnittener Behälter, dazu die schmale Fassung bei 744,
+768, 820, 834 und 860 px.
+
+**Gegengeprüft mit zwei Mutationen:**
+
+| Mutation | Ergebnis |
+|---|---|
+| Schwelle −60 px (`959` → `899`) | **reißt** „de: und an der Schwelle ist kein Feld abgeschnitten" – `scaleStatus: 120<139`, `validationShort: 120<154` |
+| Schwelle +40 px (`959` → `999`) | reißt **nichts** |
+
+**Die zweite ist eine benannte Lücke: eine zu hohe Schwelle merkt der Test
+nicht.** Sie wird nicht mit einem Konstrukt zum Reißen gebracht. Der Grund ist
+strukturell und nicht behebbar, ohne eine zweite Wahrheit einzuführen: „zu
+hoch" hieße, dass die Felder auch unterhalb der Schwelle noch gepasst hätten –
+das lässt sich nur gegen einen **gemessenen** Erwartungswert prüfen, und genau
+den verbietet die Regel „kein Messwert als Literal". Die Lücke ist damit der
+Preis dafür, dass der Test keine Erinnerung an eine Messung führt.
+
+#### Offene Frage aus derselben Messung: die Beschriftungsschwelle 1180 px
+
+**Nur gemessen, nichts geändert.** Dieselbe Prüfung in der Stufe **mit**
+Beschriftungen (ab 1181 px), gleicher ungünstigster Inhalt:
+
+| Breite | DE | EN |
+|---|---|---|
+| 1181 | Maßstab, Bezugspunkt, Prüfung | – |
+| 1201 | Maßstab, Prüfung | – |
+| 1221 | Maßstab, Prüfung | – |
+| 1241 | Maßstab, Prüfung | – |
+| 1242 … 1254 | Prüfung | – |
+| **1255** | – (**kleinster Wert ohne Abschneiden, DE**) | – |
+| 1261, 1300, 1400 | – | – |
+
+**Die Beschriftungen erscheinen 75 px zu früh.** Zwischen 1181 und 1254 px
+stehen sie da, während auf Deutsch Maßstab und Prüfung gekürzt werden – exakt
+derselbe Fehler eine Stufe höher, den 8c gerade für die `data-optional`-Felder
+behoben hat. Auf Englisch tritt er nicht auf.
+
+**Zu entscheiden ist, ob die Schwelle mitwandert** (dann wäre sie 1260 px nach
+derselben Rechnung) oder ob die Beschriftungen ein anderes Kriterium
+verdienen: sie sind nicht der Inhalt, sondern seine Benennung, und eine
+gekürzte Benennung neben einem vollständigen Wert wiegt womöglich leichter als
+ein gekürzter Wert. **Nicht gebaut, nicht entschieden.**
 | **8d** – **ERLEDIGT** | Zusicherungen in `tools/test-toolbar.mjs`, bei **1920, 1440, 1280, 860 und 744 px** und je **fein und grob**: Zielgrößen ≥ 44 px bei grobem Zeiger, Schrift im E/N-Feld, drei Rasterspalten bis zur Grenze hinunter, und dass unterhalb von 744 px nichts abgewiesen wird | Vorgezogen vor 8b/8c, weil sie den Zustand festhalten, den 8a herstellt – und weil 8b und 8c beide eine noch offene Entscheidung brauchen |
 
 **Wie die Bedienart im Test emuliert wird – und warum das eine Gegenprobe
@@ -4244,7 +4304,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   |---|---|---|
   | 1100 px | `@media` | die Werkzeugleiste zeigt Text |
   | **1000 px** | **JS**, `TOOL_RAIL_NARROW_QUERY = "(max-width: 1000px)"` | die Werkzeugleiste klappt **erzwungen** ein |
-  | **769 px** | `@media` | Statusfelder mit `data-optional` weichen (bis Schritt 4 des dritten Durchgangs: 900 px) |
+  | **959 px** | `@media` | Statusfelder mit `data-optional` weichen (900 px bis Etappe 8a, 769 px im dritten Durchgang) |
   | **743 px** | `@media` | gestapeltes Layout: alles untereinander (bis Etappe 8a: 760 px) |
   | – | `@media (pointer: coarse)` | 44-px-Zielgrößen und 16 px in Eingabefeldern, **ohne Breitenbezug** (seit Etappe 8a) |
 

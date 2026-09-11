@@ -342,6 +342,37 @@ export async function openAllFolds(page, menue = null) {
   }
 }
 
+/**
+ * Klickt einen Knopf, der gesperrt sein KANN - und klickt ihn nicht, wenn er
+ * gesperrt ist.
+ *
+ * Eine gerissene check()-Zusicherung bricht den Lauf nicht ab; unmittelbar
+ * danach klickt das Skript weiter, und der gesperrte Knopf liefert doch einen
+ * Timeout. Der Helfer sichert deshalb zu UND kehrt bei gesperrtem Knopf mit
+ * false zurueck, damit der Aufrufer den Abschnitt abbrechen kann.
+ *
+ * Er stand bis zum vierten Durchgang als lokale Fassung in test-merge.mjs.
+ * Hier liegt er, damit es keine zweite Kopie gibt - dieselbe Regel wie bei
+ * openAllFolds(). Die Fabrik bindet check(), das je Test eine eigene Closure
+ * ist.
+ */
+export function createKlicker(page, check) {
+  return async (selektor, name, grundSelektor = null) => {
+    const frei = await page.locator(selektor).isEnabled();
+
+    check(name, frei,
+      grundSelektor
+        ? await page.locator(grundSelektor).textContent()
+        : `${selektor} ist gesperrt`);
+
+    if (!frei) return false;
+
+    await page.locator(selektor).click();
+    return true;
+  };
+}
+
+
 /** Kleiner Zähler für Zusicherungen, gemeinsam von beiden Tests genutzt. */
 export function createChecker(toolName) {
   let failures = 0;

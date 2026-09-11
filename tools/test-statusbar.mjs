@@ -22,8 +22,10 @@
 
 import {
   createChecker,
+  createKlicker,
   indexUrl,
   launchBrowser,
+  menueBefehl,
   openAllFolds,
 } from "./browser-harness.mjs";
 
@@ -59,6 +61,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const klickeFreienKnopf = createKlicker(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -523,67 +526,10 @@ try {
     (await sichtbareFelder()).join(","));
 
   /*
-   * Etappe 8c: die Schwelle liegt seit dem dritten Durchgang bei 770 px, nicht
-   * mehr bei 900. Gemessen ist der Platzbedarf der sechs Felder OHNE
-   * Beschriftungen - nur dieser Zustand kommt an der Schwelle vor, sie weichen
-   * schon ab 1180 px: deutsch 769 px, englisch 666 px.
-   *
-   * Zugesichert wird an der Kante, und in beiden Sprachen: bei 770 und 771 px
-   * passen alle Felder, bei 769 px greift die schmale Fassung. "Passt" heisst
-   * dabei: die Summe der GERENDERTEN Breiten plus Luecken bleibt unter der
-   * Zeilenbreite - nicht scrollWidth, denn das Raster klemmt die Zeile und
-   * verbirgt eine Stauchung.
-   *
-   * Damit reisst der Test, sobald ein Feld waechst - das ist sein Zweck.
+   * Etappe 8c: die Kante der Schwelle wird weiter unten im eigenen Abschnitt
+   * geprueft, mit dem unguenstigsten Inhalt und in beiden Sprachen. Hier
+   * stehen nur die beiden Faelle, die von ihm unabhaengig sind.
    */
-  const passtOhneStauchung = () =>
-    page.evaluate(() => {
-      const bar = document.getElementById("statusBar");
-      const kinder = [...bar.children].filter((el) =>
-        !el.classList.contains("status-transient") &&
-        getComputedStyle(el).display !== "none");
-      const stil = getComputedStyle(bar);
-      const luecke = parseFloat(stil.columnGap || "0") || 0;
-      const polsterung =
-        parseFloat(stil.paddingLeft) + parseFloat(stil.paddingRight);
-      const summe = kinder.reduce(
-        (wert, el) => wert + el.getBoundingClientRect().width, 0);
-      return {
-        felder: kinder.length,
-        gebraucht: Math.ceil(summe + luecke * (kinder.length - 1) + polsterung),
-        platz: Math.round(bar.getBoundingClientRect().width),
-      };
-    });
-
-  for (const sprache of ["deutsch", "englisch"]) {
-    if (sprache === "englisch") {
-      await page.locator("#languageToggle").click();
-      await page.waitForTimeout(400);
-    }
-
-    for (const breite of [770, 771]) {
-      await page.setViewportSize({ width: breite, height: 800 });
-      await page.waitForTimeout(300);
-
-      const mass = await passtOhneStauchung();
-
-      check(`${sprache}: bei ${breite} px stehen alle sieben Felder`,
-        mass.felder === 7, JSON.stringify(mass));
-      check(`${sprache}: und sie passen bei ${breite} px ohne Stauchung`,
-        mass.gebraucht <= mass.platz, JSON.stringify(mass));
-    }
-
-    await page.setViewportSize({ width: 769, height: 800 });
-    await page.waitForTimeout(300);
-
-    check(`${sprache}: bei 769 px greift die schmale Fassung`,
-      (await passtOhneStauchung()).felder === 4,
-      JSON.stringify(await passtOhneStauchung()));
-  }
-
-  await page.locator("#languageToggle").click();
-  await page.waitForTimeout(400);
-
   await page.setViewportSize({ width: 760, height: 800 });
   await page.waitForTimeout(300);
 
@@ -618,6 +564,218 @@ try {
   check("und kommen bei mehr Platz zurück",
     (await sichtbareFelder()).length === 5,
     (await sichtbareFelder()).join(","));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Etappe 8c: die Schwelle traegt den unguenstigsten Inhalt");
+
+  /*
+   * Die Schwelle der data-optional-Felder soll halten, was ihr Name sagt:
+   * oberhalb stehen alle sieben Felder VOLLSTAENDIG da, unterhalb weichen
+   * drei. Geprueft wird deshalb das Abschneiden je Textbehaelter ueber
+   * scrollWidth > clientWidth - NICHT ueber die Summe der gerenderten
+   * Breiten. Die kann nicht falsch werden: eine gerenderte Breite ist nie
+   * groesser als der Platz, den das Layout zugeteilt hat. Genau daran lag
+   * es, dass die frueheren vier Zusicherungen "passen ohne Stauchung" auch
+   * bei 800 px bestanden, wo vier Felder sichtbar gekuerzt waren.
+   *
+   * Geprueft werden ALLE sieben Felder. Auswahlzaehler und
+   * Cursor-Koordinaten tragen keinen .status-value, sondern ihren Text
+   * unmittelbar - wer nach der Klasse sucht, uebersieht sie.
+   *
+   * Die Schwelle wird aus der CSS-Regel GELESEN, nicht als Zahl verdrahtet.
+   * Ein Test, der seine eigene Schwelle nicht kennt, prueft eine Erinnerung
+   * an sie.
+   */
+  const schwelleAusCss = await page.evaluate(() => {
+    for (const blatt of document.styleSheets) {
+      let regeln;
+      try { regeln = blatt.cssRules; } catch { continue; }
+      for (const regel of regeln || []) {
+        if (regel.type !== CSSRule.MEDIA_RULE) continue;
+        const trifft = [...regel.cssRules].some((r) =>
+          r.selectorText && r.selectorText.includes("[data-optional]"));
+        if (!trifft) continue;
+        const treffer = regel.conditionText.match(/max-width:\s*(\d+)px/);
+        if (treffer) return Number(treffer[1]) + 1;
+      }
+    }
+    return null;
+  });
+
+  check("die Schwelle steht als Medienregel im CSS und ist lesbar",
+    Number.isFinite(schwelleAusCss), String(schwelleAusCss));
+
+  if (Number.isFinite(schwelleAusCss)) {
+    /*
+     * Der unguenstigste Inhalt entsteht ueber Bedienung und Testdatei -
+     * nichts davon ist per textContent gesetzt, sonst pruefte der Test
+     * seine eigene Eingabe statt der Oberflaeche.
+     *
+     *   Massstab      Karte mit Ausdehnung > 1 ohne coordinateScale
+     *   Raster        Rasterfenster, 100 eingetippt
+     *   Bezugspunkt   zwei Karten mit verschiedener RTK-Basis
+     *   Pruefung      123 namenlose Features, 31 ueberlappende Exclusions
+     *   Zaehler       "Ganzes Feature auswaehlen" auf 128 Punkten
+     *   Cursor        echte Zeigerbewegung in die linke untere Ecke
+     *
+     * Der Dateiname bleibt kurz: Spalte 1 ist minmax(0,auto) und schrumpft
+     * als einzige - ein langer Name wird in JEDER Breite gekuerzt, und eine
+     * Schwelle, unter der "nichts abgeschnitten" fuer jeden Namen gilt, gibt
+     * es deshalb nicht.
+     */
+    const ring = [];
+    for (let i = 0; i < 128; i++) {
+      const winkel = (i / 128) * Math.PI * 2;
+      ring.push([
+        Math.round(Math.cos(winkel) * 11111 * 100) / 100,
+        Math.round(Math.sin(winkel) * 11111 * 100) / 100,
+      ]);
+    }
+    ring.push([...ring[0]]);
+
+    const breiteFeatures = [
+      { type: "Feature", properties: { name: "perimeter" },
+        geometry: { type: "Polygon", coordinates: [ring] } },
+    ];
+    for (let i = 0; i < 123; i++) {
+      breiteFeatures.push({
+        type: "Feature", properties: { name: `unbekannter typ ${i}` },
+        geometry: { type: "LineString",
+          coordinates: [[100 + i, 100], [110 + i, 110]] },
+      });
+    }
+    for (let i = 0; i < 31; i++) {
+      breiteFeatures.push({
+        type: "Feature", idx: i, properties: { name: "exclusion" },
+        geometry: { type: "Polygon", coordinates: [[
+          [i, 0], [i + 20, 0], [i + 20, 20], [i, 20], [i, 0],
+        ]] },
+      });
+    }
+
+    const ladeKarte = async (selektor, name, inhalt) => {
+      await page.locator(selektor).setInputFiles({
+        name, mimeType: "application/geo+json",
+        buffer: Buffer.from(JSON.stringify(inhalt)),
+      });
+      await page.waitForTimeout(500);
+    };
+
+    await page.setViewportSize({ width: 1400, height: 1000 });
+    await page.waitForTimeout(250);
+
+    await ladeKarte("#fileInput", "k.geojson", {
+      type: "FeatureCollection", referenceOrigin: { lat: 48.1, lon: 11.5 },
+      features: [{ type: "Feature", properties: { name: "perimeter" },
+        geometry: { type: "Polygon", coordinates: [[
+          [0, 0], [50, 0], [50, 50], [0, 50], [0, 0],
+        ]] } }],
+    });
+    await ladeKarte("#secondFileInput", "a.geojson", {
+      type: "FeatureCollection", referenceOrigin: { lat: 48.2, lon: 11.6 },
+      features: breiteFeatures,
+    });
+
+    await openAllFolds(page);
+    await klickeFreienKnopf("#validateMapBtn", "die Kartenprüfung ist frei");
+    await page.waitForTimeout(1400);
+
+    await menueBefehl(page, "Ansicht", "Raster…");
+    await page.waitForTimeout(250);
+    await page.locator("#gridStepInput").fill("100");
+    await page.locator("#gridStepInput").press("Enter");
+    await page.waitForTimeout(300);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+
+    await openAllFolds(page);
+    await klickeFreienKnopf(
+      '[data-action="select-whole-feature"] >> nth=0',
+      "„Ganzes Feature auswählen“ ist frei");
+    await page.waitForTimeout(400);
+
+    /*
+     * Die Kartenansicht wird vor jeder Sprachrunde neu eingepasst, damit die
+     * Cursor-Koordinaten aus derselben Lage entstehen und in beiden Sprachen
+     * gleich lang sind. Ohne das misst die zweite Runde einen kuerzeren Text
+     * und sieht dadurch guenstiger aus, als sie ist.
+     */
+    const zeigerInDieEcke = async () => {
+      await page.locator("#fitBtn").click();
+      await page.waitForTimeout(250);
+      const kasten = await page.locator("#svg").boundingBox();
+      await page.mouse.move(kasten.x + 12, kasten.y + kasten.height - 12);
+      await page.waitForTimeout(200);
+    };
+
+    /** Welche Textbehaelter sind abgeschnitten? Alle sieben Felder. */
+    const abgeschnitten = () =>
+      page.evaluate(() => {
+        const bar = document.getElementById("statusBar");
+        const sichtbar = [...bar.children].filter((el) =>
+          !el.classList.contains("status-transient") &&
+          getComputedStyle(el).display !== "none");
+        const treffer = [];
+        for (const feld of sichtbar) {
+          const eigene = feld.querySelectorAll(".status-value, .filename");
+          const behaelter = eigene.length ? [...eigene] : [feld];
+          for (const t of behaelter) {
+            if (t.scrollWidth > t.clientWidth + 0.5) {
+              treffer.push(`${t.id || feld.id}: ${t.clientWidth}<${t.scrollWidth}`);
+            }
+          }
+        }
+        return { felder: sichtbar.length, treffer };
+      });
+
+    for (const sprache of ["de", "en"]) {
+      await page.evaluate((s) => setLanguage(s), sprache);
+      await page.waitForTimeout(350);
+      await zeigerInDieEcke();
+
+      /* Gegenprobe auf die hergestellte Bedingung: die Sprache ist wirklich
+         umgeschaltet. Ohne sie misst die zweite Runde dasselbe wie die erste
+         und besteht trotzdem. */
+      check(`${sprache}: die Oberfläche steht wirklich auf dieser Sprache`,
+        await page.evaluate((s) => currentLanguage === s, sprache),
+        await page.evaluate(() => currentLanguage));
+
+      await page.setViewportSize({ width: schwelleAusCss, height: 800 });
+      await page.waitForTimeout(300);
+      const ander = await abgeschnitten();
+
+      check(`${sprache}: an der Schwelle (${schwelleAusCss} px) stehen alle sieben Felder`,
+        ander.felder === 7, JSON.stringify(ander));
+      check(`${sprache}: und an der Schwelle ist kein Feld abgeschnitten`,
+        ander.treffer.length === 0, ander.treffer.join(", "));
+
+      await page.setViewportSize({ width: schwelleAusCss - 1, height: 800 });
+      await page.waitForTimeout(300);
+      const darunter = await abgeschnitten();
+
+      check(`${sprache}: bei Schwelle−1 (${schwelleAusCss - 1} px) greift die schmale Fassung`,
+        darunter.felder === 4, JSON.stringify(darunter));
+      check(`${sprache}: und auch dort ist kein Feld abgeschnitten`,
+        darunter.treffer.length === 0, darunter.treffer.join(", "));
+
+      /*
+       * Die fuenf Tabletbreiten. Sie sind keine Messwerte, sondern die
+       * CSS-Breiten der Zielgeraete (Etappe 8): iPad mini, aeltere iPads,
+       * iPad 10,9", iPad Air/Pro 11" und ein schmales Desktopfenster.
+       */
+      for (const breite of [744, 768, 820, 834, 860]) {
+        await page.setViewportSize({ width: breite, height: 800 });
+        await page.waitForTimeout(250);
+        const mass = await abgeschnitten();
+
+        check(`${sprache}: bei ${breite} px gilt die schmale Fassung`,
+          mass.felder === 4, JSON.stringify(mass));
+      }
+    }
+
+    await page.evaluate(() => setLanguage("de"));
+    await page.waitForTimeout(300);
+  }
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

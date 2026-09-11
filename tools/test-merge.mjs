@@ -20,6 +20,7 @@
 
 import {
   createChecker,
+  createKlicker,
   indexUrl,
   launchBrowser,
   elementGetroffen,
@@ -136,19 +137,9 @@ try {
    *
    * Ein Helfer, nicht dreizehn Kopien - dieselbe Regel wie bei openAllFolds().
    */
-  const klickeFreienKnopf = async (selektor, name, grundSelektor = null) => {
-    const frei = await page.locator(selektor).isEnabled();
-
-    check(name, frei,
-      grundSelektor
-        ? await page.locator(grundSelektor).textContent()
-        : `${selektor} ist gesperrt`);
-
-    if (!frei) return false;
-
-    await page.locator(selektor).click();
-    return true;
-  };
+  /* Der Helfer liegt seit dem vierten Durchgang im Harness - eine Stelle
+     statt einer Kopie je Test. Verhalten unveraendert. */
+  const klickeFreienKnopf = createKlicker(page, check);
 
   const upload = async (selector, name, body) => {
     await page.locator(selector).setInputFiles({

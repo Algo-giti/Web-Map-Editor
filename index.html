@@ -2545,16 +2545,26 @@
   }
 
   /*
-   * Etappe 8c, gemessen: die sechs Felder brauchen 769 px, sobald die
-   * Beschriftungen weg sind (deutsch, Zeiger auf der Karte, Auswahlzähler
-   * gefüllt; englisch 666 px). Aufgerundet auf 10 px ist das 770. Die frühere
-   * Schwelle 900 px nahm ihnen 130 px zu früh den Platz.
+   * Etappe 8c, gemessen im vierten Durchgang: unter dieser Schwelle darf im
+   * unguenstigsten Inhalt KEIN Textbehaelter abgeschnitten sein. Gemessen je
+   * Behaelter ueber scrollWidth > clientWidth, nicht ueber eine Summe
+   * gerenderter Breiten - die kann nicht falsch werden.
    *
-   * Die Zahl gilt für den Zustand OHNE Beschriftungen - und nur der kommt an
-   * dieser Schwelle vor: sie weichen schon ab 1180 px. Mit ihnen braucht die
-   * Zeile 1000 px, und so breit ist das Fenster dort immer.
+   * Kleinste Breite ohne Abschneiden: deutsch 953 px, englisch 843 px. Der
+   * groessere Wert, aufgerundet auf 10 px, ist 960 - die Regel greift also
+   * unterhalb davon, bei 959 px.
+   *
+   * Die Zahl gilt fuer den Zustand OHNE Beschriftungen - und nur der kommt an
+   * dieser Schwelle vor: sie weichen schon ab 1180 px.
+   *
+   * Gewollte Folge: alle Tabletbreiten (744, 768, 820, 834, 860) zeigen die
+   * schmale Fassung. Bezugspunkt und Pruefergebnis sind im Inspektor
+   * nachschlagbar - zuerst weicht das Nachschlagbare.
+   *
+   * Die frueheren Werte: 900 px bis Etappe 8a, 770 px im dritten Durchgang.
+   * Der zweite stammte aus einer Messung, die die Stauchung nicht sah.
    */
-  @media(max-width:769px) {
+  @media(max-width:959px) {
     /* Zeile 2 bleibt unberührt - sie spannt ohnehin über alle Spalten. */
     .status-bar { grid-template-columns:minmax(0,auto) auto minmax(0,1fr) auto auto; }
     /*
