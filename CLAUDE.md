@@ -3116,7 +3116,7 @@ Hochformat braucht; siehe Punkt 3.
 | Kartenhöhe `68vh`, mindestens 420 px, höchstens 760 px | **trägt**, ist aber nie an einem Tablet gemessen worden |
 | 44-px-Zielgrößen für Menütitel, Menüeinträge, Kopfzeilenknöpfe und Inspektorknöpfe | **trägt und ist der wichtigste Punkt** – ein Tablet wird mit dem Finger bedient, unabhängig von der Breite. Fiele der Block ersatzlos, bekäme ein Tablet im **Querformat** Desktop-Zielgrößen |
 | `font-size:16px` in Eingabefeldern gegen den Formular-Zoom | **trägt auf dem iPad** – siehe die Richtigstellung unten; die Begründung nannte bis Schritt E das falsche Gerät |
-| Statuszeile: `data-optional`-Felder weichen | hing **nicht** an 760, sondern an 900 – Bezugspunkt und Prüfergebnis wichen damit auf **jedem** Tablet im Hochformat. **Erledigt mit Schritt 4 des dritten Durchgangs:** die Schwelle ist gemessen und liegt bei 769 px, auf einem Tablet im Hochformat stehen beide Felder wieder da |
+| Statuszeile: `data-optional`-Felder weichen | hing **nicht** an 760, sondern an 900. Der dritte Durchgang setzte die Schwelle auf 769 px, womit die Felder auf jedem Tablet im Hochformat wieder dastanden; die Neumessung im vierten Durchgang zeigt, dass sie dort **gestaucht** dastehen. **Entschieden ist deshalb die Gegenrichtung:** auf Tabletbreiten gilt die schmale Fassung, siehe Abschnitt 8c |
 | Marke verkleinert, Menüleiste in eigener Zeile | **überflüssig** ab etwa 820 px, dort passt beides nebeneinander |
 
 **Der Befund daraus, und er ist der eigentliche Inhalt der Etappe: der eine
@@ -3263,88 +3263,159 @@ nachschlagbar ist – aber es ist der Normalfall des Zielgeräts.
 |---|---|---|
 | **8a** – **ERLEDIGT** | Den einen `@media(max-width:760px)`-Block in **zwei** geteilt: einen Breitenblock bei **743 px** (Stapeln, waagerechte Leiste, Seiten-Scrolling, Kartenhöhe, verkleinerte Marke) und einen Block an der **Bedienart** (`pointer: coarse`) mit den 44-px-Zielgrößen und der 16-px-Schrift. Die Spezifität von `.coord-input` ist mitgezogen, Befund 2 ist damit weg. | Ohne die Trennung bekommt ein Tablet im Querformat weiter Desktop-Zielgrößen. Alles Weitere hängt an dieser Trennung |
 | **8b** | „Erklärung ohne Hover" – siehe den Abschnitt unten | Setzt 8a nicht voraus, ist aber der größere Brocken und sollte nicht mit einer Layout-Umstellung im selben Commit liegen |
-| **8c** – **ANGEHALTEN, Messung liegt vor** | Die Schwelle der `data-optional`-Felder entscheiden: bleibt sie bei 900 px, folgt sie der neuen Grenze, oder – wie die Messung nahelegt – geht sie **hinauf**? | Erst sinnvoll, wenn 8a die Grenze festgelegt hat |
+| **8c** – **entschieden, Umsetzung offen** | Die Schwelle der `data-optional`-Felder folgt dem ungünstigsten Inhalt: unter ihr darf nichts abgeschnitten werden. Messung und Entscheidung stehen im Abschnitt unten, die Umsetzung ist Schritt 3 des vierten Durchgangs | Erst sinnvoll, wenn 8a die Grenze festgelegt hat |
 
-### 8c – ERLEDIGT mit Schritt 4 des dritten Durchgangs: die Schwelle ist 770 px
+### 8c – die Schwelle der `data-optional`-Felder, neu vermessen
 
-**Die Schwelle der `data-optional`-Felder steht jetzt bei 769 px** (eine
-Stelle im CSS, `@media(max-width:769px)`). Sie ist gemessen, deutsch und
-englisch, mit einer Gegenprobe an der Kante.
+**Nicht erledigt.** Der Wert 770 px aus dem dritten Durchgang steht weiter im
+CSS, aber die Messung, die ihn getragen hat, hält nicht – siehe die beiden
+Richtigstellungen unten. Die Umsetzung folgt mit Schritt 3 des vierten
+Durchgangs.
 
-| Zustand | deutsch | englisch |
+**Entschieden (Projektinhaber, vierter Durchgang):** In der Stufe ohne
+Beschriftungen darf im ungünstigsten Inhalt **nichts abgeschnitten** werden.
+Die Schwelle ist deshalb der größere der beiden kleinsten abschnittsfreien
+Werte aus DE und EN, aufgerundet auf volle 10 px. **Gewollte Folge: alle
+Tabletbreiten (744, 768, 820, 834, 860 px) zeigen die schmale Fassung.**
+Bezugspunkt und Prüfergebnis sind im Inspektor nachschlagbar – die Hausregel
+„zuerst weicht das Nachschlagbare" ist damit eingehalten.
+
+#### RICHTIGSTELLUNG 1: woher die 957 px des zweiten Durchgangs kamen
+
+Die Erklärung, die bis hierher stand – *„der Klon wurde an `document.body`
+gehängt und erbte dessen Schriftgröße"* –, **ist falsch.** Das Messskript des
+zweiten Durchgangs hängte seinen Klon an die Statuszeile und hatte die
+Schriftgröße richtig.
+
+**Die wirkliche Ursache ist eine Filterzeile:**
+
+```js
+if (kind.classList.contains("status-message-row")) continue;
+```
+
+`status-message-row` kommt **in keinem Codestand vor** (0 Treffer); die zweite
+Zeile der Statuszeile heißt `status-transient`. Der Filter griff also nie, und
+die Meldungszeile wurde mitgezählt – gemessen **192 px**, was die Differenz
+957 − 765 vollständig erklärt. Gegengeprüft gegen beide Codestände (`77534aa`
+und `c4f03f6`): das Verfahren liefert dort **dieselben** Zahlen, der Code ist
+nicht die Ursache.
+
+**Die falsche Erklärung steht auch in der Nachricht von `dc4f5fc`.** Sie
+bleibt dort unverändert – der Commit ist veröffentlicht, und diese Datei ist
+der Ort der Richtigstellung. Derselbe Fall wie bei `3d6cd9f` weiter oben.
+
+**Die Klonfalle ist trotzdem real** – sie ist nur mir im dritten Durchgang
+zugestoßen, nicht dem zweiten: die erste Fassung meiner eigenen Messung hing
+an `document.body` und meldete 1199 statt 1000 px. **Eine Klonmessung wird
+gegen einen Fall kalibriert, in dem sie NICHTS finden darf.**
+
+#### RICHTIGSTELLUNG 2: die Summenrechnung zählte eine Lücke zu wenig
+
+Der dritte Durchgang rechnete den Bedarf als *„Felder 803 px + 6 Lücken à
+18 px + 28 px Polsterung = 940 px"* und kam damit 13 px unter die
+Direktmessung. **Die Statuszeile hat acht Rasterspalten, nicht sieben** –
+zwischen Prüfung und Auswahlzähler liegt die Dehnspalte `minmax(0,1fr)`, die
+bei knappem Platz auf 0 px fällt, aber als Spalte bestehen bleibt und ihre
+Lücke behält. Belegt aus `getComputedStyle(bar).gridTemplateColumns`:
+**acht Werte**, `column-gap` 18 px, Polsterung 2 × 14 px.
+
+| | DE | EN |
 |---|---|---|
-| **ohne Beschriftungen** – der Zustand an der Schwelle | **769 px** | 666 px |
-| mit Beschriftungen – gilt erst ab 1181 px | 1000 px | 891 px |
+| Summe der sieben Felder | 800 px | 689 px |
+| + **7** Lücken à 18 px + 28 px | **954 px** | **843 px** |
+| Direktmessung (`scrollWidth > clientWidth`) | **953 px** | **843 px** |
+| Rest | 1 px, Aufrundung von `scrollWidth` | 0 px |
 
-Maximum 769, aufgerundet auf 10 px: **770 px**. Unterhalb weichen die drei
-Felder, bei 770 und 771 px stehen alle sieben und passen ohne Stauchung –
-beides ist in `tools/test-statusbar.mjs` in **beiden** Sprachen zugesichert,
-und die Mutation „Schwelle zurück auf 900" reißt vier Zusicherungen.
+**Mit sechs Lücken ergäbe dieselbe Rechnung 936 bzw. 825 px** – die 18 px sind
+genau die fehlende Lücke. Die Differenz ist damit geklärt, nicht offen.
+**Maßgeblich bleibt die Direktmessung**; die Summenrechnung ist eine
+Gegenprobe und keine zweite Quelle.
 
-**Der Platzbedarf hängt am Zustand der Beschriftungen, und deshalb gibt es zwei
-Zahlen.** Sie weichen schon ab 1180 px; an der Schwelle sind sie also längst
-weg. Die 1000 px der beschrifteten Fassung sind trotzdem eingehalten, weil sie
-nur oberhalb von 1180 px gilt – dort ist so viel Platz immer da.
+#### Die Messung, vierter Durchgang, Stand `c4f03f6`
 
-**Gemessen im benannten Zustand:** Karte geladen (`karte.geojson`, 13 Zeichen),
-Maßstab „Sunray-Relativformat" (die längste der vier Lesarten), Prüfung
-gelaufen, Bezugspunkt gesetzt, **Zeiger auf der Karte und vier Punkte
-ausgewählt** – die beiden rechten Felder sind sonst leer und damit schmal,
-und genau sie werden breit, sobald jemand die Karte anfasst. Die
-Cursor-Anzeige stand dabei auf `E: 900,82 m   N: 148,28 m`.
+**Verfahren:** Abschneiden wird **je Textbehälter** über
+`scrollWidth > clientWidth` geprüft, nie über eine Summe gerenderter Breiten
+(siehe die Regel in Abschnitt 4.2). Geprüft werden **alle sieben** Felder –
+Auswahlzähler und Cursor-Koordinaten tragen keinen `.status-value` und waren
+in der Messung des dritten Durchgangs versehentlich ausgenommen.
 
-**RICHTIGSTELLUNG: die frühere Messung „957 px" war nicht kalibriert.** Der
-Klon wurde an `document.body` gehängt und erbte dessen Schriftgröße statt der
-der Statuszeile – er fiel dadurch systematisch zu breit aus. Aufgefallen ist
-es an der Gegenprobe: die Messung meldete die Felder **bei jeder Breite bis
-1600 px** als gestaucht, auch dort, wo sichtbar reichlich Platz ist. Mit
-`huelle.style.font = getComputedStyle(bar).font` verschwindet der Effekt
-vollständig.
+**Der Inhalt entsteht vollständig über Bedienung und Testdatei; nichts ist per
+`textContent` gesetzt:**
 
-**Das ist genau die Falle, die diese Datei schon einmal festgehalten hat** –
-bei den Punktknöpfen des Inspektors: *„eine Kopie außerhalb von
-`#inspectorPoint` muss Schrift und Polsterung vom Original übernehmen, sonst
-misst man 16 px statt der echten 14."* Sie ist beim zweiten Mal trotzdem
-zugeschlagen, weil die neue Messung die Regel nicht mitgelesen hat. **Eine
-Klonmessung wird gegen einen Fall kalibriert, in dem sie NICHTS finden darf.**
+| Feld | wie erzeugt | DE | EN (vom Editor) |
+|---|---|---|---|
+| Karte | Datei `a.geojson` in Slot B | „Karte B · a.geojson" | „Map B · a.geojson" |
+| Maßstab | Karte mit Ausdehnung > 1, kein `coordinateScale` | „metrisch (angenommen)" | „metric (assumed)" |
+| Raster | Rasterfenster, 100 eingetippt | „100,00 m" | „100.00 m" |
+| Bezugspunkt | zwei Karten mit verschiedener RTK-Basis | „widersprüchlich" | „conflicting" |
+| Prüfung | 123 namenlose Features, 31 überlappende Exclusions | „123 Fehler, 810 Warnungen" | „123 errors, 810 warnings" |
+| Zähler | „Ganzes Feature auswählen" auf 128 Punkten | „128 ausgewählt" | „128 selected" |
+| Cursor | echte Zeigerbewegung in die linke untere Ecke | „E: -13209,03 m   N: -12420,65 m" | „E: -13209.03 m   N: -12420.65 m" |
 
-**Der frühere Vorschlag „960 px" ist damit hinfällig**, und die daraus
-abgeleitete Aussage „die 900 px sind selbst zu niedrig" war falsch: sie waren
-zu **hoch**. Die alte Messung bleibt unten als Beleg stehen.
+**Die englische Seite ist vom Editor erzeugt**, nicht von Hand gesetzt: der
+Zustand entsteht auf Deutsch, danach `setLanguage("en")` ohne weitere Aktion.
 
-**Die frühere Messung zu 8c, 11.09.2026, Stand `bdbbc65` – nicht kalibriert,
-siehe oben.** Gemessen ist die **Eigenbreite** der Statuszeile mit allen sechs
-Feldern, über Klone mit `width:max-content` plus Lücken und Polsterung; das ist
-dasselbe Verfahren wie bei der Kopfzeile in Etappe 6, und `scrollWidth` taugt
-dafür nicht, weil das Raster die Zeile klemmt.
+**Abweichung vom vorgegebenen ungünstigsten Inhalt, benannt:** vorgegeben war
+die Prüfung „123 Fehler, 456 Warnungen" und der Cursor „E: -11111,10 m
+N: -11111,10 m". Die Karte erzeugt 810 statt 456 Warnungen und andere
+Cursorziffern; **beide Texte sind zeichengleich lang** (25 bzw. 31 Zeichen),
+die gemessene Breite ist damit dieselbe. Der Vorteil: kein Feld ist gesetzt,
+jedes ist erzeugt.
 
-**Die Zeile braucht 957 px.** Der Wert ist von der Fensterbreite unabhängig –
-die Feldbreiten ändern sich nicht – und bei feinem wie grobem Zeiger gleich:
+**Der Dateiname ist der Sonderfall und gehört zur Entscheidung.** Spalte 1 ist
+`minmax(0,auto)` und **schrumpft als einzige**; ein langer Dateiname wird in
+jeder Fensterbreite gekürzt. Nachgemessen: mit `gross.geojson` statt
+`a.geojson` schneidet die Zeile schon bei 960 px ab. **Eine Schwelle, unter
+der „nichts abgeschnitten" für jeden Dateinamen gilt, gibt es deshalb nicht** –
+gemessen wird mit einem kurzen, realistischen Namen, und das Kürzen des
+Dateinamens bleibt zugelassen. Für ihn gilt weiterhin die Regel „Kurzform".
 
-| Breite | passt mit allen Feldern? |
-|---|---|
-| 1024, 980, **960** | ja |
-| **940** | nein, 17 px zu wenig |
-| 920 | nein, 37 px zu wenig |
-| 901 | nein, 56 px zu wenig |
-| 744 | nein, **213 px** zu wenig |
+**Abgeschnittene Felder nach Fensterbreite, Stufe ohne Beschriftungen:**
 
-**Daraus zwei Dinge, und das zweite war nicht bekannt:**
+| Breite | DE | EN |
+|---|---|---|
+| 1180, 1179 | – | – |
+| 960 … 954 | – | – |
+| **953** | – (**kleinster Wert ohne Abschneiden, DE**) | – |
+| 952 … 941 | Prüfung | – |
+| 940 | Prüfung | – |
+| 900 | Maßstab, Prüfung | – |
+| 860 | Karte, Maßstab, Prüfung | – |
+| **843** | Karte, Maßstab, Prüfung | – (**kleinster Wert ohne Abschneiden, EN**) |
+| 842 … 803 | Karte, Maßstab, Prüfung | Prüfung |
+| 800 | Karte, Maßstab, Bezugspunkt, Prüfung | Karte, Prüfung |
+| 771, 770 | Karte, Maßstab, Bezugspunkt, Prüfung | Karte, Maßstab, Prüfung |
+| 769, 768, 744 | schmale Fassung, vier Felder, nichts abgeschnitten | ebenso |
 
-1. **Die Schwelle nach unten zu ziehen scheidet aus.** Bei 744 px fehlten der
-   Zeile 213 px; die Felder stünden gequetscht da oder verdrängten den
-   Auswahlzähler. „Folgt sie der neuen Grenze?" ist damit beantwortet: **nein.**
-2. **Die 900 px sind selbst zu niedrig.** Zwischen **901 und 956 px** stehen
-   Bezugspunkt und Prüfergebnis heute noch da, obwohl die Zeile schon 17 bis
-   56 px zu schmal ist. Das ist genau der Fehler, den Etappe 6 an der Kopfzeile
-   gefunden hat: eine Stauchung, die man dem Text nicht ansieht, weil
-   `overflow` sie verbirgt. **Vorschlag: 960 px.** Dann weichen die beiden
-   Felder genau dann, wenn sie nicht mehr passen, und nicht 57 px zu spät.
+**Kleinster Wert ohne Abschneiden: DE 953 px, EN 843 px.** Die Zeile selbst
+läuft dabei nie über (`scrollWidth − clientWidth = 0` in jeder Breite); die
+Spalten werden gestaucht und der Text per Ellipse gekürzt.
 
-**Nicht gebaut.** Welcher Wert gilt, ist eine Entscheidung – 960 wäre die
-gemessene Kante, 900 der Bestand. Die Messung nimmt sie niemandem ab, sie macht
-nur klar, dass „bleibt bei 900" nicht der neutrale Ausgang ist, für den er
-aussieht.
+**Abweichung zur Messung des dritten Durchgangs, beide Werte genannt:** dort
+stand „ab 958 px nichts abgeschnitten, bei 957 px beginnt Prüfung". Jetzt
+gemessen: **953 px** ist der kleinste abschnittsfreie Wert, das Abschneiden
+beginnt bei 952 px. Die Differenz von 5 px stammt aus dem Inhalt – die
+Feldsumme liegt bei 800 statt 803 px –, nicht aus dem Verfahren. Die Aussage
+„die Kante liegt bei etwa 955 px" trägt in beiden Messungen.
+
+#### Befund: die Schwelle 770 px sichert nur die Feldzahl
+
+**Zu beheben mit Schritt 3 des vierten Durchgangs.** Drei Teile:
+
+1. **Zwischen 770 und 952 px wird im ungünstigsten Inhalt gekürzt, ohne dass
+   ein Feld weicht.** Das ist derselbe Fehler, den Etappe 6 an der Kopfzeile
+   gefunden hat: eine Stauchung, die man dem Text nicht ansieht.
+2. **Die vier Zusicherungen „passen ohne Stauchung" in
+   `tools/test-statusbar.mjs` können nicht reißen.** Sie summieren
+   **gerenderte** Breiten, und die sind bauartbedingt nie größer als die Zeile.
+   Nachgemessen mit derselben Rechnung wie im Test: sie meldet „PASST" bei
+   960, 900, 800, 771 und 770 px – auch dort, wo vier Felder sichtbar gekürzt
+   sind. Dazu passt, dass die Mutation M17 nur die
+   „stehen alle sieben Felder"-Zusicherungen riss und keine einzige
+   „passen ohne Stauchung".
+3. **Die Schwellen 769, 770 und 771 stehen als Literale im Test**, die
+   CSS-Regel wird nicht gelesen und die Schwelle nicht gemessen; kein Test
+   benutzt `matchMedia` für die Statuszeile.
 | **8d** – **ERLEDIGT** | Zusicherungen in `tools/test-toolbar.mjs`, bei **1920, 1440, 1280, 860 und 744 px** und je **fein und grob**: Zielgrößen ≥ 44 px bei grobem Zeiger, Schrift im E/N-Feld, drei Rasterspalten bis zur Grenze hinunter, und dass unterhalb von 744 px nichts abgewiesen wird | Vorgezogen vor 8b/8c, weil sie den Zustand festhalten, den 8a herstellt – und weil 8b und 8c beide eine noch offene Entscheidung brauchen |
 
 **Wie die Bedienart im Test emuliert wird – und warum das eine Gegenprobe
