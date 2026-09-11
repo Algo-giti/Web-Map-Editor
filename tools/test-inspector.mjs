@@ -1295,6 +1295,88 @@ try {
   await page.waitForTimeout(200);
 
   /* ---------------------------------------------------------------- */
+  console.log("Die uebrigen Meterwerte folgen ebenfalls der Sprache");
+
+  /*
+   * Schritt D: Vergleichsblock, Abmessungen und die Punktliste der
+   * Feature-Navigation rechneten bis dahin mit toFixed() und zeigten damit in
+   * BEIDEN Sprachen einen Punkt. Sie laufen jetzt durch dieselbe eine
+   * Formatierfunktion wie die E/N-Felder.
+   *
+   * Geprueft wird der sichtbare Text der drei Orte, nicht formatMeters().
+   */
+  const meterOrte = async (sprache, komma, abmessungen) => {
+    const zeichen = komma ? "," : ".";
+    const falsch = komma ? "." : ",";
+
+    const delta = (await page.locator("#selectionDeltaInfo").textContent())
+      .replace(/\s+/g, " ");
+
+    check(`${sprache}: der Vergleichsblock nennt Ausgang und Versatz mit "${zeichen}"`,
+      delta.includes(`E 40${zeichen}00 / N 0${zeichen}00 m`) &&
+      delta.includes(`ΔE +0${zeichen}10 m`) &&
+      delta.includes(`ΔN +0${zeichen}00 m`),
+      delta);
+    check(`${sprache}: und kein Wert darin traegt "${falsch}"`,
+      !delta.includes(`0${falsch}10`) && !delta.includes(`0${falsch}00`),
+      delta);
+
+    check(`${sprache}: die Punktliste der Feature-Navigation ebenfalls`,
+      (await page.locator(".feature-point-coord").nth(1).textContent()).trim() ===
+        `40${zeichen}10 / 0${zeichen}00`,
+      await page.locator(".feature-point-coord").nth(1).textContent());
+
+    /*
+     * Die Abmessungen werden nur in der Sprache geprueft, in der sie
+     * ENTSTANDEN sind. Sie haengen nicht am abgeleiteten Weg: updateStats()
+     * steht nicht in refreshDerivedUi(), der Block behaelt beim Sprachwechsel
+     * also das Zahlenformat der vorigen Sprache. Das ist ein eigener Befund
+     * und in CLAUDE.md als offener Punkt eingetragen - eine Zusicherung auf
+     * das falsche Zeichen wuerde den Defekt zum Vertrag machen.
+     */
+    if (!abmessungen) return;
+
+    check(`${sprache}: die Abmessungen tragen "${zeichen}"`,
+      (await page.locator("#widthStat").textContent()).trim() ===
+        `40${zeichen}10 m` &&
+      (await page.locator("#heightStat").textContent()).trim() ===
+        `40${zeichen}00 m`,
+      `${await page.locator("#widthStat").textContent()} / ` +
+      `${await page.locator("#heightStat").textContent()}`);
+
+    check(`${sprache}: die Flaechenangabe ebenfalls`,
+      (await page.locator("#areaStat").textContent()).includes(`${zeichen}0 m²`),
+      await page.locator("#areaStat").textContent());
+  };
+
+  /*
+   * Der Vergleichsblock entsteht erst, wenn ein Punkt seit dem letzten
+   * Speichern bewegt wurde - deshalb der Pfeiltastenschritt. Er bewegt Punkt 1
+   * des Perimeters, (40,0), um 0,10 m nach Osten.
+   */
+  await load();
+  await marks.nth(1).click();
+  await page.waitForTimeout(300);
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(400);
+
+  /*
+   * Kein openAllFolds() noetig: gelesen wird ausschliesslich, und
+   * textContent() traegt durch ein geschlossenes <details> hindurch -
+   * nachgemessen in Etappe 7c. Geklickt wird hier nichts, und die Faltstaende
+   * sind weiter oben in diesem Test eigens zugesichert.
+   */
+  await meterOrte("deutsch", true, true);
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  await meterOrte("englisch", false, false);
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  /* ---------------------------------------------------------------- */
   console.log("Der Erklärtext frisst keinen Platz");
 
   await load();

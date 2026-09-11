@@ -71,10 +71,21 @@ try {
   });
   page.on("pageerror", (error) => consoleErrors.push(String(error)));
 
-  const validate = async (body) => {
+  const validate = async (body, options = {}) => {
     await page.goto(indexUrl(), { waitUntil: "load" });
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: "load" });
+
+    /*
+     * Erst umschalten, dann pruefen: ein bereits gerenderter Bericht wird beim
+     * Sprachwechsel nicht nachuebersetzt. Das gilt fuer alle Meldungen der
+     * Kartenpruefung, ist aelter als diese Pruefungen und steht in CLAUDE.md
+     * unter den offenen Punkten.
+     */
+    if (options.englisch) {
+      await page.locator("#languageToggle").click();
+      await page.waitForTimeout(300);
+    }
 
     await page.locator("#fileInput").setInputFiles({
       name: "check.geojson",
@@ -198,10 +209,10 @@ try {
   check("die enge Stelle wird gemeldet",
     hasWarning(narrow, "Enge Stelle"), narrow.warnings.join(" | "));
   check("der gemessene Abstand steht dabei",
-    narrow.warnings.some((text) => text.includes("0.20 m")),
+    narrow.warnings.some((text) => text.includes("0,20 m")),
     narrow.warnings.join(" | "));
   check("die Mäherbreite wird genannt",
-    narrow.warnings.some((text) => text.includes("0.35 m breit")),
+    narrow.warnings.some((text) => text.includes("0,35 m breit")),
     narrow.warnings.join(" | "));
   check("als Warnung, nicht als Fehler",
     narrow.errors.length === 0, narrow.errors.join(" | "));
@@ -218,6 +229,59 @@ try {
   check("enge Stelle innerhalb der Exclusion meldet nicht",
     !hasWarning(insideSpike, "Enge Stelle"),
     insideSpike.warnings.join(" | "));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Die Meterwerte des Berichts folgen der Sprache");
+
+  /*
+   * Bis Schritt D rechnete der Pruefbericht mit toFixed() und zeigte damit in
+   * BEIDEN Sprachen einen Punkt - im Deutschen also durchgehend falsch. Seit
+   * er durch formatMeters() laeuft, traegt er deutsch das Komma und englisch
+   * den Punkt, und zwar an jeder seiner Meterstellen.
+   *
+   * Geprueft wird der sichtbare Berichtstext, nicht die Formatierfunktion.
+   */
+  const flaechen = await validate(mapWith([box(10, 10, 39.8, 30)]));
+
+  check("deutsch: die Perimeterflaeche traegt das Komma",
+    flaechen.info.some((text) => text.includes("Perimeterfläche: 1600,00 m²")),
+    flaechen.info.join(" | "));
+  check("deutsch: die Exclusionflaeche ebenfalls",
+    flaechen.info.some((text) => text.includes("Exclusion 0: 596,00 m²")),
+    flaechen.info.join(" | "));
+  check("deutsch: die Korridorgrenze nennt die Maeherbreite mit Komma",
+    flaechen.info.some((text) => text.includes("Mäherbreite von 0,35 m")),
+    flaechen.info.join(" | "));
+  check("deutsch: kein Punkt als Dezimalzeichen im ganzen Bericht",
+    !/\d\.\d/.test(flaechen.report), flaechen.report);
+
+  /*
+   * Das auffaellig grosse Segment ist die fuenfte Meterstelle des Berichts und
+   * braucht eine eigene Karte: gemeldet wird erst ueber 50 m UND ueber 75 %
+   * der Kartendiagonale. Ein 300 x 10 m langes Rechteck reisst beide Schwellen.
+   */
+  const langes = await validate(mapWith([], {
+    perimeter: box(0, 0, 300, 10),
+  }));
+
+  check("deutsch: das auffaellig grosse Segment traegt das Komma",
+    langes.warnings.some((text) =>
+      text.includes("Auffällig großes Segment") && text.includes("300,00 m")),
+    langes.warnings.join(" | "));
+
+  const flaechenEn = await validate(mapWith([box(10, 10, 39.8, 30)]),
+    { englisch: true });
+
+  check("englisch: die beiden Flaechen tragen den Punkt",
+    flaechenEn.info.some((text) => text.includes("Perimeter area: 1600.00 m²")) &&
+    flaechenEn.info.some((text) => text.includes("Exclusion 0: 596.00 m²")),
+    flaechenEn.info.join(" | "));
+  check("englisch: engste Stelle und Maeherbreite ebenfalls",
+    flaechenEn.warnings.some((text) =>
+      text.includes("narrowest 0.20 m") && text.includes("0.35 m wide")),
+    flaechenEn.warnings.join(" | "));
+  check("englisch: kein Komma als Dezimalzeichen im ganzen Bericht",
+    !/\d,\d/.test(flaechenEn.report), flaechenEn.report);
 
   /* ---------------------------------------------------------------- */
   console.log("Unbekannter Maßstab: übersprungen, nicht bestanden");

@@ -11,6 +11,14 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { extractDeclarations, readInlineScript } from "./extract-script.mjs";
 
 const NAMES = [
+  /*
+   * Seit die Meterausgaben des Pruefberichts ueber formatMeters() laufen,
+   * braucht validateMapData() die Funktion - und sie liest die Sprache aus
+   * currentLanguage. Beide gehoeren deshalb in den Sandkasten; sonst bricht
+   * der Test mit "formatMeters is not defined" ab.
+   */
+  "currentLanguage",
+  "formatMeters",
   "SUNRAY_FACTOR",
   "CASSANDRA_NAME_BY_TYPE",
   "FEATURE_TYPE_BY_NAME",

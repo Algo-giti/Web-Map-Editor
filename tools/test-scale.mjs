@@ -86,11 +86,11 @@ try {
   console.log("Meterkarte wird nicht mehr als Gradkarte gelesen");
 
   await load(square(200, 1));
-  check("200-m-Karte zeigt 200 m", (await width()).trim() === "200.00 m", await width());
+  check("200-m-Karte zeigt 200 m", (await width()).trim() === "200,00 m", await width());
   check("kein Maßstabshinweis", await notice.isHidden());
 
   await load(square(8, 1));
-  check("8-m-Karte zeigt 8 m", (await width()).trim() === "8.00 m", await width());
+  check("8-m-Karte zeigt 8 m", (await width()).trim() === "8,00 m", await width());
 
   /* ---------------------------------------------------------------- */
   console.log("Relativformat kippt nicht mehr durch Bearbeiten");
@@ -109,7 +109,7 @@ try {
   }));
 
   check("frei gesetzte Punkte bleiben in Metern",
-    (await width()).trim() === "200.00 m", await width());
+    (await width()).trim() === "200,00 m", await width());
 
   /* ---------------------------------------------------------------- */
   console.log("Zweifelsfall: nichts wird behauptet");
@@ -199,7 +199,7 @@ try {
     /* Und beim Wiedereinlesen greift er. */
     await load(JSON.stringify(saved));
     check("wieder eingelesen weiterhin 200 m",
-      (await width()).trim() === "200.00 m", await width());
+      (await width()).trim() === "200,00 m", await width());
   }
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,

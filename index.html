@@ -5998,14 +5998,14 @@ function collectGeometryFindings(featureCollection) {
       );
 
       const where =
-        `engste ${narrowest.distance.toFixed(2)} m an Segment ` +
+        `engste ${formatMeters(narrowest.distance, 2, 2)} m an Segment ` +
         `${segmentLabel(narrowest.a, a.ring.length, true)} bzw. Segment ` +
         `${segmentLabel(narrowest.b, b.ring.length, true)}`;
 
       const count =
         `${relevant.length} Stelle${relevant.length === 1 ? "" : "n"}`;
 
-      const width = `Der Mäher ist ${mowerWidth.toFixed(2)} m breit.`;
+      const width = `Der Mäher ist ${formatMeters(mowerWidth, 2, 2)} m breit.`;
 
       if (sameSequence) {
         warnings.push(
@@ -6035,7 +6035,7 @@ function collectGeometryFindings(featureCollection) {
      */
     info.push(
       `Korridorprüfung: gemessen wird gegen die Mäherbreite von ` +
-      `${mowerWidth.toFixed(2)} m. Wendekreis, RTK-Toleranz und Spurabweichung ` +
+      `${formatMeters(mowerWidth, 2, 2)} m. Wendekreis, RTK-Toleranz und Spurabweichung ` +
       `sind nicht berücksichtigt; kein Befund bedeutet also nicht, dass ein ` +
       `Korridor befahrbar ist.`
     );
@@ -6110,7 +6110,7 @@ function validateMapData(featureCollection = data) {
     if (!(area > 0)) {
       errors.push(`Perimeter ${index + 1}: Fläche ist 0 oder ungültig.`);
     } else if (hasKnownScale()) {
-      info.push(`Perimeterfläche: ${area.toFixed(2)} m².`);
+      info.push(`Perimeterfläche: ${formatMeters(area, 2, 2)} m².`);
     } else {
       /*
        * Eine übersprungene Prüfung ist nicht bestanden. Statt einer Zahl, die
@@ -6151,7 +6151,7 @@ function validateMapData(featureCollection = data) {
     if (!(area > 0)) {
       errors.push(`${label}: Fläche ist 0 oder ungültig.`);
     } else if (hasKnownScale()) {
-      info.push(`${label}: ${area.toFixed(2)} m².`);
+      info.push(`${label}: ${formatMeters(area, 2, 2)} m².`);
     } else {
       info.push(`${label}: Fläche konnte nicht berechnet werden, Maßstab unbekannt.`);
     }
@@ -6390,7 +6390,7 @@ function validateMapData(featureCollection = data) {
   ) {
     warnings.push(
       `Auffällig großes Segment: ${longestLabel} mit ` +
-      `${longestSegment.toFixed(2)} ${scaleUnitLabel()}.`
+      `${formatMeters(longestSegment, 2, 2)} ${scaleUnitLabel()}.`
     );
   }
 
@@ -8879,11 +8879,11 @@ function updateSelectionDeltaInfo() {
 
   box.innerHTML =
     `Ausgang seit letztem Speichern: ` +
-    `<strong>E ${baseline.east.toFixed(2)} / ` +
-    `N ${baseline.north.toFixed(2)} m</strong><br>` +
-    `Versatz: ΔE ${deltaEast >= 0 ? "+" : ""}${deltaEast.toFixed(2)} m · ` +
-    `ΔN ${deltaNorth >= 0 ? "+" : ""}${deltaNorth.toFixed(2)} m · ` +
-    `<strong>${distance.toFixed(2)} m</strong>`;
+    `<strong>E ${formatMeters(baseline.east, 2, 2)} / ` +
+    `N ${formatMeters(baseline.north, 2, 2)} m</strong><br>` +
+    `Versatz: ΔE ${deltaEast >= 0 ? "+" : ""}${formatMeters(deltaEast, 2, 2)} m · ` +
+    `ΔN ${deltaNorth >= 0 ? "+" : ""}${formatMeters(deltaNorth, 2, 2)} m · ` +
+    `<strong>${formatMeters(distance, 2, 2)} m</strong>`;
 }
 
 
@@ -16352,9 +16352,9 @@ function updateMergePanel() {
   teile.push(
     `<br>`,
     `<span>Neue Kanten:</span>`,
-    `<span>A Ende → B Start</span> <strong>${bridge1.toFixed(2)} m</strong>`,
+    `<span>A Ende → B Start</span> <strong>${formatMeters(bridge1, 2, 2)} m</strong>`,
     `·`,
-    `<span>B Ende → A Start</span> <strong>${bridge2.toFixed(2)} m</strong>`
+    `<span>B Ende → A Start</span> <strong>${formatMeters(bridge2, 2, 2)} m</strong>`
   );
 
   /*
@@ -17129,7 +17129,7 @@ function renderFeatureNavigator() {
 
         const coord = document.createElement("span");
         coord.className = "feature-point-coord";
-        coord.textContent = `${east.toFixed(2)} / ${north.toFixed(2)}`;
+        coord.textContent = `${formatMeters(east, 2, 2)} / ${formatMeters(north, 2, 2)}`;
 
         button.appendChild(index);
         button.appendChild(role);
@@ -17257,13 +17257,13 @@ function updateStats() {
   const area = perimeter ? polygonAreaMeters(perimeter) : 0;
 
   document.getElementById("widthStat").textContent =
-    hasKnownScale() ? `${width.toFixed(2)} m` : width.toExponential(4);
+    hasKnownScale() ? `${formatMeters(width, 2, 2)} m` : width.toExponential(4);
 
   document.getElementById("heightStat").textContent =
-    hasKnownScale() ? `${height.toFixed(2)} m` : height.toExponential(4);
+    hasKnownScale() ? `${formatMeters(height, 2, 2)} m` : height.toExponential(4);
 
   document.getElementById("areaStat").textContent =
-    hasKnownScale() ? `${area.toFixed(1)} m²` : "–";
+    hasKnownScale() ? `${formatMeters(area, 1, 1)} m²` : "–";
 
   document.getElementById("featureStat").textContent =
     (data.features || []).length;

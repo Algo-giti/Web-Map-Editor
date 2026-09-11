@@ -3831,12 +3831,63 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   verschwindet, und sie richtig zu machen hieße, die Zahl aus dem fertigen
   Text wieder herauszurechnen.
 
-  **Ebenfalls offen, gleiche Familie: die übrigen `toFixed(2)`-Stellen.** Der
-  Prüfbericht (Perimeterfläche, Exclusion-Fläche, engste Stelle, Mäherbreite,
-  auffälliges Segment) und der Vergleichsblock eines ausgewählten Punktes
-  rechnen weiter mit `toFixed()` und zeigen damit in **beiden** Sprachen einen
-  Punkt. Sie gehören nicht zu den vier Orten dieses Schritts; wer sie
-  nachzieht, schickt sie durch dieselbe eine Funktion.
+  **Die übrigen Meterstellen – ERLEDIGT mit Schritt D (11.09.2026).** Sie
+  rechneten mit `toFixed()` und zeigten damit in **beiden** Sprachen einen
+  Punkt, im Deutschen also durchgehend falsch. **Siebzehn Ausdrücke an sieben
+  sichtbaren Orten** laufen jetzt durch dieselbe eine Funktion `formatMeters()`:
+
+  | Ort | was dort steht |
+  |---|---|
+  | Prüfbericht, enge Stelle | engster Abstand und Mäherbreite (zweimal) |
+  | Prüfbericht, Flächen | Perimeterfläche und Exclusion-Fläche |
+  | Prüfbericht, auffälliges Segment | Segmentlänge |
+  | Vergleichsblock `#selectionDeltaInfo` | Ausgang E/N, ΔE, ΔN, Abstand |
+  | Verbinden-Fenster `#mergeStatus` | die beiden Brückenlängen |
+  | Feature-Navigation, Punktliste | E/N je Punkt |
+  | Abmessungen `#widthStat`/`#heightStat`/`#areaStat` | Breite, Höhe, Fläche |
+
+  **Das Suchmuster war `toFixed`, kalibriert an den Brückenlängen** – dem
+  bekannten Treffer, den es finden musste. Von den 24 Vorkommen sind 17
+  Meterausgaben; die übrigen sieben bleiben stehen und sind **kein
+  Versehen**: fünf Winkel- bzw. Gradangaben (`angleDeg`, `origin.lat/lon`) und
+  zwei Prozentwerte der Flächenwarnung beim Reduzieren. Sie sind dieselbe
+  Familie, aber keine Meter – **ob auch sie der Sprache folgen sollen, ist
+  eine eigene Entscheidung und hier nicht getroffen.**
+
+  **`tools/test-cassandra.mjs` musste mitgezogen werden.** `validateMapData()`
+  läuft dort im Sandkasten und braucht seit diesem Schritt `formatMeters()`,
+  das seinerseits `currentLanguage` liest; beide stehen jetzt in der
+  `NAMES`-Liste. Ohne das bricht die statische Stufe mit „formatMeters is not
+  defined" ab – genau der Fallstrick, der in Abschnitt 4.1 beschrieben ist.
+
+  **Neuer offener Punkt aus diesem Schritt: die Abmessungen hängen nicht am
+  abgeleiteten Weg.** `updateStats()` schreibt `#widthStat`, `#heightStat` und
+  `#areaStat`, steht aber **nicht** in `refreshDerivedUi()`. Der Block behält
+  beim Sprachwechsel deshalb das Zahlenformat der vorigen Sprache – gemessen:
+  englisch umgeschaltet zeigt er weiter „40,10 m" mit Komma, während
+  Vergleichsblock und Feature-Navigation im selben Moment auf den Punkt
+  wechseln. **Das ist genau derselbe Befund wie bei den E/N-Feldern in
+  Schritt 2** („`refreshDerivedUi()` rief `updateInspector()`, und das schreibt
+  die Felder nicht"), nur eine Funktion weiter. `tools/test-inspector.mjs`
+  sichert die Abmessungen deshalb **nur in der Sprache zu, in der sie
+  entstanden sind**, und sagt im Kommentar warum – eine Zusicherung auf das
+  falsche Zeichen machte den Defekt zum Vertrag. **Nur gemeldet, nicht
+  behoben.**
+
+  **Zweiter neuer offener Punkt, gleiche Wurzel: zwei Beschriftungen bleiben
+  im Englischen deutsch.** Gemessen am selben Durchgang:
+
+  | Ort | englisch sichtbar |
+  |---|---|
+  | Prüfbericht, Rang je Befund | „**Warnung**: No docking/charging point present." |
+  | Vergleichsblock | „**Ausgang seit letztem Speichern**: E 0.00 / N 0.00 m", „**Versatz**: …" |
+
+  Beide entstehen als Textknoten mit angehängtem Doppelpunkt
+  (`strong.textContent = \`${item.label}: \``), und unter diesem Schlüssel steht
+  nichts in `I18N_EN`. Das ist dieselbe Klasse wie die sechs Texte des
+  Verbinden-Fensters vor 7d-1 – ein Text, den niemand neu schreibt, sieht in
+  beiden Sprachen richtig aus, solange man ihn nur ansieht. **Nur gemeldet,
+  nicht behoben.**
 
   **Der ursprüngliche Befund**, vom 10.09.2026, Stand `4202533`, in beiden
   Sprachen im Browser gemessen:

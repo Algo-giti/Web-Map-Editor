@@ -1096,7 +1096,7 @@ try {
 
   const OHNE_WAHL =
     "Auftrennstelle nicht gewählt – für beide Karten gilt die Reihenfolge aus der Datei. " +
-    "Neue Kanten: A Ende → B Start 20.00 m · B Ende → A Start 20.00 m";
+    "Neue Kanten: A Ende → B Start 20,00 m · B Ende → A Start 20,00 m";
 
   check("beide Karten ungesetzt: der Infoblock von A nennt die Datei",
     (await mergeText("#mergeAInfo")) === A_UNGESETZT,
@@ -1161,7 +1161,7 @@ try {
 
   const MIT_KREUZUNG =
     "Auftrennstelle nicht gewählt – für beide Karten gilt die Reihenfolge aus der Datei. " +
-    "Neue Kanten: A Ende → B Start 44.72 m · B Ende → A Start 44.72 m " +
+    "Neue Kanten: A Ende → B Start 44,72 m · B Ende → A Start 44,72 m " +
     "Die beiden neuen Kanten kreuzen sich. Eine andere Auftrennstelle vermeidet das.";
 
   check("gekreuzte Bruecken: die Statuszeile nennt die Kreuzung",
@@ -1306,6 +1306,16 @@ try {
   check("englisch: kein deutscher Rest in der Zeile",
     !(await mergeText("#mergeStatus")).includes("verändert") &&
     !(await mergeText("#mergeStatus")).includes("Karte"),
+    await mergeText("#mergeStatus"));
+
+  /*
+   * Schritt D: die beiden Brueckenlaengen rechneten bis dahin mit toFixed()
+   * und zeigten damit in BEIDEN Sprachen einen Punkt. Deutsch steht das Komma
+   * in OHNE_WAHL und MIT_KREUZUNG; hier die englische Haelfte desselben Ortes.
+   */
+  check("englisch: die Brueckenlaengen tragen den Punkt",
+    (await mergeText("#mergeStatus")).includes(
+      "New edges: A end → B start 44.72 m · B end → A start 60.10 m"),
     await mergeText("#mergeStatus"));
 
   await page.locator("#languageToggle").click();
