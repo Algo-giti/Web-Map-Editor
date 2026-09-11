@@ -316,6 +316,56 @@ try {
     !/(^|\s)(Warnung|Fehler):/.test(flaechenEn.report), flaechenEn.report);
 
   /* ---------------------------------------------------------------- */
+  console.log("Einzahl und Mehrzahl in der Prüfmeldung");
+
+  /*
+   * "Kartenprüfung: 1 Warnungen." war in beiden Sprachen falsch - deutsch die
+   * Mehrzahl bei eins, englisch "1 warnings". Der Quelltext unterscheidet
+   * jetzt, und im Woerterbuch steht das Einzahlmuster VOR dem allgemeinen;
+   * andernfalls faengt /^Kartenprüfung: (\d+) Warnungen\.$/ den Einzahlfall
+   * ab, wie es "1 Fehler" schon einmal zu "1 errors" gemacht hat.
+   *
+   * Eine saubere Karte ohne Docking liefert genau eine Warnung; die Karte mit
+   * Exclusion liefert mehrere. Beide Faelle werden in beiden Richtungen
+   * geprueft - der Mehrzahlfall belegt, dass die Umstellung nicht einfach
+   * ueberall die Einzahl schreibt.
+   */
+  const meldung = () => page.locator("#editStatus").textContent();
+
+  await validate(mapWith([]));
+
+  const eineDe = await meldung();
+  check("deutsch: eine einzelne Warnung steht in der Einzahl",
+    eineDe === "Kartenprüfung: 1 Warnung.", eineDe);
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(400);
+  const eineEn = await meldung();
+  check("englisch: dieselbe Meldung ebenfalls in der Einzahl",
+    eineEn === "Map validation: 1 warning.", eineEn);
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+  check("und sie kommt unverändert zurück",
+    (await meldung()) === "Kartenprüfung: 1 Warnung.", await meldung());
+
+  /* Mehrzahl: die Karte mit enger Stelle bringt eine zweite Warnung dazu. */
+  await validate(mapWith([box(10, 10, 39.8, 30)]));
+
+  const mehrDe = await meldung();
+  check("deutsch: mehrere Warnungen bleiben in der Mehrzahl",
+    /^Kartenprüfung: [2-9]\d* Warnungen\.$/.test(mehrDe), mehrDe);
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(400);
+  const mehrEn = await meldung();
+  check("englisch: ebenfalls in der Mehrzahl",
+    /^Map validation: [2-9]\d* warnings\.$/.test(mehrEn), mehrEn);
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(300);
+
+  /* ---------------------------------------------------------------- */
   console.log("Der Bericht folgt einem Sprachwechsel NACH der Prüfung");
 
   /*

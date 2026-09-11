@@ -4808,7 +4808,9 @@ function transformToolReasons() {
 
   return {
     straightenReason: section.ok
-      ? `Legt die ${section.indices.length} Punkte dazwischen auf die Gerade.`
+      ? (section.indices.length === 1
+          ? "Legt den Punkt dazwischen auf die Gerade."
+          : `Legt die ${section.indices.length} Punkte dazwischen auf die Gerade.`)
       : straightenReasonText(section.reason),
     reduceReason: reduce.ok
       ? (reduce.mode === "section"
@@ -4873,7 +4875,9 @@ function describeSingletonStock(features, pointCount, einzahl) {
   if (!features.length) return "Nicht vorhanden.";
   if (!pointCount) return "Leerer Platzhalter, noch ohne Punkte.";
 
-  return `Vorhanden, ${pointCount} Punkte.`;
+  return pointCount === 1
+    ? "Vorhanden, 1 Punkt."
+    : `Vorhanden, ${pointCount} Punkte.`;
 }
 
 
@@ -6826,7 +6830,7 @@ function validateActiveMap(options = {}) {
       result.errors.length
         ? `Kartenprüfung: ${result.errors.length} Fehler gefunden.`
         : result.warnings.length
-          ? `Kartenprüfung: ${result.warnings.length} Warnungen.`
+          ? `Kartenprüfung: ${result.warnings.length} Warnung${result.warnings.length === 1 ? "" : "en"}.`
           : "Kartenprüfung: keine Fehler oder Warnungen.",
       result.errors.length ? "error" : "ok"
     );
@@ -7180,7 +7184,7 @@ function updateFeatureDrawUi() {
     (searchFeatureCount > 1
       ? "Es gibt mehrere Search-Wire-Features. CaSSAndRA übernimmt beim Laden nur die erste, alle weiteren gehen verloren."
       : !canDrawSearch
-        ? `Es gibt bereits eine Search Wire mit ${searchPointCount} Punkten. ` +
+        ? `Es gibt bereits eine Search Wire mit ${searchPointCount} Punkt${searchPointCount === 1 ? "" : "en"}. ` +
           `CaSSAndRA übernimmt beim Laden nur die erste, eine zweite ginge verloren. ` +
           `Zum Ändern „Search Wire verlängern“ oder „Search Wire löschen“.`
         : null);
@@ -7190,7 +7194,7 @@ function updateFeatureDrawUi() {
     (dockFeatureCount > 1
       ? "Es gibt mehrere Docking-Features. CaSSAndRA übernimmt beim Laden nur das erste, alle weiteren gehen verloren."
       : !canDrawDock
-        ? `Es gibt bereits einen Docking-Pfad mit ${dockPointCount} Punkten. ` +
+        ? `Es gibt bereits einen Docking-Pfad mit ${dockPointCount} Punkt${dockPointCount === 1 ? "" : "en"}. ` +
           `CaSSAndRA übernimmt beim Laden nur den ersten, ein zweiter ginge verloren. ` +
           `Zum Ändern „Docking-Pfad verlängern“ oder „Docking-Pfad löschen“.`
         : null);
@@ -14951,7 +14955,8 @@ function applyReduction() {
   afterGeometryEdit();
 
   setEditStatus(
-    `${analysis.removed.length} Punkte entfernt: ${analysis.before} → ${analysis.after} · mit Zurück rückgängig.`,
+    `${analysis.removed.length} Punkt${analysis.removed.length === 1 ? "" : "e"} entfernt: ` +
+    `${analysis.before} → ${analysis.after} · mit Zurück rückgängig.`,
     "ok"
   );
 
@@ -15054,7 +15059,7 @@ function straightenSelectedSection() {
   const count = descriptors.length;
 
   setEditStatus(
-    `${count} Punkte begradigt · mit Zurück rückgängig.`,
+    `${count} Punkt${count === 1 ? "" : "e"} begradigt · mit Zurück rückgängig.`,
     "ok"
   );
 
@@ -19792,6 +19797,8 @@ const I18N_PATTERNS = [
     "$1 points placed. Finishing is possible."],
 
   /* Begruendung des Begradigens. */
+  [/^Legt den Punkt dazwischen auf die Gerade\.$/,
+   "Places the point in between onto the straight line."],
   [/^Legt die (\d+) Punkte dazwischen auf die Gerade\.$/,
     "Puts the $1 points in between onto the straight line."],
 
@@ -19807,8 +19814,12 @@ const I18N_PATTERNS = [
   [/^(.+) · Polygon$/, "$1 · polygon"],
   [/^(.+) · Linie$/, "$1 · line"],
   [/^(.+) · Punktmenge$/, "$1 · point set"],
+  [/^Es gibt bereits eine Search Wire mit 1 Punkt\. CaSSAndRA übernimmt beim Laden nur die erste, eine zweite ginge verloren\. Zum Ändern „Search Wire verlängern“ oder „Search Wire löschen“\.$/,
+   "There is already a search wire with 1 point. CaSSAndRA only takes the first one when loading, a second one would be lost. To change it use „Extend search wire“ or „Delete search wire“."],
   [/^Es gibt bereits eine Search Wire mit (\d+) Punkten\. CaSSAndRA übernimmt beim Laden nur die erste, eine zweite ginge verloren\. Zum Ändern „Search Wire verlängern“ oder „Search Wire löschen“\.$/,
     "A Search Wire with $1 points already exists. CaSSAndRA only adopts the first one on load, so a second would be lost. Use “Extend Search Wire” or “Delete Search Wire” to change it."],
+  [/^Es gibt bereits einen Docking-Pfad mit 1 Punkt\. CaSSAndRA übernimmt beim Laden nur den ersten, ein zweiter ginge verloren\. Zum Ändern „Docking-Pfad verlängern“ oder „Docking-Pfad löschen“\.$/,
+   "There is already a docking path with 1 point. CaSSAndRA only takes the first one when loading, a second one would be lost. To change it use „Extend docking path“ or „Delete docking path“."],
   [/^Es gibt bereits einen Docking-Pfad mit (\d+) Punkten\. CaSSAndRA übernimmt beim Laden nur den ersten, ein zweiter ginge verloren\. Zum Ändern „Docking-Pfad verlängern“ oder „Docking-Pfad löschen“\.$/,
     "A docking path with $1 points already exists. CaSSAndRA only adopts the first one on load, so a second would be lost. Use “Extend docking path” or “Delete docking path” to change it."],
   [/^1 Fehler, 1 Warnung$/, "1 error, 1 warning"],
@@ -19828,6 +19839,7 @@ const I18N_PATTERNS = [
   [/^Punkt verschieben$/, "Move point"],
   [/^(\d+) Punkte per Raster verschieben$/, "Move $1 points by grid step"],
   [/^Punkt per Raster verschieben$/, "Move point by grid step"],
+  [/^Vorhanden, 1 Punkt\.$/, "Present, 1 point."],
   [/^Vorhanden, (\d+) Punkte\.$/, "Present, $1 points."],
   [/^(\d+) Features dieses Typs - bitte Karte prüfen\.$/,
     "$1 features of this type - please validate the map."],
@@ -19844,7 +19856,9 @@ const I18N_PATTERNS = [
   [/^Messung läuft…$/, "Measurement active…"],
   [/^Punkt 1 gesetzt – zweiten Punkt wählen\.$/, "Point 1 set – select the second point."],
   [/^Exclusion-Fläche: ([\d.,]+) m²$/, "Exclusion area: $1 m²"],
+  [/^Kartenprüfung: 1 Fehler gefunden\.$/, "Map validation: 1 error found."],
   [/^Kartenprüfung: (\d+) Fehler gefunden\.$/, "Map validation: $1 errors found."],
+  [/^Kartenprüfung: 1 Warnung\.$/, "Map validation: 1 warning."],
   [/^Kartenprüfung: (\d+) Warnungen\.$/, "Map validation: $1 warnings."],
   [/^Kartenprüfung: keine Fehler oder Warnungen\.$/, "Map validation: no errors or warnings."],
   /*
@@ -19958,6 +19972,8 @@ const I18N_PATTERNS = [
     "Tolerance too large: only $1 of $2 points would remain, at least $3 are required. Up to $4 m would work."],
   [/^Toleranz zu groß: es blieben nur (\d+) von (\d+) Punkten, mindestens (\d+) sind nötig\.$/,
     "Tolerance too large: only $1 of $2 points would remain, at least $3 are required."],
+  [/^1 Punkt entfernt: (\d+) → (\d+) · mit Zurück rückgängig\.$/,
+   "1 point removed: $1 → $2 · undo with Undo."],
   [/^(\d+) Punkte entfernt: (\d+) → (\d+) · mit Zurück rückgängig\.$/,
     "$1 points removed: $2 → $3 · use Undo to restore."],
   [/^(\d+) von (\d+) Punkten entfernt\.$/, "$1 of $2 points removed."],
@@ -19987,6 +20003,8 @@ const I18N_PATTERNS = [
   /* Linie begradigen. */
   [/^Begradigen: (\d+) Punkte auf die Gerade zwischen den beiden ausgewählten legen\.$/,
     "Straighten: place $1 points on the line between the two selected ones."],
+  [/^1 Punkt begradigt · mit Zurück rückgängig\.$/,
+   "1 point straightened · undo with Undo."],
   [/^(\d+) Punkte begradigt · mit Zurück rückgängig\.$/,
     "$1 points straightened · use Undo to restore."],
   [/^Hinweis: (\d+) Punkte liegen praktisch aufeinander, die Reihenfolge von (\d+) Punkten kehrt sich um\.$/,

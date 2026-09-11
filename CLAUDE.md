@@ -4497,6 +4497,53 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   verwaister Wörterbucheintrag ist kein Fehler, nur Ballast, der beim nächsten
   Lesen wie eine gültige Übersetzung aussieht.
 
+- **Einzahl und Mehrzahl bei „Zahl + Nomen" – umgestellt mit Schritt 5 des
+  vierten Durchgangs; die zweifelhaften Fälle stehen hier.**
+
+  **Der Anlass:** „Kartenprüfung: 1 Warnungen." / „Map validation: 1 warnings."
+  war in beiden Sprachen falsch. **Das Suchmuster** war `${…}` gefolgt von
+  einem Wort, wobei der Ausdruck nach einer Zahl aussehen musste
+  (`.length`, `count`, `anzahl`, `+ 1`); als behandelt galt eine Stelle, wenn
+  im Umfeld eine Unterscheidung auf `=== 1` stand. **Kalibriert an genau
+  diesem Treffer** – er wurde gefunden. Ergebnis: 74 Fundstellen, davon 38
+  bereits behandelt.
+
+  **Umgestellt (deutscher Quelltext und je ein englisches Einzahlmuster, das
+  VOR dem allgemeinen steht):**
+
+  | Text | Einzahl jetzt |
+  |---|---|
+  | `Kartenprüfung: N Warnungen.` | „Kartenprüfung: 1 Warnung." |
+  | `Kartenprüfung: N Fehler gefunden.` | deutsch unverändert richtig, englisch „1 error found." |
+  | `Legt die N Punkte dazwischen auf die Gerade.` | „Legt den Punkt dazwischen auf die Gerade." |
+  | `Vorhanden, N Punkte.` | „Vorhanden, 1 Punkt." |
+  | `N Punkte entfernt: …` | „1 Punkt entfernt: …" |
+  | `N Punkte begradigt · …` | „1 Punkt begradigt · …" |
+  | `Es gibt bereits eine Search Wire mit N Punkten.` | „… mit 1 Punkt." |
+  | `Es gibt bereits einen Docking-Pfad mit N Punkten.` | „… mit 1 Punkt." |
+
+  **Nicht umgestellt, mit Grund** – und der häufigste Grund ist, dass die
+  Einzahl **gar nicht vorkommt**:
+
+  | Fundstelle | warum nicht |
+  |---|---|
+  | „N Perimeter-Features gefunden", „N Docking-Features vorhanden", „N Search-Wire-Features" (zweimal) | die Meldung entsteht nur bei `> 1` |
+  | „Docking-Pfad N: M Punkte." | erreicht nur bei `M >= 2 && M !== 3` |
+  | „Search Wire vorhanden (N Punkte)." | erreicht nur bei `N >= 2` |
+  | „Docking-Pfad mit N Punkten erstellt." | die Mindestpunktzahl ist 2 |
+  | „N Punkte aus M Features.", „N Punkte in X." | der Zustand `mixed` bzw. `multi` verlangt mehrere |
+  | „N Features dieses Typs" | nur bei `> 1` |
+  | „Alle N Punkte von X.", „N Punkte ausgewählt", „X vollständig ausgewählt · N Punkte.", „Typ · N Punkte" | ein Feature hat üblicherweise mehrere Punkte; die Einzahl käme nur bei einer **fehlerhaften** Linie mit einem einzigen Punkt vor. **Randfall, nicht gemessen** |
+  | „N vorhandene + M neue Punkte." | beide Zahlen teilen sich ein Nomen am Satzende; die Einzahl verlangte einen anderen Satzbau, nicht nur eine Endung |
+  | „N Punkt(e) gesetzt.", „N neue(n) Fehler" (zweimal) | tragen bereits eine Klammerform – eine bewusste Umgehung, kein Versehen |
+  | „(N entfallen)" | Partizip; „1 entfallen" ist nicht falsch |
+  | „N von M Punkten entfernt." | `M >= 3`; „1 von 5 Punkten" ist richtig |
+  | „Aus Karte B wurden N Linien …", „… mit N Punkten" | **die Meldung hat gar keine englische Fassung** (sie gehört zu den Statustexten unten). Eine Umstellung nur auf der deutschen Seite wäre eine halbe – die Regel „paarweise pflegen" gilt auch hier. Die Umstellung war gebaut und ist **zurückgenommen** worden |
+
+  **Falschmeldungen des Musters:** „N von 2 Punkten", „Punkt N von M",
+  „N von M Punkten entfernt" – dort steht hinter der Zahl das Wort „von",
+  kein Nomen.
+
 - **31 Statustexte haben keine englische Fassung.** Sie wurden beim Umzug der
   Ausgaben in die Statuszeile systematisch erfasst: literale Argumente von
   `setEditStatus()`, `setMultiSelectionStatus()`, `setReduceStatus()`,
