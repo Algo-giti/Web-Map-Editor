@@ -343,6 +343,35 @@ Eingabefelder und die Prüfung, dass der Export die ursprüngliche RTK-Basis
 wieder exakt trifft. Diese Kette lässt sich ohne echtes DOM nicht sinnvoll
 nachbilden, deshalb Browser statt Unit-Test.
 
+**`tools/scan-i18n.mjs`** ist ebenfalls kein Test, sondern ein **Werkzeug**:
+es sichert nichts zu, sondern durchsucht die laufende Oberfläche nach
+deutschem Text ohne englische Fassung. Aufruf von Hand:
+
+```bash
+PLAYWRIGHT_CORE_PATH="$SCRATCH" node tools/scan-i18n.mjs
+```
+
+Es hält die Oberfläche deutsch, spielt siebzehn Zustände durch, sammelt jeden
+Textknoten unter `body *` – auch in ausgeblendeten Elementen – sowie `title`,
+`aria-label` und `placeholder`, schickt alles durch `translateGermanText()` und
+meldet, was unverändert zurückkommt.
+
+Drei Dinge stehen in seinem Kopf, weil sie sonst beim nächsten Lauf fehlen:
+die **besuchten Zustände** namentlich (eine Laufzeitsuche ist nur so
+vollständig wie sie), die **bekannte Schwäche** (ein Text, dessen Übersetzung
+gleich lautet, erscheint als Treffer) und die **Kalibrierung** – ein
+Wörterbucheintrag wird per Mutation entfernt und muss als Treffer auftauchen,
+sonst ist nicht die Oberfläche sauber, sondern das Werkzeug kaputt. Die
+Falschmeldungen stehen als Musterliste **mit Begründung** im Werkzeug, und die
+Ausgabe trennt „neu" von „bekannt".
+
+**Es ist weder im Läufer noch in `tools/check-all.mjs` eingehängt.** Damit der
+Läufer es nicht doch als Browsertest zählt – es bindet das Harness ein, und
+genau daran erkennt er Tests –, trägt es die Zeile `// KEIN BROWSERTEST` im
+Kopf. Der Läufer filtert danach. **Eine Ausnahmeliste im Läufer wäre die
+zweite Quelle, die er gerade vermeidet**: sie stünde nicht dort, wo das
+Skript steht, und würde beim nächsten Werkzeug vergessen.
+
 **`tools/browser-harness.mjs`** ist kein Test, sondern der gemeinsame
 Unterbau aller: es findet `playwright-core` und einen startbaren Browser.
 Neue Browsertests binden diese Datei ein, statt die Suche zu duplizieren.

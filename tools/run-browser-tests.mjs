@@ -35,12 +35,23 @@ const EXIT_SKIPPED = 2;
  * browser-harness.mjs einbindet. Eine Liste von Hand wäre eine zweite Quelle -
  * sie würde beim nächsten neuen Test vergessen, und genau dieses stille
  * Herausfallen soll der Läufer verhindern.
+ *
+ * Ausgenommen sind WERKZEUGE: Skripte, die den Browser ebenfalls brauchen,
+ * aber nichts zusichern - sie durchsuchen oder vermessen die Oberfläche und
+ * werden von Hand aufgerufen. Sie kennzeichnen sich SELBST mit der Zeile
+ * "KEIN BROWSERTEST" im Kopf; eine Ausnahmeliste hier wäre wieder die zweite
+ * Quelle, die dieser Läufer gerade vermeidet.
  */
+const WERKZEUG_MARKE = /^\/\/\s*KEIN BROWSERTEST\b/m;
+
 function findBrowserTests() {
   return readdirSync(toolsDir)
     .filter((name) => name.endsWith(".mjs") && name !== "browser-harness.mjs")
-    .filter((name) =>
-      /from\s+"\.\/browser-harness\.mjs"/.test(readFileSync(join(toolsDir, name), "utf8")))
+    .filter((name) => {
+      const quelle = readFileSync(join(toolsDir, name), "utf8");
+      if (WERKZEUG_MARKE.test(quelle)) return false;
+      return /from\s+"\.\/browser-harness\.mjs"/.test(quelle);
+    })
     .sort();
 }
 
