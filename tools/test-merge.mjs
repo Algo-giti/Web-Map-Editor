@@ -776,6 +776,156 @@ try {
       "Startpunkt E 0,00 / N 40,00 m Endpunkt E 40,00 / N 40,00 m",
     await mergeText("#mergeAInfo"));
 
+  /* --- 4b. Der Zustand der Auftrennstelle ist ABGELEITET ------------ */
+
+  /*
+   * Bis 7d-3 stand im Slot ein Boolean ueber eine vergangene Geste. Es blieb
+   * auf true stehen, waehrend eine gewoehnliche Punktbearbeitung die Kante
+   * laengst verschoben hatte - der Infoblock behauptete dann "gewaehlt" und
+   * nannte Koordinaten, die der Nutzer nie gewaehlt hat. Seit 7d-4a steht
+   * dort das Paar, und der Zustand wird bei jedem Aufruf neu verglichen.
+   *
+   * Geprueft wird ausschliesslich der sichtbare Text, nie slot.cutEdge.
+   */
+  const A_VERAENDERT = (start, ende) =>
+    `Karte A Auftrennstelle seit der Wahl verändert. ` +
+    `Startpunkt ${start} Endpunkt ${ende}`;
+
+  /** Auftrennstelle auf der frisch geladenen Karte A setzen. */
+  const stelleSetzen = async () => {
+    await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
+    await waehlePunkte([[0, 0], [40, 0]]);
+    await openMergeWindow();
+    await klickeFreienKnopf("#setMergeCutBtn",
+      "Vorbedingung: die Auftrennstelle laesst sich setzen", "#mergeCutReason");
+    await page.waitForTimeout(400);
+    await openMergeWindow();
+  };
+
+  /* --- Punkt 0 verschieben --- */
+  await stelleSetzen();
+  check("Vorbedingung: nach dem Setzen steht 'gewaehlt'",
+    (await mergeText("#mergeAInfo")) === A_GESETZT, await mergeText("#mergeAInfo"));
+
+  await waehlePunkte([[40, 0]]);
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(400);
+  await openMergeWindow();
+
+  check("Punkt 0 verschieben macht aus 'gewaehlt' ein 'veraendert'",
+    (await mergeText("#mergeAInfo")) ===
+      A_VERAENDERT("E 40,10 / N 0,00 m", "E 0,00 / N 0,00 m"),
+    await mergeText("#mergeAInfo"));
+
+  /*
+   * Und das Undo holt die Stelle zurueck - Ring UND Paar. Das ist die
+   * Zusicherung, die belegt, dass cutEdge im Snapshot mitreist: vorher gab es
+   * dafuer keine, weil die vorhandene Undo-Pruefung die andere Richtung
+   * pruefte (ungesetzt -> setzen -> Undo -> ungesetzt), und dort liefert eine
+   * verlorene Marke dasselbe Ergebnis wie eine erhaltene.
+   */
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await page.keyboard.press("Control+z");
+  await page.waitForTimeout(500);
+  await openMergeWindow();
+
+  check("und das Undo holt die Auftrennstelle zurueck",
+    (await mergeText("#mergeAInfo")) === A_GESETZT, await mergeText("#mergeAInfo"));
+
+  /* --- Rundlauf: rechts und wieder links --- */
+  await waehlePunkte([[40, 0]]);
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(300);
+  await page.keyboard.press("ArrowLeft");
+  await page.waitForTimeout(400);
+  await openMergeWindow();
+
+  check("ein Rundlauf zurueck auf die Stelle gilt wieder als gewaehlt",
+    (await mergeText("#mergeAInfo")) === A_GESETZT, await mergeText("#mergeAInfo"));
+
+  /* --- Punkt 0 loeschen --- */
+  await stelleSetzen();
+  await waehlePunkte([[40, 0]]);
+  await openAllFolds(page);
+  await klickeFreienKnopf("#deletePointBtn", "Punkt loeschen ist frei");
+  await page.waitForTimeout(400);
+  await openMergeWindow();
+
+  check("Punkt 0 loeschen macht aus 'gewaehlt' ein 'veraendert'",
+    (await mergeText("#mergeAInfo")) ===
+      A_VERAENDERT("E 40,00 / N 40,00 m", "E 0,00 / N 0,00 m"),
+    await mergeText("#mergeAInfo"));
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await page.keyboard.press("Control+z");
+  await page.waitForTimeout(500);
+  await openMergeWindow();
+
+  check("und auch danach holt das Undo sie zurueck",
+    (await mergeText("#mergeAInfo")) === A_GESETZT, await mergeText("#mergeAInfo"));
+
+  /* --- Punkt hinter dem letzten einfuegen --- */
+  await stelleSetzen();
+  await waehlePunkte([[0, 0]]);
+  await openAllFolds(page);
+  await klickeFreienKnopf("#insertPointAfterBtn", "Danach einfuegen ist frei");
+  await page.waitForTimeout(400);
+  await openMergeWindow();
+
+  check("ein Punkt hinter dem letzten macht aus 'gewaehlt' ein 'veraendert'",
+    (await mergeText("#mergeAInfo")).startsWith(
+      "Karte A Auftrennstelle seit der Wahl verändert."),
+    await mergeText("#mergeAInfo"));
+
+  /* --- Laden und Zuruecksetzen: aus der Datei --- */
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
+  await openMergeWindow();
+
+  check("eine frisch geladene Karte steht auf 'aus der Datei'",
+    (await mergeText("#mergeAInfo")) === A_UNGESETZT, await mergeText("#mergeAInfo"));
+
+  await stelleSetzen();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  await menueBefehl(page, "Datei", "Aktive zurücksetzen");
+  await page.waitForTimeout(600);
+  await openMergeWindow();
+
+  check("Zuruecksetzen vergisst die Auftrennstelle",
+    (await mergeText("#mergeAInfo")) === A_UNGESETZT, await mergeText("#mergeAInfo"));
+
+  /* --- Englisch: der mittlere Zustand unmittelbar nach dem Wechsel --- */
+  await stelleSetzen();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  await waehlePunkte([[40, 0]]);
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(400);
+
+  /*
+   * Das Fenster wird VOR dem Sprachwechsel geoeffnet, und zwar aus zwei
+   * Gruenden. Erstens heisst das Menue danach "Map" - menueBefehl(page,
+   * "Karte", ...) faende es nicht mehr. Zweitens ist es die schaerfere
+   * Zusicherung: gemessen wird der Text unmittelbar nach dem Umschalten, ohne
+   * jede weitere Handlung, also wirklich auf dem abgeleiteten Weg.
+   */
+  await openMergeWindow();
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  check("englisch: der mittlere Zustand ist uebersetzt",
+    (await mergeText("#mergeAInfo")) ===
+      "Map A Cut edge changed since it was chosen. " +
+      "Start point E 40.10 / N 0.00 m End point E 0.00 / N 0.00 m",
+    await mergeText("#mergeAInfo"));
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+
   /* --- 7. Ablehnung mit Grund -------------------------------------- */
 
   await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
@@ -982,6 +1132,16 @@ try {
 
   check("das Ergebnis traegt genau acht Punkte in der hergeleiteten Reihenfolge",
     (await perimeterFolge()) === folge(ERGEBNIS), await perimeterFolge());
+
+  /*
+   * Das Ergebnis ist ein NEUER Ring - die Auftrennstelle der Ausgangskarte
+   * beschreibt ihn nicht mehr. mergeMapSlots() baut Karte A als frisches
+   * Literal ohne das Feld; "nie gewaehlt" ist Abwesenheit, nicht false.
+   */
+  await openMergeWindow();
+  check("und das Verbinden-Ergebnis steht auf 'aus der Datei'",
+    (await mergeText("#mergeAInfo")).includes("Auftrennstelle aus der Datei."),
+    await mergeText("#mergeAInfo"));
 
   /* Gegenprobe: ungedrehtes B, exakter Statustext statt "kein Kreuzungssatz". */
   await upload("#fileInput", "cut-a.geojson", cutMap(RING_A));

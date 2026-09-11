@@ -682,8 +682,17 @@ zusichert **und** bei gesperrtem Knopf nicht klickt. Danach meldet dieselbe
 Mutation fünf benannte Zusicherungen und null Timeouts. Kein zweiter Helfer
 daneben – dieselbe Regel wie bei `openAllFolds()`.
 
-**Benannte Lücke: die Auftrennstelle im Undo-Snapshot ist nicht abgedeckt.**
-Gemessen in Etappe 7d-3d, Stand `3d6cd9f`.
+**ERLEDIGT mit Schritt 4 (7d-4a): die Auftrennstelle im Undo-Snapshot.** Die
+Lücke ist geschlossen; `tools/test-merge.mjs` trägt dafür jetzt die
+Gegenrichtung – *setzen → Punkt verschieben → Undo → immer noch gewählt*.
+Nachgemessen mit derselben Mutation wie unten (Paar im Klon gelöscht): sie
+reißt **drei** benannte Zusicherungen, „und das Undo holt die Auftrennstelle
+zurueck", „ein Rundlauf zurueck auf die Stelle gilt wieder als gewaehlt" und
+„und auch danach holt das Undo sie zurueck". Der Befund bleibt als Beleg
+stehen:
+
+**Benannte Lücke (bis Schritt 4): die Auftrennstelle im Undo-Snapshot ist
+nicht abgedeckt.** Gemessen in Etappe 7d-3d, Stand `3d6cd9f`.
 
 Mutiert wurde `cloneMapSlot()`: der Klon entsteht weiter über
 `structuredClone()`, verliert aber anschließend die Marke
@@ -705,10 +714,25 @@ Der Grund ist die **Richtung** der vorhandenen Undo-Zusicherung. Sie prüft
 *ungesetzt → setzen → Undo → ungesetzt*, und dort liefert eine verlorene Marke
 dasselbe Ergebnis wie eine erhaltene. Erst die Gegenrichtung – *setzen →
 irgendeine andere Änderung → Undo → immer noch gesetzt* – trennt die beiden
-Fälle. **Die Lücke wird nicht hier geschlossen, sondern mit 7d-4**, das die
-Marke ohnehin anfasst: solange offen ist, ob sie „der Nutzer hat einmal
-gewählt" oder „die aktuelle Auftrennstelle ist gewählt" behaupten soll, würde
-eine Zusicherung hier das eine oder das andere vorwegnehmen.
+Fälle. **Die Lücke wurde nicht dort geschlossen, sondern mit 7d-4a**, das die
+Marke ohnehin angefasst hat: solange offen war, ob sie „der Nutzer hat einmal
+gewählt" oder „die aktuelle Auftrennstelle ist gewählt" behaupten soll, hätte
+eine Zusicherung dort das eine oder das andere vorweggenommen. Entschieden ist
+seit 7d-4a die **zweite** Lesart.
+
+**Neue benannte Lücke aus Schritt 4: „Verweis statt Kopie" reißt nicht.**
+`rotateRingToStart()` legt das Paar als Kopie der Rohwerte ab. Wird die Kopie
+durch einen Verweis auf `rotated[0]` bzw. `rotated[letzter]` ersetzt, bleibt
+`tools/test-merge.mjs` grün – Exit 0, keine gerissene Zusicherung.
+
+**Der Grund ist gemessen und nicht der erwartete.** `rebuildClosedRing()` baut
+den Ring aus `uniquePoints.map(point => [point[0], point[1]])`, also aus
+**neuen** Arrays, und spleißt diese ein. `rotated[0]` ist damit nie das Objekt,
+in das `setVertexWorldCoordinate()` später hineinschreibt – ein Verweis ist
+heute schon entkoppelt. **Die Mutation wird deshalb nicht umformuliert, bis sie
+doch reißt.** Die Kopie bleibt als örtliche Zusicherung stehen: sie macht die
+Entkopplung dort sichtbar, wo das Paar entsteht, statt sie aus dem Innenleben
+einer anderen Funktion zu borgen.
 
 #### Hinweis für eigene Erweiterungen
 
@@ -3796,6 +3820,110 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `"de-DE"` steht noch. Die englische Oberfläche zeigt weiterhin `1234,50` mit
   Komma. Das ist der ursprüngliche, weiter oben beschriebene Punkt und wird
   getrennt behandelt.
+
+- **Die Messungen zu 7d-4, gemessen am 11.09.2026, Stand `ec6f1f5`.** Sie
+  stehen hier, weil sie mehrere Entscheidungen von 7d-4a getragen haben und
+  sonst beim nächsten Mal neu gemacht werden müssten.
+
+  **Rundläufe (d3): nicht jeder kommt bitgleich zurück.** Ausgangslage je
+  Karte: Auftrennstelle gesetzt, danach Punkt 0 einmal hin und zurück.
+
+  | Karte | Weg | bitgleich | Abweichung |
+  |---|---|---|---|
+  | relativ | E-Feld 40,00 → 45 → 40,00 | **ja** | 0 m |
+  | relativ | Pfeil rechts, dann links | **ja** | 0 m |
+  | umgerechnet (WGS84) | E-Feld 40,00 → 45 → 40,00 | **nein** | 5,9·10⁻¹¹ m |
+  | umgerechnet (WGS84) | Pfeil rechts, dann links | **ja** | 0 m |
+
+  Der lose Fall ist die Anzeige, nicht die Rechnung: das Feld zeigt zwei
+  Nachkommastellen, und „40,00" zurückzuschreiben trifft den ursprünglichen
+  Rohwert nicht exakt. **Daraus folgt die Toleranz von 7d-4a:** ein exakter
+  Vergleich scheidet aus, und die im Haus vorhandene Schwelle `1e-12`
+  (Weltmeter) deckt 5,9·10⁻¹¹ m nicht ab. Deshalb
+  `CUT_EDGE_TOLERANCE_METERS = 0.001`, bei unbekanntem Maßstab exakt.
+
+  **Alle Toleranzvergleiche des Editors (d2)**, Suchmuster gegen die bekannte
+  `1e-12` kalibriert:
+
+  | Fundstelle | Wert | Einheit | wofür |
+  |---|---|---|---|
+  | `baselineStillMoved()` | `1e-12` | Weltmeter | Punkt seit der Baseline bewegt? |
+  | `applySelectedPointFromInputs()` | `1e-12` | Weltmeter | Eingabe gleich der alten Koordinate? |
+  | `pointermove`-Drag-Handler | `1e-12` | Weltmeter | hat der Zug wirklich bewegt? |
+  | `applyGridStepFromInput()` | `1e-12` | Meter | trifft die Eingabe einen `<option>`-Wert? |
+  | `getVertexOrientation()` | `1e-9` | Weltmeter | zwei Punkte zu dicht → kein Winkel |
+  | `originsMatch()` (`ORIGIN_MATCH_TOLERANCE_METERS`) | `0.01` | Meter | derselbe RTK-Standort? |
+  | `turnDirection()` (`GEOMETRY_EPSILON_AREA`) | `1e-9` | Weltmeter² | Rauschgrenze des Kreuzprodukts |
+
+  **Bezugspunkt wechseln (d4): die Zahlen verschieben sich real.** Von
+  48,1/11,5 auf 48,2/11,6 wandern die Rohwerte um **11111,10 m**; die
+  Ringreihenfolge bleibt dabei unverändert. Das ist kein Rundungsrauschen,
+  also rechnet `rebaseConvertedMaps()` das Paar seit 7d-4a mit – über
+  dieselben beiden Umrechnungsfunktionen wie den Ring.
+
+  **Wege, die die Geometrie eines Slots ersetzen statt sie zu bearbeiten
+  (f).** Muster gegen `setMapSlotData()` kalibriert:
+
+  | Weg | Art | Auftrennstelle |
+  |---|---|---|
+  | `setMapSlotData()` | Neubefüllung aus einer Datei | `clearCutEdge(slot)` |
+  | `resetToOriginal()` | Neubefüllung aus `originalData` | `clearCutEdge(slot)` |
+  | `mergeMapSlots()`, Literal für A | neues Ergebnis | Feld fehlt |
+  | `mergeMapSlots()`, Literal für B | leerer Slot | Feld fehlt |
+  | `removeSecondMap()`, Literal für B | leerer Slot | Feld fehlt |
+  | die beiden Anfangs-Literale in `mapSlots` | Startzustand | Feld fehlt |
+  | `restoreWorkspaceSnapshot()` | Kopie aus dem Snapshot | **bleibt** – das ist der Zweck |
+
+  **Verschieben ändert einen Ringpunkt IN PLACE (g).**
+  `setVertexWorldCoordinate()` schreibt `coordinate[0] = rawX`. Die eine
+  Ausnahme ist der Ringschluss: `ring[lastIndex] = [rawX, rawY]` ersetzt das
+  Array. Deshalb ist das gespeicherte Paar eine Kopie – wobei die Kopie heute
+  nicht messbar nötig ist, siehe die benannte Lücke in Abschnitt 4.2.
+
+  **Die Meldungen von `#mergeStatus` und ihre Rangfolge (h).** Die ersten fünf
+  kehren sofort zurück, stehen also allein:
+
+  | Rang | Bedingung | Klasse | Knopf |
+  |---|---|---|---|
+  | 1 | Karte B nicht geladen | `merge-status` | gesperrt |
+  | 2 | kein gültiger Perimeter | `error` | gesperrt |
+  | 3 | verschiedene Skalierungen | `error` | gesperrt |
+  | 4 | Bezugspunkt-Konflikt | `error` | gesperrt |
+  | 5 | Singleton-Konflikt | `error` | gesperrt |
+  | 6 | sonst | `ok` bzw. `warning` | frei |
+
+  Rang 6 setzt sich zusammen aus dem Hinweis zur Wahl („Bereit." / „nur für
+  Karte A" / „nur für Karte B" / „nicht gewählt"), den beiden Brückenlängen
+  und – falls vorhanden – den Kreuzungssätzen.
+
+  **`interiorIndicesBetween()` (i): welche Regel?** Der Vorwärtsweg läuft von
+  `low+1` bis `high-1` und enthält Index 0 nie. Bei einer offenen Linie gilt
+  immer er. Bei einem geschlossenen Ring wird auch der Rückwärtsweg gebildet;
+  dann gewinnt **der kürzere**, bei Gleichstand **der ohne Index 0**, sonst der
+  Vorwärtsweg.
+
+  **Das hat eine sichtbare Folge, und sie ist neu: die Drehung entscheidet
+  mit, welcher Punkt beim Begradigen gezogen wird.** Gemessen an einem
+  Quadrat, begradigt werden jeweils dieselben zwei geometrischen Punkte
+  `(40,0)` und `(0,40)`:
+
+  | Ring | gezogen wird |
+  |---|---|
+  | Dateireihenfolge `(0,0) (40,0) (40,40) (0,40)` | **(40,40)** → (20,20) |
+  | nach Drehung auf Start `(40,40)` | **(0,0)** → (20,20) |
+
+  Dieselbe Geste auf derselben Geometrie bewegt nach dem Setzen einer
+  Auftrennstelle einen **anderen** Punkt. **Nur gemessen, nicht behoben** – ob
+  das ein Fehler ist, hängt daran, ob „der kürzere Weg" oder „der Weg ohne den
+  Ringstart" die gemeinte Regel ist, und das ist eine Entscheidung.
+
+  **Und die Schlusskante überlebt das Reduzieren nicht (i).** Ring
+  `(0,0) (40,0) (40,40) (0,40) (0,20)`, Schlusskante als Auftrennstelle
+  gewählt (das dreht nicht, `startIndex` ist 0), dann ganzes Feature
+  reduzieren mit Toleranz 1,00 m: **`(0,20)` fällt**, 5 → 4 Punkte. Punkt 0
+  bleibt nach der Hausregel immer erhalten, der letzte Punkt ist in der
+  offenen Folge `[0 … n-1, 0]` dagegen ein Innenpunkt. Seit 7d-4a meldet der
+  Infoblock danach „seit der Wahl verändert" statt weiter „gewählt".
 
 - **Die Auftrennstelle überlebt ihre eigene Kante.** Befund vom 10.09.2026,
   Stand `d012fc6`, im Browser gemessen – **Reproduktionsfall, kein Auftrag.**
