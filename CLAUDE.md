@@ -907,6 +907,36 @@ nächste Zeile lief in den Timeout. **Das ist derselbe Fall wie „die
 Zusicherung allein genügt nicht – der Klick muss unterbleiben", nur mit
 `boundingBox()` statt einem Klick.**
 
+**Behoben mit Schritt 11 des vierten Durchgangs, an drei Stellen.** Das
+Suchmuster war ein Locator mit `${…}` darin, **über Zeilengrenzen hinweg** –
+die erste, einzeilige Fassung fand den bekannten Treffer nicht, weil er
+umgebrochen ist. Kalibriert wurde gegen genau ihn.
+
+| Fundstelle | Wert | was fehlte |
+|---|---|---|
+| `test-merge.mjs`, Zug am Endpunkt | `endSchluessel` | Zusicherung da, Abbruch fehlte |
+| `test-merge.mjs`, `waehlePunkte()` | `schluessel` | Zusicherung da, Abbruch fehlte |
+| `test-inspector.mjs`, Zug am Marker | `gewaehlterSchluessel` | **Zusicherung fehlte ganz** |
+
+**Nicht betroffen sind neun weitere Fundstellen:** dort kommt der eingesetzte
+Wert aus einer festen Liste im Test selbst (`${id}`, `${typ.draw}`,
+`${index}`, `${start}`, `${featureIndex}`) und kann nicht leer werden.
+
+**Ein Nebenbefund, der die Behebung erst wirksam gemacht hat: der Schlüssel
+ist `undefined`, nicht `null`.** `markerSchluessel()` gab
+`treffer[0].dataset.vertexKey` zurück; fehlt das Attribut, ist das `undefined`,
+und eine Prüfung auf `null` greift dann **nicht** – der Selektor trüge
+`data-vertex-key="undefined"` und liefe weiter in den Timeout. Gemessen: mit
+der Prüfung auf `null` blieben zwei Timeouts und null gerissene Zusicherungen
+stehen; mit `?? null` und einer Prüfung auf Falsy sind es **69 gerissene
+Zusicherungen und ein Timeout**.
+
+**Der eine verbleibende Timeout ist ein anderer Gegenstand und bleibt offen:**
+`menueBefehl()` klickt einen Menüeintrag, auch wenn er **gesperrt** ist – in
+der Messung „Karte B" ohne geladene Datei. Das ist der Fall, für den es
+`klickeFreienKnopf()` gibt, nur eine Ebene höher; ihn zu beheben hieße, einen
+gemeinsamen Helfer zu ändern, den elf Skripte benutzen. **Nur vermerkt.**
+
 **(d) Eine Laufzeitsuche ist nur so vollständig wie die Zustände, die sie
 besucht hat.** Ein Werkzeug, das die laufende Oberfläche absucht, findet
 nichts über einen Zustand, den niemand hergestellt hat – und sein leeres

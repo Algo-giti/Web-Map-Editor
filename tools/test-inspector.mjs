@@ -1535,37 +1535,51 @@ try {
     document.querySelector('#vertexGroup circle[data-layer="perimeter"]:nth-of-type(3)')
       ?.dataset.vertexKey || null);
 
-  const punktGetroffen = await elementGetroffen(
-    page, `#vertexGroup circle[data-vertex-key="${gewaehlterSchluessel}"]`, { dy: 5 });
-  check("der ausgewaehlte Punkt ist wirklich getroffen, nicht vom Maeher verdeckt",
-    punktGetroffen.ok, JSON.stringify(punktGetroffen));
+  /*
+   * Der Schluessel kann null sein - das Element muss es nicht geben. Ohne
+   * diese Zusicherung entstuende der Selektor
+   * circle[data-vertex-key="null"], und boundingBox() wartete dreissig
+   * Sekunden auf ein Element, das es nicht gibt: aus einem klaren Befund
+   * wuerde ein stummer Abbruch. Gemessen wurde derselbe Fall in
+   * test-merge.mjs.
+   */
+  check("der Perimeterpunkt hat einen eigenen Marker",
+    Boolean(gewaehlterSchluessel),
+    "kein Marker mit data-vertex-key an dritter Stelle");
 
-  /* Ziehen: die Koordinate danach ist die Wirkung, nicht der Zustand davor. */
-  const vorherE = (await page.locator("#pointEastInput").inputValue());
-  const markerKasten = await page.locator(
-    `#vertexGroup circle[data-vertex-key="${gewaehlterSchluessel}"]`).boundingBox();
+  if (gewaehlterSchluessel) {
+    const punktGetroffen = await elementGetroffen(
+      page, `#vertexGroup circle[data-vertex-key="${gewaehlterSchluessel}"]`, { dy: 5 });
+    check("der ausgewaehlte Punkt ist wirklich getroffen, nicht vom Maeher verdeckt",
+      punktGetroffen.ok, JSON.stringify(punktGetroffen));
 
-  await page.mouse.move(
-    markerKasten.x + markerKasten.width / 2,
-    markerKasten.y + markerKasten.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(markerKasten.x + markerKasten.width / 2 + 45,
-    markerKasten.y + markerKasten.height / 2, { steps: 8 });
-  await page.mouse.up();
-  await page.waitForTimeout(400);
+    /* Ziehen: die Koordinate danach ist die Wirkung, nicht der Zustand davor. */
+    const vorherE = (await page.locator("#pointEastInput").inputValue());
+    const markerKasten = await page.locator(
+      `#vertexGroup circle[data-vertex-key="${gewaehlterSchluessel}"]`).boundingBox();
 
-  check("und ein Zug an ihm verschiebt ihn wirklich",
-    (await page.locator("#pointEastInput").inputValue()) !== vorherE,
-    `${vorherE} -> ${await page.locator("#pointEastInput").inputValue()}`);
+    await page.mouse.move(
+      markerKasten.x + markerKasten.width / 2,
+      markerKasten.y + markerKasten.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(markerKasten.x + markerKasten.width / 2 + 45,
+      markerKasten.y + markerKasten.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(400);
 
-  await maeherSchalten(false);
+    check("und ein Zug an ihm verschiebt ihn wirklich",
+      (await page.locator("#pointEastInput").inputValue()) !== vorherE,
+      `${vorherE} -> ${await page.locator("#pointEastInput").inputValue()}`);
 
-  check("ohne Maeher traegt genau ein Marker den Auswahlring",
-    (await page.locator("#vertexGroup circle.selected").count()) === 1,
-    String(await page.locator("#vertexGroup circle.selected").count()));
-  check("und die Markerzahl ist dieselbe wie mit Maeher",
-    (await perimeterMarker.count()) === vorAuswahl,
-    `${await perimeterMarker.count()} statt ${vorAuswahl}`);
+    await maeherSchalten(false);
+
+    check("ohne Maeher traegt genau ein Marker den Auswahlring",
+      (await page.locator("#vertexGroup circle.selected").count()) === 1,
+      String(await page.locator("#vertexGroup circle.selected").count()));
+    check("und die Markerzahl ist dieselbe wie mit Maeher",
+      (await perimeterMarker.count()) === vorAuswahl,
+      `${await perimeterMarker.count()} statt ${vorAuswahl}`);
+  }
 
   /* ---------------------------------------------------------------- */
   console.log("Eine Einmalmeldung wird beim Sprachwechsel verworfen");

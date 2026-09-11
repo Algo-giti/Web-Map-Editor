@@ -509,7 +509,13 @@ try {
           Math.abs(Number(circle.getAttribute("cy")) + n) < 0.005
       );
 
-      return treffer.length === 1 ? treffer[0].dataset.vertexKey : null;
+      /*
+       * ?? null, nicht einfach zurueckgeben: fehlt das Attribut, liefert
+       * dataset.vertexKey UNDEFINED, und eine Pruefung auf null greift dann
+       * nicht. Der Selektor trueege dann data-vertex-key="undefined" und
+       * liefe in einen Timeout - gemessen im vierten Durchgang.
+       */
+      return treffer.length === 1 ? treffer[0].dataset.vertexKey ?? null : null;
     }, [east, north, layer]);
 
   /**
@@ -545,6 +551,10 @@ try {
       check(`Marker ${layer} bei E ${koordinate[0]} / N ${koordinate[1]} ist eindeutig`,
         schluessel !== null,
         "kein oder mehr als ein Marker an dieser Stelle");
+
+      /* Ohne Schluessel kein Klick: der Selektor traefe nichts, und aus der
+         Zusicherung oben wuerde ein Timeout. */
+      if (!schluessel) return;
 
       await page.locator(`circle.vertex[data-vertex-key="${schluessel}"]`).click(
         ersterKlick ? {} : { modifiers: ["Control"] }
@@ -669,21 +679,30 @@ try {
    * Ziehen: die Auswahl haelt beide Endpunkte, ein Zug an einem Marker
    * verschiebt die ganze Gruppe. Geprueft wird die Koordinate DANACH - ohne
    * greifbaren Marker faende Playwright das Element nicht einmal.
+   *
+   * Der Abschnitt laeuft nur, wenn es den Schluessel WIRKLICH gibt. Fehlte er,
+   * entstuende der Selektor circle.vertex[data-vertex-key="null"], und
+   * boundingBox() wartete dreissig Sekunden auf ein Element, das es nicht gibt
+   * - aus der klaren Aussage der Zusicherung oben wuerde ein stummer Abbruch.
+   * Das ist derselbe Fall wie "die Zusicherung allein genuegt nicht - der Klick
+   * muss unterbleiben", nur mit boundingBox() statt einem Klick.
    */
-  const ringVorher = await perimeterFolge();
-  const endBox = await page.locator(
-    `circle.vertex[data-vertex-key="${endSchluessel}"]`).boundingBox();
+  if (endSchluessel) {
+    const ringVorher = await perimeterFolge();
+    const endBox = await page.locator(
+      `circle.vertex[data-vertex-key="${endSchluessel}"]`).boundingBox();
 
-  await page.mouse.move(endBox.x + endBox.width / 2, endBox.y + endBox.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(endBox.x + endBox.width / 2 + 40,
-    endBox.y + endBox.height / 2, { steps: 8 });
-  await page.mouse.up();
-  await page.waitForTimeout(400);
+    await page.mouse.move(endBox.x + endBox.width / 2, endBox.y + endBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(endBox.x + endBox.width / 2 + 40,
+      endBox.y + endBox.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(400);
 
-  check("ein Zug am Endpunkt-Marker verschiebt ihn wirklich",
-    (await perimeterFolge()) !== ringVorher,
-    `${ringVorher} -> ${await perimeterFolge()}`);
+    check("ein Zug am Endpunkt-Marker verschiebt ihn wirklich",
+      (await perimeterFolge()) !== ringVorher,
+      `${ringVorher} -> ${await perimeterFolge()}`);
+  }
 
   /* Dieselbe Kante, umgekehrt angeklickt. */
   await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
