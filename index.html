@@ -2707,8 +2707,12 @@
     }
 
     /*
-     * Android Chrome vergrößert Seiten sonst beim Fokus auf kleine Inputs.
-     * 16 px verhindert diesen automatischen Formular-Zoom.
+     * Safari auf iOS/iPadOS zoomt beim Fokus in ein Feld, dessen Schrift 15 px
+     * oder kleiner ist, in die Seite hinein - und nicht von selbst wieder
+     * heraus. Ab 16 px unterbleibt das. Die Regel stand hier zunächst mit
+     * "Android Chrome" begründet; das ist mit Schritt E richtiggestellt, denn
+     * belegt ist das Verhalten für Safari, nicht für Chrome. Die Regel selbst
+     * bleibt - das iPad ist seit Etappe 8 ausdrücklich Zielgerät.
      */
     aside input,
     aside select,

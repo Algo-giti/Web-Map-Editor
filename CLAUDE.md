@@ -739,19 +739,36 @@ gewählt" oder „die aktuelle Auftrennstelle ist gewählt" behaupten soll, hät
 eine Zusicherung dort das eine oder das andere vorweggenommen. Entschieden ist
 seit 7d-4a die **zweite** Lesart.
 
-**Neue benannte Lücke aus Schritt 4: „Verweis statt Kopie" reißt nicht.**
-`rotateRingToStart()` legt das Paar als Kopie der Rohwerte ab. Wird die Kopie
-durch einen Verweis auf `rotated[0]` bzw. `rotated[letzter]` ersetzt, bleibt
-`tools/test-merge.mjs` grün – Exit 0, keine gerissene Zusicherung.
+**„Verweis statt Kopie" ist KEINE benannte Lücke, sondern eine wirkungslose
+Mutation – richtiggestellt mit Schritt E.** Sie stand hier zunächst als Lücke,
+und das war die falsche Einordnung. Der Unterschied ist der, den diese Datei
+zwei Absätze weiter oben selbst verlangt: *„Vorher ist allerdings zu prüfen, ob
+die Mutation überhaupt eine **Wirkung** hat: eine, die den Bestand gar nicht
+verändert, sagt über den Test nichts."*
 
-**Der Grund ist gemessen und nicht der erwartete.** `rebuildClosedRing()` baut
-den Ring aus `uniquePoints.map(point => [point[0], point[1]])`, also aus
-**neuen** Arrays, und spleißt diese ein. `rotated[0]` ist damit nie das Objekt,
-in das `setVertexWorldCoordinate()` später hineinschreibt – ein Verweis ist
-heute schon entkoppelt. **Die Mutation wird deshalb nicht umformuliert, bis sie
-doch reißt.** Die Kopie bleibt als örtliche Zusicherung stehen: sie macht die
-Entkopplung dort sichtbar, wo das Paar entsteht, statt sie aus dem Innenleben
-einer anderen Funktion zu borgen.
+Der Fall: `rotateRingToStart()` legt das Paar als Kopie der Rohwerte ab. Wird
+die Kopie durch einen Verweis auf `rotated[0]` bzw. `rotated[letzter]` ersetzt,
+bleibt `tools/test-merge.mjs` grün – Exit 0, keine gerissene Zusicherung.
+
+**Der Grund ist gemessen: die Vorbedingung der Mutation ist nicht erfüllt.**
+`rebuildClosedRing()` baut den Ring aus
+`uniquePoints.map(point => [point[0], point[1]])`, also aus **neuen** Arrays,
+und spleißt diese ein. `rotated[0]` ist damit nie das Objekt, in das
+`setVertexWorldCoordinate()` später hineinschreibt – ein Verweis ist heute
+schon entkoppelt, die Mutation verändert das beobachtbare Verhalten also
+überhaupt nicht.
+
+**Damit sagt sie über den Test nichts** – weder Gutes noch Schlechtes. Eine
+Lücke wäre es, wenn der Bestand sich änderte und kein Test es sähe; hier ändert
+sich der Bestand nicht. Sie wird aus demselben Grund **nicht** umformuliert,
+bis sie doch reißt. Die Kopie bleibt als örtliche Zusicherung stehen: sie macht
+die Entkopplung dort sichtbar, wo das Paar entsteht, statt sie aus dem
+Innenleben einer anderen Funktion zu borgen.
+
+**Die Lehre, und sie ist der eigentliche Grund für diese Richtigstellung:**
+eine nicht reißende Mutation ist erst dann ein Befund über den Test, wenn ihre
+Wirkung belegt ist. Wer sie vorher als Lücke einträgt, hinterlässt einen
+offenen Punkt, den niemand schließen kann – es ist keiner da.
 
 #### Hinweis für eigene Erweiterungen
 
@@ -3055,7 +3072,7 @@ Hochformat braucht; siehe Punkt 3.
 | Seiten-Scrolling statt fester Fensterhöhe | **trägt**; auf einem Tablet ist die Höhe im Hochformat ähnlich knapp |
 | Kartenhöhe `68vh`, mindestens 420 px, höchstens 760 px | **trägt**, ist aber nie an einem Tablet gemessen worden |
 | 44-px-Zielgrößen für Menütitel, Menüeinträge, Kopfzeilenknöpfe und Inspektorknöpfe | **trägt und ist der wichtigste Punkt** – ein Tablet wird mit dem Finger bedient, unabhängig von der Breite. Fiele der Block ersatzlos, bekäme ein Tablet im **Querformat** Desktop-Zielgrößen |
-| `font-size:16px` in Eingabefeldern gegen Androids Formular-Zoom | **trägt** auf Android-Tablets, ist auf einem iPad folgenlos |
+| `font-size:16px` in Eingabefeldern gegen den Formular-Zoom | **trägt auf dem iPad** – siehe die Richtigstellung unten; die Begründung nannte bis Schritt E das falsche Gerät |
 | Statuszeile: `data-optional`-Felder weichen ab 900 px | hängt **nicht** an 760, sondern an 900. Bezugspunkt und Prüfergebnis weichen damit auf **jedem** Tablet im Hochformat – nachschlagbar im Inspektor, also regelkonform, aber es ist der Normalfall und nicht mehr der Ausnahmefall |
 | Marke verkleinert, Menüleiste in eigener Zeile | **überflüssig** ab etwa 820 px, dort passt beides nebeneinander |
 
@@ -3065,7 +3082,7 @@ Hochformat braucht; siehe Punkt 3.
 | hängt an der **Breite** | hängt an der **Bedienart** |
 |---|---|
 | Inspektor gestapelt über der Karte | **44-px-Zielgrößen** für Menütitel, Menüeinträge, Kopfzeilen- und Inspektorknöpfe |
-| Werkzeugleiste waagerecht mit Umbruch, Umschalter ausgeblendet | **16 px Schriftgröße** in Eingabefeldern gegen Androids Formular-Zoom |
+| Werkzeugleiste waagerecht mit Umbruch, Umschalter ausgeblendet | **16 px Schriftgröße** in Eingabefeldern gegen den Formular-Zoom |
 | Seiten-Scrolling statt fester Fensterhöhe | |
 | Kartenhöhe `68vh` | |
 | Marke verkleinert, Menüleiste in eigener Zeile | |
@@ -3085,6 +3102,38 @@ Prüfergebnis verschwinden damit auf **jedem** Tablet im Hochformat – 744, 768
 nachschlagbar sind, aber es ist damit der Normalfall des Zielgeräts und nicht
 mehr der Ausnahmefall eines schmalen Fensters. Ob 900 dafür der richtige Wert
 bleibt, ist mitzuentscheiden.
+
+**Richtigstellung mit Schritt E: die 16-px-Regel wirkt gegen SAFARI auf
+iOS/iPadOS, nicht gegen Chrome auf Android.** Der Kommentar an der Regel in
+`index.html` lautete „Android Chrome vergrößert Seiten sonst beim Fokus auf
+kleine Inputs"; belegt ist etwas anderes.
+
+| | |
+|---|---|
+| die Begründung sagte | Chrome auf Android zoomt beim Fokus auf Felder unter 16 px |
+| belegt ist | **Safari auf iOS/iPadOS** zoomt, und zwar ab einer Schriftgröße von **15 px oder kleiner** |
+
+Die Quelle nennt das Verhalten ausdrücklich für ein Gerät und einen Browser:
+„If the `font-size` of an `<input>` is 16px or larger, Safari on iOS will focus
+into the input normally. But as soon as the `font-size` is 15px or less, the
+viewport will zoom into that input."
+([CSS-Tricks](https://css-tricks.com/16px-or-larger-text-prevents-ios-form-zoom/);
+gleichlautend [Defensive CSS](https://defensivecss.dev/tip/input-zoom-safari/),
+dort ebenfalls allein für „iOS Safari".) **Android oder Chrome kommen in beiden
+Texten nicht vor.**
+
+**Die Regel bleibt – sie wird nur richtig begründet.** Sie ist damit sogar
+wichtiger als bisher gedacht: iPad und iPhone sind die Geräte, auf denen der
+Zoom auftritt, und das iPad ist seit dieser Etappe ausdrücklich **Zielgerät**.
+Auf einem Tablet, das beim Antippen eines Koordinatenfeldes hineinzoomt und
+nicht von selbst wieder heraus, ist der Editor schwer zu bedienen.
+
+**Und sie ist an dieser Stelle nicht nachprüfbar** – es steht weder ein iPad
+noch ein Android-Tablet zur Verfügung (Abschnitt 4.3). Die Aussage stammt aus
+der Dokumentation zweier unabhängiger Quellen, nicht aus einer eigenen Messung;
+dass Chrome auf Android es **nicht** tut, ist dabei das Schwächere von beidem:
+es ist nicht belegt, sondern nur nirgends behauptet. **Beim nächsten echten
+Gerätetest bitte beides prüfen.**
 
 **4. WAS DIE ENTSCHEIDUNG NICHT ERLEDIGT: Berührungsbedienung ist nicht
 Bildschirmbreite.** Ein Tablet hat keine Maus, in **jeder** Breite. Nachgesehen
@@ -4082,6 +4131,23 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Auftrennstelle einen **anderen** Punkt. **Nur gemessen, nicht behoben** – ob
   das ein Fehler ist, hängt daran, ob „der kürzere Weg" oder „der Weg ohne den
   Ringstart" die gemeinte Regel ist, und das ist eine Entscheidung.
+
+  **Zugeordnet mit Schritt E: dieser Punkt gehört in das Mähergeometrie-Paket,
+  und zwar hinter dessen Punkt 4 (Umlaufsinn).** Er wird nicht einzeln
+  entschieden. Der Grund ist, dass beide dieselbe Frage in zwei Kleidern
+  stellen: **welcher der beiden Wege um einen geschlossenen Ring ist der
+  gemeinte?** `interiorIndicesBetween()` beantwortet sie heute mit „der
+  kürzere, bei Gleichstand der ohne Index 0" – einer Regel über die
+  *Indexfolge*. Der Umlaufsinn beantwortet sie mit einer Regel über die
+  *Geometrie*: welche Seite innen liegt, und damit, welcher Weg der ist, den
+  der Nutzer meint. Eine Antwort, die nur den Indexweg umbaut, wäre in dem
+  Moment wieder aufzuschnüren, in dem der Umlaufsinn dazukommt – und der kommt,
+  sobald Punkt 2 oder 3 des Pakets gebaut wird.
+
+  **Praktisch heißt das: nicht vorziehen.** Wer das Begradigen heute auf eine
+  andere Wegregel umstellt, ändert das Verhalten eines Werkzeugs, das die
+  7d-3-Messungen als Bestand festhalten, und muss es später ein zweites Mal
+  anfassen.
 
   **Und die Schlusskante überlebt das Reduzieren nicht (i).** Ring
   `(0,0) (40,0) (40,40) (0,40) (0,20)`, Schlusskante als Auftrennstelle
