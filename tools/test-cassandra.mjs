@@ -48,6 +48,11 @@ const NAMES = [
   "geometryCoordinateSequences",
   "computeBoundsForData",
   "validateMapData",
+  /* Seit dem vierten Durchgang haelt ein Befund seine Rohwerte; die
+     Textlisten von validateMapData() sind daraus abgeleitet. */
+  "BEFUND_TEXTE",
+  "befundText",
+  "pruefErgebnis",
   "GEOMETRY_EPSILON_AREA",
   "GEOMETRY_CHECK_PAIR_BUDGET",
   "turnDirection",

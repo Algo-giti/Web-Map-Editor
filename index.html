@@ -6166,26 +6166,24 @@ function collectGeometryFindings(featureCollection) {
         (best, gap) => (gap.distance < best.distance ? gap : best)
       );
 
-      const where =
-        `engste ${formatMeters(narrowest.distance, 2, 2)} m an Segment ` +
-        `${segmentLabel(narrowest.a, a.ring.length, true)} bzw. Segment ` +
-        `${segmentLabel(narrowest.b, b.ring.length, true)}`;
-
-      const count =
-        `${relevant.length} Stelle${relevant.length === 1 ? "" : "n"}`;
-
-      const width = `Der Mäher ist ${formatMeters(mowerWidth, 2, 2)} m breit.`;
+      const werte = {
+        anzahl: relevant.length,
+        abstand: narrowest.distance,
+        breite: mowerWidth,
+        segmentA: segmentLabel(narrowest.a, a.ring.length, true),
+        segmentB: segmentLabel(narrowest.b, b.ring.length, true),
+      };
 
       if (sameSequence) {
-        warnings.push(
-          `Enge Stelle${relevant.length === 1 ? "" : "n"} innerhalb von ` +
-          `${describe(a)}: ${count}, ${where}. ${width}`
-        );
+        warnings.push({
+          art: "engeStelleInnerhalb",
+          werte: {...werte, wo: describe(a)},
+        });
       } else {
-        warnings.push(
-          `Enge Stelle${relevant.length === 1 ? "" : "n"} zwischen ${describe(a)} ` +
-          `und ${describe(b)}: ${count}, ${where}. ${width}`
-        );
+        warnings.push({
+          art: "engeStelleZwischen",
+          werte: {...werte, woA: describe(a), woB: describe(b)},
+        });
       }
     };
 
@@ -6202,12 +6200,7 @@ function collectGeometryFindings(featureCollection) {
      * Dokumentation: der gemessene Abstand ist exakt, die Aussage über
      * Befahrbarkeit ist es nicht.
      */
-    info.push(
-      `Korridorprüfung: gemessen wird gegen die Mäherbreite von ` +
-      `${formatMeters(mowerWidth, 2, 2)} m. Wendekreis, RTK-Toleranz und Spurabweichung ` +
-      `sind nicht berücksichtigt; kein Befund bedeutet also nicht, dass ein ` +
-      `Korridor befahrbar ist.`
-    );
+    info.push({art: "korridorGrenze", werte: {breite: mowerWidth}});
   }
 
   if (budget.left <= 0) {
@@ -6222,6 +6215,87 @@ function collectGeometryFindings(featureCollection) {
 }
 
 
+/*
+ * Ein Befund haelt seine ROHWERTE, nicht seinen fertigen Text
+ * ----------------------------------------------------------
+ * Bis zum vierten Durchgang legte die Pruefung fertig formatierte
+ * Zeichenketten ab. Beim Sprachwechsel uebersetzte das Muster die
+ * Beschriftung und reichte die Zahl als $1 unveraendert durch - es stand
+ * "Info: Perimeter area: 2502,50 m²." mit deutschem Komma unter englischer
+ * Beschriftung, und in der Gegenrichtung "Perimeterfläche: 2500.00 m²."
+ *
+ * Deshalb speichert ein Befund mit Zahl seine Art und seine Rohwerte; den
+ * deutschen Text baut befundText() erst beim Darstellen, mit dem dann
+ * gueltigen Zahlenformat. Uebersetzt wird er wie bisher ueber das
+ * Woerterbuch - es gibt also keine zweite Uebersetzungsmechanik.
+ *
+ * Ein Befund OHNE Zahl ist weiterhin sein eigener Text. Er hat keine
+ * Rohwerte, und ihn in ein Objekt zu zwingen waere Zeremonie ohne Gewinn.
+ */
+const BEFUND_TEXTE = {
+  perimeterFlaeche: w =>
+    `Perimeterfläche: ${formatMeters(w.flaeche, 2, 2)} m².`,
+
+  featureFlaeche: w =>
+    `${w.label}: ${formatMeters(w.flaeche, 2, 2)} m².`,
+
+  engeStelleInnerhalb: w =>
+    `Enge Stelle${w.anzahl === 1 ? "" : "n"} innerhalb von ${w.wo}: ` +
+    `${w.anzahl} Stelle${w.anzahl === 1 ? "" : "n"}, ` +
+    `engste ${formatMeters(w.abstand, 2, 2)} m an Segment ${w.segmentA} ` +
+    `bzw. Segment ${w.segmentB}. ` +
+    `Der Mäher ist ${formatMeters(w.breite, 2, 2)} m breit.`,
+
+  engeStelleZwischen: w =>
+    `Enge Stelle${w.anzahl === 1 ? "" : "n"} zwischen ${w.woA} und ${w.woB}: ` +
+    `${w.anzahl} Stelle${w.anzahl === 1 ? "" : "n"}, ` +
+    `engste ${formatMeters(w.abstand, 2, 2)} m an Segment ${w.segmentA} ` +
+    `bzw. Segment ${w.segmentB}. ` +
+    `Der Mäher ist ${formatMeters(w.breite, 2, 2)} m breit.`,
+
+  korridorGrenze: w =>
+    `Korridorprüfung: gemessen wird gegen die Mäherbreite von ` +
+    `${formatMeters(w.breite, 2, 2)} m. Wendekreis, RTK-Toleranz und Spurabweichung ` +
+    `sind nicht berücksichtigt; kein Befund bedeutet also nicht, dass ein ` +
+    `Korridor befahrbar ist.`,
+
+  grossesSegment: w =>
+    `Auffällig großes Segment: ${w.label} mit ` +
+    `${formatMeters(w.laenge, 2, 2)} ${scaleUnitLabel()}.`,
+};
+
+
+/** Deutscher Text eines Befundes - gebaut, sobald er gebraucht wird. */
+function befundText(befund) {
+  return typeof befund === "string"
+    ? befund
+    : BEFUND_TEXTE[befund.art](befund.werte);
+}
+
+
+/**
+ * Das Pruefergebnis: die Rohbefunde sind die Quelle, die Textlisten sind
+ * daraus ABGELEITET.
+ *
+ * errors/warnings/info sind Getter und bauen ihre Texte bei jedem Zugriff
+ * neu. Dadurch braucht kein Aufrufer etwas von Rohwerten zu wissen - und
+ * derselbe Bericht liest sich nach einem Sprachwechsel im richtigen
+ * Zahlenformat, ohne dass neu geprueft wird.
+ */
+function pruefErgebnis(errors, warnings, info) {
+  const ergebnis = {befunde: {errors, warnings, info}};
+
+  for (const art of ["errors", "warnings", "info"]) {
+    Object.defineProperty(ergebnis, art, {
+      enumerable: true,
+      get: () => ergebnis.befunde[art].map(befundText),
+    });
+  }
+
+  return ergebnis;
+}
+
+
 function validateMapData(featureCollection = data) {
   const errors = [];
   const warnings = [];
@@ -6233,14 +6307,14 @@ function validateMapData(featureCollection = data) {
     !Array.isArray(featureCollection.features)
   ) {
     errors.push("Wurzel ist keine gültige GeoJSON FeatureCollection.");
-    return {errors, warnings, info};
+    return pruefErgebnis(errors, warnings, info);
   }
 
   const features = featureCollection.features;
 
   if (!features.length) {
     errors.push("Die Karte enthält keine Features.");
-    return {errors, warnings, info};
+    return pruefErgebnis(errors, warnings, info);
   }
 
   const perimeters = features.filter(
@@ -6279,7 +6353,7 @@ function validateMapData(featureCollection = data) {
     if (!(area > 0)) {
       errors.push(`Perimeter ${index + 1}: Fläche ist 0 oder ungültig.`);
     } else if (hasKnownScale()) {
-      info.push(`Perimeterfläche: ${formatMeters(area, 2, 2)} m².`);
+      info.push({art: "perimeterFlaeche", werte: {flaeche: area}});
     } else {
       /*
        * Eine übersprungene Prüfung ist nicht bestanden. Statt einer Zahl, die
@@ -6320,7 +6394,7 @@ function validateMapData(featureCollection = data) {
     if (!(area > 0)) {
       errors.push(`${label}: Fläche ist 0 oder ungültig.`);
     } else if (hasKnownScale()) {
-      info.push(`${label}: ${formatMeters(area, 2, 2)} m².`);
+      info.push({art: "featureFlaeche", werte: {label, flaeche: area}});
     } else {
       info.push(`${label}: Fläche konnte nicht berechnet werden, Maßstab unbekannt.`);
     }
@@ -6557,10 +6631,10 @@ function validateMapData(featureCollection = data) {
     longestLabel &&
     longestSegment > suspiciousThreshold
   ) {
-    warnings.push(
-      `Auffällig großes Segment: ${longestLabel} mit ` +
-      `${formatMeters(longestSegment, 2, 2)} ${scaleUnitLabel()}.`
-    );
+    warnings.push({
+      art: "grossesSegment",
+      werte: {label: longestLabel, laenge: longestSegment},
+    });
   }
 
   if (!scaleKnown) {
@@ -6575,7 +6649,7 @@ function validateMapData(featureCollection = data) {
   warnings.push(...geometry.warnings);
   info.push(...geometry.info);
 
-  return {errors, warnings, info};
+  return pruefErgebnis(errors, warnings, info);
 }
 
 

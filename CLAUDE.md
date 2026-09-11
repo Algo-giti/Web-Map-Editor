@@ -786,6 +786,33 @@ eine nicht reißende Mutation ist erst dann ein Befund über den Test, wenn ihre
 Wirkung belegt ist. Wer sie vorher als Lücke einträgt, hinterlässt einen
 offenen Punkt, den niemand schließen kann – es ist keiner da.
 
+**Benannte Lücke: die enge Stelle INNERHALB eines Features ist nicht
+abgedeckt.** Gemessen mit Schritt 4 des vierten Durchgangs.
+
+`collectGeometryFindings()` meldet enge Korridore in zwei Fassungen – zwischen
+zwei Features und **innerhalb** eines einzelnen (`consider(entry, entry,
+true)`). Von den sechs Bauvorschriften des Prüfberichts reißen fünf, wenn man
+ihr Zahlenformat einfriert; `engeStelleInnerhalb` reißt **nichts**, weil kein
+Test im Bestand diesen Zweig erreicht.
+
+**Die Mutation ist nicht wirkungslos – der Zweig ist erreichbar**, und das ist
+nachgemessen, nicht angenommen. Er verlangt eine Engstelle, deren Mitte im
+**mähbaren** Bereich liegt (`pointIsMowable()`), und genau daran scheitern die
+naheliegenden Formen: bei einem U-förmigen Perimeter liegt die Mitte im
+Schlitz und damit außerhalb, bei einer U-förmigen Exclusion innerhalb der
+Exclusion. Was trägt, ist ein **sanduhrförmiger Perimeter** – zwei Kammern,
+verbunden durch einen Hals:
+
+```
+[[0,0],[20,0],[20,9],[10.1,9],[10.1,11],[20,11],
+ [20,20],[0,20],[0,11],[9.9,11],[9.9,9],[0,9],[0,0]]
+```
+
+Er liefert „Enge Stellen innerhalb von Feature 0 (perimeter): 7 Stellen,
+engste 0,20 m an Segment 2→3 bzw. Segment 9→10. Der Mäher ist 0,35 m breit."
+**Der Reproduktionsfall steht hier, damit die Lücke geschlossen werden kann,
+ohne ihn neu zu suchen** – geschlossen ist sie nicht.
+
 #### Fünf Regeln aus dem vierten Durchgang
 
 Sie stehen hier zusammen, weil sie alle aus **einer** Sitzung stammen und jede
@@ -863,14 +890,17 @@ Text in der Zielsprache zu erzeugen und ihn dort zu prüfen. Geprüft wird: **in
 der einen Sprache erzeugen, umschalten, dann messen** – und dasselbe umgekehrt.
 Nur so wird sichtbar, was beim Wechsel *nicht* mitgeht.
 
-Gemessen an `tools/test-validation.mjs`: der englische Durchlauf schaltet die
-Sprache **vor** dem Laden und Prüfen um. Der Bericht entsteht damit gleich auf
-Englisch, und die Zusicherungen bestehen. Der Fall „auf Deutsch geprüft, dann
-umgeschaltet" wird nirgends gefahren – und genau dort friert der Bericht sein
-Zahlenformat ein: `lastValidationResult` speichert fertig formatierte Texte,
-das Muster setzt die Zahl als `$1` unverändert ein, und es steht
+Gemessen an `tools/test-validation.mjs`: der englische Durchlauf schaltete die
+Sprache **vor** dem Laden und Prüfen um. Der Bericht entstand damit gleich auf
+Englisch, und die Zusicherungen bestanden. Der Fall „auf Deutsch geprüft, dann
+umgeschaltet" wurde nirgends gefahren – und genau dort fror der Bericht sein
+Zahlenformat ein: `lastValidationResult` speicherte fertig formatierte Texte,
+das Muster setzt die Zahl als `$1` unverändert ein, und es stand
 „Info: Perimeter area: 2502,50 m²." mit deutschem Komma unter englischer
-Beschriftung. Die Gegenrichtung liefert „Info: Perimeterfläche: 2500.00 m²."
+Beschriftung. Die Gegenrichtung lieferte „Info: Perimeterfläche: 2500.00 m²."
+
+**Beides ist mit Schritt 4 des vierten Durchgangs behoben** – der Befund
+hält seine Rohwerte, und die Zusicherungen laufen in beiden Richtungen.
 
 **Der Sprachwechsel läuft dabei über `setLanguage()`, und gemessen wird
 unmittelbar danach**, ohne weitere Handlung: ein Klick auf `#languageToggle`
@@ -4516,6 +4546,45 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Nach dem Oberflächenumbau ansehen: entweder Löcher gar nicht erst editierbar
   machen, oder Prüfung und Flächenrechnung auf alle Ringe ausweiten. Beides ist
   eine Entscheidung, kein Nachtrag.
+- **Der Prüfbericht speichert Rohwerte – ERLEDIGT mit Schritt 4 des vierten
+  Durchgangs.** Der Eintrag bleibt stehen, weil er die Regel trägt.
+
+  **Der Befund war:** `lastValidationResult` hielt fertig formatierte
+  Zeichenketten. `validateMapData()` baute sie mit `formatMeters()`, und beim
+  Sprachwechsel übersetzte das Muster die Beschriftung, während es die Zahl
+  als `$1` unverändert durchreichte. Gemessen: auf Deutsch geprüft und dann
+  umgeschaltet stand „Info: Perimeter area: 2502,50 m²." – englische
+  Beschriftung, deutsches Komma; die Gegenrichtung lieferte
+  „Info: Perimeterfläche: 2500.00 m²."
+
+  **Der Stand heute:** ein Befund mit Zahl speichert seine **Art** und seine
+  **Rohwerte** (`{art, werte}`); `BEFUND_TEXTE` hält je Art eine Bauvorschrift,
+  und `befundText()` baut den deutschen Text erst beim Darstellen, mit dem dann
+  gültigen Zahlenformat. Übersetzt wird er wie bisher über das Wörterbuch – es
+  gibt **keine zweite Übersetzungsmechanik**, und deshalb ist auch **kein
+  einziges `I18N_PATTERNS`-Muster überflüssig geworden**: der deutsche Text
+  lautet wortgleich wie vorher, nur entsteht er später.
+
+  **Ein Befund ohne Zahl bleibt sein eigener Text.** Er hat keine Rohwerte, und
+  ihn in ein Objekt zu zwingen wäre Zeremonie; von 49 Schreibstellen tragen
+  sechs eine formatierte Zahl.
+
+  **`pruefErgebnis()` macht die Textlisten zur Ableitung, nicht zur zweiten
+  Quelle.** `errors`, `warnings` und `info` sind Getter über den Rohbefunden
+  und bauen ihre Texte bei jedem Zugriff neu. Dadurch musste **keine**
+  bestehende Zusicherung angefasst werden – weder die von
+  `tools/test-cassandra.mjs`, die `info`-Einträge mit `startsWith()` liest,
+  noch `newValidationErrors()`, das Fehlerlisten über ein `Set` vergleicht.
+
+  **Was sich NICHT geändert hat:** nach einer Kartenänderung steht der Bericht
+  weiter auf „Noch keine Prüfung durchgeführt." – `lastValidationResult` wird
+  wie bisher auf `null` gesetzt. Beim Sprachwechsel wird **nicht** neu geprüft;
+  der Bericht beschreibt weiterhin den Stand, den die Prüfung vorgefunden hat.
+
+  **Der Fallstrick aus Abschnitt 4.1 hat wieder zugeschlagen:** `check-all`
+  brach mit „pruefErgebnis is not defined" ab, weil die drei neuen Bezeichner
+  in der `NAMES`-Liste von `tools/test-cassandra.mjs` fehlten.
+
 - **Zusicherungen auf unsichtbaren Inhalt – offene Frage, kein Auftrag.**
   `test-validation.mjs` und `test-scale.mjs` sichern den Inhalt von Elementen
   zu, die `isVisible() === false` melden: `textContent()` und `.count()` tragen

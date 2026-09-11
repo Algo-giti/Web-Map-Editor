@@ -77,10 +77,11 @@ try {
     await page.reload({ waitUntil: "load" });
 
     /*
-     * Erst umschalten, dann pruefen: ein bereits gerenderter Bericht wird beim
-     * Sprachwechsel nicht nachuebersetzt. Das gilt fuer alle Meldungen der
-     * Kartenpruefung, ist aelter als diese Pruefungen und steht in CLAUDE.md
-     * unter den offenen Punkten.
+     * Hier wird VOR dem Pruefen umgeschaltet - der Bericht entsteht dann
+     * gleich auf Englisch. Der Fall "auf Deutsch geprueft, dann umgeschaltet"
+     * steht als eigener Abschnitt weiter unten: genau dort fror der Bericht
+     * bis zum vierten Durchgang sein Zahlenformat ein, und eine Zusicherung,
+     * die nur in der Zielsprache erzeugt, sah das nie.
      */
     if (options.englisch) {
       await page.locator("#languageToggle").click();
@@ -112,6 +113,18 @@ try {
         .allTextContents(),
     };
   };
+
+  /* Denselben, bereits dargestellten Bericht noch einmal auslesen - ohne
+     neu zu pruefen und ohne weitere Handlung. */
+  const berichtJetzt = async () => ({
+    report: await page.locator("#validationReport").textContent(),
+    warnings: await page
+      .locator("#validationReport .validation-item.warning")
+      .allTextContents(),
+    info: await page
+      .locator("#validationReport .validation-item.info")
+      .allTextContents(),
+  });
 
   const hasWarning = (result, needle) =>
     result.warnings.some((text) => text.includes(needle));
@@ -301,6 +314,64 @@ try {
 
   check("englisch: und kein Befund traegt noch die deutsche Beschriftung",
     !/(^|\s)(Warnung|Fehler):/.test(flaechenEn.report), flaechenEn.report);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Der Bericht folgt einem Sprachwechsel NACH der Prüfung");
+
+  /*
+   * Bis zum vierten Durchgang legte die Pruefung fertig formatierte Texte ab.
+   * Beim Sprachwechsel uebersetzte das Muster die Beschriftung und reichte die
+   * Zahl als $1 unveraendert durch: es stand "Perimeter area: 1600,00 m²" mit
+   * deutschem Komma unter englischer Beschriftung.
+   *
+   * Seitdem haelt ein Befund seine Rohwerte, und der Text entsteht erst beim
+   * Darstellen. Zugesichert wird deshalb in BEIDEN Richtungen - in der einen
+   * Sprache erzeugen, umschalten, messen. Der Wechsel laeuft ueber
+   * setLanguage(), und gemessen wird unmittelbar danach: ein Klick auf
+   * #languageToggle nimmt den Fokus, und jede Handlung dazwischen koennte
+   * einen abgeleiteten Text neu bauen, der dadurch richtig aussieht.
+   *
+   * Neu geprueft wird dabei NICHT - der Bericht beschreibt weiterhin den
+   * Stand, den die Pruefung vorgefunden hat.
+   */
+  await validate(mapWith([box(10, 10, 39.8, 30)]));
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(400);
+  const nachEn = await berichtJetzt();
+
+  check("auf deutsch geprüft, dann englisch: die Beschriftung ist übersetzt",
+    nachEn.info.some((text) => text.includes("Perimeter area:")),
+    nachEn.info.join(" | "));
+  check("auf deutsch geprüft, dann englisch: die Zahl trägt den Punkt",
+    nachEn.info.some((text) => text.includes("Perimeter area: 1600.00 m²")),
+    nachEn.info.join(" | "));
+  check("auf deutsch geprüft, dann englisch: kein Komma als Dezimalzeichen",
+    !/\d,\d/.test(nachEn.report), nachEn.report);
+
+  await validate(mapWith([box(10, 10, 39.8, 30)]), { englisch: true });
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+  const nachDe = await berichtJetzt();
+
+  check("auf englisch geprüft, dann deutsch: die Beschriftung ist deutsch",
+    nachDe.info.some((text) => text.includes("Perimeterfläche:")),
+    nachDe.info.join(" | "));
+  check("auf englisch geprüft, dann deutsch: die Zahl trägt das Komma",
+    nachDe.info.some((text) => text.includes("Perimeterfläche: 1600,00 m²")),
+    nachDe.info.join(" | "));
+  check("auf englisch geprüft, dann deutsch: kein Punkt als Dezimalzeichen",
+    !/\d\.\d/.test(nachDe.report), nachDe.report);
+
+  /* Auch die Warnung mit zwei Zahlen im selben Satz zieht mit. */
+  check("auf englisch geprüft, dann deutsch: auch die enge Stelle trägt das Komma",
+    nachDe.warnings.some((text) =>
+      text.includes("engste 0,20 m") && text.includes("0,35 m breit")),
+    nachDe.warnings.join(" | "));
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(300);
 
   /* ---------------------------------------------------------------- */
   console.log("Unbekannter Maßstab: übersprungen, nicht bestanden");
