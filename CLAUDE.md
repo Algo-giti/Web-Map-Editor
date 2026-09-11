@@ -3925,8 +3925,34 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   offenen Folge `[0 … n-1, 0]` dagegen ein Innenpunkt. Seit 7d-4a meldet der
   Infoblock danach „seit der Wahl verändert" statt weiter „gewählt".
 
-- **Die Auftrennstelle überlebt ihre eigene Kante.** Befund vom 10.09.2026,
-  Stand `d012fc6`, im Browser gemessen – **Reproduktionsfall, kein Auftrag.**
+- **Die Auftrennstelle überlebt ihre eigene Kante – ERLEDIGT mit Schritt 4
+  (7d-4a) und Schritt 6 (7d-4c).** Der Befund bleibt stehen, weil er die
+  Entscheidung trägt.
+
+  **Entschieden ist die zweite der beiden Lesarten:** die Marke behauptet
+  „die aktuelle Auftrennstelle ist gewählt", nicht „der Nutzer hat einmal
+  gewählt". Gespeichert ist seit 7d-4a das **Paar** der gewählten Rohwerte,
+  und `getCutEdgeState()` vergleicht es bei jedem Aufruf mit dem heutigen
+  Ring – die Hausregel „abgeleitet, nicht gespeichert" gilt damit wieder,
+  soweit sie kann: gespeichert ist die Entscheidung des Nutzers, abgeleitet
+  ihr Verhältnis zum heutigen Zustand.
+
+  Aus zwei Zuständen sind dadurch drei geworden. Der mittlere,
+  „Auftrennstelle seit der Wahl verändert.", ist genau der Fall, den der
+  Befund unten beschreibt: die Anzeige behauptet nicht länger „gewählt",
+  während sie Koordinaten nennt, die niemand gewählt hat.
+
+  **Und die stille Überschreibung meldet sich seit 7d-4c.** Wird eine bereits
+  gewählte Stelle durch eine **andere** ersetzt, sagt die Statuszeile „Die
+  vorher gewählte Auftrennstelle wurde ersetzt." statt des gewöhnlichen
+  Erfolgstextes. Nicht beim ersten Setzen, und nicht, wenn dieselbe Kante noch
+  einmal gewählt wird – das ist eine Bestätigung, keine Ersetzung. Die
+  Entscheidung, ob das nach 7d-4 oder nach 8b gehört, ist damit zugunsten von
+  7d-4 gefallen: die **Erklärung** in den beiden `title`-Attributen bleibt ein
+  Fall für Etappe 8b, die **Meldung** gehörte zum Gegenstand.
+
+  Der ursprüngliche Befund vom 10.09.2026, Stand `d012fc6`, im Browser
+  gemessen:
 
   `slot.cutEdgeChosen` ist ein Boolean über eine **vergangene Geste**, nicht
   über den heutigen Ring. Jede Geometrieänderung an Punkt 0 oder am letzten
@@ -3999,20 +4025,19 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   haben ihn benannt, belegt und zugesichert, aber nicht behoben – die beiden
   Knöpfe verhalten sich unverändert.
 
-  **Wohin die Behebung gehört, entscheidet der 7d-4-Plan.** Zwei Zuordnungen
-  sind vertretbar und schließen einander nicht aus: als **7d-4**, weil es
-  derselbe Gegenstand ist und die Marke ohnehin angefasst wird; oder als Teil
-  von **8b**, weil die Erklärung, die das Überschreiben ankündigt, heute im
-  `title` steht und auf dem Zielgerät nie erscheint. **Nicht vorwegnehmen.**
+  **Behoben mit Schritt 6 (7d-4c).** Die Zuordnung ist zugunsten von 7d-4
+  entschieden – es war derselbe Gegenstand, und die Marke wurde ohnehin
+  angefasst. **Der 8b-Anteil bleibt offen:** die beiden `title`-Attribute von
+  `#setStartPointBtn` und `#setEndPointBtn` erklären weiterhin als einzige,
+  dass die zwei Knöpfe dieselbe Drehung auslösen, und auf einem Tablet
+  erscheint kein `title`. Die **Meldung** gibt es jetzt, die **Erklärung
+  vorher** noch nicht.
 
-  Zu entscheiden ist, was die Marke überhaupt behaupten soll: „der Nutzer hat
-  einmal gewählt" (heutiges Verhalten, dann muss die Anzeige anders lauten)
-  oder „die aktuelle Auftrennstelle ist gewählt" (dann muss die Marke bei jeder
-  Änderung an Punkt 0 oder am letzten Punkt fallen). Die Hausregel
-  „abgeleitet, nicht gespeichert" zeigt auf die zweite Lesart; die
-  ausdrückliche Begründung, mit der die Marke in 7d-1 **doch** gespeichert
-  wurde, zeigt auf die erste. Beides ist vertretbar, und die Antwort gehört vor
-  den Bau.
+  Gemeldet wird in `rotateRingToStart()`, also an der einen Stelle, an der
+  eine Auftrennstelle entsteht; verglichen wird über `cutEdgePointMatches()`,
+  dieselbe Funktion, die auch `getCutEdgeState()` benutzt. Zwei Rechenwege
+  liefen genau dort auseinander, wo der Unterschied ein Bruchteil eines
+  Millimeters ist.
 
 - **`selectedVertex` steht nach `applyMergeCut()` auf dem Endpunkt, obwohl die
   Funktion ihn auf `null` setzt.** Befund vom 10.09.2026, Stand `1a0c325`, im

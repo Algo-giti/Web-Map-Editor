@@ -706,6 +706,16 @@ try {
     await perimeterFolge());
 
   /*
+   * Die ERSTE Geste ersetzt nichts und meldet deshalb den gewoehnlichen
+   * Erfolgstext - woertlich, damit die Zusicherung auch dann reisst, wenn die
+   * Ersetzungsmeldung faelschlich immer erschiene.
+   */
+  check("die erste Geste meldet den gewoehnlichen Erfolgstext",
+    (await page.locator("#editStatus").innerText()).replace(/\s+/g, " ").trim() ===
+      "Neuer Startpunkt gesetzt. Punkte neu nummeriert: Start = 1, Ende = 4. Polygon geschlossen.",
+    await page.locator("#editStatus").innerText());
+
+  /*
    * Auch die beiden alten Knoepfe setzen die Auftrennstelle - sie heissen nur
    * anders. Ohne diese Zusicherung bliebe unbemerkt, wenn einer von beiden die
    * Marke nicht mehr setzte: der Ring drehte sich weiter richtig, und der
@@ -726,6 +736,33 @@ try {
   check("Endpunkt setzen ueberschreibt die erste Geste vollstaendig",
     (await perimeterFolge()) === folge([[0, 40], [0, 0], [40, 0], [40, 40]]),
     await perimeterFolge());
+
+  /*
+   * Und JETZT sagt die Statuszeile es auch. Bis Etappe 7d-4c gaben beide
+   * Knoepfe hier denselben Erfolgstext aus - die stille Ueberschreibung war
+   * der Befund, aus dem die ganze Etappe 7d entstanden ist.
+   */
+  check("die zweite Geste meldet die Ersetzung",
+    (await page.locator("#editStatus").innerText()).replace(/\s+/g, " ").trim() ===
+      "Die vorher gewählte Auftrennstelle wurde ersetzt.",
+    await page.locator("#editStatus").innerText());
+
+  /*
+   * Und die Meldung hat eine englische Fassung. Geprueft wird unmittelbar
+   * nach dem Umschalten: die Zeile ist eine Einmalmeldung und laeuft ueber
+   * setLocalizedText(), das deutsche Original haengt also als data-i18n-de
+   * am Element.
+   */
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  check("englisch: die Ersetzungsmeldung ist uebersetzt",
+    (await page.locator("#editStatus").innerText()).replace(/\s+/g, " ").trim() ===
+      "The previously chosen cut edge has been replaced.",
+    await page.locator("#editStatus").innerText());
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
 
   /*
    * Der Infoblock nennt nach der zweiten Geste die NEUEN Endpunkte - die
@@ -775,6 +812,39 @@ try {
       "Karte A Auftrennstelle gewählt. " +
       "Startpunkt E 0,00 / N 40,00 m Endpunkt E 40,00 / N 40,00 m",
     await mergeText("#mergeAInfo"));
+
+  /*
+   * Dieselbe Kante noch einmal zu waehlen ist KEINE Ersetzung, sondern eine
+   * Bestaetigung - die Statuszeile meldet den gewoehnlichen Erfolgstext.
+   * Ohne diesen Fall bestuende die Zusicherung oben auch dann, wenn die
+   * Meldung bei jedem Setzen erschiene.
+   */
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
+  await waehlePunkte([[0, 0], [40, 0]]);
+  await openMergeWindow();
+  await klickeFreienKnopf("#setMergeCutBtn",
+    "dieselbe Kante: der Knopf ist beim ersten Mal frei", "#mergeCutReason");
+  await page.waitForTimeout(400);
+
+  const ERFOLG_AUFTRENNEN =
+    "Auftrennstelle gesetzt: Der Perimeter wird an der Kante zwischen den " +
+    "beiden gewählten Punkten aufgetrennt.";
+
+  check("das erste Setzen meldet den gewoehnlichen Erfolgstext",
+    (await page.locator("#editStatus").innerText()).replace(/\s+/g, " ").trim() ===
+      ERFOLG_AUFTRENNEN,
+    await page.locator("#editStatus").innerText());
+
+  await waehlePunkte([[40, 0], [0, 0]]);
+  await openMergeWindow();
+  await klickeFreienKnopf("#setMergeCutBtn",
+    "dieselbe Kante: der Knopf ist auch beim zweiten Mal frei", "#mergeCutReason");
+  await page.waitForTimeout(400);
+
+  check("dieselbe Kante erneut meldet KEINE Ersetzung",
+    (await page.locator("#editStatus").innerText()).replace(/\s+/g, " ").trim() ===
+      ERFOLG_AUFTRENNEN,
+    await page.locator("#editStatus").innerText());
 
   /* --- 4b. Der Zustand der Auftrennstelle ist ABGELEITET ------------ */
 
