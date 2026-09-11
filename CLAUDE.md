@@ -663,6 +663,22 @@ danach die Arbeitskopie wieder herstellen und mit `git diff` belegen, dass
 nichts zurückgeblieben ist. Je Mutation gehören **Fundstelle, Änderung und die
 namentlich gerissenen Zusicherungen** in den Bericht.
 
+**Zurückgenommen wird aus einer SICHERUNGSKOPIE, niemals mit `git checkout`.**
+Vor der Mutation eine Kopie der Datei anlegen, danach aus dieser Kopie
+zurückspielen und die Prüfsumme gegen sie halten. Das ist eine stehende Regel,
+und sie hat einen Anlass: im zweiten Durchgang nahm ein
+`git checkout -- index.html` die Mutation zurück – und mit ihr **den gesamten
+noch nicht committeten Stand von Schritt D**, siebzehn Umstellungen auf
+`formatMeters()`. `git checkout` stellt nicht den Zustand vor der Mutation her,
+sondern den von HEAD; solange der Schritt nicht committet ist, sind das zwei
+verschiedene Dinge. Aufgefallen ist es erst an einer nicht mehr passenden
+Prüfsumme, und zwei Messungen waren dadurch wertlos.
+
+Daraus zusätzlich: **die Prüfsumme nach der Rücknahme wird gegen die Kopie
+gehalten, nicht gegen HEAD** – nur so belegt sie, dass genau der
+Ausgangszustand wieder dasteht, auch wenn dieser Ausgangszustand vom Commit
+abweicht.
+
 **Wird eine Schreibstelle mehrfach bedient, wird jede einzeln mutiert.** Die
 Auftrennstelle wird an drei Stellen gesetzt – `setSelectedAsPolygonStart()`,
 `setSelectedAsPolygonEnd()` und `applyMergeCut()`. Eine Mutation an einer davon
@@ -4087,8 +4103,10 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Meterausgaben; die übrigen sieben bleiben stehen und sind **kein
   Versehen**: fünf Winkel- bzw. Gradangaben (`angleDeg`, `origin.lat/lon`) und
   zwei Prozentwerte der Flächenwarnung beim Reduzieren. Sie sind dieselbe
-  Familie, aber keine Meter – **ob auch sie der Sprache folgen sollen, ist
-  eine eigene Entscheidung und hier nicht getroffen.**
+  Familie, aber keine Meter – ob auch sie der Sprache folgen sollen, war eine
+  eigene Entscheidung; **sie ist mit Schritt 1 des dritten Durchgangs gefallen,
+  und zwar für die Sprache.** Alle sieben laufen seitdem über `formatNumber()`
+  (siehe unten), `toFixed()` kommt in `index.html` nicht mehr vor.
 
   **`tools/test-cassandra.mjs` musste mitgezogen werden.** `validateMapData()`
   läuft dort im Sandkasten und braucht seit diesem Schritt `formatMeters()`,
@@ -4096,22 +4114,23 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `NAMES`-Liste. Ohne das bricht die statische Stufe mit „formatMeters is not
   defined" ab – genau der Fallstrick, der in Abschnitt 4.1 beschrieben ist.
 
-  **Neuer offener Punkt aus diesem Schritt: die Abmessungen hängen nicht am
-  abgeleiteten Weg.** `updateStats()` schreibt `#widthStat`, `#heightStat` und
-  `#areaStat`, steht aber **nicht** in `refreshDerivedUi()`. Der Block behält
-  beim Sprachwechsel deshalb das Zahlenformat der vorigen Sprache – gemessen:
-  englisch umgeschaltet zeigt er weiter „40,10 m" mit Komma, während
-  Vergleichsblock und Feature-Navigation im selben Moment auf den Punkt
-  wechseln. **Das ist genau derselbe Befund wie bei den E/N-Feldern in
-  Schritt 2** („`refreshDerivedUi()` rief `updateInspector()`, und das schreibt
-  die Felder nicht"), nur eine Funktion weiter. `tools/test-inspector.mjs`
-  sichert die Abmessungen deshalb **nur in der Sprache zu, in der sie
-  entstanden sind**, und sagt im Kommentar warum – eine Zusicherung auf das
-  falsche Zeichen machte den Defekt zum Vertrag. **Nur gemeldet, nicht
-  behoben.**
+  **Die Abmessungen hingen nicht am abgeleiteten Weg – ERLEDIGT mit Schritt 1
+  des dritten Durchgangs.** `updateStats()` schreibt `#widthStat`,
+  `#heightStat` und `#areaStat`, stand aber **nicht** in `refreshDerivedUi()`.
+  Der Block behielt beim Sprachwechsel deshalb das Zahlenformat der vorigen
+  Sprache – gemessen: englisch umgeschaltet zeigte er weiter „40,10 m" mit
+  Komma, während Vergleichsblock und Feature-Navigation im selben Moment auf
+  den Punkt wechselten. **Das war genau derselbe Befund wie bei den E/N-Feldern
+  in Schritt 2** („`refreshDerivedUi()` rief `updateInspector()`, und das
+  schreibt die Felder nicht"), nur eine Funktion weiter. `tools/test-inspector.mjs`
+  sichert die Abmessungen seitdem in **beiden** Sprachen zu; die frühere
+  Einschränkung auf die Entstehungssprache ist entfallen. Nachgemessen mit der
+  Mutation „`updateStats()` wieder ausgehängt": sie reißt zwei benannte
+  Zusicherungen.
 
-  **Zweiter neuer offener Punkt, gleiche Wurzel: zwei Beschriftungen bleiben
-  im Englischen deutsch.** Gemessen am selben Durchgang:
+  **Zwei Beschriftungen blieben im Englischen deutsch – ERLEDIGT mit Schritt 1
+  des dritten Durchgangs, und der Befund war nur die Spitze.** Gemessen am
+  Durchgang davor:
 
   | Ort | englisch sichtbar |
   |---|---|
@@ -4119,11 +4138,98 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | Vergleichsblock | „**Ausgang seit letztem Speichern**: E 0.00 / N 0.00 m", „**Versatz**: …" |
 
   Beide entstehen als Textknoten mit angehängtem Doppelpunkt
-  (`strong.textContent = \`${item.label}: \``), und unter diesem Schlüssel steht
+  (`strong.textContent = \`${item.label}: \``), und unter diesem Schlüssel stand
   nichts in `I18N_EN`. Das ist dieselbe Klasse wie die sechs Texte des
   Verbinden-Fensters vor 7d-1 – ein Text, den niemand neu schreibt, sieht in
-  beiden Sprachen richtig aus, solange man ihn nur ansieht. **Nur gemeldet,
-  nicht behoben.**
+  beiden Sprachen richtig aus, solange man ihn nur ansieht.
+
+  #### Schritt 1, dritter Durchgang: eine Zahlenformatfunktion und die
+  vollständige Suche nach fehlenden englischen Fassungen
+
+  **`formatNumber(value, digits, maxDigits)` ist seit diesem Schritt die eine
+  Stelle, an der eine Zahl ihr Format bekommt.** Locale aus der
+  Oberflächensprache, `useGrouping:false`. `formatMeters()` ruft sie auf und
+  behält nur seinen Namen – er sagt an der Aufrufstelle, **was** formatiert
+  wird. Die sieben nicht-metrischen Stellen (fünf Grad-, zwei Prozentwerte)
+  gehen ebenfalls hier durch; **`toFixed()` kommt in `index.html` nicht mehr
+  vor.** `formatNumber` steht deshalb zusätzlich in der `NAMES`-Liste von
+  `tools/test-cassandra.mjs`.
+
+  **Das Suchmuster für die fehlenden englischen Fassungen ist ein
+  Laufzeitmaß, kein Textgriff – und das war keine Vorliebe, sondern
+  notwendig.** Der eine Kalibrierungstreffer, „Warnung: ", steht **nirgends
+  als Literal im Quelltext**: er entsteht aus `` `${item.label}: ` `` mit
+  `label:"Warnung"` aus einem Objektliteral. Eine Suche über den Dateitext
+  hätte ihn nicht gefunden und wäre trotzdem vollständig ausgesehen.
+
+  Gemessen wird stattdessen im Browser: die Oberfläche im **deutschen**
+  Zustand so weit wie möglich öffnen, dann jeden Textknoten und jedes
+  übersetzbare Attribut (`title`, `aria-label`, `placeholder`) einsammeln und
+  `translateGermanText()` darauf anwenden. Was dabei **unverändert**
+  zurückkommt, hat weder einen Wörterbucheintrag noch ein Muster. Kalibriert
+  ist das Verfahren an den beiden bekannten Treffern „Warnung: " und „Ausgang
+  seit letztem Speichern:"; beide fand es.
+
+  **Der erste Lauf war trotzdem unvollständig, und der Grund gehört dazu:**
+  er hatte den **Messzustand** nie betreten. „Distanz:" und „Winkel:" des
+  Messblocks tauchten erst auf, nachdem der Lauf zusätzlich Messen, Zeichnen
+  und das Kreiswerkzeug durchspielte. **Eine Laufzeitsuche ist so vollständig
+  wie die Zustände, die sie besucht** – dieselbe Regel wie „eine Liste ist so
+  vollständig wie ihr Suchmuster", nur eine Ebene tiefer.
+
+  **Die Trefferliste, 11.09.2026, Stand `77534aa`:** 76 Textstellen im
+  Grundzustand plus 5 in den Werkzeugzuständen. Davon sind **38 behoben**, die
+  übrigen sind Falschmeldungen – Text, der im Englischen wörtlich gleich
+  lautet (`Perimeter`, `Exclusion`, `Search Wire`, `Lasso`, `Feature`, `idx`,
+  `Radius (m)`, `East / E (m)`), der Markenname, der Dateiname, ein vom Nutzer
+  vergebenes `properties.label` und die bewusst zweisprachige Beschriftung des
+  Sprachschalters.
+
+  | Gruppe | behoben durch | Beispiele |
+  |---|---|---|
+  | Beschriftungen mit Doppelpunkt | Wörterbucheintrag | „Warnung:", „Fehler:", „Ausgang seit letztem Speichern:", „Richtung:", „Quelle:", „Mäher:", „Distanz:", „Winkel:", „Typ:", „Index:" |
+  | `aria-label` der Bereiche und Werkzeuge | Wörterbucheintrag | „Hauptmenü", „Werkzeuge", „Inspektor", „Kartenansicht", „Mauszeiger", „Rechteckauswahl", „Lasso-Auswahl" |
+  | Feature-Navigation | Wörterbucheintrag | „Ganzes Feature auswählen", „Punkt hinzufügen", „Zwischenpunkt" |
+  | zwei Absätze des Hilfe-Overlays | Wörterbucheintrag | Docking-Pfad, „entfernt das komplette Feature…" |
+  | Punktmarker, Ghost und Mähervorschau | **Muster**, Rolle je ausgeschrieben | „Perimeter · Punkt 1/4 · Startpunkt" |
+  | zusammengesetzte Texte | **eigenes Element**, dann greift der vorhandene Eintrag | Bestandskurzform, Zeichenstatus, Prüfzusammenfassung, „Versatz:", „Quelle:", „Typ:"/„Index:" |
+
+  **Die Rolle steht in jedem Muster ausgeschrieben und nicht als Gruppe.** Ein
+  Ersetzungsmuster setzt `$4` unverändert ein – „Startpunkt" bliebe deutsch.
+  Sechs Muster statt zweier ist der Preis dafür; dieselbe Falle, für die es
+  `I18N_LABEL_PREFIXES` gibt.
+
+  **Zwei weitere Wege waren nicht abgeleitet, und beide fielen erst bei dieser
+  Messung auf:**
+
+  | Fundstelle | was fehlte |
+  |---|---|
+  | `updateOriginUi()` | stand nicht in `refreshDerivedUi()`. Die Konfliktmeldung nennt **zwei Bezugspunkte und einen Abstand** und blieb nach einem Sprachwechsel vollständig in der alten Sprache stehen |
+  | die Punktmarker | `title` und `aria-label` entstehen beim **Zeichnen** und stehen deshalb nicht im Schnappschuss, der beim Start genommen wird. Ohne `renderGeometry()` im abgeleiteten Weg bliebe die einzige Beschreibung eines Punktes, die eine Vorlesehilfe findet, dauerhaft deutsch |
+
+  Beide sind mit Mutationen belegt: „`updateOriginUi()` wieder ausgehängt"
+  reißt zwei Zusicherungen, „`renderGeometry()` wieder ausgehängt" ebenfalls
+  zwei.
+
+  **Die Toleranz `1e-12` bleibt an vier Stellen stehen – gemessen, nicht
+  vereinheitlicht.** Der Auftrag machte die benannte Konstante davon abhängig,
+  dass alle vier dieselbe Bedeutung tragen. Sie tun es nicht:
+
+  | Fundstelle | Frage, die die Schwelle beantwortet |
+  |---|---|
+  | `baselineStillMoved()` | hat sich der Punkt seit der Baseline bewegt? |
+  | `applySelectedPointFromInputs()` | hat sich der Punkt gegenüber der Eingabe bewegt? |
+  | der `pointermove`-Drag-Handler (`actuallyMoved`) | hat der Zug wirklich bewegt? |
+  | `applyGridStepFromInput()` | **trifft die Eingabe einen `<option>`-Wert?** |
+
+  Die ersten drei sind dieselbe Frage in Weltmetern – der Kommentar an
+  `baselineStillMoved()` sagt das selbst („dieselbe Zahl beantwortet in
+  `applyPointCoordinateInput()` … und im Ziehen-Handler … genau diese Frage").
+  Die vierte vergleicht **keine Bewegung**, sondern die Gleichheit zweier
+  Zahlen aus einem Auswahlfeld, und zwar in Metern statt in Weltmetern. Eine
+  gemeinsame Konstante über alle vier hieße, zwei verschiedene Dinge unter
+  einem Namen zu führen. **Für die drei gleichbedeutenden ist eine Konstante
+  naheliegend – das ist eine Entscheidung und wurde hier nicht getroffen.**
 
   **Der ursprüngliche Befund**, vom 10.09.2026, Stand `4202533`, in beiden
   Sprachen im Browser gemessen:

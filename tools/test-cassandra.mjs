@@ -15,9 +15,12 @@ const NAMES = [
    * Seit die Meterausgaben des Pruefberichts ueber formatMeters() laufen,
    * braucht validateMapData() die Funktion - und sie liest die Sprache aus
    * currentLanguage. Beide gehoeren deshalb in den Sandkasten; sonst bricht
-   * der Test mit "formatMeters is not defined" ab.
+   * der Test mit "formatMeters is not defined" ab. Seit Schritt 1 stuetzt
+   * sich formatMeters() auf formatNumber() - die eine Stelle, an der eine
+   * Zahl ihr Format bekommt -, also gehoert auch die dazu.
    */
   "currentLanguage",
+  "formatNumber",
   "formatMeters",
   "SUNRAY_FACTOR",
   "CASSANDRA_NAME_BY_TYPE",
@@ -665,8 +668,17 @@ check("Konflikt nennt beide Bezugspunkte",
   conflict?.fileOrigin.lat === twoCentimetresNorth.lat &&
   conflict?.activeOrigin.lat === baseOrigin.lat);
 
-check("formatOrigin ist stabil",
-  app.formatOrigin({ lat: 52.5, lon: 13.4 }) === "52.500000 / 13.400000");
+/*
+ * formatOrigin() folgt seit Schritt 1 der Oberflaechensprache - es laeuft
+ * ueber formatNumber() statt ueber toFixed(). Im Sandkasten steht
+ * currentLanguage auf dem Startwert "de", der Bezugspunkt erscheint hier also
+ * mit Komma. Die englische Fassung ist im Browser zugesichert
+ * (tools/test-origin-conflict.mjs): der Sandkasten haelt Werte, keine
+ * lebenden Bindungen, die Sprache laesst sich hier nicht umschalten.
+ */
+check("formatOrigin ist stabil und folgt der Sprache",
+  app.formatOrigin({ lat: 52.5, lon: 13.4 }) === "52,500000 / 13,400000",
+  app.formatOrigin({ lat: 52.5, lon: 13.4 }));
 
 /* -------------------------------------------------------------------- */
 console.log("Import mit widersprechendem Bezugspunkt");

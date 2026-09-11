@@ -527,6 +527,34 @@ try {
   check("und „Messung löschen“ ist frei",
     !(await page.locator("#clearMeasureBtn").isDisabled()));
 
+  /*
+   * Schritt 1, dritter Durchgang: die Messung nennt Distanz, Versatz und
+   * WINKEL. Der Winkel lief bis dahin ueber toFixed() und zeigte in beiden
+   * Sprachen einen Punkt; die beiden Beschriftungen hatten ueberhaupt keine
+   * englische Fassung. Geprueft wird der sichtbare Text in beiden Sprachen -
+   * der Messblock ist abgeleitet und wird beim Sprachwechsel neu gebaut.
+   */
+  const messtext = async () =>
+    (await text("measureStatus")).replace(/\s+/g, " ");
+
+  const deMess = await messtext();
+  check("deutsch: die Messung beschriftet Distanz und Winkel",
+    deMess.includes("Distanz:") && deMess.includes("Winkel:"), deMess);
+  check("deutsch: und ihr Gradwert traegt ein Komma",
+    /Winkel: \d+,\d°/.test(deMess), deMess);
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  const enMess = await messtext();
+  check("englisch: die Messung beschriftet Distance und Angle",
+    enMess.includes("Distance:") && enMess.includes("Angle:"), enMess);
+  check("englisch: und ihr Gradwert traegt einen Punkt",
+    /Angle: \d+\.\d°/.test(enMess), enMess);
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
   await page.locator("#clearMeasureBtn").click();
   await page.waitForTimeout(250);
 
@@ -639,9 +667,32 @@ try {
   check("der Bestand nennt die fehlende Search Wire",
     (await text("searchWireStock")) === "Nicht vorhanden.",
     await text("searchWireStock"));
+  /*
+   * Die Kurzform besteht seit Schritt 1 (dritter Durchgang) aus einzelnen
+   * <span>-Marken; das Trennzeichen setzt CSS ueber ::before und steht damit
+   * NICHT in textContent. Gelesen werden deshalb die Marken selbst - und
+   * daneben, dass das Trennzeichen wirklich gezeichnet wird.
+   */
+  const stockMarken = (id) =>
+    page.evaluate((x) =>
+      [...document.getElementById(x).querySelectorAll("span")]
+        .map((el) => el.textContent.trim()), id);
+
   check("die Kopfzeile fasst ihn zusammen",
-    (await text("stockSummary")) === "keine Search Wire · kein Dockpfad",
-    await text("stockSummary"));
+    (await stockMarken("stockSummary")).join("|") === "keine Search Wire|kein Dockpfad",
+    (await stockMarken("stockSummary")).join("|"));
+
+  check("und CSS setzt das Trennzeichen zwischen die Marken",
+    (await page.evaluate(() =>
+      getComputedStyle(
+        document.getElementById("stockSummary").querySelectorAll("span")[1],
+        "::before"
+      ).content)).includes("·"),
+    await page.evaluate(() =>
+      getComputedStyle(
+        document.getElementById("stockSummary").querySelectorAll("span")[1],
+        "::before"
+      ).content));
 
   /* Mit einer echten Search Wire aendert sich beides. */
   await load([{
@@ -653,8 +704,8 @@ try {
     (await text("searchWireStock")) === "Vorhanden, 3 Punkte.",
     await text("searchWireStock"));
   check("die Kopfzeile ebenfalls",
-    (await text("stockSummary")) === "Search Wire · kein Dockpfad",
-    await text("stockSummary"));
+    (await stockMarken("stockSummary")).join("|") === "Search Wire|kein Dockpfad",
+    (await stockMarken("stockSummary")).join("|"));
   check("und verlaengern ist freigegeben",
     !(await page.locator("#extendSearchWireBtn").isDisabled()));
 
@@ -1305,12 +1356,18 @@ try {
    *
    * Geprueft wird der sichtbare Text der drei Orte, nicht formatMeters().
    */
-  const meterOrte = async (sprache, komma, abmessungen) => {
+  const meterOrte = async (sprache, komma) => {
     const zeichen = komma ? "," : ".";
     const falsch = komma ? "." : ",";
+    const wort = (de, en) => (komma ? de : en);
 
     const delta = (await page.locator("#selectionDeltaInfo").textContent())
       .replace(/\s+/g, " ");
+
+    check(`${sprache}: der Vergleichsblock beschriftet Ausgang und Versatz`,
+      delta.includes(wort("Ausgang seit letztem Speichern:", "Baseline since last save:")) &&
+      delta.includes(wort("Versatz:", "Offset:")),
+      delta);
 
     check(`${sprache}: der Vergleichsblock nennt Ausgang und Versatz mit "${zeichen}"`,
       delta.includes(`E 40${zeichen}00 / N 0${zeichen}00 m`) &&
@@ -1327,15 +1384,12 @@ try {
       await page.locator(".feature-point-coord").nth(1).textContent());
 
     /*
-     * Die Abmessungen werden nur in der Sprache geprueft, in der sie
-     * ENTSTANDEN sind. Sie haengen nicht am abgeleiteten Weg: updateStats()
-     * steht nicht in refreshDerivedUi(), der Block behaelt beim Sprachwechsel
-     * also das Zahlenformat der vorigen Sprache. Das ist ein eigener Befund
-     * und in CLAUDE.md als offener Punkt eingetragen - eine Zusicherung auf
-     * das falsche Zeichen wuerde den Defekt zum Vertrag machen.
+     * Die Abmessungen werden seit Schritt 1 (dritter Durchgang) in BEIDEN
+     * Sprachen geprueft: updateStats() steht jetzt in refreshDerivedUi().
+     * Vorher behielt der Block nach einem Sprachwechsel das Zahlenformat der
+     * vorigen Sprache, und die Zusicherung lief nur in der Sprache, in der er
+     * entstanden war - sie haette den Defekt sonst zum Vertrag gemacht.
      */
-    if (!abmessungen) return;
-
     check(`${sprache}: die Abmessungen tragen "${zeichen}"`,
       (await page.locator("#widthStat").textContent()).trim() ===
         `40${zeichen}10 m` &&
@@ -1347,6 +1401,52 @@ try {
     check(`${sprache}: die Flaechenangabe ebenfalls`,
       (await page.locator("#areaStat").textContent()).includes(`${zeichen}0 m²`),
       await page.locator("#areaStat").textContent());
+
+    /*
+     * Gradwerte: die Fahrtrichtung des ausgewaehlten Punktes. Sie lief bis
+     * Schritt 1 ueber toFixed() und zeigte damit in beiden Sprachen einen
+     * Punkt; seitdem geht sie durch formatNumber(), dieselbe eine Stelle wie
+     * formatMeters(). Geprueft wird der sichtbare Text.
+     */
+    const richtung = (await page.locator("#mowerOrientationInfo").textContent())
+      .replace(/\s+/g, " ");
+
+    check(`${sprache}: die Fahrtrichtung ist beschriftet`,
+      richtung.includes(wort("Richtung:", "Heading:")) &&
+      richtung.includes(wort("Quelle:", "Source:")),
+      richtung);
+
+    /*
+     * Der Punkt liegt nach dem Pfeiltastenschritt auf (40,10 / 0), der
+     * naechste auf (40 / 40) - die Fahrtrichtung ist damit 90,1 Grad.
+     */
+    check(`${sprache}: und ihr Gradwert traegt "${zeichen}"`,
+      richtung.includes(`90${zeichen}1°`) && !richtung.includes(`90${falsch}1°`),
+      richtung);
+
+    /*
+     * Dieselbe Gradangabe ein zweites Mal, an einem anderen Ort: der Titel
+     * der Maehervorschau. Er ist die einzige Beschreibung, die ein Nutzer
+     * ueber der Vorschau zu sehen bekommt, und er stand bis Schritt 1 auch in
+     * der englischen Oberflaeche vollstaendig auf deutsch.
+     */
+    const maeher = (await page.locator("#mowerGroup title").first().textContent())
+      .replace(/\s+/g, " ");
+
+    check(`${sprache}: der Titel der Maehervorschau traegt "${zeichen}"`,
+      maeher.includes(`90${zeichen}1°`) && !maeher.includes(`90${falsch}1°`),
+      maeher);
+
+    check(`${sprache}: und benennt Punkt und Maeher in der Sprache`,
+      maeher.includes(wort("· Punkt 2/4 ·", "· point 2/4 ·")) &&
+      maeher.includes(wort("Mäher", "mower")),
+      maeher);
+
+    check(`${sprache}: die Quelle der Fahrtrichtung ist uebersetzt`,
+      richtung.includes(wort(
+        "Polygon-Punktfolge: aktueller → nächster Punkt",
+        "Polygon point sequence: current → next point")),
+      richtung);
   };
 
   /*
@@ -1355,6 +1455,21 @@ try {
    * des Perimeters, (40,0), um 0,10 m nach Osten.
    */
   await load();
+
+  /*
+   * Die Maehervorschau wird fuer diesen Abschnitt wieder eingeschaltet -
+   * load() nimmt sie heraus, damit die Markerzaehlungen weiter oben stimmen.
+   * Hier wird nichts gezaehlt, dafuer traegt ihr Titel eine der fuenf
+   * Gradangaben.
+   */
+  await page.evaluate(() => {
+    const box = document.getElementById("showMowerPreview");
+    if (box.checked) return;
+    box.checked = true;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.waitForTimeout(200);
+
   await marks.nth(1).click();
   await page.waitForTimeout(300);
   await page.keyboard.press("ArrowRight");
@@ -1366,12 +1481,12 @@ try {
    * nachgemessen in Etappe 7c. Geklickt wird hier nichts, und die Faltstaende
    * sind weiter oben in diesem Test eigens zugesichert.
    */
-  await meterOrte("deutsch", true, true);
+  await meterOrte("deutsch", true);
 
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(500);
 
-  await meterOrte("englisch", false, false);
+  await meterOrte("englisch", false);
 
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(500);

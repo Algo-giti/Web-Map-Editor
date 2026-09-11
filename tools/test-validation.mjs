@@ -283,6 +283,25 @@ try {
   check("englisch: kein Komma als Dezimalzeichen im ganzen Bericht",
     !/\d,\d/.test(flaechenEn.report), flaechenEn.report);
 
+  /*
+   * Schritt 1, dritter Durchgang: der RANG jedes Befundes stand als
+   * "Fehler: " / "Warnung: " / "Info: " in einem eigenen <strong> und hatte
+   * keinen Woerterbucheintrag - die englische Oberflaeche zeigte ihn deutsch.
+   * Geprueft wird die sichtbare Beschriftung, nicht das Woerterbuch.
+   */
+  check("deutsch: jeder Befund traegt seinen Rang als Beschriftung",
+    flaechen.warnings.every((text) => text.startsWith("Warnung:")) &&
+    flaechen.info.every((text) => text.startsWith("Info:")),
+    flaechen.warnings.concat(flaechen.info).join(" | "));
+
+  check("englisch: derselbe Rang ist uebersetzt",
+    flaechenEn.warnings.every((text) => text.startsWith("Warning:")) &&
+    flaechenEn.info.every((text) => text.startsWith("Info:")),
+    flaechenEn.warnings.concat(flaechenEn.info).join(" | "));
+
+  check("englisch: und kein Befund traegt noch die deutsche Beschriftung",
+    !/(^|\s)(Warnung|Fehler):/.test(flaechenEn.report), flaechenEn.report);
+
   /* ---------------------------------------------------------------- */
   console.log("Unbekannter Maßstab: übersprungen, nicht bestanden");
 

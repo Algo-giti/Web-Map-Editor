@@ -141,6 +141,52 @@ try {
   );
 
   /* ---------------------------------------------------------------- */
+  console.log("Der Bezugspunkt folgt der Sprache");
+
+  /*
+   * Schritt 1, dritter Durchgang: formatOrigin() rechnete mit toFixed() und
+   * zeigte damit in beiden Sprachen einen Punkt - im Deutschen also falsch.
+   * Sie laeuft jetzt ueber formatNumber(), dieselbe eine Stelle wie
+   * formatMeters().
+   *
+   * Zugleich die Zusicherung, dass die Konfliktmeldung ueberhaupt am
+   * abgeleiteten Weg haengt: updateOriginUi() stand bis Schritt 1 nicht in
+   * refreshDerivedUi(), die Meldung blieb nach einem Sprachwechsel in der
+   * Sprache stehen, in der sie entstanden war.
+   */
+  const originText = () => page.locator("#originStatus").textContent();
+
+  check(
+    "deutsch: der Konflikt nennt beide Bezugspunkte mit Komma",
+    (await originText()).includes("52,510000 / 13,400000") &&
+    (await originText()).includes("52,500000 / 13,400000"),
+    await originText()
+  );
+  check(
+    "deutsch: und kein Bezugspunkt traegt einen Punkt als Dezimalzeichen",
+    !/\d{2}\.\d{6}/.test(await originText()),
+    await originText()
+  );
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  check(
+    "englisch: derselbe Konflikt nennt sie mit Punkt",
+    (await originText()).includes("52.510000 / 13.400000") &&
+    (await originText()).includes("52.500000 / 13.400000"),
+    await originText()
+  );
+  check(
+    "englisch: und der Meldungstext ist uebersetzt",
+    (await originText()).includes("Reference point conflict"),
+    await originText()
+  );
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  /* ---------------------------------------------------------------- */
   console.log("Export beider Modi muss gesperrt sein");
 
   for (const mode of ["loaded", "absolute"]) {

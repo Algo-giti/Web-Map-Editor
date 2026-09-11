@@ -296,6 +296,21 @@ try {
   check("Ring behält mindestens 3 Punkte", ringAfter >= 3, String(ringAfter));
   check("Flächenänderung wird gemeldet",
     (await status()).includes("Fläche"), await status());
+
+  /*
+   * Schritt 1, dritter Durchgang: der PROZENTWERT der Flaechenwarnung lief
+   * bis dahin ueber toFixed() und zeigte in beiden Sprachen einen Punkt. Er
+   * geht jetzt durch formatNumber(), dieselbe Stelle wie formatMeters().
+   *
+   * Geprueft wird in der Sprache, in der die Meldung ENTSTEHT, nicht nach
+   * einem Sprachwechsel: die Reduzier-Meldung ist eine Einmalmeldung ueber
+   * setLocalizedText() und friert ihr Zahlenformat ein. Das ist ein eigener
+   * offener Punkt in CLAUDE.md; eine Zusicherung nach dem Wechsel wuerde ihn
+   * mitpruefen statt der Formatierung.
+   */
+  check("deutsch: der Prozentwert der Flaechenwarnung traegt ein Komma",
+    /\d,\d %/.test(await status()) && !/\d\.\d %/.test(await status()),
+    await status());
   check("Schrumpfen wird als Warnung gefärbt",
     (await page.locator("#reduceStatus").getAttribute("class")).includes("error"),
     await page.locator("#reduceStatus").getAttribute("class"));
@@ -342,6 +357,41 @@ try {
 
   check("nach dem Zurücksetzen wieder freigegeben",
     await applyButton.isEnabled(), await status());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Derselbe Prozentwert auf englisch");
+
+  /*
+   * Eigener Durchlauf statt eines Sprachwechsels: die Meldung ist fluechtig
+   * und behaelt das Format ihrer Entstehung. Sie muss deshalb AUF ENGLISCH
+   * entstehen, damit die Zusicherung die Formatierung prueft und nicht den
+   * eingefrorenen Text.
+   */
+  await page.goto(indexUrl(), { waitUntil: "load" });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "load" });
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(400);
+
+  await page.locator("#fileInput").setInputFiles({
+    name: "reduce-en.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(syntheticMap()),
+  });
+  await page.waitForTimeout(400);
+  await openAllFolds(page);
+
+  await page.locator('[data-action="select-whole-feature"][data-feature-index="1"]')
+    .click();
+  await page.waitForTimeout(300);
+  await page.locator("#reduceApplyBtn").click();
+  await page.waitForTimeout(400);
+
+  const enStatus = await status();
+  check("englisch: die Flaechenaenderung wird gemeldet",
+    enStatus.includes("Area shrank"), enStatus);
+  check("englisch: ihr Prozentwert traegt einen Punkt",
+    /\d\.\d %/.test(enStatus) && !/\d,\d %/.test(enStatus), enStatus);
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
