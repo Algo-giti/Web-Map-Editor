@@ -291,11 +291,44 @@ try {
     (await page.locator("#statusBar").textContent()).includes("Scale"),
     (await page.locator("#statusBar").textContent()).slice(0, 120));
 
+  /*
+   * Das Dezimalzeichen wechselt mit der Sprache, und zwar OHNE weitere
+   * Aktion: das Rasterfeld ist abgeleitet und wird beim Wechsel neu
+   * geschrieben. Gemessen wird unmittelbar nach dem Umschalten - stuende
+   * hier erst ein Klick oder ein Laden dazwischen, bewiese die Zusicherung
+   * nur, dass irgendwann neu formatiert wird.
+   */
+  check("englisch: das Rasterfeld zeigt den Punkt als Dezimalzeichen",
+    (await text("gridShort")).trim() === "0.10 m", await text("gridShort"));
+
+  /*
+   * Die Cursor-Koordinaten entstehen nur im pointermove-Handler - sie sind
+   * die einzige der vier Stellen, die sich beim Sprachwechsel NICHT von
+   * selbst erneuert. Deshalb wird hier bewusst zuerst die Maus bewegt.
+   */
+  const karte = await page.locator("#svg").boundingBox();
+  await page.mouse.move(karte.x + karte.width / 2, karte.y + karte.height / 2);
+  await page.waitForTimeout(250);
+
+  check("englisch: die Cursor-Koordinaten zeigen den Punkt",
+    /^E: -?\d+\.\d\d m\s+N: -?\d+\.\d\d m$/.test((await text("hud")).trim()),
+    await text("hud"));
+
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(400);
 
   check("und kommen zurück",
     (await text("scaleStatus")).includes("angenommen"), await text("scaleStatus"));
+
+  check("deutsch: das Rasterfeld zeigt wieder das Komma",
+    (await text("gridShort")).trim() === "0,10 m", await text("gridShort"));
+
+  await page.mouse.move(karte.x + karte.width / 2 + 20, karte.y + karte.height / 2 + 20);
+  await page.waitForTimeout(250);
+
+  check("deutsch: die Cursor-Koordinaten zeigen wieder das Komma",
+    /^E: -?\d+,\d\d m\s+N: -?\d+,\d\d m$/.test((await text("hud")).trim()),
+    await text("hud"));
 
   /* ---------------------------------------------------------------- */
   console.log("Zwei Zeilen");

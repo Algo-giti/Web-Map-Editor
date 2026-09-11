@@ -1221,11 +1221,78 @@ try {
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(400);
 
-  await enFeldRundlauf("englisch", "1234,5", "1234,50", "1234.56");
-  await enFeldRundlauf("englisch", "-1234,5", "-1234,50", "-1234.56");
+  /*
+   * Englisch: Punkt als Dezimalzeichen. Eingetippt wird trotzdem mit Komma -
+   * parseLocaleNumber() nimmt beide Zeichen an, und das soll so bleiben.
+   */
+  await enFeldRundlauf("englisch", "1234,5", "1234.50", "1234.56");
+  await enFeldRundlauf("englisch", "-1234,5", "-1234.50", "-1234.56");
 
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(400);
+
+  /*
+   * Der Sprachwechsel allein muss reichen - kein Klick, kein Neuladen. Die
+   * E/N-Felder haengen dafuer seit Schritt 2 am abgeleiteten Weg
+   * (refreshDerivedUi -> updateSelectionPanel).
+   */
+  await page.fill("#pointEastInput", "12,5");
+  await page.locator("#pointEastInput").press("Enter");
+  await page.waitForTimeout(350);
+  await page.locator("#svg").click({ position: { x: 2, y: 2 } });
+  await page.waitForTimeout(200);
+  await marks.nth(1).click();
+  await page.waitForTimeout(300);
+
+  check("deutsch steht das Komma im Feld",
+    (await page.locator("#pointEastInput").inputValue()) === "12,50",
+    await page.locator("#pointEastInput").inputValue());
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(400);
+
+  check("unmittelbar nach dem Sprachwechsel steht dort der Punkt",
+    (await page.locator("#pointEastInput").inputValue()) === "12.50",
+    await page.locator("#pointEastInput").inputValue());
+
+  /*
+   * Ein Feld, in dem gerade getippt wird, ueberlebt den Wechsel.
+   *
+   * Gemessen wird das ueber setLanguage() statt ueber den Schalter, und der
+   * Grund ist ein Befund: ein KLICK auf #languageToggle nimmt dem Feld
+   * vorher den Fokus, der Schutz kann dabei also gar nicht greifen. Ueber
+   * den Schalter wird das Feld deshalb immer neu geschrieben - richtig so,
+   * dort tippt niemand mehr. Der Schutz gilt jedem kuenftigen Aufrufer von
+   * refreshDerivedUi(), und heute gibt es genau einen.
+   */
+  await page.locator("#pointEastInput").fill("77,7");
+  await page.evaluate(() => {
+    document.getElementById("pointEastInput").focus();
+    setLanguage("de");
+  });
+  await page.waitForTimeout(400);
+
+  check("ein fokussiertes Feld wird beim Wechsel nicht ueberschrieben",
+    (await page.locator("#pointEastInput").inputValue()) === "77,7",
+    await page.locator("#pointEastInput").inputValue());
+
+  /* Und ohne Fokus schreibt derselbe Weg es sehr wohl neu. */
+  await page.evaluate(() => {
+    document.getElementById("pointEastInput").blur();
+    setLanguage("en");
+  });
+  await page.waitForTimeout(400);
+
+  check("ohne Fokus schreibt derselbe Weg das Feld neu",
+    (await page.locator("#pointEastInput").inputValue()) === "12.50",
+    await page.locator("#pointEastInput").inputValue());
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+
+  /* Zuruecksetzen fuer die folgenden Abschnitte. */
+  await page.locator("#svg").click({ position: { x: 2, y: 2 } });
+  await page.waitForTimeout(200);
 
   /* ---------------------------------------------------------------- */
   console.log("Der Erklärtext frisst keinen Platz");

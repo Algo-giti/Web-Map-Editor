@@ -566,7 +566,7 @@ try {
 
   const A_UNGESETZT =
     "Karte A Auftrennstelle aus der Datei. " +
-    "Startpunkt E 0.00 / N 0.00 m Endpunkt E 0.00 / N 40.00 m";
+    "Startpunkt E 0,00 / N 0,00 m Endpunkt E 0,00 / N 40,00 m";
 
   await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
 
@@ -589,7 +589,7 @@ try {
 
   const A_GESETZT =
     "Karte A Auftrennstelle gewählt. " +
-    "Startpunkt E 40.00 / N 0.00 m Endpunkt E 0.00 / N 0.00 m";
+    "Startpunkt E 40,00 / N 0,00 m Endpunkt E 0,00 / N 0,00 m";
 
   check("der Ring steht danach auf [40,0] und traegt dieselben vier Punkte",
     (await perimeterFolge()) === folge([[40, 0], [40, 40], [0, 40], [0, 0]]),
@@ -638,7 +638,7 @@ try {
 
   const A_SCHLUSSKANTE =
     "Karte A Auftrennstelle gewählt. " +
-    "Startpunkt E 0.00 / N 0.00 m Endpunkt E 0.00 / N 40.00 m";
+    "Startpunkt E 0,00 / N 0,00 m Endpunkt E 0,00 / N 40,00 m";
 
   check("Schlusskante: der Ring bleibt unveraendert",
     (await perimeterFolge()) === folge(RING_A), await perimeterFolge());
@@ -737,7 +737,7 @@ try {
   check("und der Infoblock nennt danach die Punkte der ZWEITEN Geste",
     (await mergeText("#mergeAInfo")) ===
       "Karte A Auftrennstelle gewählt. " +
-      "Startpunkt E 0.00 / N 40.00 m Endpunkt E 40.00 / N 40.00 m",
+      "Startpunkt E 0,00 / N 40,00 m Endpunkt E 40,00 / N 40,00 m",
     await mergeText("#mergeAInfo"));
 
   /*
@@ -773,7 +773,7 @@ try {
   check("und der Infoblock wechselt dabei von der Datei auf die Wahl",
     (await mergeText("#mergeAInfo")) ===
       "Karte A Auftrennstelle gewählt. " +
-      "Startpunkt E 0.00 / N 40.00 m Endpunkt E 40.00 / N 40.00 m",
+      "Startpunkt E 0,00 / N 40,00 m Endpunkt E 40,00 / N 40,00 m",
     await mergeText("#mergeAInfo"));
 
   /* --- 7. Ablehnung mit Grund -------------------------------------- */
@@ -884,7 +884,7 @@ try {
   check("der Infoblock von B ebenso",
     (await mergeText("#mergeBInfo")) ===
       "Karte B Auftrennstelle aus der Datei. " +
-      "Startpunkt E -20.00 / N 40.00 m Endpunkt E -20.00 / N 0.00 m",
+      "Startpunkt E -20,00 / N 40,00 m Endpunkt E -20,00 / N 0,00 m",
     await mergeText("#mergeBInfo"));
   check("und die Statuszeile nennt beide Karten",
     (await mergeText("#mergeStatus")) === OHNE_WAHL,

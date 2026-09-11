@@ -3645,10 +3645,62 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | `test-validation.mjs` | `#validationReport` im englischen Durchlauf | `textContent()` |
   | `test-scale.mjs` | `#validationReport` nach „Karte prüfen" | `textContent()` |
 
-- **Dezimaltrennzeichen: der Editor benutzt zwei, und keines von beiden
-  wechselt mit der Sprache.** Befund vom 10.09.2026, Stand `4202533`, in beiden
-  Sprachen im Browser gemessen – **kein Auftrag, an der Formatierung ist nichts
-  geändert.**
+- **Dezimaltrennzeichen – ERLEDIGT mit „Schritt 2: ein Zahlenformat für alle
+  vier Orte" (11.09.2026).** Der Eintrag bleibt stehen, weil der Befund die
+  Regel trägt und der Weg dorthin nachlesbar sein soll.
+
+  **Der Stand heute:** `formatMeters(value, digits, maxDigits)` ist die eine
+  Formatierfunktion. Das Dezimalzeichen folgt der Oberflächensprache – deutsch
+  Komma, englisch Punkt –, ein Tausendertrenner entsteht nie, und ein fest
+  verdrahtetes Locale gibt es nicht mehr. Alle vier Orte gehen hier durch:
+  die E/N-Felder, `formatGridMeters()` für `#gridShort`, der `pointermove`-Text
+  in `#hud` und `formatEndpoint()` für das Verbinden-Fenster.
+
+  **Drei Dinge, die dabei gemessen wurden und ohne die der Umbau riskant
+  gewesen wäre:**
+
+  - **Die `I18N_PATTERNS` vertragen beide Trennzeichen schon immer.** Jedes
+    Muster, das eine Dezimalzahl erfasst, benutzt die Zeichenklasse
+    `[\d.,]+` – nachgesehen für alle 22 solchen Muster. Ein
+    sprachabhängiges Zahlenformat bricht die Übersetzung deshalb nicht. Wäre
+    auch nur eines als `(\d+),(\d+)` geschrieben gewesen, hätte die
+    englische Oberfläche an dieser Stelle deutschen Text gezeigt.
+  - **Die E/N-Felder hingen nicht am abgeleiteten Weg.** `refreshDerivedUi()`
+    rief `updateInspector()`, und das schreibt die Felder nicht –
+    `updateSelectionPanel()` tut es. Nach einem Sprachwechsel stand deshalb
+    das Zeichen der vorigen Sprache im Feld. Der Aufruf ist ersetzt.
+  - **`refreshDerivedUi()` hat genau EINEN Aufrufer**, `setLanguage()`.
+
+  **Befund am Rande, und er ist der Grund für eine sonst unerklärliche
+  Testzeile: der Klick auf `#languageToggle` nimmt dem Eingabefeld den
+  Fokus.** Der Schutz „ein fokussiertes Feld wird beim Sprachwechsel nicht
+  überschrieben" kann über den Schalter deshalb gar nicht greifen – bis dahin
+  ist der Fokus beim Schalter. `tools/test-inspector.mjs` misst ihn deshalb
+  über `setLanguage()` selbst und sichert daneben zu, dass derselbe Weg ohne
+  Fokus sehr wohl neu schreibt. Der Schutz gilt jedem künftigen Aufrufer von
+  `refreshDerivedUi()`.
+
+  **Neuer offener Punkt aus demselben Umbau: eine Einmalmeldung friert ihr
+  Zahlenformat ein.** `setLocalizedText()` legt den deutschen Text als
+  `data-i18n-de` am Element ab; die Zahl darin ist in dem Format erstarrt, das
+  beim Erzeugen galt. Gemessen: eine auf englisch erzeugte Meldung zeigt nach
+  dem Wechsel ins Deutsche weiter `E=12.50`, eine auf deutsch erzeugte im
+  Englischen weiter `E=13,50`. Vorher fiel das nicht auf, weil jede Zahl
+  immer deutsch formatiert war. Das trifft nur flüchtige Meldungen – jeder
+  abgeleitete Text wird beim Wechsel neu gebaut und ist richtig. **Kein
+  Auftrag:** die Meldung ist eine Zeile, die bei der nächsten Handlung ohnehin
+  verschwindet, und sie richtig zu machen hieße, die Zahl aus dem fertigen
+  Text wieder herauszurechnen.
+
+  **Ebenfalls offen, gleiche Familie: die übrigen `toFixed(2)`-Stellen.** Der
+  Prüfbericht (Perimeterfläche, Exclusion-Fläche, engste Stelle, Mäherbreite,
+  auffälliges Segment) und der Vergleichsblock eines ausgewählten Punktes
+  rechnen weiter mit `toFixed()` und zeigen damit in **beiden** Sprachen einen
+  Punkt. Sie gehören nicht zu den vier Orten dieses Schritts; wer sie
+  nachzieht, schickt sie durch dieselbe eine Funktion.
+
+  **Der ursprüngliche Befund**, vom 10.09.2026, Stand `4202533`, in beiden
+  Sprachen im Browser gemessen:
 
   | Ort | deutsch | englisch | Funktion |
   |---|---|---|---|

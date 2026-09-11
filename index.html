@@ -11751,19 +11751,30 @@ function updateVertexMarkerSize() {
    6. PUNKTEDITOR
    ========================================================================== */
 
-/** Formatiert Meterwerte für die deutsche Eingabeanzeige. */
-function formatMeters(value, digits = 2) {
-  return value.toLocaleString("de-DE", {
-    /*
-     * Kein Tausendertrenner. Die Ausgabe dieser Funktion steht in den
-     * E/N-Eingabefeldern und wird von parseLocaleNumber() zurueckgelesen -
-     * ein Trennpunkt in "1.234,50" machte daraus NaN, und ein Punkt ab
-     * 1000 Einheiten war ueber die Felder nicht mehr zu bearbeiten.
-     */
-    useGrouping: false,
-    minimumFractionDigits: digits,
-    maximumFractionDigits: Math.max(digits, 4)
-  });
+/**
+ * Formatiert einen Zahlenwert für die Anzeige - die EINE Stelle dafür.
+ *
+ * Das Dezimalzeichen folgt der Oberflächensprache: deutsch Komma, englisch
+ * Punkt. Vorher stand `"de-DE"` fest verdrahtet an vier Stellen, und zwei
+ * weitere Orte rechneten mit `toFixed()`, also immer mit Punkt - die deutsche
+ * Oberfläche zeigte damit beide Zeichen nebeneinander, die englische ein
+ * Komma. Alle vier Orte (E/N-Felder, Rasterfeld der Statuszeile,
+ * Cursor-Koordinaten, Verbinden-Fenster) gehen jetzt hier durch.
+ *
+ * **Nie ein Tausendertrenner.** Die Ausgabe steht in den E/N-Eingabefeldern
+ * und wird von parseLocaleNumber() zurückgelesen - ein Trennpunkt in
+ * "1.234,50" machte daraus NaN, und ein Punkt ab 1000 Einheiten war über die
+ * Felder nicht mehr zu bearbeiten.
+ */
+function formatMeters(value, digits = 2, maxDigits = Math.max(digits, 4)) {
+  return value.toLocaleString(
+    currentLanguage === "en" ? "en-US" : "de-DE",
+    {
+      useGrouping: false,
+      minimumFractionDigits: digits,
+      maximumFractionDigits: maxDigits
+    }
+  );
 }
 
 
@@ -11833,7 +11844,18 @@ function setPointRoleText(role) {
 
 
 /** Aktualisiert Felder, Buttons und Metadaten des Punkteditors. */
-function updateSelectionPanel() {
+/**
+ * Baut den Auswahlblock des Inspektors neu auf.
+ *
+ * `keepFocusedInputs` setzt refreshDerivedUi() beim Sprachwechsel: der Block
+ * muss dann neu geschrieben werden, damit das Dezimalzeichen mitwechselt, aber
+ * ein Feld, in dem gerade getippt wird, darf dabei nicht verlorengehen. Auf
+ * allen übrigen Wegen wird weiterhin überschrieben - dort ist das Neuschreiben
+ * gerade der Zweck, etwa nach Enter im Feld.
+ */
+function updateSelectionPanel(options = {}) {
+  const keepFocused = options.keepFocusedInputs === true;
+
   syncActiveSlotFromGlobals();
   updateInspector();
 
@@ -11918,8 +11940,14 @@ function updateSelectionPanel() {
 
   setPointRoleText(describePointRole(selectedVertex));
 
-  eastInput.value = formatMeters(east, 2);
-  northInput.value = formatMeters(north, 2);
+  if (!(keepFocused && document.activeElement === eastInput)) {
+    eastInput.value = formatMeters(east, 2);
+  }
+
+  if (!(keepFocused && document.activeElement === northInput)) {
+    northInput.value = formatMeters(north, 2);
+  }
+
   eastInput.placeholder = "";
   northInput.placeholder = "";
 
@@ -15365,30 +15393,17 @@ function applyMowerDimensions() {
    7. RASTER
    ========================================================================== */
 
-/** Formatiert Rasterwerte kompakt, aber ausreichend präzise. */
+/**
+ * Formatiert Rasterwerte kompakt, aber ausreichend präzise.
+ *
+ * Nur noch die Stellenzahl ist hier zu Hause, das Zahlenformat kommt aus
+ * formatMeters(). Die beiden oberen Zweige waren vorher wörtlich gleich - ab
+ * 0,01 gelten zwei bis drei Nachkommastellen, darunter drei bis vier.
+ */
 function formatGridMeters(value) {
-  /* Kein Tausendertrenner, gleiche Begruendung wie bei formatMeters(). */
-  if (value >= 1) {
-    return value.toLocaleString("de-DE", {
-      useGrouping:false,
-      minimumFractionDigits:2,
-      maximumFractionDigits:3
-    });
-  }
-
-  if (value >= 0.01) {
-    return value.toLocaleString("de-DE", {
-      useGrouping:false,
-      minimumFractionDigits:2,
-      maximumFractionDigits:3
-    });
-  }
-
-  return value.toLocaleString("de-DE", {
-    useGrouping:false,
-    minimumFractionDigits:3,
-    maximumFractionDigits:4
-  });
+  return value >= 0.01
+    ? formatMeters(value, 2, 3)
+    : formatMeters(value, 3, 4);
 }
 
 
@@ -15664,7 +15679,7 @@ function getPerimeterEndpoints(slot) {
 
 /** Formatiert eine E/N-Koordinate für das Verbindungsfeld. */
 function formatEndpoint(point) {
-  return `E ${point[0].toFixed(2)} / N ${point[1].toFixed(2)} m`;
+  return `E ${formatMeters(point[0], 2, 2)} / N ${formatMeters(point[1], 2, 2)} m`;
 }
 
 
@@ -17743,7 +17758,8 @@ svg.addEventListener("pointermove", event => {
 
   hud.textContent =
     hasKnownScale()
-      ? `E: ${pointerEast.toFixed(2)} m   N: ${pointerNorth.toFixed(2)} m`
+      ? `E: ${formatMeters(pointerEast, 2, 2)} m   ` +
+        `N: ${formatMeters(pointerNorth, 2, 2)} m`
       : `x: ${pointerEast.toExponential(6)}   y: ${pointerNorth.toExponential(6)}`;
 
   /* Das Aufziehen einer Form geht allem anderen vor. */
@@ -19765,7 +19781,15 @@ function refreshDerivedUi() {
 
   applyToolRailState();
   applyInspectorState();
-  updateInspector();
+
+  /*
+   * updateSelectionPanel() statt updateInspector(): es ruft den Inspektor
+   * selbst auf und schreibt zusätzlich die E/N-Felder, deren Dezimalzeichen
+   * mit der Sprache wechselt. Ohne diesen Weg stünde nach dem Sprachwechsel
+   * noch das Zeichen der vorigen Sprache im Feld.
+   */
+  updateSelectionPanel({keepFocusedInputs:true});
+
   updateFeatureDrawUi();
   updateHistoryButtons();
   updateStatusBar();
