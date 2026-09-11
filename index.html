@@ -2544,7 +2544,17 @@
     .tool-rail-toggle { display:none; }
   }
 
-  @media(max-width:900px) {
+  /*
+   * Etappe 8c, gemessen: die sechs Felder brauchen 769 px, sobald die
+   * Beschriftungen weg sind (deutsch, Zeiger auf der Karte, Auswahlzähler
+   * gefüllt; englisch 666 px). Aufgerundet auf 10 px ist das 770. Die frühere
+   * Schwelle 900 px nahm ihnen 130 px zu früh den Platz.
+   *
+   * Die Zahl gilt für den Zustand OHNE Beschriftungen - und nur der kommt an
+   * dieser Schwelle vor: sie weichen schon ab 1180 px. Mit ihnen braucht die
+   * Zeile 1000 px, und so breit ist das Fenster dort immer.
+   */
+  @media(max-width:769px) {
     /* Zeile 2 bleibt unberührt - sie spannt ohnehin über alle Spalten. */
     .status-bar { grid-template-columns:minmax(0,auto) auto minmax(0,1fr) auto auto; }
     /*

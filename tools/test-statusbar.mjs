@@ -522,10 +522,72 @@ try {
     (await sichtbareFelder()).join(",") === "Karte,Maßstab,Raster,Bezugspunkt,Prüfung",
     (await sichtbareFelder()).join(","));
 
-  await page.setViewportSize({ width: 860, height: 800 });
+  /*
+   * Etappe 8c: die Schwelle liegt seit dem dritten Durchgang bei 770 px, nicht
+   * mehr bei 900. Gemessen ist der Platzbedarf der sechs Felder OHNE
+   * Beschriftungen - nur dieser Zustand kommt an der Schwelle vor, sie weichen
+   * schon ab 1180 px: deutsch 769 px, englisch 666 px.
+   *
+   * Zugesichert wird an der Kante, und in beiden Sprachen: bei 770 und 771 px
+   * passen alle Felder, bei 769 px greift die schmale Fassung. "Passt" heisst
+   * dabei: die Summe der GERENDERTEN Breiten plus Luecken bleibt unter der
+   * Zeilenbreite - nicht scrollWidth, denn das Raster klemmt die Zeile und
+   * verbirgt eine Stauchung.
+   *
+   * Damit reisst der Test, sobald ein Feld waechst - das ist sein Zweck.
+   */
+  const passtOhneStauchung = () =>
+    page.evaluate(() => {
+      const bar = document.getElementById("statusBar");
+      const kinder = [...bar.children].filter((el) =>
+        !el.classList.contains("status-transient") &&
+        getComputedStyle(el).display !== "none");
+      const stil = getComputedStyle(bar);
+      const luecke = parseFloat(stil.columnGap || "0") || 0;
+      const polsterung =
+        parseFloat(stil.paddingLeft) + parseFloat(stil.paddingRight);
+      const summe = kinder.reduce(
+        (wert, el) => wert + el.getBoundingClientRect().width, 0);
+      return {
+        felder: kinder.length,
+        gebraucht: Math.ceil(summe + luecke * (kinder.length - 1) + polsterung),
+        platz: Math.round(bar.getBoundingClientRect().width),
+      };
+    });
+
+  for (const sprache of ["deutsch", "englisch"]) {
+    if (sprache === "englisch") {
+      await page.locator("#languageToggle").click();
+      await page.waitForTimeout(400);
+    }
+
+    for (const breite of [770, 771]) {
+      await page.setViewportSize({ width: breite, height: 800 });
+      await page.waitForTimeout(300);
+
+      const mass = await passtOhneStauchung();
+
+      check(`${sprache}: bei ${breite} px stehen alle sieben Felder`,
+        mass.felder === 7, JSON.stringify(mass));
+      check(`${sprache}: und sie passen bei ${breite} px ohne Stauchung`,
+        mass.gebraucht <= mass.platz, JSON.stringify(mass));
+    }
+
+    await page.setViewportSize({ width: 769, height: 800 });
+    await page.waitForTimeout(300);
+
+    check(`${sprache}: bei 769 px greift die schmale Fassung`,
+      (await passtOhneStauchung()).felder === 4,
+      JSON.stringify(await passtOhneStauchung()));
+  }
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(400);
+
+  await page.setViewportSize({ width: 760, height: 800 });
   await page.waitForTimeout(300);
 
-  check("unter 900 px weichen Raster, Bezugspunkt und Prüfung",
+  check("unter der Schwelle weichen Raster, Bezugspunkt und Prüfung",
     (await sichtbareFelder()).join(",") === "Karte,Maßstab",
     (await sichtbareFelder()).join(","));
 

@@ -1299,7 +1299,8 @@ Meldungen, und ziehen mit Etappe 5 in den Inspektor.
 
 **Ausblendreihenfolge bei schmalem Fenster**, und der Grund dafür: Zuerst
 verschwinden die Beschriftungen der linken Felder (ab 1180 px), dann
-Bezugspunkt und Prüfung (ab 900 px). Zuletzt weichen würden Dateiname und
+Bezugspunkt und Prüfung (**ab 769 px**, bis Schritt 4 des dritten Durchgangs
+900 px). Zuletzt weichen würden Dateiname und
 Maßstab; die flüchtige Meldung und die beiden rechten Anzeigen bleiben immer.
 
 Maßgeblich ist die **Nachschlagbarkeit**: Bezugspunkt und Prüfergebnis stehen
@@ -3115,7 +3116,7 @@ Hochformat braucht; siehe Punkt 3.
 | Kartenhöhe `68vh`, mindestens 420 px, höchstens 760 px | **trägt**, ist aber nie an einem Tablet gemessen worden |
 | 44-px-Zielgrößen für Menütitel, Menüeinträge, Kopfzeilenknöpfe und Inspektorknöpfe | **trägt und ist der wichtigste Punkt** – ein Tablet wird mit dem Finger bedient, unabhängig von der Breite. Fiele der Block ersatzlos, bekäme ein Tablet im **Querformat** Desktop-Zielgrößen |
 | `font-size:16px` in Eingabefeldern gegen den Formular-Zoom | **trägt auf dem iPad** – siehe die Richtigstellung unten; die Begründung nannte bis Schritt E das falsche Gerät |
-| Statuszeile: `data-optional`-Felder weichen ab 900 px | hängt **nicht** an 760, sondern an 900. Bezugspunkt und Prüfergebnis weichen damit auf **jedem** Tablet im Hochformat – nachschlagbar im Inspektor, also regelkonform, aber es ist der Normalfall und nicht mehr der Ausnahmefall |
+| Statuszeile: `data-optional`-Felder weichen | hing **nicht** an 760, sondern an 900 – Bezugspunkt und Prüfergebnis wichen damit auf **jedem** Tablet im Hochformat. **Erledigt mit Schritt 4 des dritten Durchgangs:** die Schwelle ist gemessen und liegt bei 769 px, auf einem Tablet im Hochformat stehen beide Felder wieder da |
 | Marke verkleinert, Menüleiste in eigener Zeile | **überflüssig** ab etwa 820 px, dort passt beides nebeneinander |
 
 **Der Befund daraus, und er ist der eigentliche Inhalt der Etappe: der eine
@@ -3264,8 +3265,55 @@ nachschlagbar ist – aber es ist der Normalfall des Zielgeräts.
 | **8b** | „Erklärung ohne Hover" – siehe den Abschnitt unten | Setzt 8a nicht voraus, ist aber der größere Brocken und sollte nicht mit einer Layout-Umstellung im selben Commit liegen |
 | **8c** – **ANGEHALTEN, Messung liegt vor** | Die Schwelle der `data-optional`-Felder entscheiden: bleibt sie bei 900 px, folgt sie der neuen Grenze, oder – wie die Messung nahelegt – geht sie **hinauf**? | Erst sinnvoll, wenn 8a die Grenze festgelegt hat |
 
-**Die Messung zu 8c, 11.09.2026, Stand `bdbbc65` – und sie verschiebt die
-Frage.** Gemessen ist die **Eigenbreite** der Statuszeile mit allen sechs
+### 8c – ERLEDIGT mit Schritt 4 des dritten Durchgangs: die Schwelle ist 770 px
+
+**Die Schwelle der `data-optional`-Felder steht jetzt bei 769 px** (eine
+Stelle im CSS, `@media(max-width:769px)`). Sie ist gemessen, deutsch und
+englisch, mit einer Gegenprobe an der Kante.
+
+| Zustand | deutsch | englisch |
+|---|---|---|
+| **ohne Beschriftungen** – der Zustand an der Schwelle | **769 px** | 666 px |
+| mit Beschriftungen – gilt erst ab 1181 px | 1000 px | 891 px |
+
+Maximum 769, aufgerundet auf 10 px: **770 px**. Unterhalb weichen die drei
+Felder, bei 770 und 771 px stehen alle sieben und passen ohne Stauchung –
+beides ist in `tools/test-statusbar.mjs` in **beiden** Sprachen zugesichert,
+und die Mutation „Schwelle zurück auf 900" reißt vier Zusicherungen.
+
+**Der Platzbedarf hängt am Zustand der Beschriftungen, und deshalb gibt es zwei
+Zahlen.** Sie weichen schon ab 1180 px; an der Schwelle sind sie also längst
+weg. Die 1000 px der beschrifteten Fassung sind trotzdem eingehalten, weil sie
+nur oberhalb von 1180 px gilt – dort ist so viel Platz immer da.
+
+**Gemessen im benannten Zustand:** Karte geladen (`karte.geojson`, 13 Zeichen),
+Maßstab „Sunray-Relativformat" (die längste der vier Lesarten), Prüfung
+gelaufen, Bezugspunkt gesetzt, **Zeiger auf der Karte und vier Punkte
+ausgewählt** – die beiden rechten Felder sind sonst leer und damit schmal,
+und genau sie werden breit, sobald jemand die Karte anfasst. Die
+Cursor-Anzeige stand dabei auf `E: 900,82 m   N: 148,28 m`.
+
+**RICHTIGSTELLUNG: die frühere Messung „957 px" war nicht kalibriert.** Der
+Klon wurde an `document.body` gehängt und erbte dessen Schriftgröße statt der
+der Statuszeile – er fiel dadurch systematisch zu breit aus. Aufgefallen ist
+es an der Gegenprobe: die Messung meldete die Felder **bei jeder Breite bis
+1600 px** als gestaucht, auch dort, wo sichtbar reichlich Platz ist. Mit
+`huelle.style.font = getComputedStyle(bar).font` verschwindet der Effekt
+vollständig.
+
+**Das ist genau die Falle, die diese Datei schon einmal festgehalten hat** –
+bei den Punktknöpfen des Inspektors: *„eine Kopie außerhalb von
+`#inspectorPoint` muss Schrift und Polsterung vom Original übernehmen, sonst
+misst man 16 px statt der echten 14."* Sie ist beim zweiten Mal trotzdem
+zugeschlagen, weil die neue Messung die Regel nicht mitgelesen hat. **Eine
+Klonmessung wird gegen einen Fall kalibriert, in dem sie NICHTS finden darf.**
+
+**Der frühere Vorschlag „960 px" ist damit hinfällig**, und die daraus
+abgeleitete Aussage „die 900 px sind selbst zu niedrig" war falsch: sie waren
+zu **hoch**. Die alte Messung bleibt unten als Beleg stehen.
+
+**Die frühere Messung zu 8c, 11.09.2026, Stand `bdbbc65` – nicht kalibriert,
+siehe oben.** Gemessen ist die **Eigenbreite** der Statuszeile mit allen sechs
 Feldern, über Klone mit `width:max-content` plus Lücken und Polsterung; das ist
 dasselbe Verfahren wie bei der Kopfzeile in Etappe 6, und `scrollWidth` taugt
 dafür nicht, weil das Raster die Zeile klemmt.
@@ -3828,7 +3876,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   |---|---|---|
   | 1100 px | `@media` | die Werkzeugleiste zeigt Text |
   | **1000 px** | **JS**, `TOOL_RAIL_NARROW_QUERY = "(max-width: 1000px)"` | die Werkzeugleiste klappt **erzwungen** ein |
-  | 900 px | `@media` | Statusfelder mit `data-optional` weichen |
+  | **769 px** | `@media` | Statusfelder mit `data-optional` weichen (bis Schritt 4 des dritten Durchgangs: 900 px) |
   | **743 px** | `@media` | gestapeltes Layout: alles untereinander (bis Etappe 8a: 760 px) |
   | – | `@media (pointer: coarse)` | 44-px-Zielgrößen und 16 px in Eingabefeldern, **ohne Breitenbezug** (seit Etappe 8a) |
 
