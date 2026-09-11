@@ -3220,7 +3220,41 @@ nachschlagbar ist – aber es ist der Normalfall des Zielgeräts.
 |---|---|---|
 | **8a** – **ERLEDIGT** | Den einen `@media(max-width:760px)`-Block in **zwei** geteilt: einen Breitenblock bei **743 px** (Stapeln, waagerechte Leiste, Seiten-Scrolling, Kartenhöhe, verkleinerte Marke) und einen Block an der **Bedienart** (`pointer: coarse`) mit den 44-px-Zielgrößen und der 16-px-Schrift. Die Spezifität von `.coord-input` ist mitgezogen, Befund 2 ist damit weg. | Ohne die Trennung bekommt ein Tablet im Querformat weiter Desktop-Zielgrößen. Alles Weitere hängt an dieser Trennung |
 | **8b** | „Erklärung ohne Hover" – siehe den Abschnitt unten | Setzt 8a nicht voraus, ist aber der größere Brocken und sollte nicht mit einer Layout-Umstellung im selben Commit liegen |
-| **8c** | Die Schwelle der `data-optional`-Felder entscheiden: bleibt sie bei 900 px, oder folgt sie der neuen Grenze? | Erst sinnvoll, wenn 8a die Grenze festgelegt hat |
+| **8c** – **ANGEHALTEN, Messung liegt vor** | Die Schwelle der `data-optional`-Felder entscheiden: bleibt sie bei 900 px, folgt sie der neuen Grenze, oder – wie die Messung nahelegt – geht sie **hinauf**? | Erst sinnvoll, wenn 8a die Grenze festgelegt hat |
+
+**Die Messung zu 8c, 11.09.2026, Stand `bdbbc65` – und sie verschiebt die
+Frage.** Gemessen ist die **Eigenbreite** der Statuszeile mit allen sechs
+Feldern, über Klone mit `width:max-content` plus Lücken und Polsterung; das ist
+dasselbe Verfahren wie bei der Kopfzeile in Etappe 6, und `scrollWidth` taugt
+dafür nicht, weil das Raster die Zeile klemmt.
+
+**Die Zeile braucht 957 px.** Der Wert ist von der Fensterbreite unabhängig –
+die Feldbreiten ändern sich nicht – und bei feinem wie grobem Zeiger gleich:
+
+| Breite | passt mit allen Feldern? |
+|---|---|
+| 1024, 980, **960** | ja |
+| **940** | nein, 17 px zu wenig |
+| 920 | nein, 37 px zu wenig |
+| 901 | nein, 56 px zu wenig |
+| 744 | nein, **213 px** zu wenig |
+
+**Daraus zwei Dinge, und das zweite war nicht bekannt:**
+
+1. **Die Schwelle nach unten zu ziehen scheidet aus.** Bei 744 px fehlten der
+   Zeile 213 px; die Felder stünden gequetscht da oder verdrängten den
+   Auswahlzähler. „Folgt sie der neuen Grenze?" ist damit beantwortet: **nein.**
+2. **Die 900 px sind selbst zu niedrig.** Zwischen **901 und 956 px** stehen
+   Bezugspunkt und Prüfergebnis heute noch da, obwohl die Zeile schon 17 bis
+   56 px zu schmal ist. Das ist genau der Fehler, den Etappe 6 an der Kopfzeile
+   gefunden hat: eine Stauchung, die man dem Text nicht ansieht, weil
+   `overflow` sie verbirgt. **Vorschlag: 960 px.** Dann weichen die beiden
+   Felder genau dann, wenn sie nicht mehr passen, und nicht 57 px zu spät.
+
+**Nicht gebaut.** Welcher Wert gilt, ist eine Entscheidung – 960 wäre die
+gemessene Kante, 900 der Bestand. Die Messung nimmt sie niemandem ab, sie macht
+nur klar, dass „bleibt bei 900" nicht der neutrale Ausgang ist, für den er
+aussieht.
 | **8d** – **ERLEDIGT** | Zusicherungen in `tools/test-toolbar.mjs`, bei **1920, 1440, 1280, 860 und 744 px** und je **fein und grob**: Zielgrößen ≥ 44 px bei grobem Zeiger, Schrift im E/N-Feld, drei Rasterspalten bis zur Grenze hinunter, und dass unterhalb von 744 px nichts abgewiesen wird | Vorgezogen vor 8b/8c, weil sie den Zustand festhalten, den 8a herstellt – und weil 8b und 8c beide eine noch offene Entscheidung brauchen |
 
 **Wie die Bedienart im Test emuliert wird – und warum das eine Gegenprobe
