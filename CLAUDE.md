@@ -3582,6 +3582,43 @@ vierzehn?** Die naheliegenden drei Wege und was sie kosten:
 verlangt hat – *welche Erklärungen überhaupt gebraucht werden* –, und hält
 genau dort an. **Gebaut wird nichts, bevor der Ort entschieden ist.**
 
+#### ANGEHALTEN mit Schritt 6 des dritten Durchgangs – die Wege gegen fünf Kriterien
+
+Geprüft wurden die drei Wege gegen die fünf Kriterien des Auftrags:
+**(a)** auf Touch ohne Hover sichtbar, **(b)** bei feinem Zeiger und 900 px
+keine Mehrhöhe im Inspektor, **(c)** jede Erklärung an genau einer Stelle – der
+`title` aus derselben Quelle oder gar nicht, **(d)** DE+EN über den abgeleiteten
+Weg, **(e)** Ablehnungsgrund und Erklärung bleiben getrennt.
+
+| Weg | (a) | (b) | (c) | (d) | (e) |
+|---|---|---|---|---|---|
+| 1 – ein sichtbares Feld je Knopf | ja | **nein** | ja | ja | ja |
+| 2 – ein „Was tut das?"-Zustand | ja | **nicht entscheidbar** | ja | ja | ja |
+| 3 – ins Hilfe-Overlay | ja | ja | ja | ja | ja |
+
+**Weg 1 fällt gerechnet, nicht geschätzt.** Vierzehn Felder in der Machart von
+`.tool-reason` kosten je rund 35 px, zusammen etwa 490 px. Die verbindliche
+Reserve bei 900 px Fensterhöhe beträgt 12 px. (b) ist damit um zwei
+Größenordnungen verfehlt.
+
+**Weg 2 lässt sich ohne Entwurf nicht beurteilen, und genau das ist der
+Anhaltegrund.** „Blendet die Erklärungen an Ort und Stelle ein" legt nicht
+fest, ob sie **im Layout** stehen – dann wachsen sie im Inspektor, und (b)
+fällt – oder als Ebene **über** dem Inspektor. Der Unterschied entscheidet das
+Kriterium und ist eine Entwurfsfrage, keine Messung.
+
+**Weg 3 erfüllt alle fünf** – und trotzdem wird er hier nicht gebaut, aus einem
+Grund, der außerhalb der fünf Kriterien liegt und deshalb ausdrücklich genannt
+sein will: **das Hilfe-Overlay wird mit Etappe 10 ohnehin neu geschrieben,
+sobald die Anordnung feststeht.** Die Anordnung hat sich in diesem Durchgang
+zweimal geändert (8a und 8c), und Etappe 9 wird sie erneut ändern. Die
+Erklärungen jetzt ins Overlay zu schreiben hieße, es zweimal zu schreiben –
+genau der Aufwand, den die Zurückstellung vermeiden soll.
+
+**Zwei Fragen liegen damit beim Projektinhaber:** ob Weg 2 als Ebene über dem
+Inspektor gemeint ist (dann erfüllen zwei Wege alle Kriterien und es ist zu
+wählen), und ob Weg 3 vor Etappe 10 gebaut werden soll oder mit ihr.
+
 **5. Der Schalter „vollständige Fassung" existiert nicht.** Nachgesehen: es
 gibt sechs `localStorage`-Schlüssel – `referenceOrigin`, `toolRailCollapsed`,
 `inspectorCollapsed` und die drei Faltblock-Schlüssel –, und keiner davon ist
@@ -3643,6 +3680,42 @@ unterscheidet sich nur die verfügbare Höhe: 915 / 735 / 635 px, also **Reserve
 Alle vier herauszunehmen brächte 1280 × 800 von −58 auf +65 px – gerade über
 die Kante –, während zwei Drittel des Inhalts unangetastet blieben.
 
+#### Befund und Plan, Stand `b5594fb` – gemessen mit Schritt 7 des dritten Durchgangs
+
+**Die Höhen von oben sind reproduziert, und zwar exakt.** Derselbe Zustand
+(Exclusion #0 mit vier Punkten, alle fünf Faltblöcke zu), gemessen als Summe
+der Blöcke plus Lücken plus Polsterung:
+
+| Block | Höhe |
+|---|---|
+| Kopfblock | 64 px |
+| `#inspectorMulti` | 110 px |
+| `#inspectorFeature` | **274 px** |
+| `#inspectorSelection` | 37 px |
+| `#featureNavigationSection` | 21 px |
+| `#inspectorStock` | 21 px |
+| `#inspectorTransform` | 21 px |
+| `#inspectorValidation` | 21 px |
+| `#originSection` | 20 px |
+| acht Lücken à 10 px + 24 px Polsterung | 104 px |
+| **Inhalt** | **693 px** |
+
+**Die verfügbare Höhe ist dagegen 24 px größer als im Eintrag oben**, und die
+neue Zahl ist die geprüfte: 48 (Kopfzeile) + 939 (`main`) + 30 (Legende) + 63
+(Statuszeile) = 1080, die Fensterhöhe geht auf. Die frühere Reihe (915/735/635)
+ergäbe 1056 und kann so nicht gestimmt haben.
+
+| Fenster | Spalte | Inhalt | Reserve |
+|---|---|---|---|
+| 1920 × 1080 | 939 px | 693 px | **+246 px** |
+| 1440 × 900 | 759 px | 693 px | **+66 px** |
+| 1280 × 800 | 659 px | 693 px | **−34 px** |
+
+**An der Richtung ändert das nichts:** eng wird es über die Fensterhöhe, nie
+über die Breite, und der Auswahlzustand trägt mit 421 px (Kopf + Multi +
+Feature + Selection, ohne Lücken) weiterhin **61 %** des Inhalts, die fünf
+Faltblöcke zusammen 104 px, also 15 %.
+
 #### 9a – Doppelungen im Auswahlzustand
 
 **106 px, kein Umzug, kein Ortswechsel.** Der billigste verfügbare Gewinn, und
@@ -3663,6 +3736,43 @@ Aufgeschlüsselt, damit beim Planen nicht neu gemessen werden muss:
 | `#inspectorFeature` (274) | Überschrift 15 · Typ 31 · Punkte 31 · Fläche 31 · idx 31 · Knopf „Exclusion duplizieren" 40 · Hinweis 35 |
 | `#inspectorMulti` (110) | Überschrift 15 · „Alle 4 Punkte von Exclusion #0." 40 · Hinweis 35 |
 | `#inspectorSelection` (37) | die beiden Knöpfe nebeneinander |
+
+**Der Vorschlag, Stand `b5594fb`: `#inspectorMulti` entfällt, `#inspectorFeature`
+bleibt, der Kopfblock bleibt.** Gewählt ist nicht die kürzeste Stelle, sondern
+die, an der man die Angabe sucht:
+
+| Stelle | was sie heute sagt | Vorschlag |
+|---|---|---|
+| Kopfblock | „4 Punkte ausgewählt" / „Exclusion #0 · vollständig" | **bleibt** – er ist der Anker, der bei jedem Klick an derselben Stelle steht, und er beantwortet „was habe ich gerade in der Hand?" |
+| `#inspectorMulti` | „Alle 4 Punkte von Exclusion #0." + Hinweis zum Ziehen | **entfällt im Zustand `feature`** – der Satz wiederholt den Kopfblock Wort für Wort, und sein Hinweis steht als zweiter neben dem von `#inspectorFeature` |
+| `#inspectorFeature` | Typ, Punkte, Fläche, idx, Duplizieren, Hinweis | **bleibt** – hier stehen die Kennzahlen, die es sonst nirgends gibt |
+
+**Was das bringt: 120 px** (110 px Block + 10 px Lücke). Bei 1280 × 800 wird
+aus −34 px Reserve **+86 px**, das Höhenziel hält dort wieder. **Das ist mehr
+als die vier Faltblöcke zusammen** (104 px) und kostet keinen Ortswechsel.
+
+**`#inspectorMulti` bleibt für den Zustand `multi` bestehen** – mehrere Punkte
+EINES Features, aber nicht alle. Dort sagt „Alle 4 Punkte von …" nicht dasselbe
+wie der Kopfblock, und der Ziehhinweis steht allein. Die Änderung betrifft
+allein `INSPECTOR_BLOCKS`: `inspectorMulti` verliert den Zustand `feature`.
+
+**Der doppelte Hinweissatz ist der zweite Teil.** „Einen markierten Punkt
+ziehen verschiebt die ganze Gruppe." (`#inspectorMulti`) und „Verschieben durch
+Ziehen an der Geometrie auf der Karte." (`#inspectorFeature`) erklären beide
+das Verschieben, kosten je 35 px und stehen im Zustand `feature` untereinander.
+Mit dem Wegfall von `#inspectorMulti` ist das von selbst erledigt.
+
+**Fundstellen:** `INSPECTOR_BLOCKS` (die Liste `{id, states}`),
+`updateInspector()` für den Text von `#multiSummary`, und das Markup von
+`#inspectorMulti` / `#inspectorFeature`.
+
+**Betroffene Zusicherungen – alle in `tools/test-inspector.mjs`, und nur
+dort:** die Zustandsliste („welche Blöcke sind sichtbar") für `feature`,
+`#multiSummary`, sowie die Höhenmessung „Zustand ein Punkt passt ohne
+Scrollen". `#inspectorFeature`, `#featureTypeStat`, `#featurePointStat`,
+`#featureAreaStat`, `#featureIdxStat` und `#duplicateFeatureBtn` bleiben
+unverändert. **Kein anderer Test greift auf diese ids zu** – nachgesehen über
+alle siebzehn.
 
 **Beim Planen zu entscheiden, nicht jetzt: welche der drei Stellen die Angabe
 trägt – und warum.** Nicht „die kürzeste gewinnt", sondern **die, an der man
@@ -3705,6 +3815,46 @@ Die Kartenfenster sitzen heute unten links (`left:12px; bottom:12px`,
 | **Den Sprung in die freie Fläche einpassen** | `selectWholeFeature()` bekommt eine zweite Aufgabe und muss die Fenstergeometrie kennen; die Einpassung hinge dann davon ab, welches Fenster gerade offen ist – eine Kopplung zwischen Auswahl und Fensterzustand, die es heute nicht gibt |
 | **Andocken statt schweben** | kostet dauerhaft Kartenfläche, solange der Bericht offen ist, und bricht mit dem Muster der drei vorhandenen Fenster – dafür entfällt die Überdeckung vollständig |
 
+**Die Überdeckung ist gemessen, nicht mehr nur befürchtet – Stand `b5594fb`.**
+Ein Kartenfenster steht bei `left:12px; bottom:12px`, ist
+`min(300px, 100% − 24px)` breit und höchstens `100% − 24px` hoch. Bei
+1280 × 800 hat die Karte 792 × 939 px; das Fenster nimmt davon die linke
+Spalte von 300 px, also **38 % der Kartenbreite** – und an genau der Kante, an
+der `selectWholeFeature()` einpasst.
+
+**Der Vorschlag: andocken statt schweben, und zwar an den unteren Rand der
+Karte über die volle Breite.** Von den drei Antworten oben ist es die einzige,
+die ohne neue Kopplung auskommt:
+
+| Antwort | Urteil |
+|---|---|
+| Fenster verschiebbar | verlangt eine Zieh-Mechanik, die es nirgends gibt, **plus** die Frage nach dem Gedächtnis der Position – ein neuer `localStorage`-Schlüssel ohne dauerhaften Wunsch dahinter, was die Hausregel verbietet |
+| Sprung in die freie Fläche einpassen | koppelt `selectWholeFeature()` an den Fensterzustand. Die Einpassung hinge davon ab, welches Fenster gerade offen ist – eine Abhängigkeit zwischen Auswahl und Fenster, die es heute nicht gibt |
+| **andocken** | kostet dauerhaft Kartenhöhe, solange der Bericht offen ist, und bricht mit dem Muster der drei Fenster. Dafür ist die Überdeckung **vollständig** weg, und der Bericht bekommt die volle Breite, die eine Liste aus dutzenden Zeilen ohnehin braucht |
+
+**Der Preis ist benannt und soll benannt bleiben:** ein angedockter Bericht ist
+kein Fenster mehr, und das Muster „drei schwebende Kartenfenster" bekommt eine
+Ausnahme. Das ist eine Entscheidung, keine Ableitung.
+
+**Fundstellen:** `renderValidationResult()` und `findValidationTarget()`
+(unverändert, nur der Ort des Ziels wechselt), `#inspectorValidation` im
+Markup, `validationShortText()` für die Kurzform der Statuszeile (bleibt).
+
+**Betroffene Zusicherungen – und das ist der teuerste Teil des Umzugs:**
+`#validationReport` wird in **neun** Skripten gelesen – `test-validation`,
+`test-scale`, `test-reduce`, `test-dockpath`, `test-merge`, `test-statusbar`,
+`test-inspector`, `test-i18n-dynamic`, `test-straighten`. Jedes davon liest
+heute `textContent()` durch ein geschlossenes `<details>` hindurch; nach dem
+Umzug gibt es das `<details>` nicht mehr, und der Weg zum Text ist ein anderer.
+**Wer 9b baut, fasst diese neun im selben Schritt an** – dieselbe Regel wie bei
+jedem Umzug: „Wege statt Bezeichner".
+
+**Der Gewinn dabei ist der eigentliche Grund für 9b:** dieselben neun
+Zusicherungen können danach `elementGetroffen()` benutzen und damit beides
+belegen – *der Inhalt stimmt* und *der Weg dorthin existiert*. Der offene Punkt
+„Zusicherungen auf unsichtbaren Inhalt" in Abschnitt 7 ist damit eingelöst und
+nicht wegdefiniert.
+
 **Der Faltblock hatte dieses Problem nicht, weil er außerhalb der Karte liegt.**
 Das gehört ausdrücklich dazu: der Umzug **erzeugt** ein Problem, das die
 heutige Lösung nicht hat, und er ist trotzdem richtig – aber nur, wenn die
@@ -3721,6 +3871,37 @@ sie wird bei jeder Auswahländerung neu gebaut.
 wählt ein Feature auf der Karte aus, das Fenster steht also bei **jeder**
 Benutzung möglicherweise vor dem Ergebnis. Bei der Prüfung ist der Sprung die
 Ausnahme, hier ist er der Zweck.
+
+**Der Vorschlag, Stand `b5594fb`: 9c wird erst nach 9b entschieden, und der
+Grund ist eine Zahl.** Zugeklappt kostet die Navigation **21 px** – 3 % des
+Inhalts. Der Umzug bringt also fast nichts an Höhe; sein einziger Gewinn wäre
+die Breite im aufgeklappten Zustand (614 px hoch, 320 px breit). **Solange 9a
+und 9b nicht gebaut sind, ist 9c ein Umzug ohne Anlass.**
+
+**Fundstellen:** `renderFeatureNavigator()`, `#featureNavigationSection` im
+Markup, und `openAllFolds()` im Harness, das `#featureNavigator details`
+ausdrücklich mit öffnet.
+
+**Betroffene Zusicherungen:** `#featureNavigator` wird in
+`tools/test-i18n-dynamic.mjs` gelesen und in `tools/browser-harness.mjs`
+aufgeklappt; die Knöpfe `[data-action="select-whole-feature"]` werden in
+`test-rectify`, `test-reduce` und `test-straighten` geklickt, dazu seit Schritt 2
+dieses Durchgangs in `test-reduce` ein zweites Mal für den englischen
+Durchlauf. **Der Öffnungsschritt im Harness ist der empfindliche Teil:** ein
+Selektor, der nach dem Umzug nichts mehr trifft, wirft nicht – er tut nur
+nichts, und die Tests bestehen weiter, ohne noch etwas zu prüfen.
+
+#### Reihenfolge und Gesamturteil
+
+| Teilschritt | Gewinn | Preis | Urteil |
+|---|---|---|---|
+| **9a** | **120 px**, bei 1280 × 800 von −34 auf +86 px | ein Block weniger im Zustand `feature`; Zusicherungen nur in einem Test | **zuerst bauen** – billigster Gewinn, kein Ortswechsel |
+| **9b** | die Überdeckung fällt, der Bericht bekommt volle Breite, und neun Zusicherungen können endlich die Sichtbarkeit mitbelegen | neun Tests im selben Schritt, plus die Entscheidung „andocken statt schweben" | **danach** |
+| **9c** | 21 px, dazu Breite für die aufgeklappte Liste | derselbe Umzug noch einmal, plus der empfindliche Öffnungsschritt im Harness | **zuletzt, und nur wenn 9b sich bewährt hat** |
+
+**Gebaut ist nichts.** Schritt 7 des dritten Durchgangs war ausdrücklich Befund
+und Plan; die drei Entscheidungen – welcher Block entfällt, andocken oder
+schweben, ob 9c überhaupt kommt – liegen beim Projektinhaber.
 
 #### Was NICHT gemacht wird, mit Begründung
 
