@@ -3354,10 +3354,84 @@ dieses Repository schon einmal richtig gemacht hat.
 
 **Nicht mitentschieden ist die Antwort.** Ein zweites `.tool-reason`-Feld für
 jeden Knopf wäre der naheliegende Weg und der falsche – der Inspektor trägt
-schon zu viel (siehe Etappe 9). Aufzuschreiben ist zuerst, **welche der 32
+schon zu viel (siehe Etappe 9). Aufzuschreiben ist zuerst, **welche der
 Erklärungen überhaupt gebraucht werden**: eine Erklärung, die nur den
 Knopfnamen wiederholt, ist auch am Desktop nichts wert, und die Hausregel
 „der Tooltip erklärt, er benennt nicht" ist bereits formuliert.
+
+#### Die Bestandsaufnahme – gemessen am 11.09.2026, Stand `a2f1f92`
+
+**Zuerst eine Zahlenkorrektur: es sind 23 Tooltips im Markup und 13
+JS-Zuweisungen, nicht 20 und 12.** Die Zahl „32" oben stammt aus einer
+früheren Zählung und ist nicht nachgezogen worden; gemessen sind es **36
+Fundstellen**. Das ist kein Nebensatz, sondern der Fall, den diese Datei als
+Regel führt: *eine Liste ist so vollständig wie ihr Suchmuster*. Gezählt wurde
+jetzt `title="` im Markup und `.title = ` bzw. `setAttribute("title"` im
+Skript.
+
+**Die dreizehn JS-Zuweisungen sind zum größten Teil KEIN Fall für 8b**, und
+das ist der wichtigste Befund der Aufnahme:
+
+| Zuweisung | warum sie hier nicht zählt |
+|---|---|
+| `button.title = blocked ? reason : available` (Zeichenknöpfe) | der **Ablehnungsgrund** – steht schon sichtbar, `runToolAction()` gibt ihn in die Statuszeile aus |
+| `button.title = unsupportedFeatureText()` | ebenso ein Ablehnungsgrund |
+| `undoButton` / `redoButton` | nennen die **Marke** des nächsten Schritts; die steht sonst nirgends, **gebraucht** |
+| `div.title = \`Springt zu …\`` (Prüfbefund) | beschreibt die Wirkung eines Klicks, **gebraucht** |
+| `toggle.title = label` (zweimal) | wiederholt die Beschriftung – **entbehrlich** |
+| `duplicateButton.title` | beschreibt die Wirkung, **gebraucht** |
+| die fünf `TRANSFORM_TOOL_HELP`-Zuweisungen | drei verschiedene Texte, alle **gebraucht** – sie sagen, welche Punkte sich bewegen und was ausdrücklich nicht geschieht |
+
+**Die 23 Markup-Tooltips, nach der Hausregel „erklärt oder benennt nur"
+sortiert:**
+
+| gebraucht – trägt eine Aussage, die nirgends sonst steht | |
+|---|---|
+| „Rechteckauswahl: Rahmen um Punkte ziehen. **Mit Strg** …" | der schärfste Fall: Hover **und** Strg |
+| „Lasso: freie Form … **Mit Strg** …" | ebenso |
+| „Mauszeiger: Punkte auswählen und markierte Punkte bzw. ganze Features verschieben." | nennt das Verschieben ganzer Features |
+| „Distanz messen: … **Verändert die Karte nicht.**" | die Gruppenzusage von „Prüfen" |
+| „Karte prüfen: … **Verändert die Karte nicht.**" | ebenso |
+| „Löschen: … **Mit Undo rückgängig.**" | |
+| „Auswahl aufheben: … **ohne Punkte zu löschen**" | die Abgrenzung zum Löschen |
+| die drei Drehtexte (`setMergeCutBtn`, `setStartPointBtn`, `setEndPointBtn`) | dass beide Punktknöpfe **dieselbe** Drehung auslösen – steht nur hier |
+| „Nicht unterstützte Features und das Ursprungskreuz der Karte" | dass das Kreuz an dieser Ebene hängt |
+| „Rasterweite **und Schrittweite der Pfeiltasten**" | die zweite Wirkung |
+| „Länge und Arbeitsbreite des Mähers einstellen" | die Breite ist zugleich Arbeitsbreite |
+
+| benennt nur – am Desktop schon wertlos | |
+|---|---|
+| „Vergrößern", „Verkleinern", „Kartenansicht einpassen" | Symbolknöpfe; hier ist der Tooltip die **einzige** Beschriftung, also ein **Namens**problem, kein Erklärungsproblem |
+| „Werkzeugleiste einklappen", „Inspektor einklappen" | ebenso |
+| „Karte A und B zu einem Perimeter verbinden" | wiederholt den Menüeintrag |
+| „Rasterweite einstellen und am Raster einrasten" | wiederholt die Fensterüberschrift |
+| „Deutsch / English" | wiederholt die Beschriftung |
+| „Keine Änderung zum Rückgängigmachen/Wiederholen" | Zustandsansage, kein Erklärtext |
+
+**Daraus die Aufteilung, die 8b zu bauen hätte – und sie ist zweigeteilt, was
+vorher nicht klar war:**
+
+1. **Erklärungen** (etwa 14 Texte): tragen eine Aussage, die auf dem Zielgerät
+   sonst nirgends steht. Sie brauchen einen sichtbaren Ort.
+2. **Namen von Symbolknöpfen** (5 Texte): Zoom, Einpassen, die beiden
+   Einklapper. Dort ist der Tooltip nicht die Erklärung, sondern die
+   **Beschriftung** – das ist eine andere Frage und wird mit einem sichtbaren
+   Erklärfeld nicht besser. Sie gehören **nicht** in 8b.
+3. **Entbehrlich** (4 Texte): wiederholen eine danebenstehende Beschriftung.
+   Sie können ersatzlos entfallen, unabhängig von jeder Entscheidung.
+
+**WAS WEITERHIN OFFEN IST, und es ist die eigentliche Frage: wohin mit den
+vierzehn?** Die naheliegenden drei Wege und was sie kosten:
+
+| Weg | Preis |
+|---|---|
+| je ein sichtbares Feld unter dem Knopf, wie `.tool-reason` | der Inspektor trägt schon zu viel (Etappe 9), und 14 Felder sind kein Zusatz, sondern eine zweite Oberfläche |
+| ein „Was tut das?"-Zustand, der die Erklärungen an Ort und Stelle einblendet | ein neuer Modus, den es im Editor nicht gibt |
+| die Erklärungen ins Hilfe-Overlay, das ohnehin neu geschrieben wird (Etappe 10) | dort stehen sie **nicht am Bedienelement** – der Nutzer muss sie suchen, statt sie zu finden |
+
+**Keiner der drei ist entschieden.** Diese Aufnahme liefert, was §7 zuerst
+verlangt hat – *welche Erklärungen überhaupt gebraucht werden* –, und hält
+genau dort an. **Gebaut wird nichts, bevor der Ort entschieden ist.**
 
 **5. Der Schalter „vollständige Fassung" existiert nicht.** Nachgesehen: es
 gibt sechs `localStorage`-Schlüssel – `referenceOrigin`, `toolRailCollapsed`,
