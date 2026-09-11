@@ -5359,6 +5359,72 @@ const TRANSIENT_STATUS_IDS = [
 let transientStatusOwner = "editStatus";
 
 /**
+ * Der Ruhetext jeder der drei Quellen, deutsch, aus dem Markup.
+ *
+ * Er wird EINMAL beim Start gelesen, bevor irgendeine Meldung geschrieben
+ * wurde. Ihn als Zeichenkette in den Code zu schreiben wäre eine zweite
+ * Quelle für denselben Satz; gelesen ist er dieselbe.
+ */
+const transientIdleText = new Map();
+
+function captureTransientIdleText() {
+  TRANSIENT_STATUS_IDS.forEach(id => {
+    const element = document.getElementById(id);
+    if (element) transientIdleText.set(id, element.textContent.trim());
+  });
+}
+
+
+/**
+ * Kann diese Einmalmeldung beim Sprachwechsel veralten?
+ *
+ * Genau zwei Fälle, und beide sind gemessen:
+ *
+ *   1. Sie trägt eine Zahl MIT Dezimalzeichen. `setLocalizedText()` legt das
+ *      deutsche Original am Element ab; das Zeichen darin ist in der Sprache
+ *      erstarrt, in der die Meldung entstand. "Punkt auf E=12,50 m gesetzt."
+ *      zeigte im Englischen weiter das Komma.
+ *   2. Sie hat überhaupt keine englische Fassung - dann stünde sie im
+ *      Englischen deutsch da. Genau das trifft auf dieselbe Meldung zu.
+ *
+ * Eine ganzzahlige Angabe ist davon nicht betroffen: ein Tausendertrenner
+ * entsteht nie (`useGrouping:false`), "2 Warnungen" sieht in jeder Sprache
+ * gleich aus.
+ */
+function transientStatusCanGoStale(german) {
+  return /\d[.,]\d/.test(german) || translateGermanText(german) === german;
+}
+
+
+/**
+ * Wirft eine veraltende Einmalmeldung beim Sprachwechsel weg.
+ *
+ * Verworfen wird NUR, was veralten kann - eine Meldung, die vollständig
+ * übersetzt ist und keine Dezimalzahl trägt, wechselt weiterhin sauber mit.
+ * Alles zu verwerfen wäre einfacher, nähme aber eine Übersetzung weg, die
+ * heute funktioniert; das wäre ein Rückschritt und keine Reparatur.
+ *
+ * Verworfen heißt zurück auf den Ruhetext, nicht geleert: Zeile 2 der
+ * Statuszeile bleibt immer bestehen, und ein leeres Element hätte die Höhe 0 -
+ * die Karte spränge bei jedem Sprachwechsel.
+ *
+ * Der Zeichenstatus ist davon unberührt: er ist ABGELEITET und wird von
+ * `updateFeatureDrawUi()` unmittelbar danach ohnehin neu geschrieben.
+ */
+function discardTransientStatus() {
+  TRANSIENT_STATUS_IDS.forEach(id => {
+    const element = document.getElementById(id);
+    if (!element || !transientIdleText.has(id)) return;
+
+    const german = element.dataset.i18nDe;
+    if (!german || !transientStatusCanGoStale(german)) return;
+
+    delete element.dataset.i18nDe;
+    setLocalizedText(element, transientIdleText.get(id));
+  });
+}
+
+/**
  * Gibt einer der drei Quellen den gemeinsamen Platz.
  *
  * Grundregel: die jüngere Meldung gewinnt. Sie hat genau eine Ausnahme, und
@@ -20156,6 +20222,12 @@ function setLanguage(language) {
  * setLocalizedText().
  */
 function refreshDerivedUi() {
+  /*
+   * Zuerst die Einmalmeldungen wegwerfen, dann alles Abgeleitete neu bauen -
+   * der Zeichenstatus überschreibt seinen Ruhetext danach mit dem richtigen.
+   */
+  discardTransientStatus();
+
   updateMapSlotLabels();
 
   /*
@@ -20198,6 +20270,17 @@ function refreshDerivedUi() {
    * Zeichnen ist abgeleitet und laeuft ohnehin nach jeder Bearbeitung.
    */
   renderGeometry();
+
+  /*
+   * Der Rasterstatus ist die zweite Haelfte derselben Frage: er ist DAUERHAFT
+   * (er steht im Rasterfenster, bis der naechste Zustand ihn ersetzt) und
+   * vollstaendig aus `requestedGridStep` ableitbar - er gehoert also auf den
+   * abgeleiteten Weg und nicht ins Verwerfen. Ohne ihn blieb "Rasterabstand:
+   * 0,10 m" nach einem Sprachwechsel deutsch UND mit dem alten Dezimalzeichen
+   * stehen. renderGrid() statt updateGridStatus(): nur es kennt die
+   * tatsaechlich gezeichnete Schrittweite.
+   */
+  renderGrid();
 
   /*
    * updateStats() schreibt Breite, Hoehe und Flaeche - drei Meterangaben,
@@ -20244,6 +20327,7 @@ restoreInspectorFolds();
 initialize();
 
 captureI18nSnapshot();
+captureTransientIdleText();
 
 /* Deutsch ist bei jedem Start Standard. */
 setLanguage("de");

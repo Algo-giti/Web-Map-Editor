@@ -142,9 +142,12 @@ try {
 
   /*
    * "Kartenprüfung: N Warnungen." statt einer Verschiebemeldung: der Text
-   * entsteht einmalig und hat ein Übersetzungsmuster. Die Meldung beim
-   * Verschieben eines Punktes hat keines - das ist eine eigene Lücke und
-   * gehört nicht in diesen Test.
+   * entsteht einmalig und hat ein Übersetzungsmuster.
+   *
+   * Sie ist damit der Fall, den Schritt 2 des dritten Durchgangs ausdrücklich
+   * NICHT verwirft: "2 Warnungen" ist eine ganze Zahl ohne Dezimalzeichen und
+   * hat eine englische Fassung, kann also nicht veralten. Verworfen wird nur,
+   * was veralten kann - diese Zusicherung hält genau diese Grenze fest.
    */
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(400);
@@ -158,6 +161,8 @@ try {
 
   check("sie wird übersetzt", englishStatus !== germanStatus,
     `${germanStatus} || ${englishStatus}`);
+  check("und wird nicht verworfen, weil sie nicht veralten kann",
+    englishStatus.startsWith("Map validation:"), englishStatus);
 
   await toggle();
 

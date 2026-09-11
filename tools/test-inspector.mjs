@@ -1492,6 +1492,68 @@ try {
   await page.waitForTimeout(500);
 
   /* ---------------------------------------------------------------- */
+  console.log("Eine Einmalmeldung wird beim Sprachwechsel verworfen");
+
+  /*
+   * Schritt 2, dritter Durchgang. Eine Einmalmeldung kann niemand
+   * nachrechnen; setLocalizedText() legt deshalb das deutsche Original am
+   * Element ab - mitsamt der ZAHL in dem Format, das beim Erzeugen galt. Eine
+   * auf deutsch erzeugte Meldung zeigte im Englischen weiter "E=12,50 m", und
+   * dieselbe Meldung hatte ueberdies gar keine englische Fassung.
+   *
+   * Beides ist mit derselben Entscheidung erledigt: sie ist fluechtig und
+   * wird beim Sprachwechsel VERWORFEN - zurueck auf den Ruhetext aus dem
+   * Markup, nicht geleert, sonst faellt Zeile 2 der Statuszeile auf Hoehe 0
+   * zusammen und die Karte springt.
+   */
+  await load();
+  await marks.nth(1).click();
+  await page.waitForTimeout(250);
+  await page.fill("#pointEastInput", "12,50");
+  await page.locator("#pointEastInput").press("Enter");
+  await page.waitForTimeout(400);
+
+  const meldung = () => page.locator("#editStatus").textContent();
+  const zeilenhoehe = () => page.evaluate(() => Math.round(
+    document.querySelector(".status-transient").getBoundingClientRect().height));
+
+  check("die Einmalmeldung nennt den gesetzten Wert mit Komma",
+    (await meldung()).includes("E=12,50 m"), await meldung());
+
+  const hoeheVorher = await zeilenhoehe();
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(600);
+
+  check("nach dem Sprachwechsel steht die veraltete Meldung nicht mehr da",
+    !(await meldung()).includes("12,50"), await meldung());
+  check("stattdessen der englische Ruhetext",
+    (await meldung()).trim() === "Points can be clicked and then dragged.",
+    await meldung());
+  check("und die Zeile behaelt ihre Hoehe",
+    (await zeilenhoehe()) === hoeheVorher,
+    `${await zeilenhoehe()} statt ${hoeheVorher}`);
+
+  /*
+   * Die andere Haelfte derselben Frage: der Rasterstatus ist DAUERHAFT und
+   * ableitbar, er wird deshalb neu gebaut statt verworfen.
+   */
+  check("englisch: der Rasterstatus ist neu gebaut",
+    (await page.locator("#gridStatus").textContent()).replace(/\s+/g, " ").trim() ===
+      "Grid spacing: 0.10 m",
+    await page.locator("#gridStatus").textContent());
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(600);
+
+  check("zurueck auf deutsch steht der deutsche Ruhetext",
+    (await meldung()).trim() === "Punkte lassen sich anklicken und anschließend ziehen.",
+    await meldung());
+  check("deutsch: der Rasterstatus traegt wieder das Komma",
+    (await page.locator("#gridStatus").textContent()).includes("0,10 m"),
+    await page.locator("#gridStatus").textContent());
+
+  /* ---------------------------------------------------------------- */
   console.log("Der Erklärtext frisst keinen Platz");
 
   await load();

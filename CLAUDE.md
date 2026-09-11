@@ -4071,17 +4071,66 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Fokus sehr wohl neu schreibt. Der Schutz gilt jedem künftigen Aufrufer von
   `refreshDerivedUi()`.
 
-  **Neuer offener Punkt aus demselben Umbau: eine Einmalmeldung friert ihr
-  Zahlenformat ein.** `setLocalizedText()` legt den deutschen Text als
+  **Eine Einmalmeldung fror ihr Zahlenformat ein – ERLEDIGT mit Schritt 2 des
+  dritten Durchgangs, und zwar durch VERWERFEN statt durch Nachrechnen.**
+
+  Die Entscheidung folgt der Kategorie, die diese Datei ohnehin verlangt:
+
+  | Meldung | Kategorie | was beim Sprachwechsel geschieht |
+  |---|---|---|
+  | `#editStatus`, `#multiSelectionStatus` | **flüchtig** | wird **verworfen, wenn sie veralten kann** – zurück auf den Ruhetext |
+  | `#drawFeatureStatus` | abgeleitet | wird von `updateFeatureDrawUi()` ohnehin neu geschrieben |
+  | `#gridStatus` | **dauerhaft und ableitbar** | wird von `renderGrid()` **neu gebaut** |
+  | `#reduceStatus`, `#rectifyStatus` | gemischt | ihre abgeleitete Fassung überschreibt das Ergebnis bereits heute – nachgemessen |
+
+  **Verworfen wird NUR, was veralten kann** (`transientStatusCanGoStale()`),
+  und das sind genau zwei Fälle: die Meldung trägt eine Zahl **mit
+  Dezimalzeichen** – das Zeichen ist in der Sprache erstarrt, in der sie
+  entstand –, oder sie hat **überhaupt keine englische Fassung**. Eine
+  ganzzahlige Angabe ist nicht betroffen: ein Tausendertrenner entsteht nie,
+  „2 Warnungen" sieht in jeder Sprache gleich aus.
+
+  **Die weite Fassung „alles verwerfen" war gebaut und ist verworfen worden,
+  und zwar von zwei Zusicherungen.** Sie rissen beide, und beide zu Recht:
+  `tools/test-i18n-dynamic.mjs` („und kommt unverändert zurück") und
+  `tools/test-merge.mjs` („englisch: die Ersetzungsmeldung ist uebersetzt")
+  halten Meldungen fest, die **vollständig übersetzt sind und keine
+  Dezimalzahl tragen**. Sie wegzuwerfen hätte eine Übersetzung genommen, die
+  funktioniert – ein Rückschritt, keine Reparatur. **Eine gerissene
+  Zusicherung ist nicht immer ein Fehler im Bestand; sie kann auch sagen, dass
+  die neue Regel zu weit greift.**
+
+  **Verworfen heißt zurück auf den Ruhetext, nicht geleert.** Ein leeres
+  `#editStatus` hätte die Höhe 0, und Zeile 2 der Statuszeile bleibt
+  ausdrücklich immer bestehen – die Karte spränge bei jedem Sprachwechsel. Der
+  Ruhetext wird **einmal beim Start aus dem Markup gelesen**
+  (`captureTransientIdleText()`); ihn im Code noch einmal hinzuschreiben wäre
+  eine zweite Quelle für denselben Satz.
+
+  **Der Fall war schlimmer als gedacht, und das gehört dazu:** „Punkt auf
+  E=12,50 m / N=0,00 m gesetzt." hatte **überhaupt keine englische Fassung**.
+  Die Messung von Schritt 1 hatte sie nicht gefunden, weil sie diesen Zustand
+  nie erzeugt hat – dieselbe Grenze wie beim Messzustand. Das Verwerfen
+  erledigt beide Hälften mit einer Entscheidung: eine Meldung, die weg ist,
+  kann weder ein falsches Zahlenformat noch eine fehlende Übersetzung zeigen.
+
+  **`#gridStatus` war der zweite Fund derselben Messung:** „Rasterabstand:
+  0,10 m" blieb im Englischen deutsch **und** mit Komma stehen, obwohl
+  „Rasterabstand:" einen Wörterbucheintrag hat – niemand schrieb den Text neu.
+  `renderGrid()` steht deshalb jetzt in `refreshDerivedUi()`, nicht
+  `updateGridStatus()`: nur `renderGrid()` kennt die tatsächlich gezeichnete
+  Schrittweite und kann die Fassung „Sichtbar dargestellt: …" erhalten.
+
+  **Der ursprüngliche Befund:** `setLocalizedText()` legt den deutschen Text als
   `data-i18n-de` am Element ab; die Zahl darin ist in dem Format erstarrt, das
   beim Erzeugen galt. Gemessen: eine auf englisch erzeugte Meldung zeigt nach
   dem Wechsel ins Deutsche weiter `E=12.50`, eine auf deutsch erzeugte im
   Englischen weiter `E=13,50`. Vorher fiel das nicht auf, weil jede Zahl
   immer deutsch formatiert war. Das trifft nur flüchtige Meldungen – jeder
-  abgeleitete Text wird beim Wechsel neu gebaut und ist richtig. **Kein
-  Auftrag:** die Meldung ist eine Zeile, die bei der nächsten Handlung ohnehin
-  verschwindet, und sie richtig zu machen hieße, die Zahl aus dem fertigen
-  Text wieder herauszurechnen.
+  abgeleitete Text wird beim Wechsel neu gebaut und ist richtig. Die damalige
+  Einschätzung „sie richtig zu machen hieße, die Zahl aus dem fertigen Text
+  wieder herauszurechnen" war richtig – **deshalb wird sie gar nicht richtig
+  gemacht, sondern weggeworfen.**
 
   **Die übrigen Meterstellen – ERLEDIGT mit Schritt D (11.09.2026).** Sie
   rechneten mit `toFixed()` und zeigten damit in **beiden** Sprachen einen
