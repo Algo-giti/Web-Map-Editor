@@ -24,6 +24,7 @@ import {
   indexUrl,
   launchBrowser,
   menueBefehl,
+  openAllFolds,
 } from "./browser-harness.mjs";
 
 const TOOL = "test-toolbar";
@@ -515,6 +516,154 @@ try {
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Etappe 8d: Breite und Bedienart, je einzeln");
+
+  /*
+   * Seit Etappe 8a haengen Stapeln und Zielgroessen an verschiedenen Dingen:
+   * das Stapeln an der Breite (unter 744 px), die 44-px-Ziele und die 16-px-
+   * Schrift an der Bedienart (`pointer: coarse`). Beide Achsen werden deshalb
+   * einzeln geprueft - eine Zusicherung, die nur eine schmale Breite ansieht,
+   * haette den Fall "Tablet im Querformat" wieder nicht gesehen, und genau der
+   * war der Befund.
+   *
+   * DIE BEDIENART WIRD EMULIERT, nicht simuliert: ein Playwright-Kontext mit
+   * `hasTouch: true` laesst `(pointer: coarse)` greifen und `(pointer: fine)`
+   * nicht. Das ist kein Vertrauensvorschuss - die Gegenprobe unten liest
+   * `matchMedia()` in BEIDEN Kontexten aus und sichert zu, dass sie sich
+   * unterscheiden. Ohne sie bewiesen alle folgenden Zusicherungen nur, dass
+   * zweimal dasselbe gemessen wurde.
+   */
+  const zeigerSeite = async (grob) => {
+    const kontext = await browser.newContext(grob ? { hasTouch: true } : {});
+    const seite = await kontext.newPage();
+    return { kontext, seite };
+  };
+
+  /** Niedrigste sichtbare Hoehe einer Gruppe, in CSS-Pixeln. */
+  const niedrigste = (seite, selektor) => seite.evaluate((sel) => {
+    const sichtbar = [...document.querySelectorAll(sel)]
+      .filter((element) => element.getBoundingClientRect().height > 0);
+    return sichtbar.length
+      ? Math.round(Math.min(...sichtbar.map((e) => e.getBoundingClientRect().height)))
+      : null;
+  }, selektor);
+
+  const BREITEN = [[1920, 1080], [1440, 900], [1280, 800], [860, 800], [744, 1133]];
+
+  for (const grob of [false, true]) {
+    const name = grob ? "grob" : "fein";
+    const { kontext, seite } = await zeigerSeite(grob);
+
+    for (const [breite, hoehe] of BREITEN) {
+      await seite.setViewportSize({ width: breite, height: hoehe });
+      await seite.goto(indexUrl(), { waitUntil: "load" });
+      await seite.evaluate(() => localStorage.clear());
+      await seite.reload({ waitUntil: "load" });
+      await seite.locator("#fileInput").setInputFiles({
+        name: "toolbar.geojson",
+        mimeType: "application/geo+json",
+        buffer: Buffer.from(MAP),
+      });
+      await seite.waitForTimeout(400);
+      await openAllFolds(seite);
+
+      const medien = await seite.evaluate(() => ({
+        coarse: matchMedia("(pointer: coarse)").matches,
+        fine: matchMedia("(pointer: fine)").matches,
+      }));
+
+      /* Die Gegenprobe: greift die Media Query hier ueberhaupt? */
+      check(`${name}, ${breite} px: die Bedienart ist wirklich emuliert`,
+        medien.coarse === grob && medien.fine === !grob,
+        JSON.stringify(medien));
+
+      /*
+       * 744 px ist Tablet, nicht Telefon: drei Rasterspalten, keine
+       * gestapelte Spalte. Geprueft wird die WIRKUNG - die berechnete
+       * Rastervorlage von `main` -, nicht die Medienregel.
+       */
+      const raster = await seite.evaluate(() => {
+        const m = getComputedStyle(document.querySelector("main"));
+        return `${m.display}:${m.gridTemplateColumns.split(" ").length}`;
+      });
+
+      check(`${name}, ${breite} px: main ist ein Raster mit drei Spalten`,
+        raster === "grid:3", raster);
+
+      /*
+       * Die Breite steckt in ZWEI Bloecken: der eine stapelt `main`, der
+       * andere legt die Werkzeugleiste waagerecht und den Inspektor auf volle
+       * Breite. Eine Zusicherung auf `main` allein sieht den zweiten nicht -
+       * gemessen an einer Mutation, die nur dessen Grenze zurueckstellte und
+       * nichts zum Reissen brachte. Geprueft wird deshalb auch die Leiste.
+       */
+      const leiste = await seite.evaluate(() => {
+        const r = getComputedStyle(document.getElementById("toolRail"));
+        const a = document.querySelector("aside").getBoundingClientRect().width;
+        return `${r.flexDirection}/${Math.round(a)}`;
+      });
+
+      check(`${name}, ${breite} px: die Leiste steht senkrecht, der Inspektor ist 320 px`,
+        leiste === "column/320", leiste);
+
+      const menue = await niedrigste(seite, ".menu-title");
+      const inspektor = await niedrigste(seite, "aside button");
+      const schrift = await seite.evaluate(() =>
+        getComputedStyle(document.getElementById("pointEastInput")).fontSize);
+
+      if (grob) {
+        check(`grob, ${breite} px: Menuetitel und Inspektorknopf sind >= 44 px`,
+          menue >= 44 && inspektor >= 44, `${menue} / ${inspektor}`);
+        check(`grob, ${breite} px: das E/N-Feld traegt 16 px`,
+          schrift === "16px", schrift);
+      } else {
+        /*
+         * Und die Gegenrichtung: am Mausarbeitsplatz bleibt die Oberflaeche
+         * dicht. Ohne diese Zusicherung bestuende die obige auch dann, wenn
+         * 44 px schlicht ueberall gaelten.
+         */
+        check(`fein, ${breite} px: die Oberflaeche bleibt dicht`,
+          menue < 44 && inspektor < 44, `${menue} / ${inspektor}`);
+        check(`fein, ${breite} px: das E/N-Feld traegt seine 12 px`,
+          schrift === "12px", schrift);
+      }
+    }
+
+    /*
+     * Unterhalb von 744 px wird NICHTS abgewiesen - kein Hinweisbildschirm,
+     * keine Mindestbreite. Gestapelt wird dort, und die Seite scrollt; beides
+     * ist der zugelassene Zustand, kein Zielverlust.
+     */
+    await seite.setViewportSize({ width: 400, height: 800 });
+    await seite.waitForTimeout(300);
+
+    const schmal = await seite.evaluate(() => {
+      const m = getComputedStyle(document.querySelector("main"));
+      return {
+        /*
+         * Unter 744 px ist `main` kein Raster mehr, sondern eine Spalte.
+         * gridTemplateColumns taugt dort NICHT als Mass - es meldet weiter
+         * die Rastervorlage, obwohl display:flex gilt; nachgemessen liefert
+         * es bei 400 px vier Werte. Gefragt ist die Wirkung, und die ist
+         * "untereinander".
+         */
+        anzeige: `${m.display}/${m.flexDirection}`,
+        karte: !!document.getElementById("svg"),
+        leiste: !!document.getElementById("toolRail"),
+        inspektor: getComputedStyle(document.querySelector("aside")).display,
+      };
+    });
+
+    check(`${name}, 400 px: gestapelt statt dreispaltig`,
+      schmal.anzeige === "flex/column", schmal.anzeige);
+    check(`${name}, 400 px: nichts wird abgewiesen`,
+      schmal.karte && schmal.leiste && schmal.inspektor !== "none",
+      JSON.stringify(schmal));
+
+    await kontext.close();
+  }
 } finally {
   await browser.close();
 }

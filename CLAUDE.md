@@ -3221,7 +3221,36 @@ nachschlagbar ist – aber es ist der Normalfall des Zielgeräts.
 | **8a** – **ERLEDIGT** | Den einen `@media(max-width:760px)`-Block in **zwei** geteilt: einen Breitenblock bei **743 px** (Stapeln, waagerechte Leiste, Seiten-Scrolling, Kartenhöhe, verkleinerte Marke) und einen Block an der **Bedienart** (`pointer: coarse`) mit den 44-px-Zielgrößen und der 16-px-Schrift. Die Spezifität von `.coord-input` ist mitgezogen, Befund 2 ist damit weg. | Ohne die Trennung bekommt ein Tablet im Querformat weiter Desktop-Zielgrößen. Alles Weitere hängt an dieser Trennung |
 | **8b** | „Erklärung ohne Hover" – siehe den Abschnitt unten | Setzt 8a nicht voraus, ist aber der größere Brocken und sollte nicht mit einer Layout-Umstellung im selben Commit liegen |
 | **8c** | Die Schwelle der `data-optional`-Felder entscheiden: bleibt sie bei 900 px, oder folgt sie der neuen Grenze? | Erst sinnvoll, wenn 8a die Grenze festgelegt hat |
-| **8d** | Zusicherungen bei **744, 768, 834 und 1024 px** in `tools/test-toolbar.mjs`: Zielgrößen ≥ 44 px bei grobem Zeiger, Schrift im E/N-Feld, Stapeln ab/bis zur Grenze, und dass unterhalb von 744 px nichts abgewiesen wird | Zuletzt, weil sie den Zustand festhalten, den 8a bis 8c herstellen |
+| **8d** – **ERLEDIGT** | Zusicherungen in `tools/test-toolbar.mjs`, bei **1920, 1440, 1280, 860 und 744 px** und je **fein und grob**: Zielgrößen ≥ 44 px bei grobem Zeiger, Schrift im E/N-Feld, drei Rasterspalten bis zur Grenze hinunter, und dass unterhalb von 744 px nichts abgewiesen wird | Vorgezogen vor 8b/8c, weil sie den Zustand festhalten, den 8a herstellt – und weil 8b und 8c beide eine noch offene Entscheidung brauchen |
+
+**Wie die Bedienart im Test emuliert wird – und warum das eine Gegenprobe
+braucht.** Ein Playwright-Kontext mit `hasTouch: true` lässt `(pointer: coarse)`
+greifen und `(pointer: fine)` nicht; der voreingestellte Kontext umgekehrt.
+Gemessen:
+
+| Kontext | `pointer: coarse` | `pointer: fine` |
+|---|---|---|
+| `newContext({})` | false | **true** |
+| `newContext({hasTouch:true})` | **true** | false |
+
+**Die Zusicherung „die Bedienart ist wirklich emuliert" steht deshalb in jeder
+Schleifenrunde**, vor allen übrigen. Ohne sie bewiesen die zehn Messungen nur,
+dass zweimal dasselbe gemessen wurde – dieselbe Klasse wie „eine Zusicherung
+über ein Ausbleiben beweist nichts", nur eine Ebene tiefer: die Bedingung, unter
+der gemessen wird, ist selbst zuzusichern.
+
+**Und die Gegenrichtung gehört dazu:** bei feinem Zeiger wird zugesichert, dass
+die Oberfläche **dicht bleibt** (Menütitel und Inspektorknopf unter 44 px, E/N-
+Feld 12 px). Ohne sie bestünde „≥ 44 px bei grobem Zeiger" auch dann, wenn 44 px
+schlicht überall gälten.
+
+**Die Breite steckt in ZWEI Blöcken, und eine Zusicherung auf `main` allein
+sieht nur einen davon.** Der erste legt Werkzeugleiste und Inspektorbreite um,
+der zweite stapelt `main`. Gemessen an einer Mutation, die nur die Grenze des
+ersten zurückstellte: **sie riss zunächst nichts.** Der Test prüft deshalb auch
+die Richtung der Leiste und die Breite des Inspektors. `gridTemplateColumns`
+taugt dabei unterhalb von 744 px **nicht** als Maß – es meldet weiter die
+Rastervorlage, obwohl `display:flex` gilt, und liefert bei 400 px vier Werte.
 
 **Was nicht dazugehört:** eine Handyfassung, ein Fassungsschalter, eine Sperre
 unterhalb von 744 px. Das ist entschieden und steht oben.
