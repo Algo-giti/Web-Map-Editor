@@ -280,10 +280,20 @@ try {
   const classicDock = [[5, 5], [10, 5], [15, 5]];
   await load(syntheticMap(classicDock));
 
+  /*
+   * Geprüft wird die WIRKUNG, nicht das Ausbleiben: die alte Fassung sicherte
+   * allein zu, dass "Docking-Pfad 1:" NICHT im Bericht steht - das bestünde
+   * auch bei leerem Bericht und damit auch dann, wenn der Klick nichts
+   * ausgelöst hätte. Die Zusammenfassung entsteht erst durch einen Lauf.
+   */
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(300);
 
+  const summary = (await page.locator("#validationSummary").textContent()).trim();
   const report = await page.locator("#validationReport").textContent();
+
+  check("die Kartenprüfung ist wirklich gelaufen und meldet null Fehler",
+    /^(Prüfung OK|Keine Fehler)/.test(summary), summary);
   check("drei Punkte erzeugen keinen Docking-Befund",
     !report.includes("Docking-Pfad 1:"), report.slice(0, 240));
 

@@ -300,10 +300,25 @@ try {
     (await page.locator("#reduceStatus").getAttribute("class")).includes("error"),
     await page.locator("#reduceStatus").getAttribute("class"));
 
-  /* Der Ring muss geschlossen geblieben sein - über die Kartenprüfung. */
+  /*
+   * Der Ring muss geschlossen geblieben sein - über die Kartenprüfung.
+   *
+   * Geprüft wird die WIRKUNG, nicht das Ausbleiben: die alte Fassung las den
+   * Bericht und sicherte zu, dass "nicht geschlossen" NICHT darin steht - das
+   * bestünde auch bei leerem Bericht, also auch dann, wenn der Klick auf
+   * "Karte prüfen" gar nichts ausgelöst hätte. Die Zusammenfassung dagegen
+   * entsteht erst durch einen Lauf: vorher steht dort "Noch keine Prüfung
+   * durchgeführt.", danach eine der drei Formen mit Fehler- und Warnungszahl.
+   * Ein offener Ring ist ein FEHLER, die Zusicherung fiele also um.
+   */
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(300);
+
+  const summary = (await page.locator("#validationSummary").textContent()).trim();
   const report = await page.locator("#validationReport").textContent();
+
+  check("die Kartenprüfung ist wirklich gelaufen und meldet null Fehler",
+    /^(Prüfung OK|Keine Fehler)/.test(summary), summary);
   check("Ring ist nach dem Reduzieren noch geschlossen",
     !report.includes("nicht geschlossen"), report.slice(0, 200));
 

@@ -583,18 +583,37 @@ die Verarbeitung nicht gäbe**. Bei einer begründeten Ablehnung ist das der
 Ablehnungstext selbst – aber nur, wenn er sich von jeder Meldung
 unterscheidet, die vorher schon dort stand.
 
-**Bekannte Stellen, die diese Regel noch nicht erfüllen** (erfasst, nicht
-repariert – sie werden mitgezogen, wenn die betroffenen Tests ohnehin
-angefasst werden):
+**Die Liste der Stellen, die diese Regel noch nicht erfüllten, ist leer.** Die
+letzten beiden sind mit Schritt 8 (11.09.2026) ausgetragen:
 
-| Datei | Zusicherung |
-|---|---|
-| `test-reduce.mjs` | „Ring ist nach dem Reduzieren noch geschlossen" (`test-reduce.mjs:307`) |
-| `test-dockpath.mjs` | „drei Punkte erzeugen keinen Docking-Befund" (`test-dockpath.mjs:287`) |
+| Datei | Zusicherung | erledigt durch |
+|---|---|---|
+| `test-reduce.mjs` | „Ring ist nach dem Reduzieren noch geschlossen" | „die Kartenprüfung ist wirklich gelaufen und meldet null Fehler" daneben |
+| `test-dockpath.mjs` | „drei Punkte erzeugen keinen Docking-Befund" | dieselbe Zusicherung daneben |
 
-Beide lesen einen Prüfbericht, nachdem sie „Karte prüfen" gedrückt haben, und
-prüfen darin auf das **Ausbleiben** einer Zeichenkette (`!report.includes(…)`).
+Beide lasen einen Prüfbericht, nachdem sie „Karte prüfen" gedrückt hatten, und
+prüften darin auf das **Ausbleiben** einer Zeichenkette (`!report.includes(…)`).
 Sie bestünden auch bei einem leeren Bericht.
+
+**Die Wirkung, die jetzt danebensteht, ist die Zusammenfassung
+`#validationSummary`.** Sie entsteht erst durch einen Lauf: vorher steht dort
+„Noch keine Prüfung durchgeführt.", danach eine der drei Formen mit Fehler-
+und Warnungszahl. Zugesichert wird, dass sie mit „Prüfung OK" oder „Keine
+Fehler" beginnt – ein offener Ring wäre ein Fehler, die Zusicherung fiele um.
+Nachgemessen mit einer Mutation, die den Klick auf „Karte prüfen" ins Leere
+laufen lässt: **beide Tests reißen**, und zwar mit dem Detail „Noch keine
+Prüfung durchgeführt." – genau der Zustand, in dem die alten Fassungen
+bestanden hätten.
+
+**Nebenbefund, und er gehört dazu, weil er eine Grenze der Methode zeigt.** Die
+alte Zusicherung lässt sich auch heute nicht zum Reißen bringen, indem man den
+Ringschluss im Reduzieren entfernt (`kept.push([...kept[0]])` weggelassen):
+`newValidationErrors()` prüft die Vorschau, findet den neuen Fehler und bricht
+das Reduzieren ab, **bevor** es angewendet wird. Der Ring wird also nie offen.
+Gemessen reißen dabei fünf andere Zusicherungen. Eine Zusicherung über einen
+Zustand, den das Programm aktiv verhindert, ist nicht falsifizierbar – sie ist
+deshalb nicht wertlos, aber sie trägt allein nichts, und genau dafür steht die
+Wirkung jetzt daneben.
 
 **Drei Einträge sind gestrichen, weil sie erledigt sind – und die Streichung
 kommt drei Etappen zu spät.** `test-merge.mjs` trug „Kartenprüfung sieht nur
