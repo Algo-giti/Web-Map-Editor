@@ -883,6 +883,15 @@ kennt, prüft nicht die Schwelle, sondern eine Erinnerung an sie.
 Inspektor" (`kartenbreite > 320`) ist eine Beziehung und bleibt deshalb
 richtig, wenn sich die Maße ändern.
 
+**Beide Fälle sind mit dem vierten Durchgang ausgetragen:** die Schwelle liest
+`tools/test-statusbar.mjs` seit Schritt 3 aus der CSS-Regel, und die feste
+Kartenbreite ist mit Schritt 9 aus `tools/test-toolbar.mjs` entfernt – Literal
+und Kommentar. Im ganzen Verzeichnis `tools/` kommt die Zahl nicht mehr vor;
+in CLAUDE.md bleibt sie, wo sie hingehört: in den Messtabellen. **Was danach
+noch trägt, ist gemessen:** mit einem auf 420 px verbreiterten Inspektor reißt
+„fein, 744 px: die Karte ist breiter als der Inspektor" mit dem Detail
+„268 px Karte gegen 320 px Inspektor".
+
 **(c) Kein Locator und kein `boundingBox()` aus einem ungeprüften Wert.** Ist
 der Wert `null` oder leer, entsteht ein Selektor, der nie trifft, und
 Playwright wartet dreißig Sekunden – aus einer klaren Aussage wird ein stummer

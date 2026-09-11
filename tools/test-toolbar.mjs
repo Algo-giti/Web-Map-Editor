@@ -614,21 +614,17 @@ try {
        * weniger Platz als die Spalte, die sie beschreibt - und das waere ein
        * Grund, die Anordnung bei 744 px neu zu entscheiden.
        *
-       * Gemessen bei offenem Inspektor, je fein und grob: 744 -> 368 px,
-       * 768 -> 392, 820 -> 444, 834 -> 458, 860 -> 484. Die Zeigerart aendert
-       * daran nichts; die Breitenschwelle und die Bedienart sind seit 8a
-       * getrennt, und genau das zeigt die Zahl noch einmal.
+       * Geprueft wird die BEZIEHUNG, nicht der gemessene Wert. Hier stand bis
+       * zum vierten Durchgang zusaetzlich eine feste Pixelbreite fuer 744 px -
+       * eine Zahl, die nur festhielt, was am Messtag herauskam, und bei jeder
+       * Layoutaenderung ohne Erkenntnisgewinn gerissen waere. Die Messwerte
+       * selbst stehen in CLAUDE.md, wo sie hingehoeren.
        */
       const kartenbreite = await seite.evaluate(() =>
         Math.round(document.getElementById("viewer").getBoundingClientRect().width));
 
       check(`${name}, ${breite} px: die Karte ist breiter als der Inspektor`,
         kartenbreite > 320, `${kartenbreite} px Karte gegen 320 px Inspektor`);
-
-      if (breite === 744) {
-        check(`${name}, 744 px: die Karte hat die gemessenen 368 px`,
-          kartenbreite === 368, String(kartenbreite));
-      }
 
       const menue = await niedrigste(seite, ".menu-title");
       const inspektor = await niedrigste(seite, "aside button");
