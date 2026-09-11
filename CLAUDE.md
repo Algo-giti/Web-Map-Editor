@@ -4573,6 +4573,36 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   „N von M Punkten entfernt" – dort steht hinter der Zahl das Wort „von",
   kein Nomen.
 
+- **Acht Texte ohne englische Fassung – ERLEDIGT mit Schritt 7 des vierten
+  Durchgangs.** Gefunden hat sie `tools/scan-i18n.mjs`, und zwar erst, als
+  dessen Zustandsliste um das weite Herauszoomen, den leeren Grundzustand und
+  das Zeichnen erweitert wurde.
+
+  | Text | englische Fassung | Begründung der Wahl |
+  |---|---|---|
+  | „Raster wird nach dem Öffnen einer Karte angezeigt." | „The grid is shown once a map is open." | beschreibt eine Bedingung, keine Aufforderung – „once" statt „if" |
+  | „Eingestellt:" | „Set:" | Gegenstück zu „Shown:"; die beiden stehen untereinander und sollen gleich kurz sein |
+  | „Sichtbar dargestellt:" | „Shown:" | knapper als „Displayed"; das Feld nennt ohnehin sofort den Wert |
+  | „(bei diesem Zoom wäre das feinere Raster kleiner als ein Bildschirmpixel)" | „(at this zoom the finer grid would be smaller than one screen pixel)" | wörtlich, weil der Satz eine Begründung ist und nichts weglassen darf |
+  | „Exclusion zeichnen: Eckpunkte anklicken." | „Draw exclusion: click the corner points." | „corner points" statt „vertices" – der Editor spricht auch deutsch von Eckpunkten, nicht von Vertices |
+  | „N Punkte gesetzt. Noch M Punkte erforderlich." | „N points placed. M more points required." | „more" macht sichtbar, dass M die **fehlenden** sind und nicht die Gesamtzahl |
+  | „X vollständig ausgewählt · N Punkte." | „X fully selected · N points." | der Anzeigename bleibt als `$1` stehen – richtig so, er ist sprachneutral oder ein Label |
+
+  **Einzahl und Mehrzahl stehen je einzeln**, das speziellere Muster zuerst;
+  der deutsche Quelltext unterscheidet mit.
+
+  **Der achte Fund ist nach der Messung keiner: „→ East · 0,10 m".** Die
+  Meldung ist flüchtig und trägt eine Dezimalzahl – `transientStatusCanGoStale()`
+  trifft schon deshalb zu, und sie wird beim Sprachwechsel **verworfen** statt
+  übersetzt. Gemessen: nach `setLanguage("en")` steht dort der englische
+  Leerlauftext, kein deutscher Rest. **Ein Wörterbucheintrag wäre hier
+  wirkungslos** – er würde nie angewendet, und er nähme der Meldung zugleich
+  das Verworfenwerden, sodass die Zahl im alten Format einfröre. Der Fall steht
+  jetzt mit dieser Begründung in der Falschmeldungsliste des Werkzeugs.
+
+  **Stand danach:** `tools/scan-i18n.mjs` meldet über alle siebzehn Zustände
+  **null** neue Treffer.
+
 - **31 Statustexte haben keine englische Fassung.** Sie wurden beim Umzug der
   Ausgaben in die Statuszeile systematisch erfasst: literale Argumente von
   `setEditStatus()`, `setMultiSelectionStatus()`, `setReduceStatus()`,

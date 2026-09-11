@@ -240,6 +240,177 @@ try {
     (await page.locator("#reduceToleranceInput").inputValue()) === "0,02",
     await page.locator("#reduceToleranceInput").inputValue());
 
+  /* ---------------------------------------------------------------- */
+  console.log("Rasterhinweis und Zeichenstatus, beide Richtungen");
+
+  /*
+   * Vier Texte des Rasterhinweises und zwei des Zeichenstatus hatten keine
+   * englische Fassung. Gefunden hat sie nicht dieser Test, sondern
+   * tools/scan-i18n.mjs - und zwar erst, als die Zustandsliste dort um das
+   * weite Herauszoomen und den leeren Grundzustand erweitert wurde: eine
+   * Laufzeitsuche ist nur so vollstaendig wie die Zustaende, die sie besucht.
+   *
+   * Der Sprachwechsel laeuft hier ueber setLanguage() und wird unmittelbar
+   * danach gemessen, ohne weitere Handlung.
+   */
+  const gridStatus = () => page.locator("#gridStatus").textContent();
+  const drawStatus = () => page.locator("#drawFeatureStatus").textContent();
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(300);
+
+  /*
+   * Die herausgezoomte Fassung: sie erscheint erst, wenn das eingestellte
+   * Raster feiner waere als ein Bildschirmpixel. Ein kleiner Rasterwert allein
+   * genuegt nicht - es muss wirklich herausgezoomt sein.
+   */
+  await menueBefehl(page, "Ansicht", "Raster…");
+  await page.waitForTimeout(250);
+  await page.fill("#gridStepInput", "0,01");
+  await page.locator("#gridStepInput").press("Enter");
+  await page.waitForTimeout(250);
+  for (let i = 0; i < 12; i++) {
+    await page.locator("#zoomOutBtn").click();
+    await page.waitForTimeout(50);
+  }
+  await page.waitForTimeout(350);
+
+  const rasterDe = await gridStatus();
+
+  check("deutsch: der Rasterhinweis nennt beide Weiten",
+    rasterDe.includes("Eingestellt:") && rasterDe.includes("Sichtbar dargestellt:"),
+    rasterDe);
+  check("deutsch: und begründet die gröbere Darstellung",
+    rasterDe.includes("kleiner als ein Bildschirmpixel"), rasterDe);
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(400);
+  const rasterEn = await gridStatus();
+
+  check("englisch: derselbe Hinweis ist übersetzt",
+    rasterEn.includes("Set:") && rasterEn.includes("Shown:"), rasterEn);
+  check("englisch: auch die Begründung",
+    rasterEn.includes("smaller than one screen pixel"), rasterEn);
+  check("englisch: kein deutscher Rest im Rasterhinweis",
+    !/Eingestellt|Sichtbar dargestellt|Bildschirmpixel/.test(rasterEn), rasterEn);
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+
+  check("und er kommt unverändert zurück", (await gridStatus()) === rasterDe,
+    `${rasterDe} || ${await gridStatus()}`);
+
+  /*
+   * Der Text OHNE geladene Karte - der Zustand, in dem der Editor startet.
+   * Er entsteht in renderGrid() und lief deshalb nie ueber eine Uebersetzung.
+   */
+  await page.goto(indexUrl(), { waitUntil: "load" });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "load" });
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(400);
+
+  const leerEn = await gridStatus();
+  check("englisch: der Rasterhinweis ohne Karte ist übersetzt",
+    leerEn.includes("The grid is shown once a map is open."), leerEn);
+
+  /*
+   * Der Zeichenstatus, in der ENGLISCHEN Oberflaeche erzeugt: er entsteht hier
+   * gar nicht erst auf Deutsch. Das ist die Gegenrichtung zu allem darueber -
+   * eine Zusicherung, die nur in der einen Sprache erzeugt, sieht nicht, was
+   * beim Erzeugen schiefgeht.
+   */
+  await page.locator("#fileInput").setInputFiles({
+    name: "i18n.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(MAP),
+  });
+  await page.waitForTimeout(500);
+  await openAllFolds(page);
+
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(250);
+
+  const startEn = await editStatus();
+  check("englisch erzeugt: der Zeichenhinweis ist englisch",
+    startEn.includes("Draw exclusion: click the corner points."), startEn);
+
+  await page.locator("#svg").click({ position: { x: 300, y: 300 } });
+  await page.waitForTimeout(300);
+
+  const fortschrittEn = await drawStatus();
+  check("englisch erzeugt: der Fortschritt zählt in der Einzahl",
+    fortschrittEn.includes("1 point placed.") &&
+    fortschrittEn.includes("2 more points required."),
+    fortschrittEn);
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+
+  const fortschrittDe = await drawStatus();
+  check("und auf deutsch steht dort die deutsche Einzahl",
+    fortschrittDe.includes("1 Punkt gesetzt.") &&
+    fortschrittDe.includes("Noch 2 Punkte erforderlich."),
+    fortschrittDe);
+
+  /*
+   * Der zweite Punkt dreht die Einzahl um: jetzt fehlt genau EINER. Ohne
+   * diesen Fall bliebe die deutsche Einzahlform ungedeckt - eine Mutation an
+   * ihr veraenderte den Text bei zwei fehlenden Punkten gar nicht.
+   */
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(350);
+  await page.locator("#svg").click({ position: { x: 380, y: 320 } });
+  await page.waitForTimeout(300);
+
+  const zweiterEn = await drawStatus();
+  check("englisch: beim vorletzten Punkt steht die Einzahl",
+    zweiterEn.includes("2 points placed.") &&
+    zweiterEn.includes("1 more point required."),
+    zweiterEn);
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+
+  const zweiterDe = await drawStatus();
+  check("deutsch: dort ebenfalls die Einzahl",
+    zweiterDe.includes("2 Punkte gesetzt.") &&
+    zweiterDe.includes("Noch 1 Punkt erforderlich."),
+    zweiterDe);
+
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(300);
+
+  /*
+   * "Perimeter vollstaendig ausgewaehlt · 4 Punkte." Der Anzeigename bleibt im
+   * Muster als $1 stehen und wird nicht uebersetzt - bei "Perimeter" ist das
+   * richtig, denn er lautet englisch gleich.
+   */
+  await openAllFolds(page);
+  const ganzesFeature = page.locator(
+    '[data-action="select-whole-feature"][data-feature-index="0"]');
+
+  if (await ganzesFeature.count()) {
+    await ganzesFeature.click();
+    await page.waitForTimeout(400);
+
+    const ganzDe = await editStatus();
+    check("deutsch: die Vollauswahl nennt Feature und Punktzahl",
+      /vollständig ausgewählt · \d+ Punkte\.$/.test(ganzDe.trim()), ganzDe);
+
+    await page.evaluate(() => setLanguage("en"));
+    await page.waitForTimeout(400);
+
+    const ganzEn = await editStatus();
+    check("englisch: dieselbe Meldung ist übersetzt",
+      /fully selected · \d+ points\.$/.test(ganzEn.trim()), ganzEn);
+    check("englisch: und kein deutscher Rest bleibt stehen",
+      !/vollständig|ausgewählt|Punkte/.test(ganzEn), ganzEn);
+
+    await page.evaluate(() => setLanguage("de"));
+    await page.waitForTimeout(400);
+  }
+
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
 } finally {

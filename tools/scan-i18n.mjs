@@ -122,6 +122,18 @@ const FALSCHMELDUNGEN = [
   [/^GeoJSON · RTK · Polygon Editing$/, "Untertitel der Marke, bereits englisch"],
   [/^Esc:$/, "Tastenname, englisch gleich"],
 
+  /*
+   * Eine fluechtige Meldung mit Dezimalzahl wird beim Sprachwechsel VERWORFEN
+   * und nicht uebersetzt - transientStatusCanGoStale() trifft schon wegen der
+   * Zahl zu. Ein Woerterbucheintrag waere hier wirkungslos: er wuerde nie
+   * angewendet. Nachgemessen an "→ East · 0,10 m": nach setLanguage("en")
+   * steht dort der englische Leerlauftext, nicht der deutsche Rest.
+   */
+  [/^[←→↑↓] (West|East|North|South) · [\d.,]+ m$/,
+   "fluechtige Verschiebemeldung mit Dezimalzahl - wird verworfen, nicht uebersetzt"],
+  [/^\d+ Punkte · [←→↑↓] (West|East|North|South) · [\d.,]+ m$/,
+   "dieselbe Meldung mit Punktzahl"],
+
   /* Aus der Testdatei, nicht aus dem Quelltext */
   [/^unbekannt$/, "properties.name der Testkarte - kein Text des Editors"],
   [/^[\w-]+\.geojson( \*)?$/, "Dateiname der Testkarte"],
