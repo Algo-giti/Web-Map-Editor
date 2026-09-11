@@ -3081,6 +3081,62 @@ schon umgezogen, die Erklärung noch nicht.**
 
 ---
 
+### Etappe 8 – die Messung, 11.09.2026, Stand `85f6854`
+
+**Gemessen, nicht geschätzt.** Fünf Breiten, geladene Karte, frischer
+`localStorage`. „Zielgrößen" ist je die **niedrigste** sichtbare Höhe der
+Gruppe.
+
+| | 1920×1080 | 1440×900 | 1280×800 | 860×800 | 744×1133 |
+|---|---|---|---|---|---|
+| `main`-Spalten | 168 / 1432 / 320 | 168 / 952 / 320 | 168 / 792 / 320 | 56 / 484 / 320 | gestapelt |
+| Kartenfläche | 1 344 648 px² | 722 568 px² | 521 928 px² | 318 956 px² | 565 440 px² |
+| Seite scrollt | nein | nein | nein | nein | **ja** |
+| Menütitel | 34 px | 34 px | 34 px | **34 px** | 44 px |
+| Kopfzeilenknopf | 34 px | 34 px | 34 px | **34 px** | 44 px |
+| Inspektorknopf | 26 px | 26 px | 26 px | **26 px** | 44 px |
+| Schrift im E/N-Feld | 12 px | 12 px | 12 px | 12 px | **12 px** |
+| `data-optional` sichtbar | 3/3 | 3/3 | 3/3 | 0/3 | 0/3 |
+| `#sidebar` / `#mobilePanelBtn` | – | – | – | – | – |
+
+Menüeinträge bei 744 px: 44 px.
+
+**Befund 1: die Trennung durch die Tablet-Familie ist real, nicht theoretisch.**
+Bei **744 px** greift der Mobilblock vollständig – die Seite scrollt, die
+Werkzeugleiste liegt waagerecht (744 × 214), der Inspektor steht gestapelt
+über der Karte, und alle Zielgrößen sind 44 px. Bei **860 px** – und damit
+auch bei 768, 820 und 834 – gilt das Desktop-Layout mit **34 px** Menütiteln
+und **26 px** Inspektorknöpfen. Ein iPad mini hochkant bekommt Fingergrößen,
+ein iPad hochkant nicht. Genau der Fall, den CLAUDE.md beschrieben hat, jetzt
+mit Zahlen.
+
+**Befund 2, neu und in der Doku bisher falsch dargestellt: die 16-px-Regel
+gegen Androids Formular-Zoom erreicht die E/N-Felder NICHT.** Sie lautet
+`aside input, aside select, aside button { font-size:16px }` – Spezifität
+(0,0,0,2). `.coord-input` trägt `font:inherit` mit Spezifität (0,0,1,0) und
+gewinnt; die Kurzform `font` setzt dabei auch die Größe. **Gemessen: 12 px,
+auch bei 744 px**, also genau dort, wo die Regel greifen soll. Die
+Beschreibung „16 px Schriftgröße in Eingabefeldern" oben gilt damit für die
+Knöpfe und die Auswahlfelder, aber nicht für die beiden Koordinatenfelder.
+Dieselbe Spezifitätsfalle wie bei `[hidden]`, nur eine Ebene tiefer.
+
+**Befund 3: `data-optional` weicht schon bei 860 px.** Bezugspunkt und
+Prüfergebnis sind auf **jedem** Tablet im Hochformat weg, und bei 860 px auch
+auf einem kleinen Desktopfenster. Regelkonform, weil beides im Inspektor
+nachschlagbar ist – aber es ist der Normalfall des Zielgeräts.
+
+**Der Plan – Vorschlag, kein Auftrag; die Reihenfolge ist die Abhängigkeit:**
+
+| Teilschritt | Inhalt | warum in dieser Reihenfolge |
+|---|---|---|
+| **8a** | Den einen `@media(max-width:760px)`-Block in **zwei** teilen: einen Breitenblock bei **744 px** (Stapeln, waagerechte Leiste, Seiten-Scrolling, Kartenhöhe, verkleinerte Marke) und einen Block an der **Bedienart** (`pointer:coarse` / `any-pointer:coarse`) mit den 44-px-Zielgrößen und der 16-px-Schrift. Die Spezifität von `.coord-input` dabei mitziehen, sonst bleibt Befund 2 stehen. | Ohne die Trennung bekommt ein Tablet im Querformat weiter Desktop-Zielgrößen. Alles Weitere hängt an dieser Trennung |
+| **8b** | „Erklärung ohne Hover" – siehe den Abschnitt unten | Setzt 8a nicht voraus, ist aber der größere Brocken und sollte nicht mit einer Layout-Umstellung im selben Commit liegen |
+| **8c** | Die Schwelle der `data-optional`-Felder entscheiden: bleibt sie bei 900 px, oder folgt sie der neuen Grenze? | Erst sinnvoll, wenn 8a die Grenze festgelegt hat |
+| **8d** | Zusicherungen bei **744, 768, 834 und 1024 px** in `tools/test-toolbar.mjs`: Zielgrößen ≥ 44 px bei grobem Zeiger, Schrift im E/N-Feld, Stapeln ab/bis zur Grenze, und dass unterhalb von 744 px nichts abgewiesen wird | Zuletzt, weil sie den Zustand festhalten, den 8a bis 8c herstellen |
+
+**Was nicht dazugehört:** eine Handyfassung, ein Fassungsschalter, eine Sperre
+unterhalb von 744 px. Das ist entschieden und steht oben.
+
 ### Etappe 8b – „Erklärung ohne Hover"
 
 **Eine eigene Etappe, keine Randnotiz.** Sie ist das, was die Entscheidung
