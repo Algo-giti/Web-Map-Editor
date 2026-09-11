@@ -1229,6 +1229,156 @@ try {
       "merge-status ok",
     await page.locator("#mergeStatus").getAttribute("class"));
 
+  /* --- 6. Die Warnung "veraendert" steht NEBEN dem Vorgabehinweis --- */
+
+  /*
+   * 7d-4b: sperrende Meldungen stehen weiter zuerst und allein. Darunter
+   * gelten Hinweis und Warnung nebeneinander - sie beantworten zwei
+   * verschiedene Fragen. Der Hinweis sagt, ob der Nutzer HIER entschieden
+   * hat; die Warnung, ob seine Entscheidung den heutigen Ring noch trifft.
+   * Eine Karte mit gesetztem Paar zaehlt fuer den Hinweis deshalb als
+   * gewaehlt, auch wenn sie sich seither veraendert hat.
+   *
+   * Geprueft wird ausschliesslich der sichtbare Text und die Trefferbarkeit,
+   * nie slot.cutEdge.
+   */
+  const VERAENDERT_WARNUNG =
+    "Auftrennstelle seit der Wahl verändert – verbunden wird dort, " +
+    "wo der Ring heute aufgetrennt ist.";
+
+  /** Auftrennstelle auf der AKTIVEN Karte setzen und danach verschieben. */
+  const setzenUndVerschieben = async (punkte, name) => {
+    await waehlePunkte(punkte);
+    await openMergeWindow();
+    await klickeFreienKnopf("#setMergeCutBtn",
+      `Vorbedingung ${name}: die Auftrennstelle laesst sich setzen`,
+      "#mergeCutReason");
+    await page.waitForTimeout(400);
+
+    await waehlePunkte([punkte[1]]);
+    await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(400);
+    await openMergeWindow();
+  };
+
+  /* --- 6a. A veraendert, B aus der Datei: BEIDES steht da --- */
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A));
+  await upload("#secondFileInput", "cut-b.geojson", cutMap(RING_B));
+  await menueBefehl(page, "Karte", "Karte A");
+  await page.waitForTimeout(300);
+  await openAllFolds(page);
+
+  await setzenUndVerschieben([[0, 0], [40, 0]], "A");
+
+  const EINSEITIG =
+    "Auftrennstelle nur für Karte A gewählt – " +
+    "für Karte B gilt die Reihenfolge aus der Datei.";
+
+  check("A veraendert: der Vorgabehinweis nennt A weiterhin als gewaehlt",
+    (await mergeText("#mergeStatus")).includes(EINSEITIG),
+    await mergeText("#mergeStatus"));
+  check("und die Warnung steht daneben, mit dem Kartennamen",
+    (await mergeText("#mergeStatus")).includes(`Karte A ${VERAENDERT_WARNUNG}`),
+    await mergeText("#mergeStatus"));
+  check("und ohne den Kartennamen der anderen Seite",
+    !(await mergeText("#mergeStatus")).includes("Karte A und B") &&
+    !(await mergeText("#mergeStatus")).includes(`Karte B ${VERAENDERT_WARNUNG}`),
+    await mergeText("#mergeStatus"));
+  check("die Zeile traegt dabei die Warnklasse",
+    (await page.locator("#mergeStatus").getAttribute("class")) ===
+      "merge-status warning",
+    await page.locator("#mergeStatus").getAttribute("class"));
+
+  const veraendertGetroffen = await elementGetroffen(page, "#mergeStatus");
+  check("und ist wirklich getroffen, nicht nur gerechnet da",
+    veraendertGetroffen.ok, JSON.stringify(veraendertGetroffen));
+
+  /* Englisch: die neue Warnung und der Kartenname sind beide uebersetzt. */
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+  await openMergeWindow();
+
+  check("englisch: die Warnung und der Kartenname sind uebersetzt",
+    (await mergeText("#mergeStatus")).includes(
+      "Map A Cut edge changed since it was chosen – " +
+      "merging uses the place where the ring is cut open today."),
+    await mergeText("#mergeStatus"));
+  check("englisch: kein deutscher Rest in der Zeile",
+    !(await mergeText("#mergeStatus")).includes("verändert") &&
+    !(await mergeText("#mergeStatus")).includes("Karte"),
+    await mergeText("#mergeStatus"));
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+  await openMergeWindow();
+
+  /* --- 6b. Trotz "veraendert" verbinden, und das Ergebnis zaehlen --- */
+
+  /*
+   * Von Hand hergeleitet: das Verbinden haengt die offene Kette von B an die
+   * offene Kette von A. Karte A steht nach dem Auftrennen auf [40,0] und
+   * traegt nach der Pfeiltaste (40.10, 0) als ersten Punkt; Karte B steht
+   * unveraendert auf ihrer Dateireihenfolge.
+   */
+  const ERGEBNIS_VERAENDERT = [
+    [40.1, 0], [40, 40], [0, 40], [0, 0],
+    [-20, 40], [-60, 40], [-60, 0], [-20, 0],
+  ];
+
+  await klickeFreienKnopf("#mergeMapsBtn",
+    "trotz 'veraendert' bleibt Verbinden frei", "#mergeStatus");
+  await page.waitForTimeout(600);
+  await openAllFolds(page);
+
+  check("und das Ergebnis traegt die acht hergeleiteten Punkte",
+    (await perimeterFolge()) === folge(ERGEBNIS_VERAENDERT),
+    await perimeterFolge());
+
+  /* --- 6c. Beide Karten veraendert: EIN Kartenname fuer beide --- */
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A));
+  await upload("#secondFileInput", "cut-b.geojson", cutMap(RING_B));
+  await menueBefehl(page, "Karte", "Karte A");
+  await page.waitForTimeout(300);
+  await openAllFolds(page);
+  await setzenUndVerschieben([[0, 0], [40, 0]], "A");
+
+  await menueBefehl(page, "Karte", "Karte B");
+  await page.waitForTimeout(300);
+  await openAllFolds(page);
+  await setzenUndVerschieben([[-20, 40], [-60, 40]], "B");
+
+  check("beide veraendert: die Warnung nennt beide Karten in EINEM Element",
+    (await mergeText("#mergeStatus")).includes(
+      `Karte A und B ${VERAENDERT_WARNUNG}`),
+    await mergeText("#mergeStatus"));
+  check("und der Vorgabehinweis entfaellt, weil beide Seiten gewaehlt sind",
+    !(await mergeText("#mergeStatus")).includes("Reihenfolge aus der Datei"),
+    await mergeText("#mergeStatus"));
+  check("'Bereit.' steht nicht neben einer Warnung",
+    !(await mergeText("#mergeStatus")).includes("Bereit."),
+    await mergeText("#mergeStatus"));
+
+  /* --- 6d. Veraendert UND Kreuzung: beide Warnungen stehen da --- */
+  await upload("#fileInput", "cut-a.geojson", cutMap(RING_A));
+  await upload("#secondFileInput", "cut-b-gedreht.geojson", cutMap(RING_B_GEDREHT));
+  await menueBefehl(page, "Karte", "Karte A");
+  await page.waitForTimeout(300);
+  await openAllFolds(page);
+  await setzenUndVerschieben([[0, 0], [40, 0]], "A");
+
+  check("veraendert und Kreuzung: die Warnung zur Stelle steht da",
+    (await mergeText("#mergeStatus")).includes(`Karte A ${VERAENDERT_WARNUNG}`),
+    await mergeText("#mergeStatus"));
+  check("und der Kreuzungssatz ebenfalls",
+    (await mergeText("#mergeStatus")).includes("kreuzt") &&
+    (await mergeText("#mergeStatus")).includes(
+      "Eine andere Auftrennstelle vermeidet das."),
+    await mergeText("#mergeStatus"));
+  check("die Zeile traegt weiterhin genau eine Warnklasse",
+    (await page.locator("#mergeStatus").getAttribute("class")) ===
+      "merge-status warning",
+    await page.locator("#mergeStatus").getAttribute("class"));
+
   /* ---------------------------------------------------------------- */
   console.log("Das Fenster ist in jeder Fenstergroesse wirklich getroffen");
 

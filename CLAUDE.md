@@ -1417,13 +1417,53 @@ konnte die stumme Überschreibung beliebig lange bestehen. Das ist dieselbe
 Klasse wie „eine Zusicherung über ein Ausbleiben beweist nichts", nur eine
 Stufe davor: es gab überhaupt keine Zusicherung. Mit 7d-3 gibt es sie.
 
-**Was 7d stattdessen ist – drei Teilschritte, kein Modus:**
+**Was 7d stattdessen ist – kein Modus, sondern sechs Teilschritte. Mit 7d-4b
+ist die Etappe abgeschlossen:**
 
 | Teilschritt | Inhalt |
 |---|---|
 | 7d-1 | `mergeStatus` nennt die Vorgabe, statt „Bereit." zu behaupten; die beiden neuen Kanten werden auf Kreuzungen geprüft – **Warnung, keine Sperre** |
 | 7d-2 | „Auftrennstelle setzen" bei genau zwei benachbarten Punkten desselben Rings; `mergeAInfo`/`mergeBInfo` nennen die gewählte Stelle |
 | 7d-3 | Zusicherungen, die das **Ergebnis** zählen – und die Überschreibung durch die beiden alten Knöpfe belegen |
+| 7d-4a | die Auftrennstelle ist ein **Paar** statt eines Booleans; drei abgeleitete Zustände `file` / `chosen` / `changed` |
+| 7d-4b | `mergeStatus`: Hinweis und Warnungen stehen **nebeneinander**, „Bereit." nur ohne beides |
+| 7d-4c | eine **ersetzte** Auftrennstelle meldet sich, statt still zu überschreiben |
+
+**Die Rangfolge von `mergeStatus` seit 7d-4b, und warum sie so aussieht.** Die
+fünf sperrenden Meldungen stehen weiter zuerst und **allein** – wo nichts geht,
+hilft kein Zusatz. Darunter gelten Hinweis und Warnung **nebeneinander**, denn
+sie beantworten zwei verschiedene Fragen:
+
+| Element | Frage, die es beantwortet |
+|---|---|
+| Vorgabehinweis | hat der Nutzer für diese Karte überhaupt entschieden? |
+| Warnung „verändert" | trifft seine Entscheidung den heutigen Ring noch? |
+| Warnung „Kreuzung" | liegen die neuen Kanten sauber? |
+
+**Für den Hinweis zählt eine Karte mit gesetztem Paar als gewählt, auch im
+Zustand „verändert".** Entschieden hat der Nutzer dort; dass sich der Ring
+seither verschoben hat, sagt die Warnung darunter. Beides zugleich zu melden
+wäre eine Aussage zu viel über dieselbe Tatsache.
+
+**„Bereit." erscheint nur, wenn weder Hinweis noch Warnung dasteht.** Es ist
+eine Aussage über den ganzen Zustand, nicht nur über die Wahl – neben einer
+Warnung hieße es, im selben Absatz zu sagen, alles sei in Ordnung und etwas
+stimme nicht.
+
+**Die Gegenrichtung war gemessen und ist verworfen.** Die zunächst erwogene
+Regel „der Hinweis nur ohne Warnung" hätte `MIT_KREUZUNG` in
+`tools/test-merge.mjs` gebrochen – eine Zusicherung aus 7d-3. Nachgemessen als
+Mutation: sie reißt „gekreuzte Bruecken: die Statuszeile nennt die Kreuzung".
+Die heutige Regel lässt **jede** Zusicherung aus 7d-3/3b/3d unverändert.
+
+**Die Warnung „verändert" ist eine Warnung, keine Sperre** – `#mergeMapsBtn`
+bleibt frei. Eine seit der Wahl verschobene Auftrennstelle entsteht durch eine
+ganz gewöhnliche Punktbearbeitung und ist kein Fehler; verbunden wird dann
+dort, wo der Ring heute aufgetrennt ist, und genau das sagt der Text. Der
+**Kartenname** ist ein eigenes Element („Karte A", „Karte B", „Karte A und B")
+und je ein Wörterbucheintrag – als ein Textknoten mit dem Bezeichner darin wäre
+er im Englischen nur zur Hälfte übersetzt, dieselbe Falle wie „Start: E …" vor
+7d-2.
 
 **Die Auftrennstelle ist keine neue Auswahlbedingung, sondern der Fall, den das
 Begradigen ablehnt.** `getSelectedSection()` gibt bei zwei **benachbarten**
