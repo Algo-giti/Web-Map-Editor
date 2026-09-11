@@ -786,6 +786,97 @@ eine nicht reißende Mutation ist erst dann ein Befund über den Test, wenn ihre
 Wirkung belegt ist. Wer sie vorher als Lücke einträgt, hinterlässt einen
 offenen Punkt, den niemand schließen kann – es ist keiner da.
 
+#### Fünf Regeln aus dem vierten Durchgang
+
+Sie stehen hier zusammen, weil sie alle aus **einer** Sitzung stammen und jede
+an einem konkreten Fehlschlag hängt, nicht an einer Überlegung.
+
+**(a) „Passt" heißt: kein Textbehälter ist abgeschnitten – nie eine Summe
+gerenderter Breiten.** Ob ein Text vollständig dasteht, beantwortet
+`scrollWidth > clientWidth` **am Textbehälter selbst**. Die naheliegende
+Alternative – die Breiten der Kinder addieren und mit der Zeile vergleichen –
+**kann nicht falsch werden**: eine gerenderte Breite ist bauartbedingt nie
+größer als der Platz, den das Layout ihr zugeteilt hat. Sie misst das Ergebnis
+der Stauchung und nicht die Stauchung.
+
+Gemessen an den vier Zusicherungen „passen ohne Stauchung" in
+`tools/test-statusbar.mjs`: sie meldeten „PASST" bei 960, 900, 800, 771 und
+770 px – während bei 800 px vier Felder sichtbar per Ellipse gekürzt waren.
+Vier von zehn Zusicherungen des Abschnitts maßen damit eine Größe, die nicht
+falsch werden kann. Dazu passt, dass die Mutation M17 (Schwelle hinauf) nur
+die *Feldzahl*-Zusicherungen riss und keine einzige der vier.
+
+**Dazu gehört: jeder Textbehälter, nicht nur die mit der erwarteten Klasse.**
+Dieselbe Messung nahm `.status-value` und `.filename` und übersah dadurch
+Auswahlzähler und Cursor-Koordinaten – beide tragen ihren Text unmittelbar am
+Feld. Wer nach einer Klasse sucht, sucht nach dem, was er erwartet.
+
+**(b) Kein Messwert als Literal in einer Zusicherung.** Eine Zahl, die aus
+einer Messung stammt, gehört nicht als Konstante in den Test – geprüft wird
+entweder eine **Beziehung** (größer als, gleich der Nachbarspalte) oder der
+Wert wird **aus der Quelle gelesen**, gegen die er gelten soll.
+
+Zwei Fälle im Bestand, beide aus dem dritten Durchgang: `tools/test-toolbar.mjs`
+sicherte `kartenbreite === 368` zu – eine Zahl, die nur festhält, was am
+Messtag herauskam, und bei jeder Layoutänderung ohne Erkenntnisgewinn reißt;
+und `tools/test-statusbar.mjs` trug 769, 770 und 771 als Literale, statt die
+Schwelle aus der CSS-Regel zu lesen. Ein Test, der seine eigene Schwelle nicht
+kennt, prüft nicht die Schwelle, sondern eine Erinnerung an sie.
+
+**Die Gegenprobe, die der Bestand schon führt:** „die Karte ist breiter als der
+Inspektor" (`kartenbreite > 320`) ist eine Beziehung und bleibt deshalb
+richtig, wenn sich die Maße ändern.
+
+**(c) Kein Locator und kein `boundingBox()` aus einem ungeprüften Wert.** Ist
+der Wert `null` oder leer, entsteht ein Selektor, der nie trifft, und
+Playwright wartet dreißig Sekunden – aus einer klaren Aussage wird ein stummer
+Abbruch. **Der Abschnitt wird stattdessen nach einer benannten Zusicherung
+abgebrochen**, so wie `klickeFreienKnopf()` es beim gesperrten Knopf tut.
+
+Gemessen an der Mutation M15 des dritten Durchgangs: `tools/test-merge.mjs`
+baute `circle.vertex[data-vertex-key="${endSchluessel}"]` auch dann, wenn
+`endSchluessel` `null` war – der Marker lag unter der Mähervorschau. Die
+Zusicherung „der Endpunkt hat wieder einen eigenen Marker" riss zwar, aber
+eine gerissene `check()`-Zusicherung bricht den Lauf nicht ab, und die
+nächste Zeile lief in den Timeout. **Das ist derselbe Fall wie „die
+Zusicherung allein genügt nicht – der Klick muss unterbleiben", nur mit
+`boundingBox()` statt einem Klick.**
+
+**(d) Eine Laufzeitsuche ist nur so vollständig wie die Zustände, die sie
+besucht hat.** Ein Werkzeug, das die laufende Oberfläche absucht, findet
+nichts über einen Zustand, den niemand hergestellt hat – und sein leeres
+Ergebnis sieht aus wie ein sauberer Befund. **Werkzeug und Bericht nennen
+deshalb die besuchten Zustände**, und zwar namentlich, nicht als Zahl.
+
+Gemessen: die i18n-Suche des dritten Durchgangs besuchte acht Zustände und
+meldete 24 Treffer. Auf vierzehn Zustände erweitert – dieselbe Suche, derselbe
+Codestand – waren es 38, darunter **acht echte** deutsche Texte ohne englische
+Fassung, die vorher niemand gesehen hatte. Der Zuwachs kam allein aus
+Reduzieren, Begradigen, Rechtwinklig, dem Bezugspunktkonflikt, dem Ladefehler
+und der herausgezoomten Rasteransicht.
+
+**Das ist die Laufzeitfassung der Regel „eine Liste ist so vollständig wie ihr
+Suchmuster"** aus Abschnitt 7: dort war das Muster zu eng, hier der Zustandsraum.
+
+**(e) Eine i18n-Zusicherung gilt in beiden Richtungen.** Es genügt nicht, den
+Text in der Zielsprache zu erzeugen und ihn dort zu prüfen. Geprüft wird: **in
+der einen Sprache erzeugen, umschalten, dann messen** – und dasselbe umgekehrt.
+Nur so wird sichtbar, was beim Wechsel *nicht* mitgeht.
+
+Gemessen an `tools/test-validation.mjs`: der englische Durchlauf schaltet die
+Sprache **vor** dem Laden und Prüfen um. Der Bericht entsteht damit gleich auf
+Englisch, und die Zusicherungen bestehen. Der Fall „auf Deutsch geprüft, dann
+umgeschaltet" wird nirgends gefahren – und genau dort friert der Bericht sein
+Zahlenformat ein: `lastValidationResult` speichert fertig formatierte Texte,
+das Muster setzt die Zahl als `$1` unverändert ein, und es steht
+„Info: Perimeter area: 2502,50 m²." mit deutschem Komma unter englischer
+Beschriftung. Die Gegenrichtung liefert „Info: Perimeterfläche: 2500.00 m²."
+
+**Der Sprachwechsel läuft dabei über `setLanguage()`, und gemessen wird
+unmittelbar danach**, ohne weitere Handlung: ein Klick auf `#languageToggle`
+nimmt dem Eingabefeld den Fokus, und jede Handlung dazwischen kann einen
+abgeleiteten Text neu bauen, der dadurch richtig aussieht.
+
 #### Hinweis für eigene Erweiterungen
 
 **Einklappbare Bereiche zuerst öffnen.** Seit Etappe 5 sind „Umformen" und
