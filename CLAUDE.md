@@ -4061,17 +4061,42 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   Der Marker des Endpunkts fehlt, an seiner Stelle steht der Mäher.
 
-  **Noch nicht ermittelt, und beides gehört vor eine Entscheidung:**
+  **Beide offenen Fragen sind am 11.09.2026 beantwortet, Stand `656643b` –
+  und die Antwort ist der Grund, warum hier NICHT repariert wurde.**
 
-  - **Wer `selectedVertex` danach schreibt.** In Frage kommen
-    `afterGeometryEdit()`, `syncActiveSlotFromGlobals()` und `activateMap()`,
-    die alle drei die Auswahl anfassen; nachgesehen ist es nicht.
-  - **Ob dem Nutzer damit ein Griff fehlt.** Der Endpunkt ist über den Mäher
-    weiterhin auswählbar, sofern der Mäher dieselbe Trefferfläche hat – und ob
-    er das tut, ist ebenfalls nicht gemessen. Ist die Fläche kleiner oder
-    versetzt, ist der Endpunkt nach dem Auftrennen schwerer zu greifen als
-    jeder andere Punkt, und zwar genau in dem Moment, in dem man ihn ansehen
-    will.
+  **Wer `selectedVertex` schreibt: `pruneSelectedVertices()`.** Die Funktion
+  läuft als erste Zeile von `afterGeometryEdit()`, und ihr letzter Block
+  lautet:
+
+  ```js
+  if (!selectedVertex && selectedVertices.length) {
+    selectedVertex = {...selectedVertices[selectedVertices.length - 1]};
+  }
+  ```
+
+  `applyMergeCut()` setzt `selectedVertex = null`, füllt `selectedVertices`
+  mit Start- und Endpunkt und ruft danach `afterGeometryEdit()` – der Block
+  greift und setzt den **letzten** Eintrag, also den Endpunkt. Das Verhalten
+  ist damit kein Versehen in `applyMergeCut()`, sondern die Regel „eine
+  nichtleere Gruppe hat immer einen Hauptpunkt".
+
+  **Deshalb wurde hier angehalten statt repariert.**
+  `afterGeometryEdit()` ist der Weg, den **jede** Geometrieänderung des
+  Editors nimmt – Verschieben, Löschen, Einfügen, jedes Umformwerkzeug. Wer
+  den Block anfasst, ändert das Auswahlverhalten des ganzen Editors, nicht
+  das einer Funktion. Das ist eine Entscheidung und kein Nachtrag: soll eine
+  nichtleere Gruppe **immer** einen Hauptpunkt haben (heutiges Verhalten),
+  oder darf `selectedVertex` leer bleiben, wenn eine Funktion das ausdrücklich
+  so gesetzt hat?
+
+  **Dem Nutzer fehlt tatsächlich ein Griff.** Gemessen bei einem Ring aus vier
+  Punkten unmittelbar nach dem Auftrennen: `document.elementFromPoint()` an
+  der Stelle des Endpunkts liefert `<path class="mower-heading">`, also den
+  Richtungspfeil des Mähers und keinen Punktmarker; ein Klick genau dort
+  ändert die Auswahl **nicht** (`selectedVertex` bleibt 3, zwei Punkte
+  ausgewählt). Der Endpunkt ist also nicht anders auswählbar – wer ihn allein
+  greifen will, muss vorher die Auswahl aufheben, dann steht sein Marker
+  wieder da.
 
   **Für Tests ist das ein Fallstrick**, und er hat beim Messen zu 7d-4 sofort
   zugeschlagen: ein Skript, das den Marker des Endpunkts über seine Koordinate
