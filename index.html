@@ -1052,19 +1052,24 @@
    * Maßstäbliche Mähroboter-Vorschau.
    * Alle Abmessungen werden in echten Weltmetern gezeichnet.
    */
+  /*
+   * Reine ANZEIGE: der Maeher faengt keinen Klick ab. Unter ihm liegt der
+   * Marker des ausgewaehlten Punktes, und der ist die Trefferflaeche - vorher
+   * ersetzte die Vorschau den Marker, und der Punkt war nicht mehr greifbar.
+   * Der Zeiger gehoert deshalb auch nicht mehr hierher, sondern an den Marker
+   * darunter.
+   */
   .mower-footprint {
-    cursor:grab;
-    pointer-events:all;
+    pointer-events:none;
   }
-
-  .mower-footprint.dragging { cursor:grabbing; }
 
   /*
    * Der Mäher steht IMMER am ausgewählten Punkt und trägt deshalb die
    * Auswahlfarbe - er ist eine zweite Darstellung derselben Bedeutung, keine
-   * zweite Bedeutung. Ein Widerspruch entsteht dadurch nicht: die
-   * Mähervorschau ERSETZT den Marker des ausgewählten Punktes
-   * (mowerReplacesPoint), der gelbe Auswahlring ist dann gar nicht gezeichnet.
+   * zweite Bedeutung. Ein Widerspruch entsteht dadurch nicht: solange der
+   * Mäher auf dem Punkt steht, zeichnet dessen Marker KEINEN Auswahlring
+   * (`mowerOnPoint` in `renderGeometry()`). Der Marker selbst bleibt stehen -
+   * er ist die Trefferfläche, nicht die Anzeige.
    */
   .mower-body {
     fill:rgba(242,247,252,.84);
@@ -11091,20 +11096,28 @@ function renderGeometry() {
         circle.classList.add("multi-selected");
       }
 
-      if (sameVertex(descriptor, selectedVertex)) {
+      /*
+       * Der Maeher steht AUF dem ausgewaehlten Punkt. Sein Marker bleibt
+       * trotzdem stehen - er ist die TREFFERFLAECHE, und ohne ihn liesse
+       * sich genau der Punkt nicht mehr greifen, den man gerade bearbeitet.
+       *
+       * Er traegt dann aber keinen Auswahlring: zwei gelbe Dinge an derselben
+       * Stelle waeren die Doppelbelegung, die die Farbregel verbietet. Die
+       * Farbregel bleibt damit unveraendert gueltig - getrennt sind jetzt
+       * ANZEIGE (der Maeher) und TREFFERFLAECHE (der Marker), nicht die
+       * Bedeutungen.
+       */
+      const mowerOnPoint =
+        document.getElementById("showMowerPreview").checked &&
+        sameVertex(descriptor, selectedVertex);
+
+      if (sameVertex(descriptor, selectedVertex) && !mowerOnPoint) {
         circle.classList.add("selected");
         if (vertexDrag) circle.classList.add("dragging");
       }
 
       bindVertexEvents(circle, descriptor);
-
-      const mowerReplacesPoint =
-        document.getElementById("showMowerPreview").checked &&
-        sameVertex(descriptor, selectedVertex);
-
-      if (!mowerReplacesPoint) {
-        vertexGroup.appendChild(circle);
-      }
+      vertexGroup.appendChild(circle);
     });
   });
 
@@ -11793,6 +11806,16 @@ function renderSelectedMower() {
  * Punkt. Snap-to-Grid funktioniert dadurch unverändert.
  */
 function bindMowerEvents(robot, descriptor) {
+  /*
+   * ACHTUNG: die Zeigerbehandlung unten LÄUFT NICHT MEHR. Der Mäher trägt
+   * seit Schritt 3 `pointer-events:none` und ist reine Anzeige; gegriffen
+   * wird der Marker darunter. Der `<title>` entsteht weiter, er beschreibt
+   * die Vorschau für die Vorlesehilfe - auf Hover erscheint er nicht mehr,
+   * dieselbe Angabe steht im Inspektor unter "Mäher" und "Richtung".
+   *
+   * Der tote Zweig ist ABSICHTLICH stehen geblieben und als offener Punkt
+   * gemeldet, statt ihn im selben Schritt zu entfernen.
+   */
   const orientation = getVertexOrientation(descriptor);
 
   const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
@@ -16200,7 +16223,14 @@ function applyMergeCut() {
   const endDescriptor =
     startDescriptor === first ? second : first;
 
-  selectedVertex = null;
+  /*
+   * `selectedVertex = null` stand hier und war wirkungslos:
+   * `pruneSelectedVertices()` - die erste Zeile von `afterGeometryEdit()` -
+   * setzt bei nichtleerer Gruppe ohnehin sofort wieder einen Hauptpunkt, und
+   * zwar den letzten Eintrag. Die Zuweisung behauptete eine Wirkung, die es
+   * nicht gab. `pruneSelectedVertices()` bleibt unverändert; sie ist der Weg,
+   * den JEDE Geometrieänderung nimmt.
+   */
   selectedVertices = [
     {...startDescriptor, pointIndex:0, ringClosed:true},
     {...endDescriptor, pointIndex:rotated.length - 1, ringClosed:true}

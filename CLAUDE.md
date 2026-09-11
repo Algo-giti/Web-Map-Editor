@@ -2389,11 +2389,37 @@ Glühen eines ganz ausgewählten Features.
 | Auswahlring, Feature-Glühen, Mäher | gelb | gelb – *eine* Bedeutung |
 
 **Auswahlring und Mäher dürfen dieselbe Farbe tragen, weil sie nie
-gleichzeitig erscheinen.** Die Mähervorschau **ersetzt** den Marker des
-ausgewählten Punktes (`mowerReplacesPoint` in `renderGeometry()`); ist sie an,
-existiert kein `circle.selected`. Nachgemessen: mit Mäher null gelbe
-Auswahlringe, ohne Mäher genau einer. Sie sind zwei Darstellungen **derselben**
-Bedeutung „hier ist die Auswahl", nicht zwei Bedeutungen.
+gleichzeitig erscheinen.** Ist die Mähervorschau an, zeichnet der Marker des
+ausgewählten Punktes **keinen Auswahlring** (`mowerOnPoint` in
+`renderGeometry()`); es existiert dann kein `circle.selected`. Nachgemessen:
+mit Mäher null gelbe Auswahlringe, ohne Mäher genau einer. Sie sind zwei
+Darstellungen **derselben** Bedeutung „hier ist die Auswahl", nicht zwei
+Bedeutungen.
+
+**Getrennt sind seit Schritt 3 des dritten Durchgangs ANZEIGE und
+TREFFERFLÄCHE, nicht die Bedeutungen.** Bis dahin *ersetzte* die Vorschau den
+Marker: er fehlte im SVG, und genau der Punkt, den man gerade bearbeitet, war
+nicht mehr zu greifen – `elementFromPoint()` lieferte an seiner Stelle den
+Richtungspfeil des Mähers. Der Marker bleibt jetzt stehen und trägt nur keinen
+Ring mehr; der Mäher trägt `pointer-events:none` und ist reine Anzeige. **Die
+Farbregel gilt dabei unverändert** – sie verbietet zwei gelbe Dinge an
+derselben Stelle, nicht einen unsichtbaren Griff darunter.
+
+Zugesichert ist die Wirkung, nicht die Klasse: nach dem Auftrennen stehen so
+viele Marker wie Ringpunkte, `elementGetroffen()` trifft den Endpunkt-Marker,
+und ein Zug an ihm verschiebt den Punkt wirklich (`tools/test-merge.mjs`);
+dasselbe für einen einzeln angeklickten Punkt außerhalb des Verbindens
+(`tools/test-inspector.mjs`). Drei Mutationen belegen es: „der Mäher ist wieder
+greifbar" reißt eine, „der Marker wird wieder ersetzt" drei, „der Auswahlring
+wird trotz Mäher gezeichnet" eine.
+
+**Der Preis, und er ist gemeldet, nicht versteckt:** der `<title>` der
+Mähervorschau erscheint auf Hover nicht mehr. Dieselbe Angabe steht im
+Inspektor unter „Mäher" und „Richtung"; der Titel bleibt für die Vorlesehilfe
+im DOM. Und die Zeigerbehandlung in `bindMowerEvents()` **läuft nicht mehr** –
+sie ist absichtlich stehen geblieben und mit einem Kommentar versehen, statt im
+selben Schritt entfernt zu werden. **Ob sie fällt, ist eine Entscheidung**; sie
+steht als offener Punkt in Abschnitt 7.
 
 Die reale Überlagerung war eine andere und ist jetzt weg: ein **ausgewählter
 Dock-Punkt** setzte den gelben Mäher exakt auf die gelbe Dock-Linie – gleiche
@@ -4613,9 +4639,23 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   liefen genau dort auseinander, wo der Unterschied ein Bruchteil eines
   Millimeters ist.
 
-- **`selectedVertex` steht nach `applyMergeCut()` auf dem Endpunkt, obwohl die
-  Funktion ihn auf `null` setzt.** Befund vom 10.09.2026, Stand `1a0c325`, im
-  Browser gemessen – **Reproduktionsfall, kein Auftrag.**
+- **`selectedVertex` stand nach `applyMergeCut()` auf dem Endpunkt, obwohl die
+  Funktion ihn auf `null` setzte – ERLEDIGT mit Schritt 3 des dritten
+  Durchgangs.** Die wirkungslose Zuweisung ist entfernt,
+  `pruneSelectedVertices()` ist **unverändert**: sie ist der Weg, den jede
+  Geometrieänderung nimmt, und ihre Regel „eine nichtleere Gruppe hat immer
+  einen Hauptpunkt" bleibt bestehen. Entschieden ist damit die Frage, die der
+  Befund offenließ – **nicht durch Umbau der Regel, sondern dadurch, dass die
+  Zuweisung nichts mehr behauptet, was sie nicht einlöst.**
+
+  **Die sichtbare Folge ist getrennt behoben**, siehe „Auswahlring und Mäher"
+  in Abschnitt 5: der Marker des ausgewählten Punktes bleibt jetzt stehen und
+  ist greifbar, der Mäher ist reine Anzeige. Der Fallstrick für Tests – „ein
+  Skript, das den Marker über seine Koordinate sucht, findet ihn nicht" – ist
+  damit weg; ein Test muss die Auswahl dafür nicht mehr aufheben.
+
+  Der ursprüngliche Befund vom 10.09.2026, Stand `1a0c325`, bleibt stehen, weil
+  er die Entscheidung trägt:
 
   `applyMergeCut()` setzt ausdrücklich `selectedVertex = null` und füllt allein
   `selectedVertices` mit den beiden Endpunkten. Unmittelbar nach dem Klick auf
@@ -4676,6 +4716,21 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   zugeschlagen: ein Skript, das den Marker des Endpunkts über seine Koordinate
   sucht, findet ihn nicht und läuft in einen Playwright-Timeout. Vorher die
   Auswahl aufheben – dann stehen wieder alle Marker da.
+
+- **Die Zeigerbehandlung in `bindMowerEvents()` läuft nicht mehr – zu
+  entscheiden, ob sie fällt.** Seit Schritt 3 des dritten Durchgangs trägt der
+  Mäher `pointer-events:none`; `pointerdown` erreicht ihn nie mehr. Der Zweig
+  darin (Messpunkt setzen, Zeichenpunkt setzen, Flächenauswahl starten,
+  Strg-Umschalten, Ziehen) ist damit toter Code. Er ist **absichtlich stehen
+  geblieben und mit einem Kommentar versehen**, statt im selben Schritt
+  entfernt zu werden: das Entfernen ist eine eigene Entscheidung, und die
+  Hausregel „UI-Element entfernen – Pflichtsuche" verlangt dafür einen eigenen
+  Durchgang. Der `<title>` derselben Funktion wird weiter gebraucht.
+
+  **Dazu gehört, was dabei verloren geht:** der `<title>` der Mähervorschau
+  erscheint auf Hover nicht mehr. Das ist kein neuer Fall, sondern einer für
+  Etappe 8b – dieselbe Angabe steht im Inspektor unter „Mäher" und „Richtung",
+  und auf dem Zielgerät erschien der Tooltip ohnehin nie.
 
 - **Die Mähbahnen-Vorschau ist geplant, aber nicht gebaut.** Sie war für
   Ausgabe 049 vorgesehen und wurde herausgenommen, um den Release nicht

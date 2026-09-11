@@ -21,7 +21,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-inspector.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import { createChecker, elementGetroffen, indexUrl, launchBrowser } from "./browser-harness.mjs";
 
 const TOOL = "test-inspector";
 
@@ -1490,6 +1490,82 @@ try {
 
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(500);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Ein einzeln gewaehlter Punkt bleibt unter dem Maeher greifbar");
+
+  /*
+   * Schritt 3, dritter Durchgang - derselbe Fall wie beim Auftrennen, nur
+   * ohne Verbinden: die Maehervorschau ERSETZTE bis dahin den Marker des
+   * ausgewaehlten Punktes. Er fehlte damit im SVG, und genau der Punkt, den
+   * man gerade bearbeitet, war nicht mehr zu greifen.
+   *
+   * load() nimmt die Vorschau heraus, damit die Markerzaehlungen weiter oben
+   * stimmen - hier wird sie eigens wieder eingeschaltet.
+   */
+  await load();
+
+  const maeherSchalten = async (an) => {
+    await page.evaluate((wert) => {
+      const box = document.getElementById("showMowerPreview");
+      if (box.checked === wert) return;
+      box.checked = wert;
+      box.dispatchEvent(new Event("change", { bubbles: true }));
+    }, an);
+    await page.waitForTimeout(250);
+  };
+
+  await maeherSchalten(true);
+
+  const perimeterMarker = page.locator('#vertexGroup circle[data-layer="perimeter"]');
+  const vorAuswahl = await perimeterMarker.count();
+
+  await marks.nth(2).click();
+  await page.waitForTimeout(300);
+
+  check("mit Maeher bleibt die Markerzahl unveraendert",
+    (await perimeterMarker.count()) === vorAuswahl,
+    `${await perimeterMarker.count()} statt ${vorAuswahl}`);
+
+  check("und kein Marker traegt einen gelben Auswahlring",
+    (await page.locator("#vertexGroup circle.selected").count()) === 0,
+    String(await page.locator("#vertexGroup circle.selected").count()));
+
+  const gewaehlterSchluessel = await page.evaluate(() =>
+    document.querySelector('#vertexGroup circle[data-layer="perimeter"]:nth-of-type(3)')
+      ?.dataset.vertexKey || null);
+
+  const punktGetroffen = await elementGetroffen(
+    page, `#vertexGroup circle[data-vertex-key="${gewaehlterSchluessel}"]`, { dy: 5 });
+  check("der ausgewaehlte Punkt ist wirklich getroffen, nicht vom Maeher verdeckt",
+    punktGetroffen.ok, JSON.stringify(punktGetroffen));
+
+  /* Ziehen: die Koordinate danach ist die Wirkung, nicht der Zustand davor. */
+  const vorherE = (await page.locator("#pointEastInput").inputValue());
+  const markerKasten = await page.locator(
+    `#vertexGroup circle[data-vertex-key="${gewaehlterSchluessel}"]`).boundingBox();
+
+  await page.mouse.move(
+    markerKasten.x + markerKasten.width / 2,
+    markerKasten.y + markerKasten.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(markerKasten.x + markerKasten.width / 2 + 45,
+    markerKasten.y + markerKasten.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+
+  check("und ein Zug an ihm verschiebt ihn wirklich",
+    (await page.locator("#pointEastInput").inputValue()) !== vorherE,
+    `${vorherE} -> ${await page.locator("#pointEastInput").inputValue()}`);
+
+  await maeherSchalten(false);
+
+  check("ohne Maeher traegt genau ein Marker den Auswahlring",
+    (await page.locator("#vertexGroup circle.selected").count()) === 1,
+    String(await page.locator("#vertexGroup circle.selected").count()));
+  check("und die Markerzahl ist dieselbe wie mit Maeher",
+    (await perimeterMarker.count()) === vorAuswahl,
+    `${await perimeterMarker.count()} statt ${vorAuswahl}`);
 
   /* ---------------------------------------------------------------- */
   console.log("Eine Einmalmeldung wird beim Sprachwechsel verworfen");

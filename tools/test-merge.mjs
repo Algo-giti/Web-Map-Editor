@@ -602,6 +602,98 @@ try {
   check("und der Infoblock ist wirklich getroffen, nicht nur gerechnet da",
     infoGetroffen.ok, JSON.stringify(infoGetroffen));
 
+  /* --- Schritt 3: der Punkt unter der Maehervorschau bleibt greifbar --- */
+
+  /*
+   * Nach dem Auftrennen sind Start- und Endpunkt ausgewaehlt, und der Maeher
+   * steht auf dem Hauptpunkt. Bis Schritt 3 ERSETZTE die Vorschau dessen
+   * Marker: er fehlte im SVG, `elementFromPoint()` lieferte an seiner Stelle
+   * den Richtungspfeil des Maehers, und ein Klick dorthin aenderte die
+   * Auswahl nicht - der Punkt war nicht mehr zu greifen.
+   *
+   * Seitdem bleibt der Marker stehen und traegt nur keinen Auswahlring mehr.
+   * Zugesichert wird die WIRKUNG: so viele Marker wie Ringpunkte, der Marker
+   * ist wirklich getroffen, und ein Zug an ihm verschiebt den Punkt.
+   */
+  /*
+   * EIN Escape: es schliesst das Verbinden-Fenster und laesst die Auswahl
+   * stehen. Das Fenster liegt unten links ueber der Karte und verdeckt genau
+   * den Marker bei E 0 / N 0 - nachgemessen, elementFromPoint() lieferte dort
+   * "mergeMapsBtn". Das ist eine Eigenheit des Testaufbaus, kein Befund ueber
+   * den Marker.
+   */
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  const maeherAn = await page.evaluate(() =>
+    document.getElementById("showMowerPreview").checked);
+  check("Vorbedingung: die Maehervorschau ist an",
+    maeherAn, "showMowerPreview ist nicht angekreuzt");
+
+  check("nach dem Auftrennen stehen so viele Marker wie Ringpunkte",
+    (await page.locator('#vertexGroup circle[data-layer="perimeter"]').count()) === 4,
+    String(await page.locator('#vertexGroup circle[data-layer="perimeter"]').count()));
+
+  const endSchluessel = await markerSchluessel([0, 0]);
+  check("der Endpunkt hat wieder einen eigenen Marker",
+    endSchluessel !== null, "kein oder mehr als ein Marker bei E 0 / N 0");
+
+  const endGetroffen = await elementGetroffen(
+    page, `circle.vertex[data-vertex-key="${endSchluessel}"]`, { dy: 5 });
+  check("und er ist wirklich getroffen, nicht vom Maeher verdeckt",
+    endGetroffen.ok, JSON.stringify(endGetroffen));
+
+  /*
+   * Die Farbregel bleibt: gelber Auswahlring und gelber Maeher stehen nie am
+   * selben Punkt. Der Marker unter dem Maeher traegt deshalb keine Klasse
+   * "selected" - gemessen wird die Zahl der gelben Ringe, nicht die Klasse
+   * eines einzelnen Markers.
+   */
+  check("mit Maeher steht null gelber Auswahlring",
+    (await page.locator("#vertexGroup circle.selected").count()) === 0,
+    String(await page.locator("#vertexGroup circle.selected").count()));
+
+  await page.evaluate(() => {
+    const box = document.getElementById("showMowerPreview");
+    box.checked = false;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.waitForTimeout(300);
+
+  check("ohne Maeher genau einer",
+    (await page.locator("#vertexGroup circle.selected").count()) === 1,
+    String(await page.locator("#vertexGroup circle.selected").count()));
+  check("und die Markerzahl bleibt dieselbe",
+    (await page.locator('#vertexGroup circle[data-layer="perimeter"]').count()) === 4,
+    String(await page.locator('#vertexGroup circle[data-layer="perimeter"]').count()));
+
+  await page.evaluate(() => {
+    const box = document.getElementById("showMowerPreview");
+    box.checked = true;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.waitForTimeout(300);
+
+  /*
+   * Ziehen: die Auswahl haelt beide Endpunkte, ein Zug an einem Marker
+   * verschiebt die ganze Gruppe. Geprueft wird die Koordinate DANACH - ohne
+   * greifbaren Marker faende Playwright das Element nicht einmal.
+   */
+  const ringVorher = await perimeterFolge();
+  const endBox = await page.locator(
+    `circle.vertex[data-vertex-key="${endSchluessel}"]`).boundingBox();
+
+  await page.mouse.move(endBox.x + endBox.width / 2, endBox.y + endBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(endBox.x + endBox.width / 2 + 40,
+    endBox.y + endBox.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+
+  check("ein Zug am Endpunkt-Marker verschiebt ihn wirklich",
+    (await perimeterFolge()) !== ringVorher,
+    `${ringVorher} -> ${await perimeterFolge()}`);
+
   /* Dieselbe Kante, umgekehrt angeklickt. */
   await upload("#fileInput", "cut-a.geojson", cutMap(RING_A, EXCLUSION_A));
   await waehlePunkte([[40, 0], [0, 0]]);
