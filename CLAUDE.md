@@ -3218,13 +3218,62 @@ nachschlagbar ist – aber es ist der Normalfall des Zielgeräts.
 
 | Teilschritt | Inhalt | warum in dieser Reihenfolge |
 |---|---|---|
-| **8a** | Den einen `@media(max-width:760px)`-Block in **zwei** teilen: einen Breitenblock bei **744 px** (Stapeln, waagerechte Leiste, Seiten-Scrolling, Kartenhöhe, verkleinerte Marke) und einen Block an der **Bedienart** (`pointer:coarse` / `any-pointer:coarse`) mit den 44-px-Zielgrößen und der 16-px-Schrift. Die Spezifität von `.coord-input` dabei mitziehen, sonst bleibt Befund 2 stehen. | Ohne die Trennung bekommt ein Tablet im Querformat weiter Desktop-Zielgrößen. Alles Weitere hängt an dieser Trennung |
+| **8a** – **ERLEDIGT** | Den einen `@media(max-width:760px)`-Block in **zwei** geteilt: einen Breitenblock bei **743 px** (Stapeln, waagerechte Leiste, Seiten-Scrolling, Kartenhöhe, verkleinerte Marke) und einen Block an der **Bedienart** (`pointer: coarse`) mit den 44-px-Zielgrößen und der 16-px-Schrift. Die Spezifität von `.coord-input` ist mitgezogen, Befund 2 ist damit weg. | Ohne die Trennung bekommt ein Tablet im Querformat weiter Desktop-Zielgrößen. Alles Weitere hängt an dieser Trennung |
 | **8b** | „Erklärung ohne Hover" – siehe den Abschnitt unten | Setzt 8a nicht voraus, ist aber der größere Brocken und sollte nicht mit einer Layout-Umstellung im selben Commit liegen |
 | **8c** | Die Schwelle der `data-optional`-Felder entscheiden: bleibt sie bei 900 px, oder folgt sie der neuen Grenze? | Erst sinnvoll, wenn 8a die Grenze festgelegt hat |
 | **8d** | Zusicherungen bei **744, 768, 834 und 1024 px** in `tools/test-toolbar.mjs`: Zielgrößen ≥ 44 px bei grobem Zeiger, Schrift im E/N-Feld, Stapeln ab/bis zur Grenze, und dass unterhalb von 744 px nichts abgewiesen wird | Zuletzt, weil sie den Zustand festhalten, den 8a bis 8c herstellen |
 
 **Was nicht dazugehört:** eine Handyfassung, ein Fassungsschalter, eine Sperre
 unterhalb von 744 px. Das ist entschieden und steht oben.
+
+### Etappe 8a – der Stand danach, gemessen
+
+**Dieselben fünf Breiten, jetzt zusätzlich je Zeigerart.** Geladene Karte,
+frischer `localStorage`, ein Punkt ausgewählt. „Zielgrößen" ist je die
+**niedrigste** sichtbare Höhe der Gruppe.
+
+| | 1920×1080 | 1440×900 | 1280×800 | 860×800 | 744×1133 |
+|---|---|---|---|---|---|
+| `main`-Spalten | 168/1432/320 | 168/952/320 | 168/792/320 | 56/484/320 | **56/368/320** |
+| Seite scrollt | nein | nein | nein | nein | **nein** |
+| Menütitel, fein / grob | 34 / **44** | 34 / **44** | 34 / **44** | 34 / **44** | 34 / **44** |
+| Menüeintrag, fein / grob | 36 / 44 | 36 / 44 | 36 / 44 | 36 / 44 | 36 / 44 |
+| Kopfzeilenknopf, fein / grob | 40 / 44 | 40 / 44 | 40 / 44 | 40 / 44 | 40 / 44 |
+| Inspektorknopf, fein / grob | 26 / **44** | 26 / **44** | 26 / **44** | 26 / **44** | 26 / **44** |
+| Schrift im E/N-Feld, fein / grob | 12 / **16** | 12 / **16** | 12 / **16** | 12 / **16** | 12 / **16** |
+| `data-optional` sichtbar | 3/3 | 3/3 | 3/3 | 0/3 | 0/3 |
+
+**Die drei Befunde der Messung von `85f6854` sind damit ausgetragen:**
+
+- **Befund 1 – die Trennung durch die Tablet-Familie ist weg.** Bei 744 px gilt
+  jetzt dasselbe dreispaltige Layout wie bei 768, 820 und 834; die Seite
+  scrollt dort nicht mehr. Fingergrößen bekommt ein Gerät nicht mehr, weil es
+  schmal ist, sondern weil es mit dem Finger bedient wird – **bei 1920 px
+  ebenso wie bei 744**. Genau das war der Fall, der vorher fehlte: ein Tablet
+  im Querformat.
+- **Befund 2 – die 16-px-Regel erreicht die E/N-Felder.** Gemessen 16 px bei
+  grobem Zeiger in **jeder** Breite. Die Spezifitätsfalle ist ohne
+  `!important` aufgelöst: `aside .coord-input` (0,0,1,1) schlägt
+  `.coord-input { font:inherit }` (0,0,1,0).
+- **Befund 3 – `data-optional` weicht unverändert bei 900 px.** Das ist
+  Teilschritt 8c und ist **nicht mitentschieden**, siehe dort.
+
+**Das Höhenziel gilt seit 8a für den FEINEN Zeiger.** „Bis 900 px Fensterhöhe
+scrollfrei" war mit 26-px-Knöpfen gerechnet; mit den 44 px, die ein Finger
+braucht, ist es nicht zu halten. Bei grobem Zeiger darf die Spalte deshalb
+scrollen – die Alternative wäre, dem Finger kleinere Ziele zu geben, und das
+wäre die schlechtere Wahl. **Eine CSS-Regel braucht das nicht:** `.inspector`
+trägt ohnehin `overflow-y:auto` und schlägt als Klasse den Elementselektor
+`aside`; nachgemessen ist der berechnete Wert in beiden Zeigerarten schon
+`auto`. Geändert hat sich allein der Geltungsbereich des Ziels.
+
+**`pointer: coarse` und nicht `any-pointer: coarse`.** `pointer` beschreibt das
+**primäre** Zeigegerät: ein Desktop mit Touchscreen, an dem mit der Maus
+gearbeitet wird, bleibt fein und behält seine dichte Oberfläche.
+`any-pointer: coarse` träfe jeden angeschlossenen Touchscreen mit und gäbe
+einem Mausarbeitsplatz Fingergrößen. Das ist eine Entscheidung, keine
+Ableitung – wer sie umdreht, ändert das Aussehen auf Geräten, die hier nicht
+gemessen werden können.
 
 ### Etappe 8b – „Erklärung ohne Hover"
 
@@ -3601,7 +3650,8 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | 1100 px | `@media` | die Werkzeugleiste zeigt Text |
   | **1000 px** | **JS**, `TOOL_RAIL_NARROW_QUERY = "(max-width: 1000px)"` | die Werkzeugleiste klappt **erzwungen** ein |
   | 900 px | `@media` | Statusfelder mit `data-optional` weichen |
-  | 760 px | `@media` | mobiles Layout: alles untereinander |
+  | **743 px** | `@media` | gestapeltes Layout: alles untereinander (bis Etappe 8a: 760 px) |
+  | – | `@media (pointer: coarse)` | 44-px-Zielgrößen und 16 px in Eingabefeldern, **ohne Breitenbezug** (seit Etappe 8a) |
 
   Eine Schwelle bei **980 px** gibt es nicht mehr – sie gehörte zur zweiten
   Rastervorlage der Seitenleiste und ist mit Etappe 7e entfallen. Wer in

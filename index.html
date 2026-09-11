@@ -2498,7 +2498,19 @@
    * Zustand schlagen, deshalb nennen sie ihn mit - eine Medienregel erhöht die
    * Spezifität nicht.
    */
-  @media(max-width:760px) {
+  /*
+   * Die Breitengrenze liegt bei 743 px, nicht mehr bei 760. 744 px ist die
+   * Breite eines iPad mini im Hochformat und damit das kleinste ZIELGERAET -
+   * es soll das Tablet-Layout bekommen, nicht das gestapelte. Die alte 760er
+   * Schwelle schnitt mitten durch dieselbe Geraetefamilie: iPad mini hochkant
+   * 744 auf der einen, iPad hochkant 768 auf der anderen Seite.
+   *
+   * Dieser Block regelt AUSSCHLIESSLICH die Breite. Die Zielgroessen fuer den
+   * Finger stehen weiter unten an der Bedienart - sie haengen am Eingabegeraet
+   * und nicht an der Breite, sonst bekaeme ein Tablet im Querformat
+   * Desktop-Groessen.
+   */
+  @media(max-width:743px) {
     .inspector {
       width:100%;
       border-left:0;
@@ -2541,13 +2553,17 @@
   }
 
   /*
-   * Mobile / Android Chrome
-   * -----------------------
-   * Auf kleinen Displays darf nicht mehr das Desktop-Modell mit fester
-   * Fensterhöhe und versteckter Sidebar gelten. Der Browser darf normal
-   * vertikal scrollen; die Werkzeugleiste wird über "Bedienung" aufgeklappt.
+   * Schmaler als das kleinste Zielgeraet
+   * ------------------------------------
+   * Unterhalb von 744 px darf nicht mehr das Desktop-Modell mit fester
+   * Fensterhöhe gelten. Der Browser darf normal vertikal scrollen, und die
+   * Spalten stapeln sich.
+   *
+   * Hier steht nur, was an der BREITE haengt. Alles, was am Eingabegeraet
+   * haengt - Zielgroessen und Schriftgroesse in Feldern -, steht im Block zur
+   * Bedienart weiter unten.
    */
-  @media(max-width:760px) {
+  @media(max-width:743px) {
     html, body {
       width:100%;
       height:auto;
@@ -2628,10 +2644,6 @@
       gap:4px;
     }
 
-    .menu-title { min-height:44px; padding:6px 12px; }
-
-    .menu-item { min-height:44px; }
-
     .toolbar {
       grid-column:1 / -1;
       width:100%;
@@ -2644,7 +2656,6 @@
     .toolbar button {
       width:100%;
       min-width:0;
-      min-height:44px;
       padding:8px 7px;
       white-space:normal;
       line-height:1.15;
@@ -2706,37 +2717,6 @@
       overflow:hidden;
     }
 
-    /*
-     * Safari auf iOS/iPadOS zoomt beim Fokus in ein Feld, dessen Schrift 15 px
-     * oder kleiner ist, in die Seite hinein - und nicht von selbst wieder
-     * heraus. Ab 16 px unterbleibt das. Die Regel stand hier zunächst mit
-     * "Android Chrome" begründet; das ist mit Schritt E richtiggestellt, denn
-     * belegt ist das Verhalten für Safari, nicht für Chrome. Die Regel selbst
-     * bleibt - das iPad ist seit Etappe 8 ausdrücklich Zielgerät.
-     */
-    aside input,
-    aside select,
-    aside button {
-      font-size:16px;
-    }
-
-    aside button {
-      min-height:44px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
-
-    input[type="checkbox"] {
-      min-width:20px;
-      min-height:20px;
-    }
-
-    .toggle {
-      min-height:44px;
-      margin:4px 0;
-    }
-
     .map-legend-bar { gap:12px; padding:0 8px; }
     .map-selection-toolbar {
       left:8px;
@@ -2746,12 +2726,6 @@
       gap:5px;
       overflow-x:auto;
       padding:5px;
-    }
-
-    .map-tool-button {
-      width:42px;
-      height:42px;
-      min-width:42px;
     }
 
     .map-tool-status {
@@ -2785,6 +2759,86 @@
       grid-template-columns:minmax(0,1fr);
       overflow:visible;
     }
+  }
+
+  /*
+   * Bedienart statt Breite
+   * ----------------------
+   * Ein Tablet wird mit dem Finger bedient, ob es 744 px breit ist oder 1366.
+   * Diese Regeln haengen deshalb am EINGABEGERAET und nicht an der Breite.
+   * Bis Etappe 8a standen sie im 760-px-Block; ein Tablet im Querformat bekam
+   * damit Desktop-Zielgroessen - 34 px Menuetitel und 26 px Inspektorknoepfe
+   * fuer einen Finger, und das auf dem erklaerten Zielgeraet.
+   *
+   * `pointer: coarse` beschreibt das PRIMAERE Zeigegeraet. Ein Desktop mit
+   * Touchscreen, dessen Hauptzeiger die Maus ist, bleibt dadurch fein - genau
+   * richtig, denn dort wird mit der Maus gearbeitet. `any-pointer: coarse`
+   * waere die weitere Lesart und traefe jeden angeschlossenen Touchscreen mit;
+   * sie ist hier bewusst nicht gewaehlt.
+   */
+  @media (pointer: coarse) {
+    .menu-title { min-height:44px; padding:6px 12px; }
+
+    .menu-item { min-height:44px; }
+
+    .toolbar button { min-height:44px; }
+
+    /*
+     * Safari auf iOS/iPadOS zoomt beim Fokus in ein Feld, dessen Schrift 15 px
+     * oder kleiner ist, in die Seite hinein - und nicht von selbst wieder
+     * heraus. Ab 16 px unterbleibt das.
+     *
+     * `aside .coord-input` steht ausdruecklich daneben und ist keine
+     * Doppelung: `.coord-input` traegt `font:inherit` mit der Spezifitaet
+     * (0,0,1,0) und schlaegt `aside input` mit (0,0,0,2) - die Kurzform `font`
+     * setzt dabei auch die Groesse. Gemessen wurde deshalb 12 px in den
+     * E/N-Feldern, genau dort, wo die Regel greifen soll. Mit (0,0,1,1)
+     * gewinnt sie ohne `!important`.
+     */
+    aside .coord-input,
+    aside input,
+    aside select,
+    aside button {
+      font-size:16px;
+    }
+
+    aside button {
+      min-height:44px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    input[type="checkbox"] {
+      min-width:20px;
+      min-height:20px;
+    }
+
+    .toggle {
+      min-height:44px;
+      margin:4px 0;
+    }
+
+    .map-tool-button {
+      width:42px;
+      height:42px;
+      min-width:42px;
+    }
+
+    /*
+     * Und die Folge daraus, ausdruecklich zugelassen: mit 44-px-Knoepfen passt
+     * der Inspektor nicht mehr in 900 px Fensterhoehe. Das Hoehenziel "bis
+     * 900 px scrollfrei" gilt deshalb fuer den FEINEN Zeiger; bei grobem darf
+     * die Spalte scrollen. Die Alternative waere, dem Finger kleinere Ziele zu
+     * geben, und das waere die schlechtere Wahl.
+     *
+     * Eine Regel braucht es dafuer NICHT: `.inspector` traegt ohnehin
+     * `overflow-y:auto` und schlaegt als Klasse den Elementselektor `aside`.
+     * Ein `aside { overflow-y:auto }` an dieser Stelle waere eine Zeile, die
+     * nichts aendert - nachgemessen, der berechnete Wert ist in beiden
+     * Zeigerarten schon `auto`. Geaendert hat sich allein der GELTUNGSBEREICH
+     * des Hoehenziels, und der steht in CLAUDE.md.
+     */
   }
 
   /*
