@@ -4573,6 +4573,25 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   „N von M Punkten entfernt" – dort steht hinter der Zahl das Wort „von",
   kein Nomen.
 
+- **Der Tooltip über der Karte folgt dem Sprachwechsel – ERLEDIGT mit
+  Schritt 8 des vierten Durchgangs.**
+
+  **Der Befund war:** `#tip` wurde ausschließlich im `pointermove`-Handler
+  geschrieben. Blieb der Zeiger auf einem Feature liegen und wechselte die
+  Sprache, stand dort weiter „Exclusion #0 Typ: Polygon Index: 0" – die
+  Umstellung auf einzelne Elemente aus dem dritten Durchgang wirkte erst beim
+  nächsten Überfahren.
+
+  **Die Einordnung ist der ganze Punkt:** der Tooltip beschreibt, **was unter
+  dem Zeiger liegt**. Das lässt sich jederzeit neu berechnen – er ist
+  **abgeleitet**, nicht flüchtig, und gehört damit nach der Regel in
+  Abschnitt 5 in `refreshDerivedUi()`. Dafür braucht er sein Ziel:
+  `tooltipTarget` hält Feature und Index, `renderFeatureTooltip()` baut den
+  Inhalt daraus, und `pointerleave` setzt das Ziel wieder auf `null`.
+
+  **Zugesichert wird ohne Mausbewegung zwischen Wechsel und Ablesen** – eine
+  Bewegung schriebe den Tooltip ohnehin neu und deckte den Fall zu.
+
 - **Acht Texte ohne englische Fassung – ERLEDIGT mit Schritt 7 des vierten
   Durchgangs.** Gefunden hat sie `tools/scan-i18n.mjs`, und zwar erst, als
   dessen Zustandsliste um das weite Herauszoomen, den leeren Grundzustand und

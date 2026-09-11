@@ -411,6 +411,56 @@ try {
     await page.waitForTimeout(400);
   }
 
+  /* ---------------------------------------------------------------- */
+  console.log("Der Tooltip unter dem ruhenden Zeiger");
+
+  /*
+   * #tip wurde bis zum vierten Durchgang nur bei pointermove geschrieben und
+   * stand nach einem Sprachwechsel in der alten Sprache da, solange der Zeiger
+   * liegen blieb. Er beschreibt aber, was UNTER dem Zeiger liegt - das laesst
+   * sich jederzeit neu berechnen, und damit gehoert er auf den abgeleiteten
+   * Weg.
+   *
+   * Gemessen wird OHNE Mausbewegung zwischen Wechsel und Ablesen: eine
+   * Bewegung wuerde den Tooltip ohnehin neu schreiben und den Fall zudecken.
+   */
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(350);
+
+  const tipText = () => page.locator("#tip").textContent();
+  const perimeterLinie = page.locator('path[data-layer="perimeter"]').first();
+
+  if (await perimeterLinie.count()) {
+    const kasten = await perimeterLinie.boundingBox();
+
+    if (kasten) {
+      await page.mouse.move(kasten.x + kasten.width / 2, kasten.y + 1);
+      await page.waitForTimeout(300);
+
+      const tipDe = await tipText();
+
+      check("deutsch: der Tooltip nennt Typ und Index",
+        tipDe.includes("Typ:") && tipDe.includes("Index:"), tipDe);
+
+      /* Kein mouse.move dazwischen - genau das ist der Fall. */
+      await page.evaluate(() => setLanguage("en"));
+      await page.waitForTimeout(400);
+
+      const tipEn = await tipText();
+
+      check("englisch: derselbe Tooltip ist übersetzt, ohne Mausbewegung",
+        tipEn.includes("Type:") && tipEn.includes("Index:"), tipEn);
+      check("englisch: und kein deutscher Rest bleibt stehen",
+        !tipEn.includes("Typ:"), tipEn);
+
+      await page.evaluate(() => setLanguage("de"));
+      await page.waitForTimeout(400);
+
+      check("und er kommt unverändert zurück", (await tipText()) === tipDe,
+        `${tipDe} || ${await tipText()}`);
+    }
+  }
+
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
 } finally {

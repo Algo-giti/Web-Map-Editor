@@ -11058,16 +11058,38 @@ function geometryToPathsWithFactor(geometry, factor) {
 }
 
 
+/*
+ * Das Feature, das der Tooltip gerade beschreibt - null, solange er zu ist.
+ *
+ * Der Tooltip wird sonst nur bei pointermove geschrieben und stuende nach
+ * einem Sprachwechsel in der alten Sprache da, solange der Zeiger liegen
+ * bleibt. Er beschreibt aber, was UNTER dem Zeiger liegt, und das laesst sich
+ * jederzeit neu berechnen - er gehoert damit auf den abgeleiteten Weg. Dafuer
+ * muss sein Ziel bekannt sein, und genau dafuer ist diese Variable da.
+ */
+let tooltipTarget = null;
+
+
+/** Baut den Inhalt des Tooltips aus seinem Ziel neu. */
+function renderFeatureTooltip() {
+  if (!tooltipTarget) return;
+
+  const {feature, featureIndex} = tooltipTarget;
+  const name = describeFeature(feature);
+  const index = feature.idx ?? feature.properties?.idx ?? featureIndex;
+
+  tip.innerHTML =
+    `<strong>${escapeHtml(String(name))}</strong><br>` +
+    `<span>Typ:</span> ${escapeHtml(feature.geometry?.type || "–")}<br>` +
+    `<span>Index:</span> ${escapeHtml(String(index))}`;
+}
+
+
 /** Zeigt Feature-Informationen beim Überfahren einer Linie/Fläche an. */
 function bindFeatureTooltip(element, feature, featureIndex) {
   element.addEventListener("pointermove", event => {
-    const name = describeFeature(feature);
-    const index = feature.idx ?? feature.properties?.idx ?? featureIndex;
-
-    tip.innerHTML =
-      `<strong>${escapeHtml(String(name))}</strong><br>` +
-      `<span>Typ:</span> ${escapeHtml(feature.geometry?.type || "–")}<br>` +
-      `<span>Index:</span> ${escapeHtml(String(index))}`;
+    tooltipTarget = {feature, featureIndex};
+    renderFeatureTooltip();
 
     const rect = viewer.getBoundingClientRect();
     tip.style.left = `${event.clientX - rect.left + 12}px`;
@@ -11076,6 +11098,7 @@ function bindFeatureTooltip(element, feature, featureIndex) {
   });
 
   element.addEventListener("pointerleave", () => {
+    tooltipTarget = null;
     tip.style.display = "none";
   });
 }
@@ -20426,6 +20449,10 @@ function refreshDerivedUi() {
    * wechselt. Ohne diesen Weg bliebe die Konfliktmeldung in der Sprache
    * stehen, in der sie entstanden ist.
    */
+  /* Der Tooltip beschreibt, was unter dem Zeiger liegt - solange er
+     sichtbar ist, wird er fuer dasselbe Ziel neu gebaut. */
+  renderFeatureTooltip();
+
   updateOriginUi();
 
   /*
