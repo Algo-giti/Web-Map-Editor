@@ -393,6 +393,108 @@ try {
   check("englisch: ihr Prozentwert traegt einen Punkt",
     /\d\.\d %/.test(enStatus) && !/\d,\d %/.test(enStatus), enStatus);
 
+  /* ---------------------------------------------------------------- */
+  console.log("Der WACHSENDE Zweig der Flächenwarnung");
+
+  /*
+   * Bis zum vierten Durchgang war nur der schrumpfende Zweig belegt. Der
+   * wachsende ist schwerer herzustellen, als er aussieht: Douglas-Peucker
+   * haelt eine tiefe Kerbe als groessten Ausreisser bis zu einer Toleranz, bei
+   * der die Form ohnehin zerfaellt. Was traegt, ist eine FLACHE Delle nach
+   * innen - faellt ihr Scheitel weg, wird aus dem Fuenfeck ein Rechteck, und
+   * die Flaeche waechst.
+   *
+   * Eigene Karte statt der gemeinsamen: die Zaehlungen weiter oben gehen ueber
+   * alle Exclusion-Marker, eine zweite Exclusion in syntheticMap() wuerde sie
+   * still verschieben. Die Karte steht hier neben der Zusicherung, die sie
+   * erklaert.
+   *
+   * Die Delle liegt um 5 m versetzt im Perimeter - eine Verschiebung aendert
+   * die Flaeche nicht: 395,00 m² vorher, 400,00 m² nachher, also +5,00 m² und
+   * 1,27 %, gerundet 1,3 %. Das liegt ueber der relativen Schwelle von 1 %.
+   */
+  const delleMap = () => JSON.stringify({
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: { name: "perimeter" },
+        geometry: { type: "Polygon", coordinates: [[
+          [0, 0], [60, 0], [60, 60], [0, 60], [0, 0],
+        ].map(rel)] },
+      },
+      {
+        type: "Feature",
+        idx: 0,
+        properties: { name: "exclusion" },
+        geometry: { type: "Polygon", coordinates: [[
+          [5, 5], [15, 5.5], [25, 5], [25, 25], [5, 25], [5, 5],
+        ].map(rel)] },
+      },
+    ],
+  });
+
+  const wachsen = async (sprache) => {
+    await page.goto(indexUrl(), { waitUntil: "load" });
+    await page.evaluate(() => localStorage.clear());
+    await page.reload({ waitUntil: "load" });
+
+    if (sprache === "en") {
+      await page.evaluate(() => setLanguage("en"));
+      await page.waitForTimeout(400);
+    }
+
+    await page.locator("#fileInput").setInputFiles({
+      name: "delle.geojson",
+      mimeType: "application/geo+json",
+      buffer: Buffer.from(delleMap()),
+    });
+    await page.waitForTimeout(400);
+    await openAllFolds(page);
+
+    await setTolerance(sprache === "en" ? "0.60" : "0,60");
+    await openAllFolds(page);
+
+    const ganzes = page.locator(
+      '[data-action="select-whole-feature"][data-feature-index="1"]');
+
+    check(`${sprache}: die Exclusion mit der Delle lässt sich ganz auswählen`,
+      (await ganzes.count()) === 1, String(await ganzes.count()));
+
+    if (await ganzes.count() !== 1) return null;
+
+    await ganzes.click();
+    await page.waitForTimeout(300);
+    await openAllFolds(page);
+
+    const frei = await applyButton.isEnabled();
+    check(`${sprache}: Reduzieren ist bei dieser Toleranz freigegeben`,
+      frei, await status());
+
+    if (!frei) return null;
+
+    await applyButton.click();
+    await page.waitForTimeout(450);
+
+    return (await status()).trim();
+  };
+
+  const wachsDe = await wachsen("de");
+
+  if (wachsDe !== null) {
+    check("deutsch: der wachsende Zweig meldet sich mit Komma",
+      wachsDe === "Fläche gewachsen: 395,00 → 400,00 m² (+5,00 m², 1,3 %).",
+      wachsDe);
+  }
+
+  const wachsEn = await wachsen("en");
+
+  if (wachsEn !== null) {
+    check("englisch erzeugt: derselbe Zweig meldet sich mit Punkt",
+      wachsEn === "Area grew: 395.00 → 400.00 m² (+5.00 m², 1.3 %).",
+      wachsEn);
+  }
+
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
 } finally {

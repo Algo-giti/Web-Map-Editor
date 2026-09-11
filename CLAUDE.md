@@ -2864,6 +2864,21 @@ zwei ausgewählten Punkten oder auf einem ganzen Feature. Die Auswahl kommt aus
   meiden soll. Wachsende werden gemeldet, aber neutral.
 - Die Fläche kommt aus `polygonAreaMeters()`, derselben Funktion wie in der
   Kartenprüfung. Es gibt bewusst keine zweite Flächenformel.
+- **Beide Zweige der Flächenwarnung sind zugesichert – der wachsende seit
+  Schritt 10 des vierten Durchgangs.** Er war bis dahin unbelegt, und das stand
+  in dieser Datei **nirgends**: der offene Punkt existierte nur im Bericht
+  einer Sitzung. Er ist schwerer herzustellen, als er aussieht –
+  Douglas-Peucker hält eine tiefe Kerbe als größten Ausreißer bis zu einer
+  Toleranz, bei der die Form ohnehin zerfällt. Was trägt, ist eine **flache
+  Delle nach innen**: fällt ihr Scheitel weg, wird aus dem Fünfeck ein
+  Rechteck, und die Fläche wächst.
+
+  Der Fall steht in `tools/test-reduce.mjs`: Exclusion
+  `(5,5) (15,5.5) (25,5) (25,25) (5,25)`, ganzes Feature, Toleranz 0,60 m.
+  Ergebnis „Fläche gewachsen: 395,00 → 400,00 m² (+5,00 m², 1,3 %)." und,
+  **in der englischen Oberfläche erzeugt**, „Area grew: 395.00 → 400.00 m²
+  (+5.00 m², 1.3 %)." Der Prozentwert des wachsenden Zweigs auf `toFixed(1)`
+  zurückgestellt reißt „deutsch: der wachsende Zweig meldet sich mit Komma".
 - Unterschreitet das Ergebnis die Mindestpunktzahl (3 im Ring, 2 auf der
   Linie), wird **nicht angewendet**, sondern abgelehnt. Bei 3 Punkten
   anzuhalten wäre eine stille Korrektur der eingegebenen Toleranz.
