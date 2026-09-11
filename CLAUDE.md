@@ -3411,6 +3411,31 @@ frischer `localStorage`, ein Punkt ausgewählt. „Zielgrößen" ist je die
 - **Befund 3 – `data-optional` weicht unverändert bei 900 px.** Das ist
   Teilschritt 8c und ist **nicht mitentschieden**, siehe dort.
 
+### Die Kartenbreite im Tablet-Feld – gemessen mit Schritt 5 des dritten Durchgangs
+
+**Die Frage war, ob die Karte bei offenem Inspektor schmaler wird als der
+Inspektor selbst.** Wäre sie es, trüge die Spalte, in der gearbeitet wird,
+weniger Platz als die Spalte, die sie beschreibt – und die Anordnung bei
+744 px wäre neu zu entscheiden. **Sie ist es nicht**, in keiner der fünf
+Breiten und in keiner Zeigerart.
+
+| Fensterbreite | Karte, Inspektor offen | Karte, Inspektor zu |
+|---|---|---|
+| 744 px | **368 px** | 654 px |
+| 768 px | 392 px | 678 px |
+| 820 px | 444 px | 730 px |
+| 834 px | 458 px | 744 px |
+| 860 px | 484 px | 770 px |
+
+Die Werkzeugleiste ist in allen fünf Fällen erzwungen eingeklappt (56 px), der
+Inspektor 320 px breit. **Fein und grob liefern dieselben Zahlen** – Breite und
+Bedienart sind seit 8a getrennt, und das ist hier noch einmal gemessen statt
+angenommen.
+
+**Der knappste Fall ist 744 px mit 48 px Vorsprung.** Er ist in
+`tools/test-toolbar.mjs` zugesichert, je Breite und je Zeigerart; die Mutation
+„Inspektor auf 420 px" reißt vierzehn Zusicherungen, darunter beide neuen.
+
 **Das Höhenziel gilt seit 8a für den FEINEN Zeiger.** „Bis 900 px Fensterhöhe
 scrollfrei" war mit 26-px-Knöpfen gerechnet; mit den 44 px, die ein Finger
 braucht, ist es nicht zu halten. Bei grobem Zeiger darf die Spalte deshalb
