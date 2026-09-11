@@ -3678,16 +3678,34 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   seit Etappe 7d-1 unverändert, 7d-2 hat nur die Beschriftungen ringsum
   ausgetauscht. Der Punkt im Verbinden-Fenster stand vorher genauso da.
 
-  **Nachtrag vom 10.09.2026, Stand `3d6cd9f`, im Browser gemessen: es ist nicht
-  nur eine Uneinheitlichkeit, sondern ein DEFEKT.** Der Tausendertrenner ist an
-  beiden `toLocaleString`-Stellen aktiv – `useGrouping` ist weder in
-  `formatMeters()` noch in `formatGridMeters()` gesetzt, und die Vorgabe lautet
-  `true`. Ab 1000 schreibt die Anzeige damit einen Punkt, den
-  `parseLocaleNumber()` nicht mehr lesen kann: `String(value).replace(",", ".")`
-  ersetzt nur das **erste** Komma, aus `"1.234,50"` wird `"1.234.50"`, daraus
-  `NaN`, daraus `null`.
+  **Der Tausendertrenner war ein DEFEKT – behoben mit „Schritt 1: der
+  Tausendertrenner ist abgeschaltet" (11.09.2026).** `useGrouping:false` steht
+  seitdem an allen vier `toLocaleString`-Stellen, drei davon in
+  `formatGridMeters()`. Nachgemessen: **52 Ausgaben beider Funktionen**, von
+  `0,001` bis `1234567,50` und negativ, werden von `parseLocaleNumber()`
+  sämtlich zurückgelesen; keine einzige enthält beide Trennzeichen. Punkt und
+  Komma bleiben als Dezimalzeichen zulässig – an `parseLocaleNumber()` war
+  dafür nichts zu ändern. `tools/test-inspector.mjs` sichert den Rundlauf in
+  beiden Sprachen ab, und zwar an dem Text, den das Feld **anzeigt**.
 
-  **Die oben genannte Toleranz trägt deshalb nur unterhalb von 1000.** Gemessen:
+  Der Befund, der dazu führte, bleibt hier stehen, weil er die Regel dahinter
+  trägt. Er lautete: `useGrouping` war nirgends gesetzt, die Vorgabe ist `true`,
+  und ab 1000 schrieb die Anzeige damit einen Punkt, den
+  `parseLocaleNumber()` nicht mehr lesen konnte –
+  `String(value).replace(",", ".")` ersetzt nur das **erste** Komma, aus
+  `"1.234,50"` wurde `"1.234.50"`, daraus `NaN`, daraus `null`.
+
+  **Die Lehre, und sie gilt über diesen Fall hinaus: wer ein Anzeigeformat
+  ändert, ändert eine Eingabe mit.** Ein Feld, dessen Inhalt zurückgelesen
+  wird, ist beides zugleich; die Ausgabefunktion und die Lesefunktion sind
+  **ein** Paar und gehören zusammen geprüft. Zum Messen gehört, den
+  **angezeigten** Text zu bearbeiten: ein `fill()` mit einem selbst gebauten
+  Literal umgeht die Anzeige und sieht den Defekt nicht – genau daran ist der
+  erste Entwurf der Zusicherung vorbeigelaufen und blieb unter der Mutation
+  grün.
+
+  **Die Messwerte von damals** (10.09.2026, Stand `3d6cd9f`), damit die Größe
+  des Fehlers nachlesbar bleibt:
 
   | Eingabe | Ergebnis |
   |---|---|
@@ -3706,14 +3724,14 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | Gegenprobe `999,50`, unverändert Enter | `999,50` | 999,5 | „Die Koordinate wurde nicht verändert." |
   | Gegenprobe `999,50` → `999,56` | `999,56` | 999,56 | „Punkt auf E=999,56 m … gesetzt." |
 
-  **Die Folge: ein Punkt ab 1000 Einheiten Abstand vom Nullpunkt lässt sich
-  über die E/N-Felder überhaupt nicht mehr bearbeiten**, und der Editor lehnt
+  **Die Folge war: ein Punkt ab 1000 Einheiten Abstand vom Nullpunkt ließ sich
+  über die E/N-Felder überhaupt nicht mehr bearbeiten**, und der Editor lehnte
   dabei seine eigene Anzeige als „ungültige Zahl" ab. In der dritten Zeile
-  widersprechen sich zusätzlich Anzeige (`1.234,56`) und Zustand (1234,5), bis
-  das nächste Neuzeichnen das Feld überschreibt.
+  widersprachen sich zusätzlich Anzeige (`1.234,56`) und Zustand (1234,5), bis
+  das nächste Neuzeichnen das Feld überschrieb.
 
-  **Kein Wert ändert sich, den der Nutzer nicht geändert hat** – die
-  Weltkoordinate bleibt in jedem Fall stehen. Der Defekt ist Unbedienbarkeit,
+  **Kein Wert änderte sich, den der Nutzer nicht geändert hatte** – die
+  Weltkoordinate blieb in jedem Fall stehen. Der Defekt war Unbedienbarkeit,
   nicht stille Datenveränderung.
 
   **Das Verlassen des Feldes löst nichts aus.** An `#pointEastInput` und
@@ -3722,11 +3740,10 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   deshalb noch die Meldung des vorigen Enter – das ist beim Messen leicht für
   eine Reaktion auf das Verlassen zu halten.
 
-  **Für den, der es behebt:** eine reine Änderung an `parseLocaleNumber()` ist
-  die kleinere Hälfte. Die Toleranz gegenüber Komma **und** Punkt muss bleiben,
-  und ein Format, das den Trenner weglässt (`useGrouping:false`), berührt auch
-  `formatGridMeters()` und damit die Statuszeile. Welche der beiden Seiten
-  nachgibt, ist eine Entscheidung und steht hier nicht.
+  **Was davon offen bleibt:** der Trenner ist weg, das fest verdrahtete
+  `"de-DE"` steht noch. Die englische Oberfläche zeigt weiterhin `1234,50` mit
+  Komma. Das ist der ursprüngliche, weiter oben beschriebene Punkt und wird
+  getrennt behandelt.
 
 - **Die Auftrennstelle überlebt ihre eigene Kante.** Befund vom 10.09.2026,
   Stand `d012fc6`, im Browser gemessen – **Reproduktionsfall, kein Auftrag.**

@@ -1164,6 +1164,70 @@ try {
     wegVomBlock === 0, String(wegVomBlock));
 
   /* ---------------------------------------------------------------- */
+  console.log("Kein Tausendertrenner in den E/N-Feldern");
+
+  /*
+   * Der Trenner war ein Defekt, kein Schoenheitsfehler: formatMeters() schrieb
+   * ab 1000 einen Punkt ("1.234,50"), den parseLocaleNumber() nicht mehr lesen
+   * konnte - replace(",", ".") ersetzt nur das ERSTE Komma, daraus wurde
+   * "1.234.50" und dann NaN. Ein Punkt ab 1000 Einheiten Abstand vom Nullpunkt
+   * war damit ueber die E/N-Felder ueberhaupt nicht mehr zu bearbeiten, und der
+   * Editor lehnte dabei seine eigene Anzeige als "ungueltige Zahl" ab.
+   *
+   * Geprueft wird die Wirkung, nicht die Abwesenheit eines Zeichens: der Wert
+   * muss sich aendern LASSEN. Eine Zusicherung "kein Punkt im Feld" bestuende
+   * auch dann, wenn das Feld leer waere.
+   */
+  const enFeldRundlauf = async (sprache, eingabe, erwartet, weltDanach) => {
+    await page.fill("#pointEastInput", eingabe);
+    await page.locator("#pointEastInput").press("Enter");
+    await page.waitForTimeout(350);
+
+    check(`${sprache}: das Feld zeigt ${erwartet} ohne Tausendertrenner`,
+      (await page.locator("#pointEastInput").inputValue()) === erwartet,
+      await page.locator("#pointEastInput").inputValue());
+
+    /*
+     * Nur die letzte Ziffer aendern - und zwar an dem Text, den das Feld
+     * ANZEIGT. Ein fill() mit einem selbst gebauten Literal pruefte den Defekt
+     * nicht: es umginge die Anzeige und schriebe ohnehin eine Zahl ohne
+     * Trenner. Der Defekt bestand darin, dass der Editor seine eigene Anzeige
+     * nicht zurueckliest.
+     */
+    const angezeigt = await page.locator("#pointEastInput").inputValue();
+
+    await page.fill("#pointEastInput", `${angezeigt.slice(0, -1)}6`);
+    await page.locator("#pointEastInput").press("Enter");
+    await page.waitForTimeout(350);
+
+    check(`${sprache}: die geaenderte letzte Ziffer wird uebernommen`,
+      (await page.evaluate(() => {
+        const c = getVertexCoordinate(selectedVertex);
+        return c ? toWorld(c)[0].toFixed(2) : "keine Auswahl";
+      })) === weltDanach,
+      await page.evaluate(() => {
+        const c = getVertexCoordinate(selectedVertex);
+        return c ? toWorld(c)[0].toFixed(2) : "keine Auswahl";
+      }));
+  };
+
+  await load();
+  await marks.nth(1).click();
+  await page.waitForTimeout(300);
+
+  await enFeldRundlauf("deutsch", "1234,5", "1234,50", "1234.56");
+  await enFeldRundlauf("deutsch", "-1234,5", "-1234,50", "-1234.56");
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(400);
+
+  await enFeldRundlauf("englisch", "1234,5", "1234,50", "1234.56");
+  await enFeldRundlauf("englisch", "-1234,5", "-1234,50", "-1234.56");
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(400);
+
+  /* ---------------------------------------------------------------- */
   console.log("Der Erklärtext frisst keinen Platz");
 
   await load();

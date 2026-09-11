@@ -11754,6 +11754,13 @@ function updateVertexMarkerSize() {
 /** Formatiert Meterwerte für die deutsche Eingabeanzeige. */
 function formatMeters(value, digits = 2) {
   return value.toLocaleString("de-DE", {
+    /*
+     * Kein Tausendertrenner. Die Ausgabe dieser Funktion steht in den
+     * E/N-Eingabefeldern und wird von parseLocaleNumber() zurueckgelesen -
+     * ein Trennpunkt in "1.234,50" machte daraus NaN, und ein Punkt ab
+     * 1000 Einheiten war ueber die Felder nicht mehr zu bearbeiten.
+     */
+    useGrouping: false,
     minimumFractionDigits: digits,
     maximumFractionDigits: Math.max(digits, 4)
   });
@@ -15360,8 +15367,10 @@ function applyMowerDimensions() {
 
 /** Formatiert Rasterwerte kompakt, aber ausreichend präzise. */
 function formatGridMeters(value) {
+  /* Kein Tausendertrenner, gleiche Begruendung wie bei formatMeters(). */
   if (value >= 1) {
     return value.toLocaleString("de-DE", {
+      useGrouping:false,
       minimumFractionDigits:2,
       maximumFractionDigits:3
     });
@@ -15369,12 +15378,14 @@ function formatGridMeters(value) {
 
   if (value >= 0.01) {
     return value.toLocaleString("de-DE", {
+      useGrouping:false,
       minimumFractionDigits:2,
       maximumFractionDigits:3
     });
   }
 
   return value.toLocaleString("de-DE", {
+    useGrouping:false,
     minimumFractionDigits:3,
     maximumFractionDigits:4
   });
