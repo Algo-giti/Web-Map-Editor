@@ -815,22 +815,23 @@ eine nicht reißende Mutation ist erst dann ein Befund über den Test, wenn ihre
 Wirkung belegt ist. Wer sie vorher als Lücke einträgt, hinterlässt einen
 offenen Punkt, den niemand schließen kann – es ist keiner da.
 
-**Benannte Lücke: die enge Stelle INNERHALB eines Features ist nicht
-abgedeckt.** Gemessen mit Schritt 4 des vierten Durchgangs.
+**ERLEDIGT mit Schritt 4 des fünften Durchgangs: die enge Stelle INNERHALB
+eines Features ist abgedeckt.** Die Lücke war mit Schritt 4 des vierten
+Durchgangs benannt worden; der Eintrag bleibt stehen, weil der
+Reproduktionsfall die Arbeit war.
 
 `collectGeometryFindings()` meldet enge Korridore in zwei Fassungen – zwischen
 zwei Features und **innerhalb** eines einzelnen (`consider(entry, entry,
-true)`). Von den sechs Bauvorschriften des Prüfberichts reißen fünf, wenn man
-ihr Zahlenformat einfriert; `engeStelleInnerhalb` reißt **nichts**, weil kein
-Test im Bestand diesen Zweig erreicht.
+true)`). Von den sechs Bauvorschriften des Prüfberichts rissen fünf, wenn man
+ihr Zahlenformat einfriert; `engeStelleInnerhalb` riss **nichts**, weil kein
+Test im Bestand diesen Zweig erreichte.
 
-**Die Mutation ist nicht wirkungslos – der Zweig ist erreichbar**, und das ist
-nachgemessen, nicht angenommen. Er verlangt eine Engstelle, deren Mitte im
-**mähbaren** Bereich liegt (`pointIsMowable()`), und genau daran scheitern die
-naheliegenden Formen: bei einem U-förmigen Perimeter liegt die Mitte im
-Schlitz und damit außerhalb, bei einer U-förmigen Exclusion innerhalb der
-Exclusion. Was trägt, ist ein **sanduhrförmiger Perimeter** – zwei Kammern,
-verbunden durch einen Hals:
+**Der Zweig ist schwerer zu erreichen, als er aussieht.** Er verlangt eine
+Engstelle, deren Mitte im **mähbaren** Bereich liegt (`pointIsMowable()`), und
+genau daran scheitern die naheliegenden Formen: bei einem U-förmigen Perimeter
+liegt die Mitte im Schlitz und damit außerhalb, bei einer U-förmigen Exclusion
+innerhalb der Exclusion. Was trägt, ist ein **sanduhrförmiger Perimeter** –
+zwei Kammern, verbunden durch einen Hals:
 
 ```
 [[0,0],[20,0],[20,9],[10.1,9],[10.1,11],[20,11],
@@ -839,8 +840,24 @@ verbunden durch einen Hals:
 
 Er liefert „Enge Stellen innerhalb von Feature 0 (perimeter): 7 Stellen,
 engste 0,20 m an Segment 2→3 bzw. Segment 9→10. Der Mäher ist 0,35 m breit."
-**Der Reproduktionsfall steht hier, damit die Lücke geschlossen werden kann,
-ohne ihn neu zu suchen** – geschlossen ist sie nicht.
+Der Fall steht seitdem in `tools/test-validation.mjs`, in **beiden
+Richtungen**: auf Deutsch geprüft und nach `setLanguage("en")` gemessen, auf
+Englisch geprüft und nach `setLanguage("de")` gemessen.
+
+**Zugesichert wird, was dasteht, nicht ein erwarteter Messwert.** Der engste
+Abstand 0,20 m folgt aus der Karte selbst (der Hals misst 10,1 − 9,9) und ist
+deshalb keine Erinnerung an eine Messung; die **Mäherbreite** wird gegen
+`#mowerWidthInput` gehalten, also gegen die Quelle, aus der die Prüfung sie
+nimmt; und die beiden Sprachfassungen werden **gegeneinander** geprüft – gleiche
+Zahlen, nur ein anderes Dezimalzeichen.
+
+**Drei Mutationen belegen die Abdeckung**, je 0 Timeouts:
+
+| Mutation | gerissene Zusicherungen |
+|---|---|
+| Zahlenformat der Bauvorschrift eingefroren (`toFixed()` statt `formatMeters()`) | „deutsch: der engste Abstand ist der Hals der Sanduhr", „deutsch: die genannte Breite ist die eingestellte Maeherbreite", „deutsch: die Zahlen tragen das Komma", „auf englisch erzeugt, dann deutsch: der Befund traegt das Komma" |
+| `consider(entry, entry, true)` entfernt – der Zweig entfällt | „die enge Stelle INNERHALB des Perimeters wird gemeldet", „auf englisch erzeugt: der Befund steht englisch da" |
+| englisches Muster für den Innen-Befund entfernt | „auf deutsch geprueft, dann englisch: der Befund ist uebersetzt", „auf englisch erzeugt: der Befund steht englisch da" |
 
 #### Fünf Regeln aus dem vierten Durchgang
 

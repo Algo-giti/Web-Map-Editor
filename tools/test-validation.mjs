@@ -244,6 +244,133 @@ try {
     insideSpike.warnings.join(" | "));
 
   /* ---------------------------------------------------------------- */
+  console.log("Enge Stelle INNERHALB eines Features");
+
+  /*
+   * collectGeometryFindings() meldet enge Korridore in zwei Fassungen -
+   * zwischen zwei Features und innerhalb eines einzelnen. Die zweite war bis
+   * hierher durch keine Zusicherung abgedeckt: kein Test des Bestandes
+   * erreichte den Zweig, und die Bauvorschrift "engeStelleInnerhalb" liess
+   * sich einfrieren, ohne dass etwas riss.
+   *
+   * Der Zweig verlangt eine Engstelle, deren MITTE im maehbaren Bereich liegt
+   * (pointIsMowable()). Genau daran scheitern die naheliegenden Formen: bei
+   * einem U-foermigen Perimeter liegt die Mitte im Schlitz und damit
+   * ausserhalb, bei einer U-foermigen Exclusion innerhalb der Exclusion.
+   *
+   * Was traegt, ist ein SANDUHRFOERMIGER Perimeter - zwei Kammern, verbunden
+   * durch einen Hals. Der engste Abstand ist von Hand nachzurechnen: der Hals
+   * misst 10,1 - 9,9 = 0,20 m, und der Maeher ist breiter.
+   */
+  const sanduhr = await validate(mapWith([], { perimeter: [
+    [0, 0], [20, 0], [20, 9], [10.1, 9], [10.1, 11], [20, 11],
+    [20, 20], [0, 20], [0, 11], [9.9, 11], [9.9, 9], [0, 9], [0, 0],
+  ] }));
+
+  /**
+   * Zerlegt den Befund in seine Bestandteile - in beiden Sprachen ueber
+   * dieselbe Stellung der Zahlen. Gelesen wird, was dasteht; nichts davon ist
+   * als erwarteter Messwert im Test hinterlegt.
+   */
+  const engeStelle = (warnungen) => {
+    const zeile = warnungen.find((text) =>
+      text.includes("innerhalb von Feature") || text.includes("within feature"));
+
+    if (!zeile) return null;
+
+    /* Nur echte Zahlen, kein Satzzeichen: "(perimeter): 7 Stellen, engste"
+       liefert mit [\d.,]+ auch das Komma und den Doppelpunkt als Treffer. */
+    const zahlen = zeile.match(/\d+(?:[.,]\d+)?/g) || [];
+
+    return { zeile, feature: zahlen[0], anzahl: zahlen[1],
+             abstand: zahlen[2], breite: zahlen[zahlen.length - 1] };
+  };
+
+  const innenDe = engeStelle(sanduhr.warnings);
+
+  check("die enge Stelle INNERHALB des Perimeters wird gemeldet",
+    !!innenDe, sanduhr.warnings.join(" | "));
+
+  if (innenDe) {
+    check("sie nennt das Feature und seinen Typ",
+      innenDe.zeile.includes("innerhalb von Feature 0 (perimeter)"),
+      innenDe.zeile);
+
+    /* Der Hals misst 10,1 - 9,9; die Zahl folgt aus der Karte, nicht aus einer
+       Messung am Bildschirm. */
+    check("deutsch: der engste Abstand ist der Hals der Sanduhr",
+      innenDe.abstand === "0,20", innenDe.abstand);
+
+    /* Die Maeherbreite wird nicht als Zahl erwartet, sondern gegen die Quelle
+       gehalten, aus der die Pruefung sie nimmt. */
+    const breiteImFeld = await page.locator("#mowerWidthInput").inputValue();
+
+    check("deutsch: die genannte Breite ist die eingestellte Maeherbreite",
+      innenDe.breite === breiteImFeld,
+      `${innenDe.breite} gegen ${breiteImFeld}`);
+
+    check("deutsch: die Zahlen tragen das Komma",
+      !/\d\.\d/.test(innenDe.zeile), innenDe.zeile);
+
+    check("als Warnung, nicht als Fehler",
+      sanduhr.errors.length === 0, sanduhr.errors.join(" | "));
+
+    /* Auf deutsch geprueft, dann umgeschaltet - die Richtung, in der der
+       Bericht bis zum vierten Durchgang sein Zahlenformat einfror. */
+    await page.evaluate(() => setLanguage("en"));
+
+    const innenEn = engeStelle((await berichtJetzt()).warnings);
+
+    check("auf deutsch geprueft, dann englisch: der Befund ist uebersetzt",
+      !!innenEn && innenEn.zeile.includes("within feature 0 (perimeter)"),
+      innenEn ? innenEn.zeile : "(kein Befund)");
+
+    if (innenEn) {
+      check("englisch: dieselben Zahlen, nur mit Punkt",
+        innenEn.anzahl === innenDe.anzahl &&
+        innenEn.abstand === innenDe.abstand.replace(",", ".") &&
+        innenEn.breite === innenDe.breite.replace(",", "."),
+        `${innenEn.anzahl}/${innenEn.abstand}/${innenEn.breite} gegen ` +
+        `${innenDe.anzahl}/${innenDe.abstand}/${innenDe.breite}`);
+
+      check("englisch: kein Komma als Dezimalzeichen",
+        !/\d,\d/.test(innenEn.zeile), innenEn.zeile);
+    }
+
+    await page.evaluate(() => setLanguage("de"));
+
+    check("und zurueck auf deutsch steht wieder der deutsche Befund da",
+      (engeStelle((await berichtJetzt()).warnings) || {}).zeile === innenDe.zeile,
+      (engeStelle((await berichtJetzt()).warnings) || {}).zeile);
+  }
+
+  /* Die Gegenrichtung: auf ENGLISCH geprueft, dann auf deutsch gemessen. */
+  const sanduhrEn = await validate(mapWith([], { perimeter: [
+    [0, 0], [20, 0], [20, 9], [10.1, 9], [10.1, 11], [20, 11],
+    [20, 20], [0, 20], [0, 11], [9.9, 11], [9.9, 9], [0, 9], [0, 0],
+  ] }), { englisch: true });
+
+  const innenEnErzeugt = engeStelle(sanduhrEn.warnings);
+
+  check("auf englisch erzeugt: der Befund steht englisch da",
+    !!innenEnErzeugt &&
+    innenEnErzeugt.zeile.includes("within feature 0 (perimeter)") &&
+    innenEnErzeugt.abstand === "0.20",
+    innenEnErzeugt ? innenEnErzeugt.zeile : sanduhrEn.warnings.join(" | "));
+
+  if (innenEnErzeugt) {
+    await page.evaluate(() => setLanguage("de"));
+
+    const zurueck = engeStelle((await berichtJetzt()).warnings);
+
+    check("auf englisch erzeugt, dann deutsch: der Befund traegt das Komma",
+      !!zurueck &&
+      zurueck.zeile.includes("innerhalb von Feature 0 (perimeter)") &&
+      zurueck.abstand === "0,20",
+      zurueck ? zurueck.zeile : "(kein Befund)");
+  }
+
+  /* ---------------------------------------------------------------- */
   console.log("Die Meterwerte des Berichts folgen der Sprache");
 
   /*
