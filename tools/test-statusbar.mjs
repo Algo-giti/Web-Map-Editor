@@ -57,6 +57,32 @@ const MAP = JSON.stringify({
   ],
 });
 
+/**
+ * Die Schwelle der data-optional-Felder, GELESEN aus der Medienregel im CSS
+ * statt als Zahl gefuehrt. Geliefert wird die kleinste Breite, auf der die
+ * breite Fassung noch gilt (max-width + 1); Schwelle−1 ist damit die
+ * groesste Breite, auf der die schmale Fassung gilt.
+ *
+ * Sie steht hier und nicht in einem der beiden Abschnitte, die sie brauchen:
+ * die Ausblendreihenfolge misst unterhalb der Schwelle, Etappe 8c an ihrer
+ * Kante. Zwei Suchen waeren zwei Quellen fuer dieselbe Zahl.
+ */
+const schwelleAusCss = (page) => page.evaluate(() => {
+  for (const blatt of document.styleSheets) {
+    let regeln;
+    try { regeln = blatt.cssRules; } catch { continue; }
+    for (const regel of regeln || []) {
+      if (regel.type !== CSSRule.MEDIA_RULE) continue;
+      const trifft = [...regel.cssRules].some((r) =>
+        r.selectorText && r.selectorText.includes("[data-optional]"));
+      if (!trifft) continue;
+      const treffer = regel.conditionText.match(/max-width:\s*(\d+)px/);
+      if (treffer) return Number(treffer[1]) + 1;
+    }
+  }
+  return null;
+});
+
 const { check, finish } = createChecker(TOOL);
 const consoleErrors = [];
 
@@ -505,6 +531,17 @@ try {
   console.log("Ausblendreihenfolge: das Nachschlagbare weicht zuerst");
 
   /*
+   * Die Schwelle steht einmal fuer beide Abschnitte, die an ihr messen -
+   * hier die Ausblendreihenfolge, weiter unten Etappe 8c. Gelesen wird sie
+   * aus der Medienregel selbst; eine Zahl daneben waere eine Erinnerung an
+   * sie und wuerde bei der naechsten Aenderung des CSS stehen bleiben.
+   */
+  const schwelle = await schwelleAusCss(page);
+
+  check("die Schwelle steht als Medienregel im CSS und ist lesbar",
+    Number.isFinite(schwelle), String(schwelle));
+
+  /*
    * Geprueft ueber den BERECHNETEN Stil, nicht ueber die Medienregel im
    * Quelltext: nur so steht fest, was der Browser daraus macht.
    */
@@ -525,34 +562,42 @@ try {
    * Etappe 8c: die Kante der Schwelle wird weiter unten im eigenen Abschnitt
    * geprueft, mit dem unguenstigsten Inhalt und in beiden Sprachen. Hier
    * stehen nur die beiden Faelle, die von ihm unabhaengig sind.
+   *
+   * Gemessen wird bei Schwelle−1, der groessten Breite, auf der die schmale
+   * Fassung gilt. Hier stand bis zum achten Durchgang 760 px: eine Zahl, die
+   * "unter der Schwelle" behauptete, ohne die Schwelle zu kennen - der Name
+   * der Zusicherung sagte das woertlich, die Zahl daneben hatte eine andere
+   * Quelle. Sie ist nicht durch eine zweite ersetzt, sondern abgeleitet.
    */
-  await page.setViewportSize({ width: 760, height: 800 });
-  await page.waitForTimeout(300);
+  if (Number.isFinite(schwelle)) {
+    await page.setViewportSize({ width: schwelle - 1, height: 800 });
+    await page.waitForTimeout(300);
 
-  check("unter der Schwelle weichen Raster, Bezugspunkt und Prüfung",
-    (await sichtbareFelder()).join(",") === "Maßstab",
-    (await sichtbareFelder()).join(","));
+    check("unter der Schwelle weichen Raster, Bezugspunkt und Prüfung",
+      (await sichtbareFelder()).join(",") === "Maßstab",
+      (await sichtbareFelder()).join(","));
 
-  /*
-   * Und zwar, WEIL sie data-optional tragen - nicht, weil sie an dritter,
-   * vierter und fuenfter Stelle stehen. Die Zusicherung vergleicht die
-   * Markierung mit dem berechneten Stil; eine Rueckkehr zu :nth-of-type()
-   * faellt damit auf, sobald jemand ein Feld dazwischenschiebt.
-   */
-  const markierungGegenWirkung = await page.evaluate(() =>
-    [...document.querySelectorAll("#statusBar .status-field")].map((f) => ({
-      feld: f.querySelector(".status-label").textContent.trim(),
-      markiert: f.hasAttribute("data-optional"),
-      weg: getComputedStyle(f).display === "none",
-    })));
+    /*
+     * Und zwar, WEIL sie data-optional tragen - nicht, weil sie an dritter,
+     * vierter und fuenfter Stelle stehen. Die Zusicherung vergleicht die
+     * Markierung mit dem berechneten Stil; eine Rueckkehr zu :nth-of-type()
+     * faellt damit auf, sobald jemand ein Feld dazwischenschiebt.
+     */
+    const markierungGegenWirkung = await page.evaluate(() =>
+      [...document.querySelectorAll("#statusBar .status-field")].map((f) => ({
+        feld: f.querySelector(".status-label").textContent.trim(),
+        markiert: f.hasAttribute("data-optional"),
+        weg: getComputedStyle(f).display === "none",
+      })));
 
-  check("genau die markierten Felder sind weg, und nur sie",
-    markierungGegenWirkung.every((f) => f.markiert === f.weg),
-    JSON.stringify(markierungGegenWirkung));
+    check("genau die markierten Felder sind weg, und nur sie",
+      markierungGegenWirkung.every((f) => f.markiert === f.weg),
+      JSON.stringify(markierungGegenWirkung));
 
-  check("Zähler und Koordinaten bleiben",
-    await page.evaluate(() =>
-      getComputedStyle(document.getElementById("multiSelectionInfo")).display !== "none"));
+    check("Zähler und Koordinaten bleiben",
+      await page.evaluate(() =>
+        getComputedStyle(document.getElementById("multiSelectionInfo")).display !== "none"));
+  }
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.waitForTimeout(300);
@@ -658,30 +703,12 @@ try {
    * Cursor-Koordinaten tragen keinen .status-value, sondern ihren Text
    * unmittelbar - wer nach der Klasse sucht, uebersieht sie.
    *
-   * Die Schwelle wird aus der CSS-Regel GELESEN, nicht als Zahl verdrahtet.
-   * Ein Test, der seine eigene Schwelle nicht kennt, prueft eine Erinnerung
-   * an sie.
+   * Die Schwelle wird aus der CSS-Regel GELESEN, nicht als Zahl verdrahtet -
+   * ueber schwelleAusCss(), gemeinsam mit dem Abschnitt Ausblendreihenfolge
+   * weiter oben. Ein Test, der seine eigene Schwelle nicht kennt, prueft
+   * eine Erinnerung an sie.
    */
-  const schwelleAusCss = await page.evaluate(() => {
-    for (const blatt of document.styleSheets) {
-      let regeln;
-      try { regeln = blatt.cssRules; } catch { continue; }
-      for (const regel of regeln || []) {
-        if (regel.type !== CSSRule.MEDIA_RULE) continue;
-        const trifft = [...regel.cssRules].some((r) =>
-          r.selectorText && r.selectorText.includes("[data-optional]"));
-        if (!trifft) continue;
-        const treffer = regel.conditionText.match(/max-width:\s*(\d+)px/);
-        if (treffer) return Number(treffer[1]) + 1;
-      }
-    }
-    return null;
-  });
-
-  check("die Schwelle steht als Medienregel im CSS und ist lesbar",
-    Number.isFinite(schwelleAusCss), String(schwelleAusCss));
-
-  if (Number.isFinite(schwelleAusCss)) {
+  if (Number.isFinite(schwelle)) {
     /*
      * Der unguenstigste Inhalt entsteht ueber Bedienung und Testdatei -
      * nichts davon ist per textContent gesetzt, sonst pruefte der Test
@@ -816,20 +843,20 @@ try {
         await page.evaluate((s) => currentLanguage === s, sprache),
         await page.evaluate(() => currentLanguage));
 
-      await page.setViewportSize({ width: schwelleAusCss, height: 800 });
+      await page.setViewportSize({ width: schwelle, height: 800 });
       await page.waitForTimeout(300);
       const ander = await abgeschnitten();
 
-      check(`${sprache}: an der Schwelle (${schwelleAusCss} px) stehen alle sechs Felder`,
+      check(`${sprache}: an der Schwelle (${schwelle} px) stehen alle sechs Felder`,
         ander.felder === 6, JSON.stringify(ander));
       check(`${sprache}: und an der Schwelle ist kein Feld abgeschnitten`,
         ander.treffer.length === 0, ander.treffer.join(", "));
 
-      await page.setViewportSize({ width: schwelleAusCss - 1, height: 800 });
+      await page.setViewportSize({ width: schwelle - 1, height: 800 });
       await page.waitForTimeout(300);
       const darunter = await abgeschnitten();
 
-      check(`${sprache}: bei Schwelle−1 (${schwelleAusCss - 1} px) greift die schmale Fassung`,
+      check(`${sprache}: bei Schwelle−1 (${schwelle - 1} px) greift die schmale Fassung`,
         darunter.felder === 3, JSON.stringify(darunter));
       check(`${sprache}: und auch dort ist kein Feld abgeschnitten`,
         darunter.treffer.length === 0, darunter.treffer.join(", "));
