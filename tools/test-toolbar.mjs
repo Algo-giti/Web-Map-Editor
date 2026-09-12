@@ -620,12 +620,26 @@ try {
        * eine Zahl, die nur festhielt, was am Messtag herauskam, und bei jeder
        * Layoutaenderung ohne Erkenntnisgewinn gerissen waere. Die Messwerte
        * selbst stehen in CLAUDE.md, wo sie hingehoeren.
+       *
+       * Auch die 320 auf der rechten Seite des Vergleichs war eine solche
+       * Zahl. Sie machte aus der Beziehung eine halbe: waechst der Inspektor,
+       * ohne dass die Karte mitwaechst, bliebe die Zusicherung gruen, obwohl
+       * sie gerade das ausschliessen soll. Nachgemessen an einem auf 360 px
+       * verbreiterten Inspektor bei 744 px - die Karte hat dann 328 px, und
+       * mit der festen 320 haette nichts gemeldet. Gemessen werden deshalb
+       * BEIDE Spalten, und zwar in EINEM Durchgang: zwei getrennte Messungen
+       * koennten aus zwei verschiedenen Layoutzustaenden stammen.
        */
-      const kartenbreite = await seite.evaluate(() =>
-        Math.round(document.getElementById("viewer").getBoundingClientRect().width));
+      const spalten = await seite.evaluate(() => ({
+        karte: Math.round(
+          document.getElementById("viewer").getBoundingClientRect().width),
+        inspektor: Math.round(
+          document.querySelector("aside").getBoundingClientRect().width),
+      }));
 
       check(`${name}, ${breite} px: die Karte ist breiter als der Inspektor`,
-        kartenbreite > 320, `${kartenbreite} px Karte gegen 320 px Inspektor`);
+        spalten.karte > spalten.inspektor,
+        `${spalten.karte} px Karte gegen ${spalten.inspektor} px Inspektor`);
 
       const menue = await niedrigste(seite, ".menu-title");
       const inspektor = await niedrigste(seite, "aside button");

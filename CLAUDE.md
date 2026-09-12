@@ -896,18 +896,34 @@ und `tools/test-statusbar.mjs` trug 769, 770 und 771 als Literale, statt die
 Schwelle aus der CSS-Regel zu lesen. Ein Test, der seine eigene Schwelle nicht
 kennt, prüft nicht die Schwelle, sondern eine Erinnerung an sie.
 
-**Die Gegenprobe, die der Bestand schon führt:** „die Karte ist breiter als der
-Inspektor" (`kartenbreite > 320`) ist eine Beziehung und bleibt deshalb
-richtig, wenn sich die Maße ändern.
+**Die vermeintliche Gegenprobe war selbst nur eine halbe Beziehung – und das
+ist mit Schritt 5 des fünften Durchgangs behoben.** Hier stand, „die Karte ist
+breiter als der Inspektor" (`kartenbreite > 320`) sei eine Beziehung und
+bleibe deshalb richtig, wenn sich die Maße ändern. Die **linke** Seite war
+gemessen, die **rechte** ein Literal – und damit prüfte sie nicht „breiter als
+der Inspektor", sondern „breiter als 320 px".
 
-**Beide Fälle sind mit dem vierten Durchgang ausgetragen:** die Schwelle liest
-`tools/test-statusbar.mjs` seit Schritt 3 aus der CSS-Regel, und die feste
-Kartenbreite ist mit Schritt 9 aus `tools/test-toolbar.mjs` entfernt – Literal
-und Kommentar. Im ganzen Verzeichnis `tools/` kommt die Zahl nicht mehr vor;
-in CLAUDE.md bleibt sie, wo sie hingehört: in den Messtabellen. **Was danach
-noch trägt, ist gemessen:** mit einem auf 420 px verbreiterten Inspektor reißt
-„fein, 744 px: die Karte ist breiter als der Inspektor" mit dem Detail
-„268 px Karte gegen 320 px Inspektor".
+**Der Unterschied ist gemessen, nicht überlegt.** Mit einem auf **360 px**
+verbreiterten Inspektor hat die Karte bei 744 px noch 328 px – sie ist also
+schmaler als der Inspektor, und genau das soll die Zusicherung ausschließen:
+
+| Fassung | Ergebnis unter „Inspektor 360 px" |
+|---|---|
+| `spalten.karte > 320` (alt) | **grün** – in allen zehn Messungen, obwohl 328 < 360 |
+| `spalten.karte > spalten.inspektor` (heute) | **reißt** bei 744 px, fein und grob, mit „328 px Karte gegen 360 px Inspektor" |
+
+Beide Spalten werden dafür in **einem** Durchgang gemessen; zwei getrennte
+Messungen könnten aus zwei verschiedenen Layoutzuständen stammen.
+
+**Die übrigen Fälle sind mit dem vierten Durchgang ausgetragen:** die Schwelle
+liest `tools/test-statusbar.mjs` seit Schritt 3 aus der CSS-Regel, und die
+feste Kartenbreite ist mit Schritt 9 aus `tools/test-toolbar.mjs` entfernt –
+Literal und Kommentar. Im ganzen Verzeichnis `tools/` kommt die Zahl nicht
+mehr vor; in CLAUDE.md bleibt sie, wo sie hingehört: in den Messtabellen.
+**Was danach noch trägt, ist gemessen:** mit einem auf 420 px verbreiterten
+Inspektor reißt „fein, 744 px: die Karte ist breiter als der Inspektor" mit
+dem Detail „268 px Karte gegen 420 px Inspektor" – seit Schritt 5 nennt das
+Detail die gemessene Inspektorbreite statt der Zahl 320.
 
 **(c) Kein Locator und kein `boundingBox()` aus einem ungeprüften Wert.** Ist
 der Wert `null` oder leer, entsteht ein Selektor, der nie trifft, und
