@@ -3912,6 +3912,79 @@ die aber mit der nächsten Meldung verschwindet.
    schon im Abschnitt darüber; die Messung mit langem Namen sagt nur, dass die
    Antwort vom Dateinamen abhängt, wenn Frage 1 nicht vorher beantwortet ist.
 
+#### Wo der Dateiname steht – Bestandsaufnahme, Schritt 1 des sechsten Durchgangs
+
+**Erhoben als Laufzeitsuche, nicht am Quelltext.** Eine Karte mit einem
+52 Zeichen langen Namen wird geladen, danach wird **jeder** Textknoten unter
+`body` und jedes `title`/`aria-label`/`placeholder` nach diesem Namen
+durchsucht. Kalibriert ist die Suche an den beiden bekannten Treffern
+`#filename` und `#mapAFile`; sie fand beide – und einen dritten, der vorher in
+keiner Liste stand.
+
+**Drei Stellen, mehr nicht:**
+
+| Fundstelle | Art | ohne Hover sichtbar | gekürzt |
+|---|---|---|---|
+| `#filename` (Statuszeile) | dauerhaft | **ja**, `elementFromPoint()` trifft | **immer** – schon bei 1280 px |
+| `#mapAFile` / `#mapBFile` (Menü „Karte") | dauerhaft | erst nach **einem Klick** auf den Menütitel; bei geschlossenem Menü ist der Kasten 0 × 0 | **nie** – das Panel wächst über seine `min-width` hinaus |
+| `#editStatus` (Lademeldung) | **flüchtig** | ja | nein, bis 744 px nicht |
+
+**Die Zahlen, deutsch und englisch, 52-Zeichen-Name:**
+
+| Breite | `#filename` sichtbar / nötig | `#mapAFile` sichtbar / nötig |
+|---|---|---|
+| 1280 px, DE | 348 / 389 px – gekürzt | 311 / 311 px – vollständig |
+| 1280 px, EN | 358 / 384 px – gekürzt | 311 / 311 px – vollständig |
+| 960 px, DE | 269 / 389 px – gekürzt | 311 / 311 px – vollständig |
+| 960 px, EN | 269 / 384 px – gekürzt | 311 / 311 px – vollständig |
+| 744 px, DE | 208 / 389 px – gekürzt | 311 / 311 px – vollständig |
+| 744 px, EN | 208 / 384 px – gekürzt | 311 / 311 px – vollständig |
+
+**Das Menü ist in jeder gemessenen Breite und in beiden Sprachen die
+vollständige Fassung, die Statuszeile in keiner.** Der dritte Treffer,
+`#editStatus`, trägt den Namen vollständig – aber nur bis zur nächsten
+Meldung; er ist keine nachschlagbare Stelle.
+
+**Die Änderungsmarke steht an BEIDEN dauerhaften Stellen.** Geschrieben wird
+sie an zwei Orten, beide in `index.html`: `updateMapSlotLabels()` hängt sie je
+Slot an `#mapAFile`/`#mapBFile` (`slot.dirty ? " *" : ""`),
+`updateMapSlotUi()` hängt sie an `#filename` (`dataDirty ? " *" : ""`).
+`setDirty()` ruft vorher `syncActiveSlotFromGlobals()`, deshalb tragen beide
+denselben Stand. Gemessen nach einer Punktverschiebung:
+
+| Zustand | `#filename` | `#mapAFile` | `#mapBFile` |
+|---|---|---|---|
+| frisch geladen | „Karte A · a.geojson" | „a.geojson" | „b.geojson" |
+| Karte A verändert | „Karte A · a.geojson **\***" | „a.geojson **\***" | „b.geojson" |
+| beide verändert, aktiv B | „Karte B · b.geojson **\***" | „a.geojson **\***" | „b.geojson **\***" |
+
+**Das Menü ist auch hier die reichere Stelle:** es zeigt die Marke für
+**beide** Slots gleichzeitig, die Statuszeile nur für den aktiven. In der
+Lademeldung erscheint sie nicht – sie beschreibt einen Zeitpunkt, zu dem
+nichts geändert war.
+
+**Was am Statuszeilenfeld hängt – namentlich:**
+
+| Ort | Zusicherung bzw. Eintrag |
+|---|---|
+| `tools/smoke-test.mjs` | Anfangstext „Keine Karte geladen"; und dass der Sprachumschalter **`#filename`** wirklich übersetzt – der einzige Beleg dieses Tests für die Übersetzung überhaupt |
+| `tools/test-statusbar.mjs` | „Dateiname" (Anfangstext); „der Dateiname nennt Karte und Datei"; „bei 1280 px stehen alle fünf Felder"; „unter der Schwelle weichen Raster, Bezugspunkt und Prüfung" (erwartet „Karte,Maßstab"); je Sprache „an der Schwelle stehen alle sieben Felder" und „bei Schwelle−1 greift die schmale Fassung" (4 Felder) sowie fünfmal „bei ⟨Breite⟩ px gilt die schmale Fassung" |
+| `tools/test-statusbar.mjs`, Abschneideprüfung | der Behälterfilter `".status-value, .filename"` – `.filename` steht nur hier |
+| `index.html`, Wörterbuch | `I18N_PATTERNS`: `/^Karte ([AB]) · (.+)$/` → „Map $1 · $2"; einziger Erzeuger ist `updateMapSlotUi()` |
+| `index.html`, CSS | `.filename` (allgemein), `.status-file` und `.status-file .filename`, dazu eine zweite `.filename`-Regel im Block unterhalb 744 px |
+
+**Zustände des i18n-Werkzeugs:** der Text des Feldes entsteht ab dem Zustand
+`geladen` und steht in **jedem** Zustand danach; er wird über das Muster oben
+übersetzt und erscheint deshalb in keiner Trefferliste. Der Eintrag
+`/^[\w-]+\.geojson( \*)?$/` in `FALSCHMELDUNGEN` gilt dagegen den **Menü**-
+Einträgen, nicht der Statuszeile – er bleibt auch ohne das Feld gebraucht.
+
+**Nebenbefund, schon vorher verwaist:** `I18N_PATTERNS` führt
+`/^Karte ([AB]) aktiv · (.+)$/` → „Map $1 active · $2". Diesen Text erzeugt
+**niemand** – „aktiv ·" kommt in `index.html` genau einmal vor, nämlich in
+dieser Musterzeile selbst. Das Muster ist eine ältere Fassung desselben Feldes
+und war bereits tot, bevor dieser Durchgang begann.
+
 **Wie die Bedienart im Test emuliert wird – und warum das eine Gegenprobe
 braucht.** Ein Playwright-Kontext mit `hasTouch: true` lässt `(pointer: coarse)`
 greifen und `(pointer: fine)` nicht; der voreingestellte Kontext umgekehrt.
