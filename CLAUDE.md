@@ -1003,14 +1003,48 @@ einen Wert aus einer festen Liste im Test selbst ein (`${id}`, `${scope}`,
 `${typ.draw}`, `${index}`, `${start}`, `${featureIndex}`) und können nicht
 leer werden.
 
-**Zweifelhaft und deshalb nur aufgelistet: zwei weitere Undo-Stellen mit
-derselben Bauart.** `tools/test-merge.mjs` drückt `Control+z` auch hinter
-`#setMergeCutBtn` (Drehfall) und hinter `#deletePointBtn`, ohne den
-Rückgabewert zu befolgen. Sie sind **nicht** behoben, weil ein zu weit
-gehendes Undo dort nur einen falschen Zustand erzeugt und damit **benannte**
-Zusicherungen reißen lässt – gemessen unter derselben Mutation: kein Timeout,
-kein Abbruch. Der Unterschied zur behobenen Stelle ist, dass dort ein
-**Bedienelement gesperrt** wurde und daraus ein stummer Abbruch entstand.
+**ERLEDIGT mit Schritt 5 des sechsten Durchgangs: die übrigen Undo-Stellen
+hängen an ihrer Vorbedingung.** Sie standen hier als „zweifelhaft und deshalb
+nur aufgelistet", weil ein zu weit gehendes Undo dort keinen stummen Abbruch
+erzeugt, sondern nur einen falschen Zustand und damit **benannte**
+Zusicherungen. Das stimmt unverändert – behoben sind sie trotzdem, denn eine
+gerissene Folgezusicherung ist kein Gewinn: sie meldet die **Auswirkung** und
+nicht die Ursache, und wer sie liest, sucht den Fehler an der falschen Stelle.
+
+**Die Suche fand drei statt zwei.** Gesucht wurde nach jedem
+`keyboard.press("Control+z")` in `tools/`, dazu die nächste vorausgehende
+Geste, die still ausbleiben kann (`klickeFreienKnopf()`, `waehlePunkte()`);
+**kalibriert an der in `96ca218` behobenen Stelle**, die als einzige ihren
+Rückgabewert schon band – sie war der eine Treffer mit „gebunden". Ergebnis:
+fünf Fundstellen, eine davon versorgt.
+
+| Fundstelle | vorausgehende Geste | behandelt |
+|---|---|---|
+| `test-merge.mjs`, Schlusskante | `#setMergeCutBtn` | **ja** – in der Liste oben fehlte sie |
+| `test-merge.mjs`, Drehfall | `#setMergeCutBtn` | **ja** |
+| `test-merge.mjs`, nach dem Punktlöschen | `#deletePointBtn` | **ja** |
+| `test-merge.mjs`, nach der Pfeiltaste | `waehlePunkte()` | **nein**, siehe unten |
+| `test-merge.mjs`, „nur B gewählt" | `#setMergeCutBtn` | war schon versorgt (`96ca218`) |
+
+**Zwei Mutationen belegen die drei behobenen Stellen**, je **0 Timeouts und
+0 Abbrüche**: `#setMergeCutBtn` dauerhaft gesperrt reißt **41** benannte
+Zusicherungen, darunter „Schlusskante: der Knopf ist frei" und „Drehfall: der
+Knopf ist frei"; `#deletePointBtn` dauerhaft gesperrt reißt **genau eine**,
+nämlich „Punkt loeschen ist frei". Derselbe Lauf gegen den **Stand vor der
+Bindung** reißt dort **drei** – die beiden zusätzlichen sind die Folgen des zu
+weit gehenden Undo, und die letzte („und auch danach holt das Undo sie
+zurueck") zeigt mit „Auftrennstelle aus der Datei" genau den Zustand, den
+niemand hergestellt hat.
+
+**Nicht umgestellt, weil `waehlePunkte()` keinen Rückgabewert hat.** Der
+Helfer sichert bei einem fehlenden Marker benannt zu und kehrt früh zurück –
+aber er kehrt in **beiden** Fällen mit `undefined` zurück, der Aufrufer kann
+also nichts befolgen. Ihn auf einen Wahrheitswert umzustellen berührt jede
+seiner Aufrufstellen und ist deshalb eine eigene Entscheidung, kein Nachtrag.
+**Gemessen unter der Mutation, die ihn abbrechen lässt** (`data-vertex-key`
+gar nicht gesetzt): `tools/test-merge.mjs` liefert **88 benannte FAILs, 0
+Timeouts, 0 Abbrüche**. Es entsteht also kein stummer Abbruch, und damit gilt
+für diese Stelle dasselbe Urteil wie bisher für die drei behobenen.
 
 **ERLEDIGT mit Schritt 1 des fünften Durchgangs: `menueBefehl()` klickt nur
 noch freie Einträge.** Der Befund war, dass der Helfer einen **gesperrten**

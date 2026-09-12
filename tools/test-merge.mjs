@@ -848,58 +848,75 @@ try {
   await waehlePunkte([[0, 40], [0, 0]]);
   await openMergeWindow();
 
-  await klickeFreienKnopf("#setMergeCutBtn",
+  const schlusskanteGesetzt = await klickeFreienKnopf("#setMergeCutBtn",
     "Schlusskante: der Knopf ist frei", "#mergeCutReason");
   await page.waitForTimeout(400);
   await openMergeWindow();
 
-  const A_SCHLUSSKANTE =
-    "Karte A Auftrennstelle gewählt. " +
-    "Startpunkt E 0,00 / N 0,00 m Endpunkt E 0,00 / N 40,00 m";
-
-  check("Schlusskante: der Ring bleibt unveraendert",
-    (await perimeterFolge()) === folge(RING_A), await perimeterFolge());
-  check("und trotzdem wechselt der Infotext von der Datei auf die Wahl",
-    (await mergeText("#mergeAInfo")) === A_SCHLUSSKANTE,
-    await mergeText("#mergeAInfo"));
-
-  /* --- 6. Undo ----------------------------------------------------- */
-
   /*
-   * Der Schlusskanten-Fall isoliert die Marke: die Geometrie ist vor und nach
-   * dem Undo dieselbe, es kann also nur der Infotext zurueckspringen. Gelingt
-   * das, reist die Marke im Snapshot mit - ohne diese Zusicherung stuende die
-   * Behauptung "cloneMapSlot() klont tief" ungeprueft da.
+   * Dieselbe Bauart wie beim "nur B"-Abschnitt weiter unten: das Control+z
+   * nimmt GENAU die eine Geste darueber zurueck. Bleibt sie aus, weil der
+   * Knopf gesperrt war, trifft es die Geste davor - hier das Laden der Karte.
+   * Die Vorbedingung ist benannt zugesichert; was fehlte, war der Abbruch.
    */
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(150);
-  await page.keyboard.press("Control+z");
-  await page.waitForTimeout(400);
-  await openMergeWindow();
+  if (schlusskanteGesetzt) {
+    const A_SCHLUSSKANTE =
+      "Karte A Auftrennstelle gewählt. " +
+      "Startpunkt E 0,00 / N 0,00 m Endpunkt E 0,00 / N 40,00 m";
 
-  check("Undo im Schlusskanten-Fall: der Ring ist unveraendert",
-    (await perimeterFolge()) === folge(RING_A), await perimeterFolge());
-  check("und allein der Infotext springt auf die Dateireihenfolge zurueck",
-    (await mergeText("#mergeAInfo")) === A_UNGESETZT,
-    await mergeText("#mergeAInfo"));
+    check("Schlusskante: der Ring bleibt unveraendert",
+      (await perimeterFolge()) === folge(RING_A), await perimeterFolge());
+    check("und trotzdem wechselt der Infotext von der Datei auf die Wahl",
+      (await mergeText("#mergeAInfo")) === A_SCHLUSSKANTE,
+      await mergeText("#mergeAInfo"));
+
+    /* --- 6. Undo --------------------------------------------------- */
+
+    /*
+     * Der Schlusskanten-Fall isoliert die Marke: die Geometrie ist vor und
+     * nach dem Undo dieselbe, es kann also nur der Infotext zurueckspringen.
+     * Gelingt das, reist die Marke im Snapshot mit - ohne diese Zusicherung
+     * stuende die Behauptung "cloneMapSlot() klont tief" ungeprueft da.
+     */
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(150);
+    await page.keyboard.press("Control+z");
+    await page.waitForTimeout(400);
+    await openMergeWindow();
+
+    check("Undo im Schlusskanten-Fall: der Ring ist unveraendert",
+      (await perimeterFolge()) === folge(RING_A), await perimeterFolge());
+    check("und allein der Infotext springt auf die Dateireihenfolge zurueck",
+      (await mergeText("#mergeAInfo")) === A_UNGESETZT,
+      await mergeText("#mergeAInfo"));
+  }
 
   /* Und im Drehfall zurueck: Ring UND Infotext. */
   await waehlePunkte([[0, 0], [40, 0]]);
   await openMergeWindow();
-  await klickeFreienKnopf("#setMergeCutBtn",
+  const drehfallGesetzt = await klickeFreienKnopf("#setMergeCutBtn",
     "Drehfall: der Knopf ist frei", "#mergeCutReason");
   await page.waitForTimeout(400);
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(150);
-  await page.keyboard.press("Control+z");
-  await page.waitForTimeout(400);
-  await openMergeWindow();
 
-  check("Undo im Drehfall: der Ring steht wieder auf der Dateireihenfolge",
-    (await perimeterFolge()) === folge(RING_A), await perimeterFolge());
-  check("und der Infotext ebenfalls",
-    (await mergeText("#mergeAInfo")) === A_UNGESETZT,
-    await mergeText("#mergeAInfo"));
+  /*
+   * Dieselbe Bauart wie beim "nur B"-Abschnitt weiter unten: das Control+z
+   * nimmt GENAU die eine Geste darueber zurueck. Bleibt sie aus, weil der
+   * Knopf gesperrt war, trifft es die Geste davor - hier das Laden der Karte.
+   * Die Vorbedingung ist benannt zugesichert; was fehlte, war der Abbruch.
+   */
+  if (drehfallGesetzt) {
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(150);
+    await page.keyboard.press("Control+z");
+    await page.waitForTimeout(400);
+    await openMergeWindow();
+
+    check("Undo im Drehfall: der Ring steht wieder auf der Dateireihenfolge",
+      (await perimeterFolge()) === folge(RING_A), await perimeterFolge());
+    check("und der Infotext ebenfalls",
+      (await mergeText("#mergeAInfo")) === A_UNGESETZT,
+      await mergeText("#mergeAInfo"));
+  }
 
   /* --- 3. Die Ueberschreibung durch die beiden alten Knoepfe -------- */
 
@@ -1135,23 +1152,32 @@ try {
   await stelleSetzen();
   await waehlePunkte([[40, 0]]);
   await openAllFolds(page);
-  await klickeFreienKnopf("#deletePointBtn", "Punkt loeschen ist frei");
+  const punktGeloescht =
+    await klickeFreienKnopf("#deletePointBtn", "Punkt loeschen ist frei");
   await page.waitForTimeout(400);
   await openMergeWindow();
 
-  check("Punkt 0 loeschen macht aus 'gewaehlt' ein 'veraendert'",
-    (await mergeText("#mergeAInfo")) ===
-      A_VERAENDERT("E 40,00 / N 40,00 m", "E 0,00 / N 0,00 m"),
-    await mergeText("#mergeAInfo"));
+  /*
+   * Auch hier nimmt das Control+z GENAU die Loeschung darueber zurueck.
+   * Bleibt sie aus, trifft es die Geste davor - das Setzen der
+   * Auftrennstelle -, und die folgenden Zusicherungen messen einen Zustand,
+   * den niemand hergestellt hat.
+   */
+  if (punktGeloescht) {
+    check("Punkt 0 loeschen macht aus 'gewaehlt' ein 'veraendert'",
+      (await mergeText("#mergeAInfo")) ===
+        A_VERAENDERT("E 40,00 / N 40,00 m", "E 0,00 / N 0,00 m"),
+      await mergeText("#mergeAInfo"));
 
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(150);
-  await page.keyboard.press("Control+z");
-  await page.waitForTimeout(500);
-  await openMergeWindow();
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(150);
+    await page.keyboard.press("Control+z");
+    await page.waitForTimeout(500);
+    await openMergeWindow();
 
-  check("und auch danach holt das Undo sie zurueck",
-    (await mergeText("#mergeAInfo")) === A_GESETZT, await mergeText("#mergeAInfo"));
+    check("und auch danach holt das Undo sie zurueck",
+      (await mergeText("#mergeAInfo")) === A_GESETZT, await mergeText("#mergeAInfo"));
+  }
 
   /* --- Punkt hinter dem letzten einfuegen --- */
   await stelleSetzen();
