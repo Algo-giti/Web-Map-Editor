@@ -39,6 +39,7 @@
 //   kreis                     Kreiswerkzeug gestartet
 //   verbinden-ungesetzt       Verbinden-Fenster ohne Auftrennstelle
 //   auftrennstelle-gesetzt    dasselbe Fenster mit gesetzter Stelle
+//   verbunden                 Karten verbunden, Karte B trug namenlose Linien
 //   herausgezoomt             Raster feiner als ein Bildschirmpixel
 //   bezugspunktkonflikt       zwei Karten mit verschiedener RTK-Basis
 //   ladefehler                unlesbare Datei
@@ -135,7 +136,7 @@ const FALSCHMELDUNGEN = [
    "dieselbe Meldung mit Punktzahl"],
 
   /* Aus der Testdatei, nicht aus dem Quelltext */
-  [/^unbekannt$/, "properties.name der Testkarte - kein Text des Editors"],
+  [/^(unbekannt|kabel)$/, "properties.name der Testkarte - kein Text des Editors"],
   [/^[\w-]+\.geojson( \*)?$/, "Dateiname der Testkarte"],
 ];
 
@@ -196,8 +197,41 @@ const KARTE_B = {
   ],
 };
 
+/*
+ * Karte B zum VERBINDEN - gleiche RTK-Basis wie Karte A, sonst sperrt der
+ * Bezugspunkt-Konflikt das Verbinden und der Zustand entstuende nie.
+ *
+ * Sie traegt zwei Linien ohne erkennbaren Typ, eine mit und eine ohne Namen:
+ * beschreibeUnbekannteLinie() hat genau diese zwei Faelle, und beide gehoeren
+ * in denselben Satz. Search Wire und Docking-Pfad fehlen absichtlich - zwei
+ * befuellte Singletons waeren ein Konflikt und sperrten das Verbinden.
+ */
+const KARTE_B_VERBINDEN = {
+  type: "FeatureCollection",
+  referenceOrigin: { lat: 52.5, lon: 13.4 },
+  features: [
+    { type: "Feature", properties: { name: "perimeter" },
+      geometry: { type: "Polygon", coordinates: [[
+        rel([60, 0]), rel([100, 0]), rel([100, 40]), rel([60, 40]), rel([60, 0]),
+      ]] } },
+    { type: "Feature", properties: { name: "kabel" },
+      geometry: { type: "LineString",
+        coordinates: [rel([62, 2]), rel([64, 4]), rel([66, 2])] } },
+    { type: "Feature", properties: {},
+      geometry: { type: "LineString", coordinates: [rel([70, 2]), rel([72, 4])] } },
+  ],
+};
+
 const page = await browser.newPage();
 await page.setViewportSize({ width: 1600, height: 1000 });
+
+/*
+ * Das Verbinden fragt per window.confirm() nach. Playwright weist einen
+ * Dialog ohne Handler ab - der Befehl liefe dann still ins Leere, und der
+ * Zustand "verbunden" entstuende nie. Ein leeres Ergebnis saehe dabei aus wie
+ * ein sauberer Befund.
+ */
+page.on("dialog", (dialog) => dialog.accept().catch(() => {}));
 
 /*
  * createMenueBefehl() verlangt ein check(). Dieses Werkzeug fuehrt keines -
@@ -403,6 +437,21 @@ try {
     await page.waitForTimeout(300);
   }
   await sammle("auftrennstelle-gesetzt");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  /*
+   * Verbinden mit Linien ohne erkennbaren Typ. Die Erfolgsmeldung entsteht nur
+   * hier: sie zaehlt auf, was aus Karte B unveraendert uebernommen wurde, und
+   * ist damit der einzige Zustand, in dem dieser Text ueberhaupt dasteht.
+   */
+  await laden("#secondFileInput", "b-verbinden.geojson", KARTE_B_VERBINDEN);
+  await menueBefehl("Karte", "Karten verbinden…");
+  await page.waitForTimeout(300);
+  await page.locator("#mergeMapsBtn").click();
+  await page.waitForTimeout(500);
+  await openAllFolds(page);
+  await sammle("verbunden");
   await page.keyboard.press("Escape");
   await page.waitForTimeout(250);
 

@@ -351,7 +351,7 @@ deutschem Text ohne englische Fassung. Aufruf von Hand:
 PLAYWRIGHT_CORE_PATH="$SCRATCH" node tools/scan-i18n.mjs
 ```
 
-Es hält die Oberfläche deutsch, spielt siebzehn Zustände durch, sammelt jeden
+Es hält die Oberfläche deutsch, spielt achtzehn Zustände durch, sammelt jeden
 Textknoten unter `body *` – auch in ausgeblendeten Elementen – sowie `title`,
 `aria-label` und `placeholder`, schickt alles durch `translateGermanText()` und
 meldet, was unverändert zurückkommt.
@@ -4697,11 +4697,80 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | „N Punkt(e) gesetzt.", „N neue(n) Fehler" (zweimal) | tragen bereits eine Klammerform – eine bewusste Umgehung, kein Versehen |
   | „(N entfallen)" | Partizip; „1 entfallen" ist nicht falsch |
   | „N von M Punkten entfernt." | `M >= 3`; „1 von 5 Punkten" ist richtig |
-  | „Aus Karte B wurden N Linien …", „… mit N Punkten" | **die Meldung hat gar keine englische Fassung** (sie gehört zu den Statustexten unten). Eine Umstellung nur auf der deutschen Seite wäre eine halbe – die Regel „paarweise pflegen" gilt auch hier. Die Umstellung war gebaut und ist **zurückgenommen** worden |
+  | „Aus Karte B wurden N Linien …", „… mit N Punkten" | **ERLEDIGT mit Schritt 3 des fünften Durchgangs** – die Meldung hat jetzt eine englische Fassung, und beide Zahlen unterscheiden Einzahl und Mehrzahl in beiden Sprachen. Siehe den eigenen Abschnitt darunter |
 
   **Falschmeldungen des Musters:** „N von 2 Punkten", „Punkt N von M",
   „N von M Punkten entfernt" – dort steht hinter der Zahl das Wort „von",
   kein Nomen.
+
+- **Die Erfolgsmeldung des Verbindens – ERLEDIGT mit Schritt 3 des fünften
+  Durchgangs.** Der Eintrag bleibt stehen, weil er zwei Regeln trägt.
+
+  **Warum sie so lange deutsch blieb:** sie entsteht **nur**, wenn aus Karte B
+  Linien ohne erkennbaren Typ übernommen werden, und diesen Zustand hatte das
+  i18n-Werkzeug nie hergestellt. Das ist die Laufzeitfassung von Regel (d) –
+  *eine Laufzeitsuche ist nur so vollständig wie die Zustände, die sie besucht
+  hat*. `tools/scan-i18n.mjs` besucht seit diesem Schritt den Zustand
+  **`verbunden`**; die Kalibrierung war, dass es die Meldung vor der
+  Umstellung als **NEU** meldet, und genau das tat es.
+
+  **Zwei Beifänge derselben Messung, beide genannt statt stillschweigend
+  mitgenommen:** `describeFeature()` fällt bei einem Feature ohne
+  `properties.name` auf **„Unbenanntes Feature"** zurück – das hatte ebenfalls
+  keine englische Fassung und hat jetzt eine („Unnamed feature"). Und der
+  Dateiname `kabel` der neuen Testkarte ist eine **Falschmeldung** (ein
+  Rohwert aus der Datei, kein Text des Editors) und steht als solche im
+  Werkzeug. **Das Verbinden fragt außerdem per `window.confirm()` nach** –
+  ohne Dialog-Handler weist Playwright den Dialog ab, der Befehl liefe still
+  ins Leere, und der Zustand entstünde nie.
+
+  **Der Text ist zusammengesetzt, und das war die eigentliche Arbeit.** Er
+  nennt die übernommenen Linien einzeln („kabel" mit 1 Punkt, ohne Namen, mit
+  2 Punkten), und diese Aufzählung ist **selbst deutsch**. Als ein einziger
+  Textknoten wäre sie weder als Wörterbucheintrag noch als Muster erfassbar:
+  ein Ersetzungsmuster setzt `$1` unverändert ein, der englische Satz trüge
+  eine deutsche Klammer. **Das ist dieselbe Falle wie bei „Start: E …" vor
+  7d-2, und die Antwort ist dieselbe: einzelne Elemente.**
+
+  `setEditStatusParts(parts, aufzaehlung, type)` steht dafür neben
+  `setEditStatus()`. Jedes Stück ist ein eigenes `<span>` und geht ganz normal
+  durch `setLocalizedText()`; beim Sprachwechsel fasst `applyI18nSnapshot()`
+  sie über `[data-i18n-de]` wieder an. **Die Trennzeichen setzt CSS**, nicht
+  der Text – ein Komma im Textknoten müsste in jedem Muster mitgeschrieben
+  werden, und ein eigener Textknoten dafür wäre eine Stelle ohne Übersetzung.
+  Dieselbe Machart wie beim „·" der Kurzform „Umformen".
+
+  **Am Behälter steht bewusst kein `data-i18n-de`.** `discardTransientStatus()`
+  wirft nur weg, was veralten kann; diese Meldung ist vollständig übersetzbar
+  und trägt keine Dezimalzahl. Ohne die Marke lässt er sie stehen – genau
+  richtig, und ohne dass an `transientStatusCanGoStale()` etwas zu ändern war.
+
+  **Die englischen Texte und warum sie so lauten:**
+
+  | deutsch | englisch | Begründung |
+  |---|---|---|
+  | „Karte A und B wurden verbunden. Der neue Perimeter ist geschlossen; Karte B wurde aus dem Arbeitsbereich entfernt." | „Maps A and B were merged. The new perimeter is closed; map B was removed from the workspace." | „Arbeitsbereich" ist der Platz, den die beiden Kartenslots bilden – „workspace", nicht „work area" |
+  | „Aus Karte B wurde 1 Linie ohne erkennbaren Typ unverändert übernommen:" | „1 line without a recognisable type was taken over unchanged from map B:" | „recognisable" in britischer Schreibung, nach dem Bestand des Wörterbuchs gewählt (viermal „centre", einmal „center", keine „-ize"-Form) |
+  | „Aus Karte B wurden N Linien … übernommen:" | „N lines without a recognisable type were taken over unchanged from map B:" | Mehrzahl, dazu der Wechsel „was" → „were" |
+  | „„name" mit N Punkten" | „“name” with N points" | der Name ist ein Rohwert aus der Datei und bleibt als `$1` stehen; übersetzt werden nur die **Anführungszeichen**, deutsch „…" gegen englisch “…” |
+  | „ohne Namen, mit N Punkten" | „unnamed, with N points" | kürzer als „without a name" und im selben Register wie der Rest der Aufzählung |
+  | „Sie kann/können neben einem gleichartigen Feature aus Karte A stehen - die Kartenprüfung nennt sie." | „It may / They may sit next to a feature of the same kind from map A - map validation names it/them." | „Kartenprüfung" steht als Beschriftung im Wörterbuch als „Map check"; **im Fließtext** benutzt der Bestand „map validation", und darum geht es hier |
+
+  **Einzahl und Mehrzahl stehen je einzeln, das speziellere Muster zuerst**,
+  und zwar für **beide** Zahlen: die der Linien und die der Punkte je Linie.
+  Die Einzahlfassungen tragen keine veränderliche Zahl und stehen deshalb als
+  feste Einträge in `I18N_EN`, nicht als Muster.
+
+  **Zugesichert ist beides in beiden Richtungen** (`tools/test-merge.mjs`):
+  auf Deutsch erzeugt und nach `setLanguage("en")` gemessen, auf **Englisch
+  erzeugt** und nach `setLanguage("de")` gemessen. Gelesen werden die
+  **einzelnen Elemente**, nicht `textContent` des Behälters – die
+  Trennzeichen kommen aus CSS, und eine Zusicherung auf den
+  zusammengeschriebenen Text behauptete eine Schreibweise, die so nirgends
+  dasteht.
+
+  **Nach der Umstellung meldet `tools/scan-i18n.mjs` über alle achtzehn
+  Zustände null neue Treffer.**
 
 - **Der Tooltip über der Karte folgt dem Sprachwechsel – ERLEDIGT mit
   Schritt 8 des vierten Durchgangs.**
@@ -4749,7 +4818,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   das Verworfenwerden, sodass die Zahl im alten Format einfröre. Der Fall steht
   jetzt mit dieser Begründung in der Falschmeldungsliste des Werkzeugs.
 
-  **Stand danach:** `tools/scan-i18n.mjs` meldet über alle siebzehn Zustände
+  **Stand danach:** `tools/scan-i18n.mjs` meldet über alle damals siebzehn Zustände
   **null** neue Treffer.
 
 - **31 Statustexte haben keine englische Fassung.** Sie wurden beim Umzug der

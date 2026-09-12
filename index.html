@@ -2362,6 +2362,17 @@
   .edit-status.ok { border-color:rgba(85,224,138,.45); color:#b9f5cf; }
   .edit-status.error { border-color:rgba(255,107,107,.65); color:#ffb3b3; }
   /*
+   * Eine Meldung aus mehreren uebersetzbaren Stuecken (setEditStatusParts()).
+   * Die Trennzeichen stehen hier und nicht im Text: ein Komma im Textknoten
+   * muesste in jedem Uebersetzungsmuster mitgeschrieben werden, und ein
+   * eigener Textknoten dafuer waere eine Stelle ohne Uebersetzung. Dieselbe
+   * Machart wie beim "·" der Kurzform "Umformen".
+   */
+  .edit-status.status-report > span + span::before { content:" "; }
+  .edit-status.status-report > span.status-report-item + span.status-report-item::before {
+    content:", ";
+  }
+  /*
    * Das Ursprungskreuz markiert einen festen Bezugspunkt der Karte, keinen
    * Zustand - es war gelb und damit von einer Auswahl nicht zu unterscheiden.
    * Neutral, weil es immer da ist und nie etwas meldet.
@@ -12124,6 +12135,47 @@ function setEditStatus(message, type = "") {
 }
 
 
+/**
+ * Dieselbe Meldungszeile, aber aus MEHREREN übersetzbaren Stücken.
+ *
+ * Gebraucht wird sie, wo ein Satz eine Aufzählung enthält, deren Glieder
+ * selbst deutschen Text tragen. Ein einziger Textknoten wäre dort nur zur
+ * Hälfte übersetzbar; jedes Stück als eigenes Element geht dagegen den
+ * gewöhnlichen Weg über `setLocalizedText()` und wird beim Sprachwechsel von
+ * `applyI18nSnapshot()` wieder angefasst.
+ *
+ * `aufzaehlung` sagt, wie viele der Stücke am Ende der Liste vor dem
+ * Schlusssatz die Aufzählung bilden - sie werden mit Komma getrennt, die
+ * übrigen mit einem Leerzeichen. Beides setzt CSS.
+ *
+ * Am Behälter steht bewusst KEIN `data-i18n-de`: `discardTransientStatus()`
+ * wirft nur weg, was veralten kann, und diese Meldung ist vollständig
+ * übersetzbar. Ohne die Marke lässt er sie stehen - genau richtig.
+ */
+function setEditStatusParts(parts, aufzaehlung, type = "") {
+  const box = document.getElementById("editStatus");
+
+  box.className = `edit-status status-report${type ? " " + type : ""}`;
+  delete box.dataset.i18nDe;
+  box.textContent = "";
+
+  const ersterEintrag = parts.length - 1 - aufzaehlung;
+
+  parts.forEach((german, index) => {
+    const span = document.createElement("span");
+
+    if (index >= ersterEintrag && index < parts.length - 1) {
+      span.className = "status-report-item";
+    }
+
+    setLocalizedText(span, german);
+    box.appendChild(span);
+  });
+
+  showTransientStatus("editStatus");
+}
+
+
 /** Liefert einen lesbaren Namen des aktuell ausgewählten Punktes. */
 function describeVertex(descriptor) {
   const feature = data.features?.[descriptor.featureIndex];
@@ -16982,24 +17034,47 @@ function mergeMapSlots() {
     return;
   }
 
-  setEditStatus(
-    `${grundmeldung} Aus Karte B wurden ${namenloseLinien.length} Linien ` +
-    `ohne erkennbaren Typ unverändert übernommen ` +
-    `(${namenloseLinien.map(beschreibeUnbekannteLinie).join(", ")}). ` +
-    `Sie können neben einem gleichartigen Feature aus Karte A stehen - ` +
-    `die Kartenprüfung nennt sie.`,
-    "ok"
-  );
+  const anzahl = namenloseLinien.length;
+
+  /*
+   * EIN Satz, aber MEHRERE Elemente - und das ist keine Förmlichkeit.
+   *
+   * Die Aufzählung trägt selbst deutschen Text ("mit 3 Punkten", "ohne
+   * Namen"). Als ein einziger Textknoten wäre sie weder als
+   * Wörterbucheintrag noch als Muster erfassbar: ein Ersetzungsmuster setzt
+   * $1 unverändert ein, und der englische Satz trüge eine deutsche Klammer.
+   * Dieselbe Falle wie bei "Start: E …" vor 7d-2, und dieselbe Antwort -
+   * einzelne Elemente. Jedes Stück geht dadurch ganz normal durch
+   * setLocalizedText() und wird beim Sprachwechsel von applyI18nSnapshot()
+   * wieder angefasst.
+   *
+   * Die Trennzeichen setzt CSS, nicht der Text: ein Komma im Textknoten
+   * müsste in jedem Muster mitgeschrieben werden, und ein eigener Textknoten
+   * dafür wäre eine Stelle ohne Übersetzung.
+   */
+  setEditStatusParts([
+    grundmeldung,
+    anzahl === 1
+      ? "Aus Karte B wurde 1 Linie ohne erkennbaren Typ unverändert übernommen:"
+      : `Aus Karte B wurden ${anzahl} Linien ohne erkennbaren Typ ` +
+        `unverändert übernommen:`,
+    ...namenloseLinien.map(beschreibeUnbekannteLinie),
+    anzahl === 1
+      ? "Sie kann neben einem gleichartigen Feature aus Karte A stehen - " +
+        "die Kartenprüfung nennt sie."
+      : "Sie können neben einem gleichartigen Feature aus Karte A stehen - " +
+        "die Kartenprüfung nennt sie."
+  ], namenloseLinien.length, "ok");
 }
 
 
 /** Nennt eine Linie ohne erkennbaren Typ so, dass man sie in der Datei findet. */
 function beschreibeUnbekannteLinie(feature) {
   const name = String(feature?.properties?.name ?? "").trim();
+  const punkte = countLineFeaturePoints(feature);
+  const mit = punkte === 1 ? "mit 1 Punkt" : `mit ${punkte} Punkten`;
 
-  return name
-    ? `„${name}“ mit ${countLineFeaturePoints(feature)} Punkten`
-    : `ohne Namen, mit ${countLineFeaturePoints(feature)} Punkten`;
+  return name ? `„${name}“ ${mit}` : `ohne Namen, ${mit}`;
 }
 
 
@@ -19681,6 +19756,29 @@ viewerResizeObserver.observe(viewer);
  */
 let currentLanguage = "de";
 const I18N_EN = new Map(Object.entries({
+  /*
+   * Schritt 3, fuenfter Durchgang: die Erfolgsmeldung des Verbindens. Sie
+   * hatte keine englische Fassung, weil sie nur in einem Zustand entsteht,
+   * den das i18n-Werkzeug nie besucht hat - der Zustand "verbunden" ist mit
+   * diesem Schritt dazugekommen.
+   *
+   * Die Aufzaehlung steht in eigenen Elementen (setEditStatusParts()); jedes
+   * Stueck ist deshalb ein eigener Eintrag bzw. Muster.
+   */
+  "Karte A und B wurden verbunden. Der neue Perimeter ist geschlossen; Karte B wurde aus dem Arbeitsbereich entfernt.":"Maps A and B were merged. The new perimeter is closed; map B was removed from the workspace.",
+  "Aus Karte B wurde 1 Linie ohne erkennbaren Typ unverändert übernommen:":"1 line without a recognisable type was taken over unchanged from map B:",
+  "ohne Namen, mit 1 Punkt":"unnamed, with 1 point",
+  "Sie kann neben einem gleichartigen Feature aus Karte A stehen - die Kartenprüfung nennt sie.":"It may sit next to a feature of the same kind from map A - map validation names it.",
+  "Sie können neben einem gleichartigen Feature aus Karte A stehen - die Kartenprüfung nennt sie.":"They may sit next to a feature of the same kind from map A - map validation names them.",
+
+  /*
+   * Beifang derselben Messung: describeFeature() faellt bei einem Feature
+   * ohne properties.name auf diesen Text zurueck. Erreichbar ist er ueber
+   * jede Datei mit einem namenlosen Feature - sichtbar wurde er erst, als
+   * die Testkarte des Werkzeugs eine solche Linie bekam.
+   */
+  "Unbenanntes Feature":"Unnamed feature",
+
   /* Schritt 1, dritter Durchgang: die Treffer der Messung "welcher sichtbare
      deutsche Text hat keine englische Fassung?" - siehe CLAUDE.md. */
   "Distanz:":"Distance:",
@@ -19888,6 +19986,20 @@ const I18N_PATTERNS = [
   [/^Punkt per Raster verschieben$/, "Move point by grid step"],
   [/^Vorhanden, 1 Punkt\.$/, "Present, 1 point."],
   [/^Vorhanden, (\d+) Punkte\.$/, "Present, $1 points."],
+
+  /*
+   * Die Erfolgsmeldung des Verbindens, Mehrzahlfassungen. Die Einzahl steht
+   * als fester Eintrag in I18N_EN - sie traegt keine veraenderliche Zahl.
+   *
+   * Der Name in den Anfuehrungszeichen ist ein Rohwert aus der Datei und
+   * bleibt als $1 stehen; uebersetzt werden nur die Anfuehrungszeichen selbst,
+   * deutsch „…“ gegen englisch “…”.
+   */
+  [/^Aus Karte B wurden (\d+) Linien ohne erkennbaren Typ unverändert übernommen:$/,
+    "$1 lines without a recognisable type were taken over unchanged from map B:"],
+  [/^„(.+)“ mit 1 Punkt$/, "\u201C$1\u201D with 1 point"],
+  [/^„(.+)“ mit (\d+) Punkten$/, "\u201C$1\u201D with $2 points"],
+  [/^ohne Namen, mit (\d+) Punkten$/, "unnamed, with $1 points"],
   [/^(\d+) Features dieses Typs - bitte Karte prüfen\.$/,
     "$1 features of this type - please validate the map."],
   [/^(\d+) ausgewählt$/, "$1 selected"],

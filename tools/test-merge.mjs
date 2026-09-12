@@ -418,6 +418,120 @@ try {
     meldung.includes("ohne erkennbaren Typ") && meldung.includes("dockingpfad"),
     meldung);
 
+  /*
+   * Dieselbe Meldung, jetzt Stueck fuer Stueck und in beiden Sprachen.
+   *
+   * Gelesen werden die EINZELNEN Elemente und nicht textContent des
+   * Behaelters: die Trennzeichen setzt CSS, textContent kennt sie nicht, und
+   * eine Zusicherung auf den zusammengeschriebenen Text behauptete eine
+   * Schreibweise, die so nirgends dasteht.
+   *
+   * Der Sprachwechsel laeuft ueber setLanguage() und wird unmittelbar danach
+   * gemessen - ein Klick auf #languageToggle naehme dem Feld den Fokus, und
+   * jede Handlung dazwischen koennte einen abgeleiteten Text neu bauen.
+   */
+  const meldungsTeile = () =>
+    page.locator("#editStatus > span").allTextContents();
+
+  const EINZAHL_DE = [
+    "Karte A und B wurden verbunden. Der neue Perimeter ist geschlossen; " +
+      "Karte B wurde aus dem Arbeitsbereich entfernt.",
+    "Aus Karte B wurde 1 Linie ohne erkennbaren Typ unverändert übernommen:",
+    "„dockingpfad“ mit 0 Punkten",
+    "Sie kann neben einem gleichartigen Feature aus Karte A stehen - " +
+      "die Kartenprüfung nennt sie.",
+  ];
+
+  const EINZAHL_EN = [
+    "Maps A and B were merged. The new perimeter is closed; " +
+      "map B was removed from the workspace.",
+    "1 line without a recognisable type was taken over unchanged from map B:",
+    "\u201Cdockingpfad\u201D with 0 points",
+    "It may sit next to a feature of the same kind from map A - " +
+      "map validation names it.",
+  ];
+
+  check("deutsch: die Meldung steht in vier uebersetzbaren Stuecken da",
+    JSON.stringify(await meldungsTeile()) === JSON.stringify(EINZAHL_DE),
+    JSON.stringify(await meldungsTeile()));
+
+  await page.evaluate(() => setLanguage("en"));
+
+  check("auf deutsch erzeugt, dann englisch: jedes Stueck ist uebersetzt",
+    JSON.stringify(await meldungsTeile()) === JSON.stringify(EINZAHL_EN),
+    JSON.stringify(await meldungsTeile()));
+
+  await page.evaluate(() => setLanguage("de"));
+
+  check("und zurueck auf deutsch steht wieder der Ausgangstext da",
+    JSON.stringify(await meldungsTeile()) === JSON.stringify(EINZAHL_DE),
+    JSON.stringify(await meldungsTeile()));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Dieselbe Meldung in der Mehrzahl - und auf Englisch erzeugt");
+
+  /*
+   * Zwei Linien statt einer, und eine davon mit genau EINEM Punkt: damit
+   * stehen die Mehrzahlfassung des Satzes und die Einzahlfassung der
+   * Punktzahl im selben Text. Der Editor darf nicht "1 Punkte" schreiben,
+   * und die englische Seite nicht "1 points".
+   *
+   * Erzeugt wird die Meldung diesmal in der englischen Oberflaeche: der
+   * Sprachwechsel steht VOR dem Klick auf "Verbinden". Das Verbinden-Fenster
+   * wird vorher geoeffnet, denn das Menue heisst danach "Map".
+   */
+  const mitZweiLinien = JSON.parse(mapWith(60));
+  mitZweiLinien.features.push(
+    {
+      type: "Feature",
+      properties: { name: "kabel" },
+      geometry: { type: "LineString", coordinates: [rel([70, 5])] },
+    },
+    {
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: [rel([72, 5]), rel([74, 5])] },
+    }
+  );
+
+  await reset(mapWith(0), JSON.stringify(mitZweiLinien));
+
+  const MEHRZAHL_EN = [
+    "Maps A and B were merged. The new perimeter is closed; " +
+      "map B was removed from the workspace.",
+    "2 lines without a recognisable type were taken over unchanged from map B:",
+    "\u201Ckabel\u201D with 1 point",
+    "unnamed, with 2 points",
+    "They may sit next to a feature of the same kind from map A - " +
+      "map validation names them.",
+  ];
+
+  const MEHRZAHL_DE = [
+    "Karte A und B wurden verbunden. Der neue Perimeter ist geschlossen; " +
+      "Karte B wurde aus dem Arbeitsbereich entfernt.",
+    "Aus Karte B wurden 2 Linien ohne erkennbaren Typ unverändert übernommen:",
+    "„kabel“ mit 1 Punkt",
+    "ohne Namen, mit 2 Punkten",
+    "Sie können neben einem gleichartigen Feature aus Karte A stehen - " +
+      "die Kartenprüfung nennt sie.",
+  ];
+
+  await page.evaluate(() => setLanguage("en"));
+
+  await klickeFreienKnopf("#mergeMapsBtn",
+    "englisch: Verbinden ist frei", "#mergeStatus");
+  await page.waitForTimeout(600);
+
+  check("auf englisch erzeugt: die Mehrzahl steht englisch da",
+    JSON.stringify(await meldungsTeile()) === JSON.stringify(MEHRZAHL_EN),
+    JSON.stringify(await meldungsTeile()));
+
+  await page.evaluate(() => setLanguage("de"));
+
+  check("auf englisch erzeugt, dann deutsch: dieselbe Meldung auf deutsch",
+    JSON.stringify(await meldungsTeile()) === JSON.stringify(MEHRZAHL_DE),
+    JSON.stringify(await meldungsTeile()));
+
   /* ---------------------------------------------------------------- */
   console.log("Auftrennstelle: setzen, ueberschreiben, zuruecknehmen");
 
