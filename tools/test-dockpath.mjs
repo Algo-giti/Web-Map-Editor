@@ -19,9 +19,9 @@
 
 import {
   createChecker,
+  createMenueBefehl,
   indexUrl,
   launchBrowser,
-  menueBefehl,
   openAllFolds,
 } from "./browser-harness.mjs";
 
@@ -64,6 +64,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -82,7 +83,7 @@ try {
    */
 
   await openAllFolds(page);
-  await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
+  await menueBefehl("Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   const load = async (body) => {
     await page.locator("#fileInput").setInputFiles({
@@ -307,7 +308,7 @@ try {
     .waitForEvent("download", { timeout: 5000 })
     .catch(() => null);
 
-  await menueBefehl(page, "Datei", "GeoJSON speichern");
+  await menueBefehl("Datei", "GeoJSON speichern");
   const exportEvent = await pendingExport;
 
   check("Speichern funktioniert", !!exportEvent);

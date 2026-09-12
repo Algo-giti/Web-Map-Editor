@@ -236,7 +236,7 @@ export async function launchBrowser(toolName) {
 }
 
 /**
- * Löst einen Menübefehl aus: Menü öffnen, Eintrag anklicken.
+ * Baut den Auslöser für Menübefehle: Menü öffnen, Eintrag anklicken.
  *
  * Der Helfer kapselt AUSSCHLIESSLICH diese beiden Gesten. Das Lauschen auf
  * `download` oder `dialog` bleibt beim Aufrufer und muss dort weiterhin VOR
@@ -246,27 +246,76 @@ export async function launchBrowser(toolName) {
  * Ein Eintrag ist nur im offenen Menü sichtbar; Playwright verlangt
  * Sichtbarkeit für click(). Genau deshalb gibt es den Helfer: sonst stünde
  * dieselbe Geste an über einem Dutzend Stellen.
+ *
+ * Er ist eine Fabrik wie createKlicker() und aus demselben Grund: ein
+ * GESPERRTER Eintrag wurde vorher trotzdem angeklickt, und Playwright wartete
+ * dreissig Sekunden auf eine Freigabe, die nicht kommt. Aus einer klaren
+ * Ablehnung wurde ein stummer Abbruch, der seine Ursache nicht nennt. Geprüft
+ * wird deshalb VOR dem Klick; ist der Eintrag gesperrt, reisst eine benannte
+ * Zusicherung, es wird NICHT geklickt und das Menü wird wieder geschlossen.
+ *
+ * Die Zusicherung wird IMMER ausgegeben, nicht nur im Fehlerfall - eine, die
+ * man nur sieht, wenn sie reisst, belegt im Gutfall nichts.
+ *
+ * check() ist je Test eine eigene Closure, deshalb die Fabrik: so kann eine
+ * Aufrufstelle sie nicht vergessen. Ein vierter Parameter könnte weggelassen
+ * werden, und der Wächter meldete dann nichts.
+ *
+ * UNTERSCHIED ZU createKlicker(), und er ist erzwungen, nicht gewählt: dort
+ * genügt ein `false` an den Aufrufer, weil dessen Abschnitt in einer Funktion
+ * liegt und mit `return` enden kann. Die Menübefehle stehen dagegen im
+ * obersten `try`-Block ihrer Datei, und dort ist `return` kein gültiges
+ * JavaScript - ein Rückgabewert liesse sich an den meisten der Aufrufstellen
+ * gar nicht befolgen. Gemessen an der Mutation "Raster… gesperrt": die
+ * Zusicherung riss, das Skript lief weiter und endete in `page.fill(
+ * "#gridStepInput", …)` - also doch im Timeout, den der Wächter gerade
+ * verhindern soll. Deshalb bricht der Helfer den Lauf SELBST ab. Der Fehler
+ * nennt den Eintrag; die gerissene Zusicherung steht unmittelbar darüber.
  */
-export async function menueBefehl(page, menue, eintrag) {
-  const titel = page.locator(".menu-title", { hasText: menue }).first();
-  await titel.click();
+export function createMenueBefehl(page, check) {
+  return async (menue, eintrag) => {
+    const titel = page.locator(".menu-title", { hasText: menue }).first();
+    await titel.click();
 
-  const panel = page.locator(".menu-panel:not([hidden])").first();
-  await panel.waitFor({ state: "visible" });
+    const panel = page.locator(".menu-panel:not([hidden])").first();
+    await panel.waitFor({ state: "visible" });
 
-  await panel.locator(".menu-item", { hasText: eintrag }).first().click();
+    const item = panel.locator(".menu-item", { hasText: eintrag }).first();
 
-  /*
-   * Ein Kontrollkästchen lässt das Menü bewusst offen - wer eine Ebene
-   * ausschaltet, will oft gleich die nächste. Für den Test ist ein offenes
-   * Panel über der Karte aber ein Hindernis, deshalb hier zumachen.
-   */
-  if (await page.locator(".menu-panel:not([hidden])").count()) {
-    await page.keyboard.press("Escape");
-    await page.locator(".menu-panel:not([hidden])").first()
-      .waitFor({ state: "hidden" })
-      .catch(() => {});
-  }
+    /*
+     * isEnabled() erfasst beide Sperrformen dieser Datei - das native
+     * `disabled` der Menüknöpfe und ein `aria-disabled`. Nachgemessen, nicht
+     * angenommen. Ein <label> (Kontrollkästchen, Dateiauswahl) ist kein
+     * Formularelement und gilt darum immer als frei.
+     */
+    const frei = await item.isEnabled();
+    check(`Menüeintrag "${menue} \u2192 ${eintrag}" ist frei`, frei,
+      "der Eintrag ist gesperrt - nicht geklickt");
+
+    if (frei) await item.click();
+
+    /*
+     * Ein Kontrollkästchen lässt das Menü bewusst offen - wer eine Ebene
+     * ausschaltet, will oft gleich die nächste. Für den Test ist ein offenes
+     * Panel über der Karte aber ein Hindernis, deshalb hier zumachen. Bei
+     * einem gesperrten Eintrag steht es ohnehin noch offen.
+     */
+    if (await page.locator(".menu-panel:not([hidden])").count()) {
+      await page.keyboard.press("Escape");
+      await page.locator(".menu-panel:not([hidden])").first()
+        .waitFor({ state: "hidden" })
+        .catch(() => {});
+    }
+
+    if (!frei) {
+      throw new Error(
+        `Menüeintrag "${menue} \u2192 ${eintrag}" ist gesperrt - ` +
+        "nicht geklickt, Lauf abgebrochen."
+      );
+    }
+
+    return true;
+  };
 }
 
 /**

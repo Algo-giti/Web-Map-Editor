@@ -14,9 +14,9 @@
 
 import {
   createChecker,
+  createMenueBefehl,
   indexUrl,
   launchBrowser,
-  menueBefehl,
   openAllFolds,
 } from "./browser-harness.mjs";
 
@@ -55,6 +55,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text()); });
   page.on("pageerror", (e) => consoleErrors.push(String(e)));
   page.on("dialog", (d) => d.accept().catch(() => {}));
@@ -138,7 +139,7 @@ try {
 
   const exportMap = async () => {
     const pending = page.waitForEvent("download", { timeout: 5000 }).catch(() => null);
-    await menueBefehl(page, "Datei", "GeoJSON speichern");
+    await menueBefehl("Datei", "GeoJSON speichern");
     const ev = await pending;
     if (!ev) return null;
     const stream = await ev.createReadStream();

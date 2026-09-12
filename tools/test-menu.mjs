@@ -23,7 +23,11 @@
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-menu.mjs
 
 import {
-  createChecker, elementGetroffen, indexUrl, launchBrowser, menueBefehl,
+  createChecker,
+  createMenueBefehl,
+  elementGetroffen,
+  indexUrl,
+  launchBrowser,
 } from "./browser-harness.mjs";
 
 const TOOL = "test-menu";
@@ -44,6 +48,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text()); });
   page.on("pageerror", (e) => consoleErrors.push(String(e)));
 
@@ -118,7 +123,7 @@ try {
     Math.abs((await eastOf(1)) - (vorher + 5)) < 1e-6,
     `${await eastOf(1)} statt ${vorher + 5}`);
 
-  await menueBefehl(page, "Datei", "Aktive zurücksetzen");
+  await menueBefehl("Datei", "Aktive zurücksetzen");
   await page.waitForTimeout(400);
 
   check("nach dem Zurücksetzen liegt er wieder am Ausgangsort",
@@ -150,7 +155,7 @@ try {
 
   check("das Overlay ist zunächst unsichtbar", !(await sichtbar("#helpOverlay")));
 
-  await menueBefehl(page, "Hilfe", "Kurzüberblick");
+  await menueBefehl("Hilfe", "Kurzüberblick");
   await page.waitForTimeout(250);
 
   check("nach dem Befehl ist es sichtbar", await sichtbar("#helpOverlay"));
@@ -326,12 +331,12 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(150);
 
-  await menueBefehl(page, "Ansicht", "Perimeter");
+  await menueBefehl("Ansicht", "Perimeter");
   await page.waitForTimeout(250);
 
   check("nach dem Ausschalten ist er im SVG weg", !(await perimeterSichtbar()));
 
-  await menueBefehl(page, "Ansicht", "Perimeter");
+  await menueBefehl("Ansicht", "Perimeter");
   await page.waitForTimeout(250);
 
   check("und nach dem Wiedereinschalten wieder da", await perimeterSichtbar());
@@ -385,7 +390,7 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(150);
 
-  await menueBefehl(page, "Karte", "Karte A");
+  await menueBefehl("Karte", "Karte A");
   await page.waitForTimeout(400);
 
   /*
@@ -441,7 +446,7 @@ try {
 
   check("das Rasterfenster ist zunächst zu", !(await sichtbar("#gridWindow")));
 
-  await menueBefehl(page, "Ansicht", "Raster…");
+  await menueBefehl("Ansicht", "Raster…");
   await page.waitForTimeout(250);
 
   check("nach dem Menübefehl steht es da", await sichtbar("#gridWindow"));
@@ -489,7 +494,7 @@ try {
   /* ---------------------------------------------------------------- */
   console.log("Mäherfenster: höchstens eines ist offen");
 
-  await menueBefehl(page, "Ansicht", "Mähroboter-Vorschau…");
+  await menueBefehl("Ansicht", "Mähroboter-Vorschau…");
   await page.waitForTimeout(250);
 
   check("das Mäherfenster steht da", await sichtbar("#mowerWindow"));
@@ -542,7 +547,7 @@ try {
   check("und der Fokus steht beim sichtbaren Öffner",
     (await fokus()) === "menuViewBtn", await fokus());
 
-  await menueBefehl(page, "Ansicht", "Raster…");
+  await menueBefehl("Ansicht", "Raster…");
   await page.waitForTimeout(250);
 
   await page.locator("#drawExclusionBtn").click();
@@ -565,7 +570,7 @@ try {
     !(await sichtbar("#inspectorDraw")));
 
   /* Ein offenes Menü schlägt ein offenes Fenster. */
-  await menueBefehl(page, "Ansicht", "Raster…");
+  await menueBefehl("Ansicht", "Raster…");
   await page.waitForTimeout(250);
   await druckeAlt("menuFileBtn");
   await page.waitForTimeout(200);

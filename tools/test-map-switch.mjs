@@ -18,9 +18,9 @@
 
 import {
   createChecker,
+  createMenueBefehl,
   indexUrl,
   launchBrowser,
-  menueBefehl,
   openAllFolds,
 } from "./browser-harness.mjs";
 
@@ -57,6 +57,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -75,7 +76,7 @@ try {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "load" });
   await openAllFolds(page);
-  await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
+  await menueBefehl("Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   const upload = async (selector, name, body) => {
     await page.locator(selector).setInputFiles({
@@ -103,7 +104,7 @@ try {
    * dorthin. Genau das tut auch ein Nutzer: Menue oeffnen, Karte waehlen.
    */
   const switchTo = async (which) => {
-    await menueBefehl(page, "Karte", `Karte ${which}`);
+    await menueBefehl("Karte", `Karte ${which}`);
     await page.waitForTimeout(350);
     await openAllFolds(page);
   };

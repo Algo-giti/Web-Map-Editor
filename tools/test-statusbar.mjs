@@ -23,9 +23,9 @@
 import {
   createChecker,
   createKlicker,
+  createMenueBefehl,
   indexUrl,
   launchBrowser,
-  menueBefehl,
   openAllFolds,
 } from "./browser-harness.mjs";
 
@@ -61,6 +61,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   const klickeFreienKnopf = createKlicker(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
@@ -680,7 +681,7 @@ try {
     await klickeFreienKnopf("#validateMapBtn", "die Kartenprüfung ist frei");
     await page.waitForTimeout(1400);
 
-    await menueBefehl(page, "Ansicht", "Raster…");
+    await menueBefehl("Ansicht", "Raster…");
     await page.waitForTimeout(250);
     await page.locator("#gridStepInput").fill("100");
     await page.locator("#gridStepInput").press("Enter");

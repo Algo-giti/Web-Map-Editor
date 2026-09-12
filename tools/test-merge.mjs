@@ -21,10 +21,10 @@
 import {
   createChecker,
   createKlicker,
+  createMenueBefehl,
+  elementGetroffen,
   indexUrl,
   launchBrowser,
-  elementGetroffen,
-  menueBefehl,
   openAllFolds,
 } from "./browser-harness.mjs";
 
@@ -81,6 +81,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -116,7 +117,7 @@ try {
    */
   const openMergeWindow = async () => {
     if (await page.locator("#mergeWindow").isVisible()) return;
-    await menueBefehl(page, "Karte", "Karten verbinden…");
+    await menueBefehl("Karte", "Karten verbinden…");
     await page.locator("#mergeWindow").waitFor({ state: "visible" });
   };
 
@@ -158,7 +159,7 @@ try {
       .waitForEvent("download", { timeout: 5000 })
       .catch(() => null);
 
-    await menueBefehl(page, "Datei", "GeoJSON speichern");
+    await menueBefehl("Datei", "GeoJSON speichern");
 
     const event = await pending;
     if (!event) return null;
@@ -200,7 +201,7 @@ try {
   await upload("#secondFileInput", "b.geojson", mapWith(60));
 
   /* Karte B ist nach dem Laden aktiv. Zurück auf A. */
-  await menueBefehl(page, "Karte", "Karte A");
+  await menueBefehl("Karte", "Karte A");
   await page.waitForTimeout(300);
   await openAllFolds(page);
   await openMergeWindow();
@@ -314,7 +315,7 @@ try {
     await openMergeWindow();
     await upload("#fileInput", "a.geojson", aBody);
     await upload("#secondFileInput", "b.geojson", bBody);
-    await menueBefehl(page, "Karte", "Karte A");
+    await menueBefehl("Karte", "Karte A");
     await page.waitForTimeout(250);
     await openAllFolds(page);
     await openMergeWindow();
@@ -1061,7 +1062,7 @@ try {
   await stelleSetzen();
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
-  await menueBefehl(page, "Datei", "Aktive zurücksetzen");
+  await menueBefehl("Datei", "Aktive zurücksetzen");
   await page.waitForTimeout(600);
   await openMergeWindow();
 
@@ -1078,8 +1079,8 @@ try {
 
   /*
    * Das Fenster wird VOR dem Sprachwechsel geoeffnet, und zwar aus zwei
-   * Gruenden. Erstens heisst das Menue danach "Map" - menueBefehl(page,
-   * "Karte", ...) faende es nicht mehr. Zweitens ist es die schaerfere
+   * Gruenden. Erstens heisst das Menue danach "Map" - menueBefehl("Karte",
+   * ...) faende es nicht mehr. Zweitens ist es die schaerfere
    * Zusicherung: gemessen wird der Text unmittelbar nach dem Umschalten, ohne
    * jede weitere Handlung, also wirklich auf dem abgeleiteten Weg.
    */
@@ -1191,7 +1192,7 @@ try {
   /* --- 5. Ungesetzt, und die einseitigen Faelle -------------------- */
 
   await upload("#secondFileInput", "cut-b.geojson", cutMap(RING_B));
-  await menueBefehl(page, "Karte", "Karte A");
+  await menueBefehl("Karte", "Karte A");
   await page.waitForTimeout(300);
   await openAllFolds(page);
   await openMergeWindow();
@@ -1231,7 +1232,7 @@ try {
   await page.keyboard.press("Control+z");
   await page.waitForTimeout(400);
 
-  await menueBefehl(page, "Karte", "Karte B");
+  await menueBefehl("Karte", "Karte B");
   await page.waitForTimeout(300);
   await openAllFolds(page);
 
@@ -1256,7 +1257,7 @@ try {
    */
   await upload("#fileInput", "cut-a.geojson", cutMap(RING_A));
   await upload("#secondFileInput", "cut-b-gedreht.geojson", cutMap(RING_B_GEDREHT));
-  await menueBefehl(page, "Karte", "Karte A");
+  await menueBefehl("Karte", "Karte A");
   await page.waitForTimeout(300);
   await openAllFolds(page);
   await openMergeWindow();
@@ -1318,7 +1319,7 @@ try {
   /* Gegenprobe: ungedrehtes B, exakter Statustext statt "kein Kreuzungssatz". */
   await upload("#fileInput", "cut-a.geojson", cutMap(RING_A));
   await upload("#secondFileInput", "cut-b.geojson", cutMap(RING_B));
-  await menueBefehl(page, "Karte", "Karte A");
+  await menueBefehl("Karte", "Karte A");
   await page.waitForTimeout(300);
   await openAllFolds(page);
   await openMergeWindow();
@@ -1366,7 +1367,7 @@ try {
   /* --- 6a. A veraendert, B aus der Datei: BEIDES steht da --- */
   await upload("#fileInput", "cut-a.geojson", cutMap(RING_A));
   await upload("#secondFileInput", "cut-b.geojson", cutMap(RING_B));
-  await menueBefehl(page, "Karte", "Karte A");
+  await menueBefehl("Karte", "Karte A");
   await page.waitForTimeout(300);
   await openAllFolds(page);
 
@@ -1449,12 +1450,12 @@ try {
   /* --- 6c. Beide Karten veraendert: EIN Kartenname fuer beide --- */
   await upload("#fileInput", "cut-a.geojson", cutMap(RING_A));
   await upload("#secondFileInput", "cut-b.geojson", cutMap(RING_B));
-  await menueBefehl(page, "Karte", "Karte A");
+  await menueBefehl("Karte", "Karte A");
   await page.waitForTimeout(300);
   await openAllFolds(page);
   await setzenUndVerschieben([[0, 0], [40, 0]], "A");
 
-  await menueBefehl(page, "Karte", "Karte B");
+  await menueBefehl("Karte", "Karte B");
   await page.waitForTimeout(300);
   await openAllFolds(page);
   await setzenUndVerschieben([[-20, 40], [-60, 40]], "B");
@@ -1473,7 +1474,7 @@ try {
   /* --- 6d. Veraendert UND Kreuzung: beide Warnungen stehen da --- */
   await upload("#fileInput", "cut-a.geojson", cutMap(RING_A));
   await upload("#secondFileInput", "cut-b-gedreht.geojson", cutMap(RING_B_GEDREHT));
-  await menueBefehl(page, "Karte", "Karte A");
+  await menueBefehl("Karte", "Karte A");
   await page.waitForTimeout(300);
   await openAllFolds(page);
   await setzenUndVerschieben([[0, 0], [40, 0]], "A");
@@ -1515,7 +1516,7 @@ try {
      */
     await page.keyboard.press("Escape");
     await page.waitForTimeout(150);
-    await menueBefehl(page, "Karte", "Karten verbinden…");
+    await menueBefehl("Karte", "Karten verbinden…");
     await page.locator("#mergeWindow").waitFor({ state: "visible" });
     await page.waitForTimeout(200);
 

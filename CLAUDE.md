@@ -931,11 +931,39 @@ der Prüfung auf `null` blieben zwei Timeouts und null gerissene Zusicherungen
 stehen; mit `?? null` und einer Prüfung auf Falsy sind es **69 gerissene
 Zusicherungen und ein Timeout**.
 
-**Der eine verbleibende Timeout ist ein anderer Gegenstand und bleibt offen:**
-`menueBefehl()` klickt einen Menüeintrag, auch wenn er **gesperrt** ist – in
-der Messung „Karte B" ohne geladene Datei. Das ist der Fall, für den es
-`klickeFreienKnopf()` gibt, nur eine Ebene höher; ihn zu beheben hieße, einen
-gemeinsamen Helfer zu ändern, den elf Skripte benutzen. **Nur vermerkt.**
+**ERLEDIGT mit Schritt 1 des fünften Durchgangs: `menueBefehl()` klickt nur
+noch freie Einträge.** Der Befund war, dass der Helfer einen **gesperrten**
+Menüeintrag trotzdem anklickte – gemessen an „Karte B" ohne geladene Datei –
+und Playwright dann dreißig Sekunden auf eine Freigabe wartete, die nicht
+kommt. Es ist derselbe Fall, für den es `klickeFreienKnopf()` gibt, nur eine
+Ebene höher; offen blieb er, weil die Behebung einen gemeinsamen Helfer
+ändert, den elf Skripte benutzen.
+
+Aus `menueBefehl(page, menue, eintrag)` ist deshalb die Fabrik
+`createMenueBefehl(page, check)` geworden, gebaut wie `createKlicker()`: sie
+prüft **vor** dem Klick auf `isEnabled()`, gibt eine benannte Zusicherung aus
+und klickt einen gesperrten Eintrag nicht. `isEnabled()` erfasst dabei beide
+Sperrformen der Datei – das native `disabled` der Menüknöpfe und ein
+`aria-disabled`; ein `<label>` (Kontrollkästchen, Dateiauswahl) ist kein
+Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
+
+**Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
+Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
+der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
+enden kann. Die 46 Menübefehle stehen dagegen im obersten `try`-Block ihrer
+Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
+an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
+Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
+in `page.fill("#gridStepInput", …)`, also doch in dem Timeout, den der Wächter
+gerade verhindern soll. Der geworfene Fehler nennt den Eintrag, und die
+gerissene Zusicherung steht unmittelbar darüber.
+
+**`tools/scan-i18n.mjs` führt kein `check()`** – es sichert nichts zu, sondern
+sucht. Es bekommt deshalb einen eigenen Melder, der die Zeile
+`NICHT ERREICHT` ausgibt. Ein gesperrter Eintrag ist dort trotzdem ein harter
+Befund: der Zustand dahinter wird nicht besucht, und das Ergebnis sähe sauber
+aus, obwohl die Suche ihn nie gesehen hat – genau der Fall von Regel (d)
+unten.
 
 **(d) Eine Laufzeitsuche ist nur so vollständig wie die Zustände, die sie
 besucht hat.** Ein Werkzeug, das die laufende Oberfläche absucht, findet
@@ -1875,7 +1903,7 @@ Slot.
 | `tools/test-menu.mjs` | „Karte B ist ohne Datei gesperrt"; „deutsch nennt Karte A aktiv" (`"Karte A · aktiv"`) und die englische Entsprechung |
 | `tools/test-menu.mjs` | „der Wechsel bringt Karte A mit vier Punkten zurück" – zählt Marker, prüft also die **Wirkung** des Umschaltens, nicht nur das Attribut |
 | `tools/test-map-switch.mjs` | die ganze Datei: Auswahl je Slot, „auf Karte B ist die Auswahl leer", „Karte A hat weiterhin zwei" |
-| `tools/test-merge.mjs` | `menueBefehl(page, "Karte", "Karte A")` an drei Stellen, danach Zusicherungen über „Karte A hat genau einen Perimeter" |
+| `tools/test-merge.mjs` | `menueBefehl("Karte", "Karte A")` an drei Stellen, danach Zusicherungen über „Karte A hat genau einen Perimeter" |
 | `tools/test-origin-conflict.mjs` | lädt A und B nacheinander und prüft, dass der **aktive** Bezugspunkt unverändert bleibt |
 
 Ein dritter Eintrag verändert damit mindestens `test-menu.mjs` (Radiogruppe)

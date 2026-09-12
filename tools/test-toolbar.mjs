@@ -20,10 +20,10 @@
 
 import {
   createChecker,
+  createMenueBefehl,
   elementGetroffen,
   indexUrl,
   launchBrowser,
-  menueBefehl,
   openAllFolds,
 } from "./browser-harness.mjs";
 
@@ -48,6 +48,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -496,7 +497,7 @@ try {
    * statt display - das Fenster liegt in der Kartenflaeche, die auf einem
    * Telefon unter der Werkzeugleiste steht.
    */
-  await menueBefehl(page, "Karte", "Karten verbinden…");
+  await menueBefehl("Karte", "Karten verbinden…");
   await page.locator("#mergeWindow").waitFor({ state: "visible" });
   await page.waitForTimeout(250);
 

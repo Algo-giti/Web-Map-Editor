@@ -17,7 +17,12 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-origin-conflict.mjs
 
-import { createChecker, indexUrl, launchBrowser, menueBefehl } from "./browser-harness.mjs";
+import {
+  createChecker,
+  createMenueBefehl,
+  indexUrl,
+  launchBrowser,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-origin-conflict";
 
@@ -60,6 +65,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -198,7 +204,7 @@ try {
     };
     page.on("download", noteDownload);
 
-    await menueBefehl(page, "Datei", "GeoJSON speichern");
+    await menueBefehl("Datei", "GeoJSON speichern");
     await page.waitForTimeout(400);
     page.off("download", noteDownload);
 
@@ -228,7 +234,7 @@ try {
     .waitForEvent("download", { timeout: 5000 })
     .catch(() => null);
 
-  await menueBefehl(page, "Datei", "GeoJSON speichern");
+  await menueBefehl("Datei", "GeoJSON speichern");
 
   const download = await pendingDownload;
   let exported = null;

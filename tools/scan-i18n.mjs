@@ -75,9 +75,9 @@
 // Werkzeug kaputt.
 
 import {
+  createMenueBefehl,
   indexUrl,
   launchBrowser,
-  menueBefehl,
   openAllFolds,
 } from "./browser-harness.mjs";
 
@@ -198,6 +198,20 @@ const KARTE_B = {
 
 const page = await browser.newPage();
 await page.setViewportSize({ width: 1600, height: 1000 });
+
+/*
+ * createMenueBefehl() verlangt ein check(). Dieses Werkzeug fuehrt keines -
+ * es sichert nichts zu, sondern sucht. Ein gesperrter Menueeintrag ist hier
+ * trotzdem ein harter Befund und keine Nebensache: der Zustand dahinter wird
+ * dann nicht besucht, und das Ergebnis saehe sauber aus, obwohl die Suche ihn
+ * nie gesehen hat. Genau davor warnt die Regel "eine Laufzeitsuche ist nur so
+ * vollstaendig wie die Zustaende, die sie besucht hat". Deshalb laut melden;
+ * den Abbruch besorgt der Helfer anschliessend selbst.
+ */
+const menueBefehl = createMenueBefehl(page, (name, bedingung, detail) => {
+  if (bedingung) return;
+  console.error(`  NICHT ERREICHT  ${name} - ${detail}`);
+});
 
 const treffer = new Map();
 
@@ -371,7 +385,7 @@ try {
   /* Verbinden-Fenster, ohne und mit Auftrennstelle. */
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
-  await menueBefehl(page, "Karte", "Karten verbinden…");
+  await menueBefehl("Karte", "Karten verbinden…");
   await page.waitForTimeout(300);
   await sammle("verbinden-ungesetzt");
 
@@ -380,12 +394,12 @@ try {
   await perimeterMarken.nth(0).click();
   await perimeterMarken.nth(1).click({ modifiers: ["Control"] });
   await page.waitForTimeout(300);
-  await menueBefehl(page, "Karte", "Karten verbinden…");
+  await menueBefehl("Karte", "Karten verbinden…");
   await page.waitForTimeout(300);
   if (await page.locator("#setMergeCutBtn").isEnabled()) {
     await page.locator("#setMergeCutBtn").click();
     await page.waitForTimeout(450);
-    await menueBefehl(page, "Karte", "Karten verbinden…");
+    await menueBefehl("Karte", "Karten verbinden…");
     await page.waitForTimeout(300);
   }
   await sammle("auftrennstelle-gesetzt");
@@ -396,7 +410,7 @@ try {
    * Weit herausgezoomt: erst dann meldet der Rasterhinweis, dass das feinere
    * Raster kleiner als ein Bildschirmpixel waere.
    */
-  await menueBefehl(page, "Ansicht", "Raster…");
+  await menueBefehl("Ansicht", "Raster…");
   await page.waitForTimeout(250);
   await page.fill("#gridStepInput", "0,01");
   await page.locator("#gridStepInput").press("Enter");

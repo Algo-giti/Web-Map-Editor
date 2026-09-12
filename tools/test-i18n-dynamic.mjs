@@ -22,9 +22,9 @@
 
 import {
   createChecker,
+  createMenueBefehl,
   indexUrl,
   launchBrowser,
-  menueBefehl,
   openAllFolds,
 } from "./browser-harness.mjs";
 
@@ -60,6 +60,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -77,7 +78,7 @@ try {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "load" });
   await openAllFolds(page);
-  await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
+  await menueBefehl("Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   await page.locator("#fileInput").setInputFiles({
     name: "i18n.geojson",
@@ -264,7 +265,7 @@ try {
    * Raster feiner waere als ein Bildschirmpixel. Ein kleiner Rasterwert allein
    * genuegt nicht - es muss wirklich herausgezoomt sein.
    */
-  await menueBefehl(page, "Ansicht", "Raster…");
+  await menueBefehl("Ansicht", "Raster…");
   await page.waitForTimeout(250);
   await page.fill("#gridStepInput", "0,01");
   await page.locator("#gridStepInput").press("Enter");

@@ -15,9 +15,9 @@
 
 import {
   createChecker,
+  createMenueBefehl,
   indexUrl,
   launchBrowser,
-  menueBefehl,
   openAllFolds,
 } from "./browser-harness.mjs";
 
@@ -111,6 +111,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -135,7 +136,7 @@ try {
    */
 
   await openAllFolds(page);
-  await menueBefehl(page, "Ansicht", "Mäher am ausgewählten Punkt anzeigen");
+  await menueBefehl("Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   await page.locator("#fileInput").setInputFiles({
     name: "reduce.geojson",
