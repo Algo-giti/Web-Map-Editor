@@ -4486,6 +4486,58 @@ sortiert:**
 | „Deutsch / English" | wiederholt die Beschriftung |
 | „Keine Änderung zum Rückgängigmachen/Wiederholen" | Zustandsansage, kein Erklärtext |
 
+**RICHTIGSTELLUNG mit dem neunten Durchgang: es sind 39 Fundstellen, nicht 36 –
+und ein genannter Wortlaut steht zur Laufzeit nirgends.** Beides fiel bei der
+Bestandsaufnahme zur Kontext-Knopfleiste an; es ist ein Beifang und wird hier
+richtiggestellt, nicht gelöscht.
+
+**Erstens: das Suchmuster `.title = ` findet nur einzeilige Zuweisungen.** Drei
+Zuweisungen sind **über die Zeilengrenze umgebrochen** – der Bezeichner steht
+mit dem Gleichheitszeichen am Zeilenende, der Wert darunter – und fielen
+deshalb durch:
+
+| Fundstelle | was sie setzt |
+|---|---|
+| `updateMultiSelectionUi()`, `deleteButton.title =` | den Erklärtext von `#deleteMultiSelectionBtn`, abgeleitet aus der Auswahlzahl |
+| `updateMultiSelectionUi()`, `snapToggle.title =` | den Ablehnungsgrund des Rasterfangs bei unbekanntem Maßstab |
+| `updateMultiSelectionUi()`, `straightenButton.title =` | `TRANSFORM_TOOL_HELP.straightenSelectionBtn` |
+
+**Es sind damit 23 im Markup und 16 per JS.** Dass ausgerechnet das Muster über
+Zeilengrenzen versagte, ist in dieser Datei schon einmal gemessen worden – bei
+der Locator-Suche aus Schritt 11 des vierten Durchgangs, wo der bekannte
+Treffer umgebrochen war und die einzeilige Fassung ihn nicht fand. **Es ist
+dieselbe Lücke ein zweites Mal, und diesmal in der Gegenrichtung: dort wurde
+sie beim Kalibrieren bemerkt, hier erst drei Durchgänge später.**
+
+**Zweitens: der in der Liste genannte Wortlaut des Löschen-Knopfes existiert
+nur im Markup.** Die 8b-Tabelle führt ihn als „Löschen: … Mit Undo
+rückgängig." unter den gebrauchten Erklärungen. Gemessen im Browser steht dort
+zu **keinem** Zeitpunkt dieser Text:
+
+| Lage | `title` von `#deleteMultiSelectionBtn` |
+|---|---|
+| Markup | „Löschen: entfernt alle aktuell ausgewählten Punkte. Mit Undo rückgängig." |
+| laufend, keine Karte geladen | „Löschen: aktuell sind keine Punkte ausgewählt." |
+| laufend, 1 Punkt gewählt | „Löschen: 1 ausgewählte Punkt entfernen. Mit Undo rückgängig." |
+| laufend, 2 Punkte gewählt | „Löschen: 2 ausgewählte Punkte entfernen. Mit Undo rückgängig." |
+
+`updateMultiSelectionUi()` überschreibt ihn schon vor der ersten Karte. **Der
+Markup-Text ist damit tot** – dieselbe Klasse wie das verwaiste
+`I18N_PATTERNS`-Muster aus Schritt 1 des sechsten Durchgangs, nur an einem
+Attribut statt im Wörterbuch. Nicht entfernt: das wäre eine Codeänderung, und
+dieser Durchgang war reiner Befund.
+
+**Drittens, im selben Text: die Einzahl ist nicht durchdekliniert.** Der
+Ausdruck lautet `` `Löschen: ${count} ausgewählte Punkt${count === 1 ? "" : "e"} entfernen.` `` –
+das Nomen wird gebeugt, das **Adjektiv nicht**. Sichtbar steht bei einem Punkt
+„1 **ausgewählte** Punkt entfernen." statt „1 ausgewählten Punkt entfernen.";
+die Mehrzahl „2 ausgewählte Punkte entfernen." ist richtig. Die Liste
+„Einzahl und Mehrzahl bei ‚Zahl + Nomen'" in Abschnitt 7 führt diese Stelle
+**nicht** – ihr Suchmuster sah `${…}` gefolgt von einem Wort an, und hier
+steht zwischen Zahl und Nomen ein Adjektiv. **Das ist die dritte Fassung
+derselben Lücke in diesem Abschnitt.** Ob der englische Text betroffen ist,
+wurde **nicht erhoben**.
+
 **Daraus die Aufteilung, die 8b zu bauen hätte – und sie ist zweigeteilt, was
 vorher nicht klar war:**
 
@@ -6356,6 +6408,71 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     Richtung – **es ist trotzdem eine Entscheidung und keine Ableitung**, denn
     der Umlaufsinn ist anders als `idx` normativ festgelegt.
 
+- **`#pointMeta` steht beim zweiten Anwählen derselben Rolle leer da – Befund
+  des neunten Durchgangs, nicht behoben.** Ein Beifang der Bestandsaufnahme zur
+  Kontext-Knopfleiste: gesucht war, welche Elemente im Punktzustand erscheinen,
+  gefunden wurde ein Element, das erscheint und nichts sagt.
+
+  **Gemessen** im Browser, synthetischer Perimeter mit vier Punkten, deutsche
+  Oberfläche. Gelesen werden `hidden`, der berechnete Stil, die Höhe und der
+  Text – die Zeile ist also nicht bloß leer, sie ist auch sichtbar:
+
+  | Schritt | `hidden` | `display` | Höhe | Text |
+  |---|---|---|---|---|
+  | frisch geladen, Punkt 1 (Startpunkt) | nein | `block` | 21 px | „Startpunkt" |
+  | Escape | **ja** | `none` | 0 px | – |
+  | Punkt 1 erneut angeklickt | nein | `block` | **6 px** | **leer** |
+  | Punkt 2 (Zwischenpunkt) | ja | `none` | 0 px | – |
+  | zurück auf Punkt 1 | nein | `block` | **6 px** | **leer** |
+
+  **Die Ursache steht im Quelltext und ist nachgemessen.**
+  `setPointRoleText()` schaltet `meta.hidden` richtig und ruft bei einer
+  gezeigten Rolle `setLocalizedText(meta, role)`. Diese Funktion kehrt **früh
+  zurück**, wenn `element.dataset.i18nDe` bereits denselben deutschen Text
+  trägt – eine bewusste Sparmaßnahme gegen überflüssige Textknoten. Beim
+  Abwählen setzt `setPointRoleText()` aber `meta.textContent = ""`, **ohne
+  `data-i18n-de` mitzuräumen**. Beim nächsten Anwählen derselben Rolle sind
+  Marke und Wunschtext gleich, die Funktion schreibt nichts, und der geleerte
+  Textknoten bleibt leer.
+
+  **Belegt durch die Marke selbst:**
+
+  | Schritt | `data-i18n-de` | `textContent` | `hidden` |
+  |---|---|---|---|
+  | nichts gewählt | (nicht gesetzt) | „" | ja |
+  | Punkt 1 (Startpunkt) | `Startpunkt` | „Startpunkt" | nein |
+  | Punkt 2 (Zwischenpunkt) | **`Startpunkt`** | „" | ja |
+  | zurück auf Punkt 1 | `Startpunkt` | **„"** | **nein** |
+  | Punkt 4 (Endpunkt) | `Endpunkt` | „Endpunkt" | nein |
+  | Punkt 4 noch einmal | `Endpunkt` | „Endpunkt" | nein |
+  | Punkt 2, dann wieder Punkt 4 | `Endpunkt` | **„"** | **nein** |
+
+  **Die Bedingung ist genau: ein Punkt OHNE Rolle dazwischen.** Zweimal
+  denselben Startpunkt anklicken schadet nicht – erst ein Zwischenpunkt
+  dazwischen leert den Knoten, und danach bleibt die betroffene Rolle leer, bis
+  die andere Rolle gewählt wird.
+
+  **Die Folge ist zweierlei.** Sichtbar: die Zeile „Startpunkt" fehlt, obwohl
+  ein Startpunkt gewählt ist – der Kopfblock sagt weiterhin richtig „Punkt 1
+  von 4". Gerechnet: das leere Element bleibt 6 px hoch, die Reserve im
+  Punktzustand steigt dadurch von 12 auf 27 px. **Wer die Reserve misst, misst
+  je nach Klickfolge zwei verschiedene Zahlen** – die geführten 12 px gelten
+  für den ersten Anwählvorgang nach dem Laden.
+
+  **Zusicherungen sehen es nicht.** `tools/test-inspector.mjs` prüft die drei
+  Fälle „der Startpunkt wird benannt", „der Endpunkt ebenfalls" und „ein
+  gewöhnlicher Punkt bekommt keine Zeile" – alle drei beim **ersten** Anwählen
+  der jeweiligen Rolle. Die Folge, die den Fehler zeigt, wird dort nicht
+  gefahren.
+
+  **Nicht behoben und nicht als Auftrag gemeint.** Es sind mindestens zwei
+  Wege denkbar – beim Leeren die Marke mitlöschen, oder in `setPointRoleText()`
+  nicht über `setLocalizedText()` gehen –, und beide fassen eine Funktion an,
+  die im ganzen Editor benutzt wird. **Ob und wie, entscheidet der
+  Projektinhaber.** Ob andere Aufrufer von `setLocalizedText()` denselben
+  Ablauf haben – Text leeren, ohne die Marke zu räumen –, ist **nicht
+  erhoben**.
+
 - **Sichtbarkeit je Kartenslot – Eintrag, kein Auftrag; eingetragen mit
   Schritt 3 des achten Durchgangs.** Sind zwei Karten geladen, soll sich jede
   von beiden **einzeln** auf einen von drei Zuständen schalten lassen:
@@ -6394,6 +6511,237 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Hilfe-Overlay". **Knöpfe mit eigener Beschriftung tragen ihre Erklärung am
   Knopf** – damit fällt Weg 3 als **alleiniger** Kandidat weg. **8b wird erst
   nach dieser Entscheidung angefasst.**
+
+  #### Die Bestandsaufnahme – gemessen mit dem neunten Durchgang, Stand `5b0b89e`
+
+  **Reiner Befund, nichts gebaut und nichts entschieden.** Gemessen im Browser
+  über das Harness, synthetische Karte (Perimeter mit vier Punkten, Exclusion
+  mit vier Punkten), 1600 × 900 px, frischer `localStorage`, Mähervorschau aus –
+  sie ersetzt sonst den Marker des ausgewählten Punktes. Alle Zahlen sind im
+  Lauf gemessen, keine steht als Literal im Messskript.
+
+  **Sichtbarkeit über den berechneten Stil UND den Zustand des `<details>`.**
+  Die erste Fassung der Messung prüfte nur `display` und zählte dadurch die
+  Knöpfe der zugeklappten Feature-Navigation als sichtbar – genau der dritte
+  Fall der Hausregel aus Abschnitt 4.2. Korrigiert und nachgemessen.
+
+  **1. Was je Auswahlzustand erscheint.**
+
+  | Zustand | `getInspectorState()` | Kopfblock | sichtbare Zustandsblöcke |
+  |---|---|---|---|
+  | kein Punkt | `empty` | „Nichts ausgewählt" / „Punkt auf der Karte anklicken" | `#inspectorEmpty` (255 px) |
+  | genau ein Punkt | `single` | „Punkt 1 von 4" / „Perimeter · Polygon" | `#inspectorPoint` (448 px), `#inspectorSelection` (37 px) |
+  | mehrere Punkte | `multi` | „2 Punkte ausgewählt" / „Perimeter" | `#inspectorMulti` (110 px), `#inspectorSelection` (37 px) |
+  | ganzes Feature | `feature` | „4 Punkte ausgewählt" / „Perimeter · vollständig" | `#inspectorMulti` (110 px), `#inspectorFeature`, `#inspectorSelection` (37 px) |
+
+  **`#inspectorFeature` ist nicht gleich hoch:** **183 px** bei einem
+  Perimeter, **274 px** bei einer Exclusion. Der Unterschied sind die
+  `idx`-Zeile und der Knopf „Exclusion duplizieren", die ein Perimeter
+  regelkonform gar nicht zeigt. Wer mit einer Zahl plant, plant mit zweien.
+
+  **Die Knöpfe, mit Bezeichner und sichtbarer Beschriftung:**
+
+  | Block | Knopf | Beschriftung | frei in Zustand |
+  |---|---|---|---|
+  | `#inspectorPoint` | `#insertPointBeforeBtn` | „Davor einfügen" | `single` |
+  | `#inspectorPoint` | `#insertPointAfterBtn` | „Danach einfügen" | `single` |
+  | `#inspectorPoint` | `#setStartPointBtn` | „Startpunkt setzen" | `single` |
+  | `#inspectorPoint` | `#setEndPointBtn` | „Endpunkt setzen" | `single` |
+  | `#inspectorPoint` | `#deletePointBtn` | „Punkt löschen" | `single` |
+  | `#inspectorFeature` | `#duplicateFeatureBtn` | „Exclusion duplizieren" | `feature`, **nur bei einer Exclusion** |
+  | `#inspectorSelection` | `#deleteMultiSelectionBtn` | „Auswahl löschen" | `single`, `multi`, `mixed`, `feature` |
+  | `#inspectorSelection` | `#clearMultiSelectionBtn` | „Auswahl aufheben" | `single`, `multi`, `mixed`, `feature` |
+
+  **`#inspectorMulti` und `#inspectorMixed` tragen überhaupt keinen Knopf** –
+  sie bestehen aus Überschrift, Zusammenfassung und Hinweissatz.
+
+  **Die fünf Faltblöcke stehen in JEDEM der vier Zustände und sind alle zu:**
+  `#featureNavigationSection` 21 px, `#inspectorStock` 21 px,
+  `#inspectorTransform` 21 px, `#inspectorValidation` 21 px, `#originSection`
+  20 px. **Das ist der Befund, der für eine Knopfleiste am meisten zählt:** die
+  drei Umformwerkzeuge hängen an der Auswahl, sind aber in keinem
+  Auswahlzustand sichtbar, solange niemand „Umformen" aufklappt – und die
+  Faltblöcke klappen nach der Hausregel nie von selbst auf.
+
+  **Die Kurzform von „Umformen" beantwortet dabei eine ANDERE Frage als der
+  Knopf, und das ist kein Widerspruch.** `updateTransformShortText()` liest
+  `getSelectedSection().ok`, `getReduceTarget().ok` und
+  `getWholeFeatureTarget().ok` – also, ob ein **Ziel** vorliegt. Der Knopf
+  prüft zusätzlich, ob das Werkzeug etwas **bewirkt**. Auf der Messkarte
+  (rechtwinkliges Viereck, Toleranz 0,02 m) meldet die Kurzform deshalb
+  „Reduzieren · Rechtwinklig", während beide Knöpfe gesperrt sind. Gemessen,
+  nicht bewertet.
+
+  **Und die `.tool-reason`-Felder tragen dort keinen Ablehnungsgrund, sondern
+  eine Wirkungsbeschreibung:** „Dünnt das ganze Feature aus." bzw. „Richtet die
+  Kanten des ganzen Features rechtwinklig aus." Nur das Begradigen nennt einen
+  echten Grund („genau zwei Punkte desselben Linienzugs auswählen.", bei zwei
+  benachbarten Punkten „dazwischen liegt nichts."). Gegenprobe mit zwei **nicht
+  benachbarten** Punkten: `#straightenSelectionBtn` ist frei, die Kurzform
+  nennt zusätzlich „Begradigen".
+
+  **2. Welche Knöpfe nur ein `title` haben – und der Abgleich mit 8b.**
+
+  | Knopf | Erklärung heute | in der 8b-Liste |
+  |---|---|---|
+  | `#setStartPointBtn` | **nur `title`** (225 Zeichen), kein `.tool-reason` | ja |
+  | `#setEndPointBtn` | **nur `title`** (234 Zeichen), kein `.tool-reason` | ja |
+  | `#deleteMultiSelectionBtn` | **nur `title`**, zur Laufzeit abgeleitet | ja, aber mit totem Wortlaut – siehe Richtigstellung unten |
+  | `#clearMultiSelectionBtn` | **nur `title`** (69 Zeichen) | ja |
+  | `#duplicateFeatureBtn` | **nur `title`**, per JS gesetzt | ja (als JS-Zuweisung, dort „gebraucht") |
+  | `#insertPointBeforeBtn` | **gar keine Erklärung** – kein `title`, kein Feld | nein |
+  | `#insertPointAfterBtn` | **gar keine Erklärung** | nein |
+  | `#deletePointBtn` | **gar keine Erklärung** | nein |
+  | `#straightenSelectionBtn` | `title` **und** `#straightenReason` | ja (`TRANSFORM_TOOL_HELP`) |
+  | `#reduceApplyBtn` | `title` **und** `#reduceReason` | ja |
+  | `#rectifyApplyBtn` | `title` **und** `#rectifyReason` | ja |
+
+  **Drei Knöpfe des Punktzustands haben überhaupt keine Erklärung**, weder
+  sichtbar noch im `title`. Sie standen deshalb in der 8b-Aufnahme nicht: die
+  suchte nach `title`-Attributen, und wo keines ist, findet sie keines. **Das
+  ist dieselbe Klasse wie die vier Lücken aus Abschnitt 7** – das Suchmuster
+  war enger als die Frage. Für eine Knopfleiste ist das der interessantere
+  Fall: sie müsste für diese drei etwas erfinden, nicht etwas umziehen.
+
+  **Von den 13 „gebrauchten" Markup-Erklärungen der 8b-Liste hängen VIER an
+  einer Punktauswahl** und fielen damit in eine solche Leiste:
+  `#setStartPointBtn`, `#setEndPointBtn`, `#deleteMultiSelectionBtn`,
+  `#clearMultiSelectionBtn`. Dazu die drei `TRANSFORM_TOOL_HELP`-Texte und der
+  `title` von `#duplicateFeatureBtn` aus den JS-Zuweisungen – zusammen **acht**.
+
+  **Ein Grenzfall, der eigens genannt sein will: `#setMergeCutBtn`.** Er hängt
+  an der Punktauswahl – gemessen: bei zwei benachbarten Punkten desselben
+  Perimeterrings ist er **frei**, sonst gesperrt –, steht aber im
+  **Verbinden-Fenster** und nicht im Inspektor. Er ist damit der einzige
+  auswahlabhängige Knopf außerhalb der Spalte. Sein Erklärtext (210 Zeichen)
+  steht in der 8b-Liste.
+
+  **Die übrigen neun der 13 hängen NICHT an einer Punktauswahl:** die drei
+  Auswahlwerkzeuge (Mauszeiger, Rahmen, Lasso), „Distanz messen", „Karte
+  prüfen", die Ebene „Sonstiges", „Rasterweite und Schrittweite der
+  Pfeiltasten" und „Länge und Arbeitsbreite des Mähers einstellen". Sie stehen
+  unabhängig davon da, ob etwas ausgewählt ist, und eine Leiste am
+  Auswahlzustand erreicht sie nicht.
+
+  **3. Platz.**
+
+  Gemessen als **Summe der Blöcke plus Lücken plus Polsterung**, nicht über
+  `scrollHeight` – das wird auf `clientHeight` geklemmt und meldete sonst
+  fälschlich „Reserve 0". Ein Punkt ausgewählt (der Startpunkt, Rolle
+  sichtbar), Inspektor offen, Fensterhöhe 900 px:
+
+  | | Spalte | Inhalt | Reserve |
+  |---|---|---|---|
+  | feiner Zeiger | 759 px | 747 px | **12 px** |
+  | grober Zeiger | 759 px | 780 px | **−21 px** |
+
+  **Die 12 px sind damit reproduziert** – derselbe Wert, den diese Datei führt,
+  im selben Aufbau. **Für den groben Zeiger gilt er nicht:** dort ist die
+  Spalte schon im Punktzustand um 21 px über der Höhe, weil `#inspectorPoint`
+  auf 474 px und `#inspectorSelection` auf 44 px wächst. Das ist kein
+  Zielverlust – das Höhenziel gilt seit 8a ausdrücklich für den feinen Zeiger –,
+  aber es heißt: **eine Leiste, die Höhe kostet, kostet sie bei grobem Zeiger
+  aus einem bereits negativen Rest.**
+
+  Die Reserve in den übrigen Zuständen, damit sie nicht neu gemessen wird:
+
+  | Zustand | Inhalt fein | Reserve fein | Inhalt grob | Reserve grob |
+  |---|---|---|---|---|
+  | kein Punkt | 507 px | +252 px | 507 px | +252 px |
+  | ein Punkt | 747 px | **+12 px** | 780 px | **−21 px** |
+  | mehrere Punkte | 409 px | +350 px | 416 px | +343 px |
+  | ganzes Feature, Perimeter | 602 px | +157 px | 609 px | +150 px |
+  | ganzes Feature, Exclusion | 693 px | +66 px | 704 px | +55 px |
+
+  **Der Punktzustand ist der enge Fall, und er ist es allein.** Die
+  693 px der Exclusion stimmen mit der Messung aus Etappe 9 überein.
+
+  **Waagerechter Platz**, gemessen bei 900 px Höhe mit einem gewählten Punkt.
+  Die Frage „wo könnte eine waagerechte Leiste stehen" hat zwei Antworten, und
+  beide sind gemessen:
+
+  | Fensterbreite | `main`-Spalten | über der Karte | in der Inspektorspalte |
+  |---|---|---|---|
+  | 1280 px | 168 / 792 / 320 | **792 px** (Karte ab x = 168) | 320 px |
+  | 960 px | 56 / 584 / 320 | **584 px** (Karte ab x = 56) | 320 px |
+  | 744 px | 56 / 368 / 320 | **368 px** (Karte ab x = 56) | 320 px |
+
+  Die Statuszeile läuft über die volle Fensterbreite (1280 / 960 / 744 px) und
+  ist 63 px hoch; die Legende darüber 30 px.
+
+  **Was über der Karte schon liegt:** die Zoom-Leiste `.map-view-toolbar`,
+  120 × 36 px, **oben rechts** – bei 1280 px an x = 828, bei 960 px an x = 508,
+  bei 744 px an x = 292, jeweils 12 px unter der Kartenoberkante. Die drei
+  Kartenfenster waren in der Messung zu. **`.viewer` trägt `overflow:hidden`** –
+  eine Leiste über der Karte muss innerhalb der Kartenfläche bleiben, sonst
+  wird sie abgeschnitten; das ist die Hausregel aus Abschnitt 4.2 und hier
+  nachgemessen, nicht angenommen.
+
+  **Bei 744 px stünden einer waagerechten Leiste über der Karte 368 px zur
+  Verfügung, abzüglich der 120 px der Zoom-Leiste, wenn sie deren Zeile
+  teilt.** Das ist weniger als die 320 px der Inspektorspalte plus deren
+  Polsterung – die schmalste Zielbreite ist damit der Fall, an dem sich eine
+  Leiste über der Karte entscheidet.
+
+  **4. Zusicherungen am heutigen Auswahlzustand.**
+
+  Gesucht wurde über die Bezeichner der vier Zustandsblöcke, des Kopfblocks,
+  der acht Knöpfe und der Kennzahlfelder, mit **Wortgrenzen**. Die erste
+  Fassung ohne Wortgrenzen meldete `tools/test-cassandra.mjs` mit fünf
+  Treffern – sie stammten sämtlich von `featureTypeState()`, das den
+  Bezeichner `featureTypeStat` als Präfix enthält, und `test-cassandra.mjs` hat
+  überhaupt kein DOM. **Kalibriert am bekannten Treffer** „ein Punkt:
+  Punktzustand plus Auswahlaktionen" in `tools/test-inspector.mjs`; er wird
+  gefunden.
+
+  Unterschieden sind zwei Fälle, und die Unterscheidung ist der Inhalt des
+  Befundes: **prüfend** heißt, der Bezeichner steht im `check()`-Aufruf selbst;
+  **herstellend** heißt, er steht nur im Vorlauf seit dem vorigen `check()` –
+  dort wird die Auswahl gemacht, nicht geprüft.
+
+  | Datei | prüfend | nur herstellend |
+  |---|---|---|
+  | `tools/test-inspector.mjs` | **46** | 9 |
+  | `tools/test-merge.mjs` | 5 | 5 |
+  | `tools/test-map-switch.mjs` | 1 | 1 |
+  | `tools/test-dockpath.mjs` | – | 2 |
+  | `tools/test-menu.mjs` | – | 3 |
+  | `tools/test-reduce.mjs` | – | 1 |
+  | `tools/test-toolbar.mjs` | – | 1 |
+  | **zusammen** | **52** | **22** |
+
+  **Der Auswahlzustand hängt praktisch an einer Datei.** 46 der 52 prüfenden
+  Zusicherungen stehen in `tools/test-inspector.mjs`; die fünf in
+  `tools/test-merge.mjs` prüfen die beiden Punktknöpfe und ihre
+  Überschreibungsmeldung. Wer die Leiste baut, fasst diese eine Datei an –
+  und muss die 22 herstellenden im Blick behalten, denn sie klicken
+  `#clearMultiSelectionBtn` und `#deleteMultiSelectionBtn` als **Geste**, nicht
+  als Gegenstand. Verschwindet ein solcher Knopf aus dem Inspektor, reißt dort
+  keine Zusicherung über ihn, sondern eine ganz andere weiter unten – genau die
+  Klasse „UI-Element verschieben – Wege statt Bezeichner".
+
+  Die namentliche Liste der 52 steht nicht hier: sie wäre eine zweite Quelle
+  neben den Testdateien und veraltete beim ersten Umbenennen. Das Suchmuster
+  ist oben beschrieben und liefert sie in einem Lauf.
+
+  **5. Was NICHT erhoben wurde.**
+
+  - **Wie MapmakerBT seine Leiste anordnet.** Das fremde Repository wurde
+    dafür nicht angesehen – weder Ort, noch Knopfzahl, noch Beschriftungen.
+    Der Eintrag nennt es als Vorbild; womit genau verglichen werden soll, ist
+    offen.
+  - **Der Zustand `mixed`** (Punkte aus mehreren Features) ist in der
+    Zustandstabelle oben **nicht** gemessen. Der Auftrag nannte vier Zustände,
+    und `mixed` war keiner davon; die Zusicherungen dazu sind in der Zählung
+    unter 4. enthalten.
+  - **Der Zeichen- und der Messzustand** (`drawing`, `measuring`) sind nicht
+    erhoben. Sie schlagen nach der Rangfolge in `getInspectorState()` jede
+    Auswahl – eine Leiste am Auswahlzustand müsste sagen, was dann mit ihr
+    geschieht. Diese Frage ist hier gestellt und nicht beantwortet.
+  - **Kein Entwurf, keine Bewertung, keine Empfehlung.** Ob die Leiste über der
+    Karte, in der Spalte oder anderswo steht, welche Knöpfe sie trägt und was
+    dann aus `#inspectorPoint` wird, ist nicht entschieden und war nicht
+    Gegenstand.
 
 ---
 
