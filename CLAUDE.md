@@ -3918,11 +3918,13 @@ Abschnitt „Etappe 8c".** Kein anderes Skript im Verzeichnis `tools/` fasst
 | **„⟨de/en⟩: und auch dort ist kein Feld abgeschnitten"** | **kein Abschneiden unterhalb** | **aus der Regel gelesen** (Schwelle − 1) |
 | „⟨de/en⟩: bei ⟨744/768/820/834/860⟩ px gilt die schmale Fassung" | Feldzahl auf den Tabletbreiten | Literal – die CSS-Breiten der Zielgeräte |
 
-**Die Schwelle selbst wird gelesen, nicht geführt.** `schwelleAusCss` sucht
-die Medienregel, deren Rumpf einen `[data-optional]`-Selektor enthält, liest
-`max-width` heraus und rechnet 1 dazu. Beide Trunkierungs-Zusicherungen und
-beide Feldzahl-Zusicherungen hängen daran; eine Änderung der Zahl im CSS zieht
-den Test mit.
+**Die Schwelle selbst wird gelesen, nicht geführt.** `schwelleAusCss(page)`
+sucht die Medienregel, deren Rumpf einen `[data-optional]`-Selektor enthält,
+liest `max-width` heraus und rechnet 1 dazu. Beide Trunkierungs-Zusicherungen
+und beide Feldzahl-Zusicherungen hängen daran; eine Änderung der Zahl im CSS
+zieht den Test mit. Seit Schritt 1 des achten Durchgangs steht die Suche
+modulweit und versorgt auch den Abschnitt „Ausblendreihenfolge" – die Zahl
+wird einmal gelesen und von beiden Abschnitten benutzt.
 
 **Beide laufen je Sprache**, und die hergestellte Bedingung ist selbst
 zugesichert („⟨de/en⟩: die Oberfläche steht wirklich auf dieser Sprache") –
@@ -3951,27 +3953,74 @@ umgestellt** – die Anhaltebedingung dieses Schrittes verbietet das Umstellen,
 und eine Überschrift ist Text, kein Beleg.
 
 **Breiten-Literale, die für einen aus der Regel gelesenen Wert einstehen –
-aufgelistet, nicht umgestellt.** Die Anhaltebedingung des Schrittes greift
-hier: es sind zwei Stellen in `tools/test-statusbar.mjs`, beide im Abschnitt
-„Ausblendreihenfolge", beide älter als der 8c-Abschnitt:
+im siebten Durchgang aufgelistet, im achten entschieden.** Es waren drei
+Stellen in `tools/test-statusbar.mjs`, alle drei im Abschnitt
+„Ausblendreihenfolge" und alle drei älter als der 8c-Abschnitt:
 
-| Zusicherung | Literal | wofür es einsteht | was es kippen ließe |
-|---|---|---|---|
-| „bei 1280 px stehen alle vier Felder" | 1280 | eine Breite **über** der Schwelle | eine Schwelle über 1280 px |
-| „unter der Schwelle weichen Raster, Bezugspunkt und Prüfung" | 760 | eine Breite **unter** der Schwelle | eine Schwelle unter 760 px |
-| „und kommen bei mehr Platz zurück" | 1280 | wieder über der Schwelle | eine Schwelle über 1280 px |
-
-**Beide Literale liegen heute weit von der Schwelle entfernt** und sind
-deshalb nicht falsch, sondern nur nicht mitgeführt: sie behaupten „über" bzw.
-„unter der Schwelle", ohne die Schwelle zu kennen. Der Zusicherungsname sagt
-das im zweiten Fall sogar wörtlich – „unter der Schwelle" –, während die Zahl
-daneben eine andere Quelle hat. **Ob sie auf `schwelleAusCss` umgestellt
-werden, ist zu entscheiden und hier ausdrücklich nicht entschieden.**
+| Zusicherung | Literal | wofür es einsteht | was es kippen ließe | Stand |
+|---|---|---|---|---|
+| „bei 1280 px stehen alle vier Felder" | 1280 | eine Breite **über** der Schwelle | eine Schwelle über 1280 px | **bleibt** |
+| „unter der Schwelle weichen Raster, Bezugspunkt und Prüfung" | 760 | eine Breite **unter** der Schwelle | eine Schwelle unter 760 px | **umgestellt** |
+| „und kommen bei mehr Platz zurück" | 1280 | wieder über der Schwelle | eine Schwelle über 1280 px | **bleibt** |
 
 **Nicht betroffen sind die fünf Tabletbreiten.** 744, 768, 820, 834 und 860 px
 sind keine Stellvertreter für die Schwelle, sondern die CSS-Breiten der
 Zielgeräte aus Etappe 8 – sie stehen für sich und wären auch bei einer anderen
 Schwelle dieselben. Der Test sagt das an der Stelle selbst.
+
+#### ENTSCHIEDEN mit dem achten Durchgang: was mitgeführt wird und was stehen bleibt
+
+**Die 760 ist umgestellt, die beiden 1280 bleiben – und das ist kein
+Widerspruch, sondern der Unterschied zwischen den beiden Fällen.**
+
+**Die 760 war die einzige, deren Zusicherungsname die Schwelle nennt.** Er
+lautet wörtlich „unter der Schwelle weichen Raster, Bezugspunkt und Prüfung",
+und die Zahl daneben kannte die Schwelle nicht. Seit Schritt 1 des achten
+Durchgangs misst die Zusicherung bei **Schwelle−1**, der größten Breite, auf
+der die schmale Fassung gilt; der Wert kommt aus derselben Medienregel wie im
+8c-Abschnitt. Die Suche dorthin steht jetzt als `schwelleAusCss(page)` einmal
+im Skript, und beide Abschnitte lesen sie – **eine Zahl, eine Quelle**, kein
+zweites Literal daneben.
+
+**Gegengeprüft mit einer Mutation** (`max-width:959px` → `max-width:700px`,
+Sicherungskopie außerhalb des Repos, Prüfsumme vorher = nachher):
+
+| | Breite, an der gemessen wird | sichtbare Felder | Urteil |
+|---|---|---|---|
+| Fassung bis zum siebten Durchgang | 760 px, fest | „Maßstab, Raster, Bezugspunkt, Prüfung" | **risse** – die Zahl bleibt stehen, die Regel wandert |
+| Fassung seit Schritt 1 | 700 px, aus der Regel | „Maßstab" | grün – die Zusicherung wandert mit |
+
+Die beiden Breiten sind an derselben mutierten Datei gemessen, nicht an zwei
+Ständen. Die Mutation setzt die Schwelle absichtlich **unter** die alte Zahl:
+eine höhere hätte beide Fassungen grün gelassen und über den Unterschied
+nichts gesagt.
+
+**Die beiden 1280 bleiben stehen, und zwar bewusst.** Entschieden vom
+Projektinhaber. Sie sind Stellvertreter für „über der Schwelle" und kippen
+erst, wenn die Schwelle über 1280 px steigt – ein Fall, der die Statuszeile
+ohnehin von Grund auf neu vermessen ließe. Sie werden **nicht mitgeführt**;
+wer sie später doch umstellt, ändert eine Entscheidung, nicht ein Versäumnis.
+
+**Die benannte Lücke bleibt bewusst offen.** Unterhalb der Schwelle wird das
+Abschneiden allein bei **Schwelle−1** geprüft; auf den fünf Tabletbreiten
+sichert der Test nur die **Feldzahl** zu. Der Beleg, dass dort nichts
+abschneidet, ist die **Messung des sechsten Durchgangs** – 744 bis 829 px in
+beiden Sprachen durchgehend abschnittsfrei – und **keine Zusicherung**. Das
+steht hier, damit die Lücke beim nächsten Lesen nicht für ein Versehen
+gehalten und nicht für geschlossen gehalten wird: sie ist beides nicht,
+sondern offen und gewollt.
+
+**Der einzige Verweis auf die alte Begründung, als Fundstelle:**
+
+| Fundstelle | Wortlaut | Art |
+|---|---|---|
+| `tools/test-statusbar.mjs`, Abschnittsüberschrift im Lauf | `console.log("Etappe 8c: die Schwelle traegt den unguenstigsten Inhalt")` | `console.log()`, **kein `check()`** |
+
+Sie wiederholt die Rechenvorschrift, die mit Schritt 1 des siebten Durchgangs
+ersetzt wurde. **Nicht geändert** – kein Zusicherungsname und keine
+Zusicherungsbedingung leitet die Schwelle aus dem Bedarf ab; eine Überschrift
+ist Text, kein Beleg. Wer den Abschnitt später umbenennt, nimmt damit nichts
+zurück.
 
 #### ENTSCHIEDEN mit Schritt 4 des sechsten Durchgangs: die Beschriftungsschwelle bleibt bei 1180 px
 
