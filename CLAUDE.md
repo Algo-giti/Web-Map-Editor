@@ -3899,6 +3899,80 @@ falsche Behauptung, es ginge nicht.** Seit Schritt 1 des siebten Durchgangs
 ist der Punkt nicht mehr offen, sondern entschieden: die Schwelle soll über
 dem Bedarf liegen.
 
+#### Was die Schwelle heute belegt – Befund, Schritt 2 des siebten Durchgangs
+
+**Nur nachgesehen, nichts umgestellt.** Die Frage war, welche Zusicherung je
+Sprache belegt, dass an der Schwelle und darunter nichts abgeschnitten ist –
+und woher sie ihre Breite nimmt.
+
+**Alle betroffenen Zusicherungen stehen in `tools/test-statusbar.mjs`, im
+Abschnitt „Etappe 8c".** Kein anderes Skript im Verzeichnis `tools/` fasst
+`[data-optional]` oder die Schwelle an; nachgesehen über alle siebzehn.
+
+| Zusicherung (Name im Lauf) | was sie belegt | Breite woher |
+|---|---|---|
+| „die Schwelle steht als Medienregel im CSS und ist lesbar" | die Regel ist überhaupt auffindbar | – |
+| „⟨de/en⟩: an der Schwelle (960 px) stehen alle sechs Felder" | Feldzahl oberhalb | **aus der Regel gelesen** |
+| **„⟨de/en⟩: und an der Schwelle ist kein Feld abgeschnitten"** | **kein Abschneiden an der Schwelle** | **aus der Regel gelesen** |
+| „⟨de/en⟩: bei Schwelle−1 (959 px) greift die schmale Fassung" | Feldzahl unterhalb | **aus der Regel gelesen** (Schwelle − 1) |
+| **„⟨de/en⟩: und auch dort ist kein Feld abgeschnitten"** | **kein Abschneiden unterhalb** | **aus der Regel gelesen** (Schwelle − 1) |
+| „⟨de/en⟩: bei ⟨744/768/820/834/860⟩ px gilt die schmale Fassung" | Feldzahl auf den Tabletbreiten | Literal – die CSS-Breiten der Zielgeräte |
+
+**Die Schwelle selbst wird gelesen, nicht geführt.** `schwelleAusCss` sucht
+die Medienregel, deren Rumpf einen `[data-optional]`-Selektor enthält, liest
+`max-width` heraus und rechnet 1 dazu. Beide Trunkierungs-Zusicherungen und
+beide Feldzahl-Zusicherungen hängen daran; eine Änderung der Zahl im CSS zieht
+den Test mit.
+
+**Beide laufen je Sprache**, und die hergestellte Bedingung ist selbst
+zugesichert („⟨de/en⟩: die Oberfläche steht wirklich auf dieser Sprache") –
+ohne diese Gegenprobe bewiesen zwei Runden nur, dass zweimal dasselbe gemessen
+wurde.
+
+**Gemessen wird je Textbehälter** über `scrollWidth > clientWidth`, an allen
+sechs sichtbaren Feldern; Auswahlzähler und Cursor-Koordinaten tragen keinen
+`.status-value` und werden deshalb als Feld selbst gemessen.
+
+**Was NICHT belegt ist, und das ist der eigentliche Befund: „darunter" heißt
+genau eine Breite.** Das Abschneiden wird unterhalb der Schwelle allein bei
+**Schwelle−1** geprüft. Auf den fünf Tabletbreiten sichert der Test nur die
+**Feldzahl** zu, nicht die Abwesenheit von Abschnitten – obwohl gerade sie der
+Zweck der Schwelle sind. Dass dort nichts abschneidet, ist im sechsten
+Durchgang gemessen worden (744 … 829 px durchgehend abschnittsfrei), steht
+aber in keiner Zusicherung. **Benannte Lücke, nicht behoben.**
+
+**Verweise auf die alte Begründung: einer, und er steht nicht in einer
+Zusicherung.** Die Abschnittsüberschrift im Lauf lautet „Etappe 8c: die
+Schwelle traegt den unguenstigsten Inhalt" – das ist die Rechenvorschrift,
+die mit Schritt 1 dieses Durchgangs ersetzt wurde. Sie ist ein
+`console.log()`, kein `check()`; kein Zusicherungsname und keine
+Zusicherungsbedingung leitet die Schwelle aus dem Bedarf ab. **Nicht
+umgestellt** – die Anhaltebedingung dieses Schrittes verbietet das Umstellen,
+und eine Überschrift ist Text, kein Beleg.
+
+**Breiten-Literale, die für einen aus der Regel gelesenen Wert einstehen –
+aufgelistet, nicht umgestellt.** Die Anhaltebedingung des Schrittes greift
+hier: es sind zwei Stellen in `tools/test-statusbar.mjs`, beide im Abschnitt
+„Ausblendreihenfolge", beide älter als der 8c-Abschnitt:
+
+| Zusicherung | Literal | wofür es einsteht | was es kippen ließe |
+|---|---|---|---|
+| „bei 1280 px stehen alle vier Felder" | 1280 | eine Breite **über** der Schwelle | eine Schwelle über 1280 px |
+| „unter der Schwelle weichen Raster, Bezugspunkt und Prüfung" | 760 | eine Breite **unter** der Schwelle | eine Schwelle unter 760 px |
+| „und kommen bei mehr Platz zurück" | 1280 | wieder über der Schwelle | eine Schwelle über 1280 px |
+
+**Beide Literale liegen heute weit von der Schwelle entfernt** und sind
+deshalb nicht falsch, sondern nur nicht mitgeführt: sie behaupten „über" bzw.
+„unter der Schwelle", ohne die Schwelle zu kennen. Der Zusicherungsname sagt
+das im zweiten Fall sogar wörtlich – „unter der Schwelle" –, während die Zahl
+daneben eine andere Quelle hat. **Ob sie auf `schwelleAusCss` umgestellt
+werden, ist zu entscheiden und hier ausdrücklich nicht entschieden.**
+
+**Nicht betroffen sind die fünf Tabletbreiten.** 744, 768, 820, 834 und 860 px
+sind keine Stellvertreter für die Schwelle, sondern die CSS-Breiten der
+Zielgeräte aus Etappe 8 – sie stehen für sich und wären auch bei einer anderen
+Schwelle dieselben. Der Test sagt das an der Stelle selbst.
+
 #### ENTSCHIEDEN mit Schritt 4 des sechsten Durchgangs: die Beschriftungsschwelle bleibt bei 1180 px
 
 **Die Beschriftungsstufe folgt NICHT dem ungünstigsten Inhalt.** Dort darf
