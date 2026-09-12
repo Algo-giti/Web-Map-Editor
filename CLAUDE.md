@@ -3757,12 +3757,35 @@ ebenfalls kein abgeschnittener Behälter, dazu die schmale Fassung bei 744,
 | Schwelle +40 px (`959` → `999`) | reißt **nichts** |
 
 **Die zweite ist eine benannte Lücke: eine zu hohe Schwelle merkt der Test
-nicht.** Sie wird nicht mit einem Konstrukt zum Reißen gebracht. Der Grund ist
-strukturell und nicht behebbar, ohne eine zweite Wahrheit einzuführen: „zu
-hoch" hieße, dass die Felder auch unterhalb der Schwelle noch gepasst hätten –
-das lässt sich nur gegen einen **gemessenen** Erwartungswert prüfen, und genau
-den verbietet die Regel „kein Messwert als Literal". Die Lücke ist damit der
-Preis dafür, dass der Test keine Erinnerung an eine Messung führt.
+nicht.** Sie wird nicht mit einem Konstrukt zum Reißen gebracht.
+
+**RICHTIGSTELLUNG mit Schritt 6 des fünften Durchgangs: die Begründung dafür
+war falsch.** Hier stand, die Lücke sei „strukturell und nicht behebbar, ohne
+eine zweite Wahrheit einzuführen", weil „zu hoch" nur gegen einen **gemessenen
+Erwartungswert** zu prüfen sei – „und genau den verbietet die Regel ‚kein
+Messwert als Literal'".
+
+Das verwechselt zwei verschiedene Dinge. Regel (b) verbietet einen Messwert
+**als Literal in einer Zusicherung** – eine Zahl also, die jemand einmal
+abgelesen und danach in den Test geschrieben hat. Sie verbietet **nicht**, im
+Test selbst zu messen; im Gegenteil, sie nennt genau das als den zweiten
+zulässigen Weg („der Wert wird **aus der Quelle gelesen**"). Schritt 5 desselben
+Durchgangs ist der Beleg: dort ist eine feste 320 durch die im selben Layout
+**gemessene** Inspektorbreite ersetzt worden, und die Zusicherung ist dadurch
+schärfer geworden, nicht unschärfer.
+
+**Die Lücke ließe sich also schließen** – durch einen im Test gemessenen
+Bedarf: die Breite suchen, unterhalb deren im ungünstigsten Inhalt zum ersten
+Mal ein Behälter abschneidet, und die Schwelle aus der CSS-Regel dagegen
+halten. Dann gälte die Zusicherung in **beide** Richtungen, und eine zu hohe
+Schwelle fiele auf.
+
+**Sie bleibt trotzdem offen, und zwar bewusst.** Der Preis ist ein Suchlauf
+über viele Fensterbreiten in zwei Sprachen – die Messung zu diesem Schritt
+brauchte dafür rund vierzig Einstellungen je Sprache und mehrere Minuten. Das
+in jeden Testlauf zu hängen wäre teuer für einen Fall, den eine Layoutänderung
+ohnehin sichtbar macht. **Was hier nicht mehr stehen bleiben soll, ist die
+falsche Behauptung, es ginge nicht.**
 
 #### Offene Frage aus derselben Messung: die Beschriftungsschwelle 1180 px
 
@@ -3789,7 +3812,105 @@ derselben Rechnung) oder ob die Beschriftungen ein anderes Kriterium
 verdienen: sie sind nicht der Inhalt, sondern seine Benennung, und eine
 gekürzte Benennung neben einem vollständigen Wert wiegt womöglich leichter als
 ein gekürzter Wert. **Nicht gebaut, nicht entschieden.**
+
 | **8d** – **ERLEDIGT** | Zusicherungen in `tools/test-toolbar.mjs`, bei **1920, 1440, 1280, 860 und 744 px** und je **fein und grob**: Zielgrößen ≥ 44 px bei grobem Zeiger, Schrift im E/N-Feld, drei Rasterspalten bis zur Grenze hinunter, und dass unterhalb von 744 px nichts abgewiesen wird | Vorgezogen vor 8b/8c, weil sie den Zustand festhalten, den 8a herstellt – und weil 8b und 8c beide eine noch offene Entscheidung brauchen |
+
+#### Der Dateiname unter Druck – gemessen mit Schritt 6 des fünften Durchgangs
+
+**Nur gemessen, nichts geändert und nichts entschieden.** Die Frage dahinter:
+kürzt bei einem langen Dateinamen **nur** die Karte, oder geben auch andere
+Felder nach?
+
+**Die Antwort ist: andere Felder geben nach.** Spalte 1 ist `minmax(0,auto)`
+und schrumpft als erste, aber sie nimmt den Druck nicht auf – der Rest der
+Zeile wird mitgestaucht.
+
+**Womit gemessen wurde.** Der Inhalt der sieben Felder entsteht wie in der
+Messung zu 8c vollständig über Bedienung und Testdatei; nichts ist per
+`textContent` gesetzt. Der Dateiname hat **60 Zeichen**
+(`messkarte-…-zum-m.geojson`); zum Vergleich trugen **beide** Stufen der
+8c-Messung des vierten Durchgangs `a.geojson`, also **9 Zeichen**.
+
+**Zwei Abweichungen vom dortigen Inhalt, benannt statt verschwiegen:** die
+Prüfung meldet „123 Fehler, 675 Warnungen" statt „… 810 Warnungen" – **beide
+Texte sind 25 Zeichen lang**, die Breite ist also dieselbe. Und der Cursor
+steht auf „E: -11943,37 m   N: -6951,38 m" statt „E: -13209,03 m
+N: -12420,65 m", das sind **30 statt 31 Zeichen**; die Abweichung von einem
+Zeichen geht zu Lasten der Messung, nicht zu ihren Gunsten.
+
+**Kalibriert ist die Messung am bekannten Befund:** mit `a.geojson` steht bei
+960 px in beiden Sprachen die volle Zeile mit sieben Feldern, und **kein**
+Behälter ist abgeschnitten – genau das, was Schritt 3 des vierten Durchgangs
+für die Schwelle 960 px zugesichert hat.
+
+**Nebenbefund aus der Kalibrierung, und er korrigiert das Bild der alten
+Tabelle:** unterhalb von 960 px gibt es die Stufe mit sieben Feldern gar nicht
+mehr. Die Tabelle des vierten Durchgangs reicht bis 744 px hinunter, weil sie
+**vor** Schritt 3 gemessen wurde, als die Schwelle noch bei 770 px lag. Seit
+Schritt 3 ist die Stufe ohne Beschriftungen genau **960 bis 1180 px** breit.
+
+**Stufe ohne Beschriftungen (960–1180 px), Dateiname 60 Zeichen:**
+
+| Breite | DE abgeschnitten | EN abgeschnitten |
+|---|---|---|
+| 960 | Karte, **Maßstab**, **Prüfung** | Karte |
+| 1060 | Karte | Karte |
+| 1160 | Karte | Karte |
+
+**Stufe mit Beschriftungen (ab 1181 px), Dateiname 60 Zeichen:**
+
+| Breite | DE abgeschnitten | EN abgeschnitten |
+|---|---|---|
+| 1181 (Schwelle) | Karte, **Maßstab**, **Bezugspunkt**, **Prüfung** | Karte, **Prüfung** |
+| 1260 | Karte, **Maßstab**, **Prüfung** | Karte |
+| 1360 | Karte | Karte |
+| 1460 | Karte | Karte |
+
+**Kleinste Breite, bei der außer der Karte nichts mehr abgeschnitten ist:**
+
+| Stufe | DE | EN |
+|---|---|---|
+| ohne Beschriftungen | **994 px** | **960 px** – die untere Grenze der Stufe selbst |
+| mit Beschriftungen | **1316 px** | **1206 px** |
+
+**Der Vergleich mit dem kurzen Namen ist der eigentliche Befund.** Mit
+`a.geojson` ist bei 960 px nichts abgeschnitten; mit einem 60 Zeichen langen
+Namen sind es auf Deutsch **drei** Felder. Die Schwelle 960 px, die Schritt 3
+des vierten Durchgangs aus dem ungünstigsten Inhalt abgeleitet hat, gilt also
+nur für einen **kurzen** Dateinamen – und dass sie das tut, steht dort auch so
+(„gemessen wird mit einem kurzen, realistischen Namen"). Neu ist die Zahl
+dahinter: der Unterschied beträgt auf Deutsch **34 px** in der Stufe ohne
+Beschriftungen und, gegen die dortige Messung von 1255 px, **61 px** in der
+Stufe mit Beschriftungen.
+
+**Der volle Dateiname ist ohne Hover erreichbar – im Menü „Karte".** Die
+Slot-Einträge zeigen ihn in `#mapAFile` bzw. `#mapBFile`; nachgemessen bei
+1000 px und bei 744 px steht der 60-Zeichen-Name dort **ungekürzt**, während
+`#filename` in der Statuszeile bereits abschneidet. Das Menüpanel wächst dafür
+über seine `min-width` von 250 px hinaus.
+
+**Einen `title` gibt es an keiner der beiden Stellen** – weder an `#filename`
+noch an `#mapAFile`, und auch an keinem Vorfahren. Hover hilft also nirgends;
+der Weg zum vollen Namen führt allein über das Menü. Daneben steht er
+vorübergehend in der Lademeldung der Statuszeile („… als Karte A geladen."),
+die aber mit der nächsten Meldung verschwindet.
+
+**Zwei offene Fragen, eingetragen und NICHT entschieden:**
+
+1. **Gilt „kein Abschneiden im ungünstigsten Inhalt" auch für den
+   Dateinamen?** Heute gilt es ausdrücklich nicht – er ist als Kurzform
+   zugelassen zu kürzen, und eine Schwelle, unter der jeder Name vollständig
+   dasteht, kann es nicht geben. Die Messung oben zeigt aber, dass ein langer
+   Name **andere** Felder mitkürzt, und für die gilt die Regel sehr wohl. Zu
+   entscheiden ist deshalb nicht, ob der Name gekürzt werden darf, sondern ob
+   er **allein** nachgeben soll – etwa dadurch, dass Spalte 1 eine feste
+   Höchstbreite bekommt, statt den übrigen Spalten Platz zu nehmen.
+2. **Gilt dieselbe Regel für die Beschriftungsstufe?** Die Beschriftungen
+   erscheinen bei 1181 px, während der ungünstigste Inhalt mit kurzem Namen
+   erst ab **1255 px** ungekürzt passt (gemessen im vierten Durchgang) – und
+   mit langem Namen erst ab 1316 px. Ob die Schwelle mitwandern soll, steht
+   schon im Abschnitt darüber; die Messung mit langem Namen sagt nur, dass die
+   Antwort vom Dateinamen abhängt, wenn Frage 1 nicht vorher beantwortet ist.
 
 **Wie die Bedienart im Test emuliert wird – und warum das eine Gegenprobe
 braucht.** Ein Playwright-Kontext mit `hasTouch: true` lässt `(pointer: coarse)`
