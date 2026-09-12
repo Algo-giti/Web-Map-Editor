@@ -3503,8 +3503,11 @@ der Statuszeile weichen ab **900 px**, nicht ab 760. Bezugspunkt und
 Prüfergebnis verschwinden damit auf **jedem** Tablet im Hochformat – 744, 768,
 820, 834 liegen alle darunter. Das ist regelkonform, weil beide im Inspektor
 nachschlagbar sind, aber es ist damit der Normalfall des Zielgeräts und nicht
-mehr der Ausnahmefall eines schmalen Fensters. Ob 900 dafür der richtige Wert
-bleibt, ist mitzuentscheiden.
+mehr der Ausnahmefall eines schmalen Fensters. **Die Frage, ob das der
+richtige Wert ist, ist erledigt:** der Wert ist seit Schritt 3 des vierten
+Durchgangs 960 px, und seit Schritt 1 des siebten Durchgangs steht die Regel
+dahinter fest – siehe Abschnitt 8c. Dass die Felder auf jedem Tablet im
+Hochformat weichen, ist nicht mehr Nebenwirkung, sondern der Zweck der Zahl.
 
 **Richtigstellung mit Schritt E: die 16-px-Regel wirkt gegen SAFARI auf
 iOS/iPadOS, nicht gegen Chrome auf Android.** Der Kommentar an der Regel in
@@ -3623,7 +3626,7 @@ nachschlagbar ist – aber es ist der Normalfall des Zielgeräts.
 |---|---|---|
 | **8a** – **ERLEDIGT** | Den einen `@media(max-width:760px)`-Block in **zwei** geteilt: einen Breitenblock bei **743 px** (Stapeln, waagerechte Leiste, Seiten-Scrolling, Kartenhöhe, verkleinerte Marke) und einen Block an der **Bedienart** (`pointer: coarse`) mit den 44-px-Zielgrößen und der 16-px-Schrift. Die Spezifität von `.coord-input` ist mitgezogen, Befund 2 ist damit weg. | Ohne die Trennung bekommt ein Tablet im Querformat weiter Desktop-Zielgrößen. Alles Weitere hängt an dieser Trennung |
 | **8b** | „Erklärung ohne Hover" – siehe den Abschnitt unten | Setzt 8a nicht voraus, ist aber der größere Brocken und sollte nicht mit einer Layout-Umstellung im selben Commit liegen |
-| **8c** – **entschieden, Umsetzung offen** | Die Schwelle der `data-optional`-Felder folgt dem ungünstigsten Inhalt: unter ihr darf nichts abgeschnitten werden. Messung und Entscheidung stehen im Abschnitt unten, die Umsetzung ist Schritt 3 des vierten Durchgangs | Erst sinnvoll, wenn 8a die Grenze festgelegt hat |
+| **8c** – **ERLEDIGT** | Die Schwelle der `data-optional`-Felder steht bei 960 px, gebaut mit Schritt 3 des vierten Durchgangs. Sie ist eine **Entscheidung** und folgt nicht dem gemessenen Bedarf; die einzige Bedingung ist, dass sie nie unter ihm liegt. Regel und Messung stehen im Abschnitt unten | Erst sinnvoll, wenn 8a die Grenze festgelegt hat |
 
 ### 8c – ERLEDIGT mit Schritt 3 des vierten Durchgangs: die Schwelle ist 960 px
 
@@ -3634,22 +3637,61 @@ Zahl zu führen.
 
 | | |
 |---|---|
-| **Kriterium** | unter der Schwelle darf im ungünstigsten Inhalt **kein Textbehälter abgeschnitten** sein |
-| kleinster abschnittsfreier Wert, DE | **953 px** |
-| kleinster abschnittsfreier Wert, EN | **843 px** |
-| Maximum, aufgerundet auf 10 px | **960 px** |
+| **Schwelle** | **960 px**, als eine Stelle im CSS: `@media(max-width:959px)` |
+| **woher die Zahl kommt** | eine **Entscheidung des Projektinhabers**, kein Rechenergebnis |
+| **was sie erreichen soll** | alle Tabletbreiten (744, 768, 820, 834, 860 px) zeigen die schmale Fassung |
+| **einzige Bedingung an die Zahl** | sie darf **nie unter dem gemessenen Bedarf** liegen |
+| gemessener Bedarf, heutiger Stand | DE **830 px**, EN **725 px** – die Bedingung ist mit 130 px Luft erfüllt |
 | CSS-Fundstelle | `@media(max-width:959px)`, Block „Etappe 8c" in `index.html` |
 
 **Die frühere Schwelle 770 px nahm den Feldern den Platz nicht zu früh,
 sondern zu spät:** zwischen 770 und 952 px standen sie da, aber gestaucht.
 
-**Entschieden (Projektinhaber, vierter Durchgang):** In der Stufe ohne
-Beschriftungen darf im ungünstigsten Inhalt **nichts abgeschnitten** werden.
-Die Schwelle ist deshalb der größere der beiden kleinsten abschnittsfreien
-Werte aus DE und EN, aufgerundet auf volle 10 px. **Gewollte Folge: alle
-Tabletbreiten (744, 768, 820, 834, 860 px) zeigen die schmale Fassung.**
+#### Die Regel, neu gefasst mit Schritt 1 des siebten Durchgangs
+
+**Die Schwelle folgt NICHT dem gemessenen Bedarf.** So stand es hier bis
+hierher – *„die Schwelle ist der größere der beiden kleinsten abschnittsfreien
+Werte aus DE und EN, aufgerundet auf volle 10 px"* –, und diese Fassung ist
+**ersetzt**. Sie war eine Rechenvorschrift und hätte die Zahl bei jeder
+Änderung des Inhalts mitwandern lassen.
+
+**Maßgeblich ist stattdessen die Entscheidung des Projektinhabers: alle
+Tabletbreiten zeigen die schmale Fassung.** 744, 768, 820, 834 und 860 px
+liegen sämtlich unter 960 px, und genau das ist der Zweck der Zahl.
 Bezugspunkt und Prüfergebnis sind im Inspektor nachschlagbar – die Hausregel
 „zuerst weicht das Nachschlagbare" ist damit eingehalten.
+
+**Die einzige Bedingung, die der Bedarf noch stellt: die Schwelle darf nie
+UNTER ihm liegen.** Steigt der Bedarf über 960 px, muss die Schwelle
+nachziehen – sonst stünde in der Stufe ohne Beschriftungen gekürzter Text.
+**Sinkt der Bedarf, bleibt die Schwelle stehen.** Das ist der Fall, der mit
+dem sechsten Durchgang eingetreten ist: der Bedarf ist um mehr als 100 px
+gefallen, die Schwelle bleibt bei 960 px.
+
+**Damit ist auch die Anhaltebedingung aus Schritt 3 des sechsten Durchgangs
+aufgelöst.** Dort war gemessen worden, dass eine dem Bedarf folgende Schwelle
+bei 830 px läge – und damit 834 px und 860 px in die **breite** Fassung
+schickte, gegen die Entscheidung oben. Der Schritt wurde deshalb angehalten
+und nichts geändert. Die Auflösung ist nicht eine andere Zahl, sondern eine
+andere Regel: die Schwelle war nie als Rechenergebnis gemeint.
+
+**Die Messung dazu, als Beleg der Bedingung – eine MESSUNG, keine Schwelle.**
+Gemessen im sechsten Durchgang, ohne das entfallene Dateinamenfeld, mit
+neutralisierter Medienregel (`max-width:959px` → `max-width:1px`), damit die
+heutige Regel den wahren Bedarf nicht verdeckt; Sicherungskopie und Prüfsumme
+vorher = nachher:
+
+| | DE | EN |
+|---|---|---|
+| kleinste Breite ohne Abschneiden | **830 px** | **725 px** |
+| erster Abschnitt bei | 829 px, `validationShort: 153<154` | 724 px, `validationShort: 139<140` |
+| Stand mit dem Dateinamenfeld (vierter Durchgang) | 953 px | 843 px |
+
+**744 bis 829 px sind dabei in beiden Sprachen durchgehend abschnittsfrei**,
+drei Felder, nichts gekürzt. Die Zahlen 830 und 725 sind **kein
+Schwellenvorschlag** – sie belegen allein, dass 960 px über dem Bedarf liegt.
+Eingetragen wurden sie erst mit dem siebten Durchgang; im sechsten standen sie
+bewusst nur im Bericht, weil der Schritt angehalten war.
 
 #### RICHTIGSTELLUNG 1: woher die 957 px des zweiten Durchgangs kamen
 
@@ -3710,12 +3752,17 @@ Gegenprobe und keine zweite Quelle.
 Auswahlzähler und Cursor-Koordinaten tragen keinen `.status-value` und waren
 in der Messung des dritten Durchgangs versehentlich ausgenommen.
 
+**Sieben sind es im Stand des vierten Durchgangs; heute sind es sechs.** Das
+Dateinamenfeld ist mit Schritt 2 des sechsten Durchgangs entfallen und steht
+deshalb nicht mehr in der Liste des ungünstigsten Inhalts. Die Zahlen der
+Messung unten sind **mit** ihm entstanden und bleiben unverändert stehen –
+sie beschreiben den damaligen Stand, nicht den heutigen.
+
 **Der Inhalt entsteht vollständig über Bedienung und Testdatei; nichts ist per
 `textContent` gesetzt:**
 
 | Feld | wie erzeugt | DE | EN (vom Editor) |
 |---|---|---|---|
-| Karte | Datei `a.geojson` in Slot B | „Karte B · a.geojson" | „Map B · a.geojson" |
 | Maßstab | Karte mit Ausdehnung > 1, kein `coordinateScale` | „metrisch (angenommen)" | „metric (assumed)" |
 | Raster | Rasterfenster, 100 eingetippt | „100,00 m" | „100.00 m" |
 | Bezugspunkt | zwei Karten mit verschiedener RTK-Basis | „widersprüchlich" | „conflicting" |
@@ -3808,6 +3855,20 @@ ebenfalls kein abgeschnittener Behälter, dazu die schmale Fassung bei 744,
 **Die zweite ist eine benannte Lücke: eine zu hohe Schwelle merkt der Test
 nicht.** Sie wird nicht mit einem Konstrukt zum Reißen gebracht.
 
+**Mit Schritt 1 des siebten Durchgangs ist diese Lücke ausdrücklich GEWOLLT
+und damit keine offene Aufgabe mehr.** Die Schwelle liegt absichtlich über dem
+Bedarf – das ist seit der Neufassung der Regel oben ihr Zweck und nicht ihr
+Mangel. Ein Test, der „zu hoch" meldete, meldete damit genau das, was
+entschieden ist. Was der Test weiterhin belegt und belegen muss, ist die
+andere Richtung: **zu niedrig** darf sie nie sein, und die Mutation −60 px
+zeigt, dass er das sieht.
+
+**Der unten beschriebene Weg, die Lücke über einen im Test gemessenen Bedarf
+zu schließen, entfällt damit als Absicht.** Er bleibt richtig beschrieben und
+wäre weiterhin machbar; er hat nur kein Ziel mehr. Der Abschnitt bleibt
+stehen, weil seine Richtigstellung eine Regel trägt – dass „im Test messen"
+etwas anderes ist als „einen Messwert als Literal führen".
+
 **RICHTIGSTELLUNG mit Schritt 6 des fünften Durchgangs: die Begründung dafür
 war falsch.** Hier stand, die Lücke sei „strukturell und nicht behebbar, ohne
 eine zweite Wahrheit einzuführen", weil „zu hoch" nur gegen einen **gemessenen
@@ -3829,12 +3890,14 @@ Mal ein Behälter abschneidet, und die Schwelle aus der CSS-Regel dagegen
 halten. Dann gälte die Zusicherung in **beide** Richtungen, und eine zu hohe
 Schwelle fiele auf.
 
-**Sie bleibt trotzdem offen, und zwar bewusst.** Der Preis ist ein Suchlauf
-über viele Fensterbreiten in zwei Sprachen – die Messung zu diesem Schritt
+**Sie blieb damals offen, und zwar bewusst.** Der Preis ist ein Suchlauf
+über viele Fensterbreiten in zwei Sprachen – die Messung zu jenem Schritt
 brauchte dafür rund vierzig Einstellungen je Sprache und mehrere Minuten. Das
 in jeden Testlauf zu hängen wäre teuer für einen Fall, den eine Layoutänderung
-ohnehin sichtbar macht. **Was hier nicht mehr stehen bleiben soll, ist die
-falsche Behauptung, es ginge nicht.**
+ohnehin sichtbar macht. **Was hier nicht stehen bleiben sollte, war die
+falsche Behauptung, es ginge nicht.** Seit Schritt 1 des siebten Durchgangs
+ist der Punkt nicht mehr offen, sondern entschieden: die Schwelle soll über
+dem Bedarf liegen.
 
 #### ENTSCHIEDEN mit Schritt 4 des sechsten Durchgangs: die Beschriftungsschwelle bleibt bei 1180 px
 
