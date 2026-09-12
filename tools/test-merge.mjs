@@ -1216,7 +1216,7 @@ try {
   /* Nur A gewaehlt. */
   await waehlePunkte([[0, 0], [40, 0]]);
   await openMergeWindow();
-  await klickeFreienKnopf("#setMergeCutBtn",
+  const nurAGesetzt = await klickeFreienKnopf("#setMergeCutBtn",
     "nur A: der Knopf ist frei", "#mergeCutReason");
   await page.waitForTimeout(400);
   await openMergeWindow();
@@ -1226,27 +1226,44 @@ try {
       "Auftrennstelle nur für Karte A gewählt – für Karte B gilt die Reihenfolge aus der Datei."),
     await mergeText("#mergeStatus"));
 
-  /* Nur B gewaehlt: A zuruecknehmen, dann auf Karte B setzen. */
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(150);
-  await page.keyboard.press("Control+z");
-  await page.waitForTimeout(400);
+  /*
+   * Nur B gewaehlt: A zuruecknehmen, dann auf Karte B setzen.
+   *
+   * Das Control+z nimmt GENAU die eine Geste darueber zurueck. Bleibt sie aus,
+   * weil der Knopf gesperrt war, trifft es stattdessen die Geste davor - das
+   * Laden von Karte B -, und der Menueeintrag "Karte B" ist danach gesperrt.
+   * Gemessen an der Mutation "data-vertex-key gar nicht gesetzt": genau so
+   * endete der Lauf hier, und zwar als einziger Abbruch des ganzen
+   * Testbestandes.
+   *
+   * Der Abschnitt haengt deshalb am Rueckgabewert von klickeFreienKnopf():
+   * eine Vorbedingung, die nicht eingetreten ist, darf keinen Folgeschritt
+   * tragen. Sie ist bereits benannt zugesichert ("nur A: der Knopf ist frei") -
+   * was fehlte, war der Abbruch. Dieselbe Regel wie bei den Locatoren aus
+   * ungeprueften Werten, nur mit einem Zustand statt einem Wert.
+   */
+  if (nurAGesetzt) {
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(150);
+    await page.keyboard.press("Control+z");
+    await page.waitForTimeout(400);
 
-  await menueBefehl("Karte", "Karte B");
-  await page.waitForTimeout(300);
-  await openAllFolds(page);
+    await menueBefehl("Karte", "Karte B");
+    await page.waitForTimeout(300);
+    await openAllFolds(page);
 
-  await waehlePunkte([[-20, 40], [-60, 40]]);
-  await openMergeWindow();
-  await klickeFreienKnopf("#setMergeCutBtn",
-    "nur B: der Knopf ist frei", "#mergeCutReason");
-  await page.waitForTimeout(400);
-  await openMergeWindow();
+    await waehlePunkte([[-20, 40], [-60, 40]]);
+    await openMergeWindow();
+    await klickeFreienKnopf("#setMergeCutBtn",
+      "nur B: der Knopf ist frei", "#mergeCutReason");
+    await page.waitForTimeout(400);
+    await openMergeWindow();
 
-  check("nur Karte B gewaehlt: die Statuszeile nennt genau die andere Seite",
-    (await mergeText("#mergeStatus")).startsWith(
-      "Auftrennstelle nur für Karte B gewählt – für Karte A gilt die Reihenfolge aus der Datei."),
-    await mergeText("#mergeStatus"));
+    check("nur Karte B gewaehlt: die Statuszeile nennt genau die andere Seite",
+      (await mergeText("#mergeStatus")).startsWith(
+        "Auftrennstelle nur für Karte B gewählt – für Karte A gilt die Reihenfolge aus der Datei."),
+      await mergeText("#mergeStatus"));
+  }
 
   /* --- 4. Gekreuzte Bruecken: Warnung, keine Sperre ---------------- */
 

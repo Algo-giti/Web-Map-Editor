@@ -931,6 +931,54 @@ der Prüfung auf `null` blieben zwei Timeouts und null gerissene Zusicherungen
 stehen; mit `?? null` und einer Prüfung auf Falsy sind es **69 gerissene
 Zusicherungen und ein Timeout**.
 
+**Der übrige Timeout ist mit Schritt 2 des fünften Durchgangs behoben, und
+seine Ursache war KEIN Locator, sondern eine ungeprüfte Vorbedingung.** Er lag
+in `tools/test-merge.mjs`, im Abschnitt „Nur B gewählt", an
+`page.keyboard.press("Control+z")`. Das Undo nimmt **genau die eine Geste**
+darüber zurück – „Auftrennstelle setzen" auf Karte A. Blieb sie aus, weil
+`klickeFreienKnopf()` den gesperrten Knopf richtigerweise nicht drückte, traf
+das Undo stattdessen die Geste davor: **das Laden von Karte B**. Danach war
+der Menüeintrag „Karte B" gesperrt, und der folgende `menueBefehl()` lief in
+die dreißig Sekunden.
+
+**Die Vorbedingung war bereits benannt zugesichert** („nur A: der Knopf ist
+frei") – was fehlte, war der **Abbruch**. Genau der Fall, den diese Datei zwei
+Absätze weiter oben als Regel führt, nur mit einem **Zustand** statt einem
+Wert: eine gerissene Zusicherung hält das Skript nicht an. Der Abschnitt hängt
+deshalb jetzt am Rückgabewert von `klickeFreienKnopf()`.
+
+**Gemessen an derselben Mutation** („`circle.dataset.vertexKey` gar nicht
+gesetzt"), Lauf über alle siebzehn Browsertests:
+
+| | gerissene Zusicherungen | Timeouts | Abbrüche |
+|---|---|---|---|
+| vorher (Stand `5855004`) | 71 | 0 | 1 – „Karte B" gesperrt |
+| nachher | **92** | **0** | **0** |
+
+Die 21 zusätzlichen Zusicherungen sind die, die hinter dem Abbruch lagen und
+vorher gar nicht mehr gemessen wurden. Dass schon vorher **null** Timeouts
+dastanden, ist das Verdienst von Schritt 1: der gesperrte Menüeintrag liefert
+seitdem eine benannte Zusicherung statt einer Zeitüberschreitung. Behoben ist
+mit Schritt 2 die Stelle, an der er überhaupt gesperrt sein konnte.
+
+**Die Nachsuche nach weiteren ungeprüften Werten ist leer.** Das Locator-Muster
+aus Schritt 11 (Template-Literal mit `${…}` in `locator(…)`, über
+Zeilengrenzen hinweg) wurde gegen den bekannten Treffer `${endSchluessel}` in
+`tools/test-merge.mjs` kalibriert und findet ihn. Es liefert vierzehn
+Fundstellen; die drei aus Schritt 11 sind versorgt, die übrigen elf setzen
+einen Wert aus einer festen Liste im Test selbst ein (`${id}`, `${scope}`,
+`${typ.draw}`, `${index}`, `${start}`, `${featureIndex}`) und können nicht
+leer werden.
+
+**Zweifelhaft und deshalb nur aufgelistet: zwei weitere Undo-Stellen mit
+derselben Bauart.** `tools/test-merge.mjs` drückt `Control+z` auch hinter
+`#setMergeCutBtn` (Drehfall) und hinter `#deletePointBtn`, ohne den
+Rückgabewert zu befolgen. Sie sind **nicht** behoben, weil ein zu weit
+gehendes Undo dort nur einen falschen Zustand erzeugt und damit **benannte**
+Zusicherungen reißen lässt – gemessen unter derselben Mutation: kein Timeout,
+kein Abbruch. Der Unterschied zur behobenen Stelle ist, dass dort ein
+**Bedienelement gesperrt** wurde und daraus ein stummer Abbruch entstand.
+
 **ERLEDIGT mit Schritt 1 des fünften Durchgangs: `menueBefehl()` klickt nur
 noch freie Einträge.** Der Befund war, dass der Helfer einen **gesperrten**
 Menüeintrag trotzdem anklickte – gemessen an „Karte B" ohne geladene Datei –
