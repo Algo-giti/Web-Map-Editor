@@ -4548,6 +4548,12 @@ genau der Aufwand, den die Zurückstellung vermeiden soll.
 Inspektor gemeint ist (dann erfüllen zwei Wege alle Kriterien und es ist zu
 wählen), und ob Weg 3 vor Etappe 10 gebaut werden soll oder mit ihr.
 
+**Dazu kommt seit dem achten Durchgang eine dritte, und sie liegt davor:** die
+**Kontext-Knopfleiste am Auswahlzustand** steht als offener Punkt in
+Abschnitt 7. Knöpfe mit eigener Beschriftung tragen ihre Erklärung am Knopf –
+damit ist Weg 3 nicht mehr der alleinige Kandidat. **8b wird erst nach dieser
+Entscheidung angefasst.**
+
 **5. Der Schalter „vollständige Fassung" existiert nicht.** Nachgesehen: es
 gibt sechs `localStorage`-Schlüssel – `referenceOrigin`, `toolRailCollapsed`,
 `inspectorCollapsed` und die drei Faltblock-Schlüssel –, und keiner davon ist
@@ -6349,6 +6355,45 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     neu, weil Speichern nichts still verändern soll. Beides zeigt in dieselbe
     Richtung – **es ist trotzdem eine Entscheidung und keine Ableitung**, denn
     der Umlaufsinn ist anders als `idx` normativ festgelegt.
+
+- **Sichtbarkeit je Kartenslot – Eintrag, kein Auftrag; eingetragen mit
+  Schritt 3 des achten Durchgangs.** Sind zwei Karten geladen, soll sich jede
+  von beiden **einzeln** auf einen von drei Zuständen schalten lassen:
+  **sichtbar**, **aktiv** oder **nicht sichtbar**. Beschrieben ist damit ein
+  Wunsch des Projektinhabers, kein Entwurf.
+
+  **Der Ort ist offen.** Genannt sind zwei Möglichkeiten – das Menü „Karte",
+  in dem heute „Karte A" und „Karte B" stehen, oder zwei Felder oben in der
+  Oberfläche. Welcher von beiden es wird, ist nicht entschieden.
+
+  **Das Verhältnis zur Etappe „Beide" ist zu klären.** Unter diesem Namen
+  steht in Abschnitt 5 bereits ein Eintrag, und er meint etwas anderes: dort
+  geht es um eine **kartenübergreifende Auswahl**, also um Punkte aus beiden
+  Slots in einer Auswahl, und damit um einen Umbau des Auswahlmodells. Ob die
+  Sichtbarkeit je Slot ein Teil davon ist, eine Vorstufe oder eine eigene
+  Sache, gehört zu dieser Klärung.
+
+  **Ungeklärt und ausdrücklich als eigener Befund vermerkt: ob es heute
+  überhaupt eine Sichtbarkeit je Slot gibt.** Das ist hier nicht erhoben
+  worden. Wer den Punkt aufnimmt, erhebt es zuerst – der Eintrag behauptet
+  weder, dass es sie gibt, noch, dass sie fehlt.
+
+- **Kontext-Knopfleiste am Auswahlzustand – Eintrag, kein Auftrag;
+  eingetragen mit Schritt 3 des achten Durchgangs.** Gewünscht ist eine
+  **waagerechte Leiste mit beschrifteten Knöpfen**, die erscheint, wenn etwas
+  ausgewählt ist – etwa ein Punkt. Vorbild ist
+  [`Algo-giti/MapmakerBT`](https://github.com/Algo-giti/MapmakerBT).
+
+  **Sie berührt Etappe 9**, und zwar deren Teilschritte **9a** (der
+  Auswahlzustand des Inspektors wird entdoppelt) und **9c** (die
+  Feature-Navigation). Beide handeln davon, was im Auswahlzustand wo steht;
+  eine zweite Leiste für dieselbe Auswahl gehört in dieselbe Betrachtung.
+
+  **Und sie berührt die offene Frage 8b.** Dort stehen drei Wege für die
+  Erklärungen, die heute nur im `title` stehen; Weg 3 ist „ins
+  Hilfe-Overlay". **Knöpfe mit eigener Beschriftung tragen ihre Erklärung am
+  Knopf** – damit fällt Weg 3 als **alleiniger** Kandidat weg. **8b wird erst
+  nach dieser Entscheidung angefasst.**
 
 ---
 
