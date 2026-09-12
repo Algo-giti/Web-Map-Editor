@@ -3802,7 +3802,23 @@ in jeden Testlauf zu hängen wäre teuer für einen Fall, den eine Layoutänderu
 ohnehin sichtbar macht. **Was hier nicht mehr stehen bleiben soll, ist die
 falsche Behauptung, es ginge nicht.**
 
-#### Offene Frage aus derselben Messung: die Beschriftungsschwelle 1180 px
+#### ENTSCHIEDEN mit Schritt 4 des sechsten Durchgangs: die Beschriftungsschwelle bleibt bei 1180 px
+
+**Die Beschriftungsstufe folgt NICHT dem ungünstigsten Inhalt.** Dort darf
+gekürzt werden, und die Schwelle bleibt, wo sie ist. Entschieden vom
+Projektinhaber; die Messung darunter bleibt als Messwert stehen.
+
+**Der Grund, und er ist genau der, der unten schon als Abwägung dastand:** die
+Beschriftungen sind nicht der Inhalt, sondern seine **Benennung**. Ein
+gekürzter Wert verliert Information, die nirgends sonst steht – eine gekürzte
+Benennung verliert nur die Wiederholung dessen, was der Wert daneben ohnehin
+zeigt. Die Regel „unter der Schwelle darf kein Textbehälter abgeschnitten
+sein" gilt deshalb weiterhin **allein** der `data-optional`-Stufe.
+
+**Damit ist die frühere Formulierung „die Beschriftungen erscheinen 75 px zu
+früh" richtiggestellt:** zu früh wären sie nur unter einem Kriterium, das hier
+gerade nicht gilt. Sie erscheinen früher, als der ungünstigste Inhalt
+vollständig passt – das ist gewollt.
 
 **Nur gemessen, nichts geändert.** Dieselbe Prüfung in der Stufe **mit**
 Beschriftungen (ab 1181 px), gleicher ungünstigster Inhalt:
@@ -3817,16 +3833,17 @@ Beschriftungen (ab 1181 px), gleicher ungünstigster Inhalt:
 | **1255** | – (**kleinster Wert ohne Abschneiden, DE**) | – |
 | 1261, 1300, 1400 | – | – |
 
-**Die Beschriftungen erscheinen 75 px zu früh.** Zwischen 1181 und 1254 px
-stehen sie da, während auf Deutsch Maßstab und Prüfung gekürzt werden – exakt
-derselbe Fehler eine Stufe höher, den 8c gerade für die `data-optional`-Felder
-behoben hat. Auf Englisch tritt er nicht auf.
+**Zwischen 1181 und 1254 px stehen die Beschriftungen da, während auf Deutsch
+Maßstab und Prüfung gekürzt werden.** Auf Englisch tritt das nicht auf. Das
+ist der gemessene Befund; er bleibt richtig. **Was sich mit Schritt 4 des
+sechsten Durchgangs geändert hat, ist seine Bewertung** – siehe die
+Entscheidung oben. Die Alternative „die Schwelle wandert mit" (dann wäre sie
+1260 px nach derselben Rechnung) ist damit **verworfen**, nicht offen.
 
-**Zu entscheiden ist, ob die Schwelle mitwandert** (dann wäre sie 1260 px nach
-derselben Rechnung) oder ob die Beschriftungen ein anderes Kriterium
-verdienen: sie sind nicht der Inhalt, sondern seine Benennung, und eine
-gekürzte Benennung neben einem vollständigen Wert wiegt womöglich leichter als
-ein gekürzter Wert. **Nicht gebaut, nicht entschieden.**
+**Die Zahlen sind mit dem Dateinamenfeld gemessen** (Schritt 6 des fünften
+Durchgangs, kurzer Name) und deshalb seit Schritt 2 des sechsten Durchgangs
+nicht mehr der heutige Stand. Neu gemessen wurden sie nicht – die
+Entscheidung hängt nicht an ihnen.
 
 | **8d** – **ERLEDIGT** | Zusicherungen in `tools/test-toolbar.mjs`, bei **1920, 1440, 1280, 860 und 744 px** und je **fein und grob**: Zielgrößen ≥ 44 px bei grobem Zeiger, Schrift im E/N-Feld, drei Rasterspalten bis zur Grenze hinunter, und dass unterhalb von 744 px nichts abgewiesen wird | Vorgezogen vor 8b/8c, weil sie den Zustand festhalten, den 8a herstellt – und weil 8b und 8c beide eine noch offene Entscheidung brauchen |
 
@@ -3910,22 +3927,21 @@ der Weg zum vollen Namen führt allein über das Menü. Daneben steht er
 vorübergehend in der Lademeldung der Statuszeile („… als Karte A geladen."),
 die aber mit der nächsten Meldung verschwindet.
 
-**Zwei offene Fragen, eingetragen und NICHT entschieden:**
+**Beide offenen Fragen sind mit dem sechsten Durchgang geschlossen:**
 
 1. **Gilt „kein Abschneiden im ungünstigsten Inhalt" auch für den
-   Dateinamen?** Heute gilt es ausdrücklich nicht – er ist als Kurzform
-   zugelassen zu kürzen, und eine Schwelle, unter der jeder Name vollständig
-   dasteht, kann es nicht geben. Die Messung oben zeigt aber, dass ein langer
-   Name **andere** Felder mitkürzt, und für die gilt die Regel sehr wohl. Zu
-   entscheiden ist deshalb nicht, ob der Name gekürzt werden darf, sondern ob
-   er **allein** nachgeben soll – etwa dadurch, dass Spalte 1 eine feste
-   Höchstbreite bekommt, statt den übrigen Spalten Platz zu nehmen.
-2. **Gilt dieselbe Regel für die Beschriftungsstufe?** Die Beschriftungen
-   erscheinen bei 1181 px, während der ungünstigste Inhalt mit kurzem Namen
-   erst ab **1255 px** ungekürzt passt (gemessen im vierten Durchgang) – und
-   mit langem Namen erst ab 1316 px. Ob die Schwelle mitwandern soll, steht
-   schon im Abschnitt darüber; die Messung mit langem Namen sagt nur, dass die
-   Antwort vom Dateinamen abhängt, wenn Frage 1 nicht vorher beantwortet ist.
+   Dateinamen? – Die Frage stellt sich nicht mehr.** Erledigt mit **Schritt 2
+   des sechsten Durchgangs**: das Feld hat die Statuszeile verlassen. Die
+   erwogene Antwort – Spalte 1 bekommt eine feste Höchstbreite, damit der Name
+   allein nachgibt – ist damit gegenstandslos; es gibt keine Spalte mehr, die
+   nachgeben könnte. Der volle Name steht im Menü „Karte", ungekürzt und für
+   beide Slots.
+2. **Gilt dieselbe Regel für die Beschriftungsstufe? – Nein.** Erledigt mit
+   **Schritt 4 des sechsten Durchgangs**, siehe den Abschnitt darüber: in der
+   Beschriftungsstufe darf gekürzt werden, die Schwelle bleibt bei 1180 px.
+   Die hier genannten Werte (1255 px mit kurzem, 1316 px mit langem Namen)
+   sind mit dem Dateinamenfeld gemessen und beschreiben einen Stand, den es
+   seit Schritt 2 nicht mehr gibt.
 
 #### Wo der Dateiname steht – Bestandsaufnahme, Schritt 1 des sechsten Durchgangs
 
