@@ -1548,7 +1548,7 @@ Meldung:
 
 | Zeile | Zone | Inhalt | Verhalten |
 |---|---|---|---|
-| 1 | links, feste Plätze | Dateiname, Maßstab, Bezugspunkt, Prüfergebnis | ändert sich selten, immer da |
+| 1 | links, feste Plätze | Maßstab, Raster, Bezugspunkt, Prüfergebnis | ändert sich selten, immer da |
 | 1 | rechts außen | Auswahlzähler, Cursor-Koordinaten | ändert sich ständig, fester Ort |
 | 2 | volle Breite | `editStatus`, `drawFeatureStatus`, `multiSelectionStatus` | genau eine davon sichtbar |
 
@@ -1565,7 +1565,7 @@ abgeschnitten, ohne dass man es dem Text ansah.
 Festlegung rutschte der Zähler in die Dehnspalte und klebte an den dauerhaften
 Feldern, sobald die Meldung in Zeile 2 umzog.
 
-**Die vier linken Angaben sind Kurzformen, und das ist wörtlich gemeint.** Wird
+**Die linken Angaben sind Kurzformen, und das ist wörtlich gemeint.** Wird
 eine länger als eine Zeile, ist es keine Kurzform mehr – der ausführliche Text
 bleibt, wo er hingehört: der Prüfbericht im Faltblock „Kartenprüfung" des
 Inspektors, der Maßstabshinweis im Kartenfeld, der Bezugspunkt im Faltblock
@@ -1597,9 +1597,20 @@ Meldungen, und ziehen mit Etappe 5 in den Inspektor.
 
 **Ausblendreihenfolge bei schmalem Fenster**, und der Grund dafür: Zuerst
 verschwinden die Beschriftungen der linken Felder (ab 1180 px), dann
-Bezugspunkt und Prüfung (**ab 959 px**, bis Schritt 3 des vierten Durchgangs
-900 px). Zuletzt weichen würden Dateiname und
-Maßstab; die flüchtige Meldung und die beiden rechten Anzeigen bleiben immer.
+Raster, Bezugspunkt und Prüfung (**ab 959 px**, bis Schritt 3 des vierten
+Durchgangs 900 px). Zuletzt weichen würde der Maßstab; die flüchtige Meldung
+und die beiden rechten Anzeigen bleiben immer.
+
+**Der Dateiname steht seit dem sechsten Durchgang nicht mehr in der Zeile.**
+Er war dort das einzige Feld in einer schrumpfenden Spalte
+(`minmax(0,auto)`) und wurde dadurch **in jeder gemessenen Breite** gekürzt –
+bei 1280 px brauchte ein 52 Zeichen langer Name 389 px und bekam 348, bei
+744 px noch 208. Vollständig steht er im Menü „Karte" (`#mapAFile`,
+`#mapBFile`), dort ungekürzt und für **beide** Slots samt Änderungsmarke,
+während die Zeile die Marke nur für den aktiven zeigte. Die Zeile hat damit
+sieben Rasterspalten statt acht, die schmale Fassung drei Felder statt vier.
+Entschieden vom Projektinhaber; die Messung dazu steht bei „Wo der Dateiname
+steht".
 
 Maßgeblich ist die **Nachschlagbarkeit**: Bezugspunkt und Prüfergebnis stehen
 vollständig im Inspektor, wer sie braucht, findet sie dort wieder. Die
@@ -2044,7 +2055,9 @@ Kartenfläche ist in allen drei Größen unverändert.** Das Menü kostet 256 px
 und ersetzt 402 px an Knöpfen (speichern 170, zurücksetzen 173, Hilfe 59); das
 Statusfeld nimmt seine 104 px aus der Dehnspalte, die bei 1280 px danach noch
 86 px hat. Der Dateiname wird ab 1000 px Breite gekappt – das war vorher schon
-so und ist von diesem Umbau unberührt.
+so und ist von diesem Umbau unberührt. **Überholt seit dem sechsten
+Durchgang:** das Feld gibt es nicht mehr, der Satz beschreibt den Stand von
+Etappe 6.
 
 Die Kartenfläche kostet: **93 px Höhe** für Legende (30) und die zweizeilige
 Statuszeile (63), 168 px Breite für die ausgeklappte Werkzeugleiste, 320 px
@@ -3686,13 +3699,15 @@ Cursorziffern; **beide Texte sind zeichengleich lang** (25 bzw. 31 Zeichen),
 die gemessene Breite ist damit dieselbe. Der Vorteil: kein Feld ist gesetzt,
 jedes ist erzeugt.
 
-**Der Dateiname ist der Sonderfall und gehört zur Entscheidung.** Spalte 1 ist
-`minmax(0,auto)` und **schrumpft als einzige**; ein langer Dateiname wird in
+**Der Dateiname war der Sonderfall und hat die Entscheidung getragen –
+ÜBERHOLT mit Schritt 2 des sechsten Durchgangs.** Spalte 1 war
+`minmax(0,auto)` und **schrumpfte als einzige**; ein langer Dateiname wurde in
 jeder Fensterbreite gekürzt. Nachgemessen: mit `gross.geojson` statt
-`a.geojson` schneidet die Zeile schon bei 960 px ab. **Eine Schwelle, unter
-der „nichts abgeschnitten" für jeden Dateinamen gilt, gibt es deshalb nicht** –
-gemessen wird mit einem kurzen, realistischen Namen, und das Kürzen des
-Dateinamens bleibt zugelassen. Für ihn gilt weiterhin die Regel „Kurzform".
+`a.geojson` schnitt die Zeile schon bei 960 px ab. **Eine Schwelle, unter
+der „nichts abgeschnitten" für jeden Dateinamen gilt, konnte es deshalb nicht
+geben.** Genau dieser Befund hat den Ausschlag gegeben: das Feld ist aus der
+Zeile entfallen, und die Frage stellt sich nicht mehr. Der Absatz bleibt
+stehen, weil die Messung darunter mit dem Feld entstanden ist.
 
 **Abgeschnittene Felder nach Fensterbreite, Stufe ohne Beschriftungen:**
 
@@ -3984,6 +3999,46 @@ Einträgen, nicht der Statuszeile – er bleibt auch ohne das Feld gebraucht.
 **niemand** – „aktiv ·" kommt in `index.html` genau einmal vor, nämlich in
 dieser Musterzeile selbst. Das Muster ist eine ältere Fassung desselben Feldes
 und war bereits tot, bevor dieser Durchgang begann.
+
+#### Was mit dem Feld entfallen ist – Schritt 2 des sechsten Durchgangs
+
+**Vollständig aufgelistet, damit niemand später nach einem Rest sucht.**
+
+| Ort | entfernt |
+|---|---|
+| Markup | `<div class="status-field status-file">` mit `<span class="status-label">Karte</span>` und `<span id="filename" class="filename">` |
+| CSS | die allgemeine `.filename`-Regel; `.status-file`; `.status-file .filename`; die zweite `.filename`-Regel im Block unterhalb 744 px |
+| CSS, Raster | eine Spalte: `.status-bar` hat sieben statt acht Spalten, die Medienregel unter 960 px vier statt fünf; `.status-counter` und `.hud` rücken je eine Spalte nach vorn |
+| JS | `const filename = document.getElementById("filename")` und der `setLocalizedText()`-Aufruf in `updateMapSlotUi()` |
+| `I18N_PATTERNS` | `/^Karte ([AB]) · (.+)$/` → „Map $1 · $2" – nach dem Wegfall ohne Erzeuger |
+| `I18N_PATTERNS` | `/^Karte ([AB]) aktiv · (.+)$/` → „Map $1 active · $2" – **war schon vorher verwaist**, gemessen in Schritt 1: „aktiv ·" kam in `index.html` nur in dieser Musterzeile selbst vor |
+
+**Nicht entfernt, weil weiterhin gebraucht:** der Wörterbucheintrag
+„Keine Karte geladen" → „No map loaded" (er steht an vier weiteren Stellen, unter
+anderem am Inspektor-Untertitel) und der `FALSCHMELDUNGEN`-Eintrag
+`/^[\w-]+\.geojson( \*)?$/` in `tools/scan-i18n.mjs` – der galt schon immer den
+**Menü**-Einträgen, nicht der Statuszeile.
+
+**`tools/smoke-test.mjs` liest den Leerzustand jetzt an `#inspectorSubtitle`.**
+Das war die einzige Stelle außerhalb von `tools/test-statusbar.mjs`, die
+`#filename` anfasste – und dort hing zugleich der **einzige** Beleg dieses
+Tests dafür, dass der Sprachumschalter überhaupt übersetzt. Der Untertitel
+trägt denselben Text („Keine Karte geladen" / „No map loaded"), also denselben
+Wörterbucheintrag; der Beleg bleibt damit gleich stark.
+
+**Das i18n-Werkzeug meldet vorher wie nachher NEU 0** über alle achtzehn
+Zustände, bei unveränderten 35 bekannten Falschmeldungen.
+
+**Gegengeprüft mit einer Mutation:** Markup und Schreibstelle wieder
+eingesetzt – das Feld ist zurück. Sie reißt **21 benannte Zusicherungen** bei
+**0 Timeouts**, darunter viermal „⟨Sprache⟩, ⟨Breite⟩ px: die Statuszeile
+nennt den Dateinamen nicht" und beidsprachig „an der Schwelle stehen alle
+sechs Felder".
+
+**Die Zusicherung meint den DAUERHAFTEN Teil der Zeile.** Die flüchtige
+Lademeldung in Zeile 2 nennt den Namen weiterhin („… als Karte A geladen.") –
+richtig so, und der erste Entwurf der Zusicherung fiel genau darüber. Sie ist
+keine nachschlagbare Stelle: mit der nächsten Meldung ist sie weg.
 
 **Wie die Bedienart im Test emuliert wird – und warum das eine Gegenprobe
 braucht.** Ein Playwright-Kontext mit `hasTouch: true` lässt `(pointer: coarse)`

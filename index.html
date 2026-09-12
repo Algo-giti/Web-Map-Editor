@@ -498,8 +498,6 @@
     color:var(--text);
   }
 
-  .filename { margin-left:auto; color:var(--muted); font-size:12px; overflow:hidden; text-overflow:ellipsis;
-    white-space:nowrap; max-width:28vw; }
   /*
    * main darf niemals höher als der verbleibende Platz werden.
    * Das ist entscheidend dafür, dass die Sidebar ihren eigenen Scrollbereich
@@ -2398,7 +2396,7 @@
   .status-bar {
     flex:0 0 auto;
     display:grid;
-    grid-template-columns:minmax(0,auto) auto auto auto auto minmax(0,1fr) auto auto;
+    grid-template-columns:auto auto auto auto minmax(0,1fr) auto auto;
     grid-template-rows:34px 28px;
     align-items:center;
     gap:0 18px;
@@ -2417,11 +2415,6 @@
   }
 
   .status-value { color:#bdcbe0; overflow:hidden; text-overflow:ellipsis; }
-
-  .status-file { min-width:0; }
-  .status-file .filename {
-    color:var(--text); overflow:hidden; text-overflow:ellipsis; min-width:0;
-  }
 
   /*
    * Zweite Zeile über die volle Breite. Die drei flüchtigen Quellen liegen
@@ -2461,8 +2454,8 @@
    * Zähler in die Dehnspalte und klebte an den dauerhaften Feldern, sobald
    * die flüchtige Meldung in die zweite Zeile umzog.
    */
-  .status-counter { grid-column:7; grid-row:1; }
-  .status-bar > .hud { grid-column:8; grid-row:1; }
+  .status-counter { grid-column:6; grid-row:1; }
+  .status-bar > .hud { grid-column:7; grid-row:1; }
 
   .status-counter {
     color:#bdcbe0; font-variant-numeric:tabular-nums; flex:0 0 auto;
@@ -2577,15 +2570,15 @@
    */
   @media(max-width:959px) {
     /* Zeile 2 bleibt unberührt - sie spannt ohnehin über alle Spalten. */
-    .status-bar { grid-template-columns:minmax(0,auto) auto minmax(0,1fr) auto auto; }
+    .status-bar { grid-template-columns:auto minmax(0,1fr) auto auto; }
     /*
      * Raster, Bezugspunkt und Prüfung weichen: alle drei sind nachschlagbar -
      * das Raster im Rasterfenster, die beiden anderen in der Seitenleiste.
      * Dateiname und Maßstab bleiben, sie tragen kein data-optional.
      */
     .status-bar > .status-field[data-optional] { display:none; }
-    .status-counter { grid-column:4; }
-    .status-bar > .hud { grid-column:5; }
+    .status-counter { grid-column:3; }
+    .status-bar > .hud { grid-column:4; }
   }
 
   /*
@@ -2696,19 +2689,6 @@
       white-space:normal;
       line-height:1.15;
       font-size:13px;
-    }
-
-    .filename {
-      grid-column:1 / -1;
-      display:block;
-      width:100%;
-      max-width:none;
-      margin:0;
-      padding:0 2px 2px;
-      font-size:11px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
     }
 
     main {
@@ -4098,16 +4078,12 @@
   <footer id="statusBar" class="status-bar">
 
     <!--
-      Dauerhafter Teil: vier Angaben, die sich selten ändern, an festen
+      Dauerhafter Teil: drei Angaben, die sich selten ändern, an festen
       Plätzen. Kurzform heißt hier wörtlich - der ausführliche Text bleibt
       dort, wo er hingehört (Prüfbericht in der Seitenleiste, Maßstabshinweis
-      im Kartenfeld).
+      im Kartenfeld). Der Dateiname steht seit dem sechsten Durchgang nicht
+      mehr hier, sondern vollständig im Menü „Karte".
     -->
-    <div class="status-field status-file">
-      <span class="status-label">Karte</span>
-      <span id="filename" class="filename">Keine Karte geladen</span>
-    </div>
-
     <div class="status-field">
       <span class="status-label">Maßstab</span>
       <span id="scaleStatus" class="status-value">–</span>
@@ -4261,7 +4237,6 @@ const svg = document.getElementById("svg");
 const viewer = document.getElementById("viewer");
 const hud = document.getElementById("hud");
 const tip = document.getElementById("tip");
-const filename = document.getElementById("filename");
 
 /*
  * Neutrale globale Arbeitsreferenz. Sie bleibt leer, bis Karte A oder B
@@ -9298,7 +9273,7 @@ function updateMapSlotLabels() {
 }
 
 
-/** Aktualisiert die Karten-A/B-Schaltflächen und den Dateinamen im Header. */
+/** Aktualisiert die Karten-A/B-Schaltflächen und die abhängigen Knöpfe. */
 function updateMapSlotUi() {
   updateOriginUi();
   updateScaleNotice();
@@ -9332,13 +9307,6 @@ function updateMapSlotUi() {
   document.getElementById("removeMapBBtn").disabled = !slotB.data;
 
   updateMapSlotLabels();
-
-  setLocalizedText(
-    filename,
-    hasActiveMap
-      ? `Karte ${activeMapId} · ${currentFilename}${dataDirty ? " *" : ""}`
-      : "Keine Karte geladen"
-  );
 
   updateStatusBar();
 
@@ -20005,8 +19973,6 @@ const I18N_PATTERNS = [
   [/^(\d+) ausgewählt$/, "$1 selected"],
   [/^(\d+) Punkte ausgewählt$/, "$1 points selected"],
   [/^1 Punkt ausgewählt$/, "1 point selected"],
-  [/^Karte ([AB]) aktiv · (.+)$/, "Map $1 active · $2"],
-  [/^Karte ([AB]) · (.+)$/, "Map $1 · $2"],
   [/^Rückgängig: (.+)$/, "Undo: $1"],
   [/^Wiederholt: (.+)$/, "Redone: $1"],
   [/^Messung: ersten Punkt wählen\.$/, "Measurement: select the first point."],

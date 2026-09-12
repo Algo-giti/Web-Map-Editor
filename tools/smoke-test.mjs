@@ -54,9 +54,12 @@ try {
     failed = true;
   }
 
-  const initialFilename = await page.locator("#filename").innerText();
-  if (!/keine karte geladen/i.test(initialFilename)) {
-    console.error(`smoke-test: unexpected initial #filename text: "${initialFilename}"`);
+  // Der Leerzustand wird am Inspektor abgelesen. Das Dateinamenfeld der
+  // Statuszeile ist mit dem sechsten Durchgang entfallen - der Name steht
+  // seitdem im Menue "Karte".
+  const initialEmptyText = await page.locator("#inspectorSubtitle").innerText();
+  if (!/keine karte geladen/i.test(initialEmptyText)) {
+    console.error(`smoke-test: unexpected initial #inspectorSubtitle text: "${initialEmptyText}"`);
     failed = true;
   }
 
@@ -65,9 +68,9 @@ try {
   if (await langToggle.count()) {
     await langToggle.click();
     await page.waitForTimeout(100);
-    const afterToggle = await page.locator("#filename").innerText();
+    const afterToggle = await page.locator("#inspectorSubtitle").innerText();
     if (!/no map loaded/i.test(afterToggle)) {
-      console.error(`smoke-test: language toggle did not translate #filename (got "${afterToggle}").`);
+      console.error(`smoke-test: language toggle did not translate #inspectorSubtitle (got "${afterToggle}").`);
       failed = true;
     }
   } else {

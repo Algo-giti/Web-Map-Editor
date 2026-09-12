@@ -24,6 +24,7 @@ import {
   createChecker,
   createKlicker,
   createMenueBefehl,
+  elementGetroffen,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -95,8 +96,6 @@ try {
   check("sie liegt in keinem aufklappbaren Bereich",
     await page.evaluate(() => !document.getElementById("statusBar").closest("details")));
 
-  check("Dateiname", (await text("filename")).trim() === "Keine Karte geladen",
-    await text("filename"));
   check("Maßstab ist leer", (await text("scaleStatus")).trim() === "–",
     await text("scaleStatus"));
   check("Bezugspunkt", (await text("originShort")).trim() === "nicht gesetzt",
@@ -121,10 +120,6 @@ try {
   await page.waitForTimeout(400);
   await openAllFolds(page);
 
-  check("Dateiname nennt Slot und Datei",
-    (await text("filename")).includes("Karte A") &&
-    (await text("filename")).includes("bar.geojson"),
-    await text("filename"));
   check("Maßstab wird als angenommen benannt",
     (await text("scaleStatus")).includes("angenommen"), await text("scaleStatus"));
 
@@ -522,8 +517,8 @@ try {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.waitForTimeout(300);
 
-  check("bei 1280 px stehen alle fünf Felder",
-    (await sichtbareFelder()).join(",") === "Karte,Maßstab,Raster,Bezugspunkt,Prüfung",
+  check("bei 1280 px stehen alle vier Felder",
+    (await sichtbareFelder()).join(",") === "Maßstab,Raster,Bezugspunkt,Prüfung",
     (await sichtbareFelder()).join(","));
 
   /*
@@ -535,7 +530,7 @@ try {
   await page.waitForTimeout(300);
 
   check("unter der Schwelle weichen Raster, Bezugspunkt und Prüfung",
-    (await sichtbareFelder()).join(",") === "Karte,Maßstab",
+    (await sichtbareFelder()).join(",") === "Maßstab",
     (await sichtbareFelder()).join(","));
 
   /*
@@ -563,15 +558,95 @@ try {
   await page.waitForTimeout(300);
 
   check("und kommen bei mehr Platz zurück",
-    (await sichtbareFelder()).length === 5,
+    (await sichtbareFelder()).length === 4,
     (await sichtbareFelder()).join(","));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Der Dateiname steht im Menue, nicht mehr in der Zeile");
+
+  /*
+   * Mit dem sechsten Durchgang hat der Dateiname die Statuszeile verlassen.
+   * Er stand dort als einziger in einer schrumpfenden Spalte und war in jeder
+   * gemessenen Breite gekuerzt - im Menue "Karte" steht er dagegen
+   * vollstaendig, und zwar fuer BEIDE Slots samt Aenderungsmarke.
+   *
+   * Zugesichert wird deshalb beides: dass die Zeile ihn nicht mehr nennt
+   * (die Zusicherung, die das Wiedereinblenden reissen laesst) und dass er
+   * im Menue wirklich lesbar ist. Die zweite traegt den Abschnitt - eine
+   * Zusicherung ueber ein Ausbleiben allein bestuende auch dann, wenn es den
+   * Namen ueberhaupt nicht mehr gaebe.
+   */
+  const LANGER_NAME = "messkarte-mit-einem-recht-langen-namen.geojson";
+
+  await page.locator("#fileInput").setInputFiles({
+    name: LANGER_NAME,
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(MAP),
+  });
+  await page.waitForTimeout(400);
+  await openAllFolds(page);
+
+  for (const breite of [1280, 744]) {
+    await page.setViewportSize({ width: breite, height: 800 });
+    await page.waitForTimeout(300);
+
+    for (const sprache of ["de", "en"]) {
+      await page.evaluate((s) => setLanguage(s), sprache);
+      await page.waitForTimeout(300);
+
+      /* Gegenprobe auf die hergestellte Bedingung, wie im Abschnitt darunter. */
+      check(`${sprache}, ${breite} px: die Oberfläche steht wirklich auf dieser Sprache`,
+        await page.evaluate((x) => currentLanguage === x, sprache),
+        await page.evaluate(() => currentLanguage));
+
+      /*
+       * Gemeint ist der DAUERHAFTE Teil der Zeile. Die fluechtige Meldung in
+       * Zeile 2 nennt den Namen beim Laden weiterhin - das ist richtig so und
+       * war schon vor diesem Schritt der Fall; sie ist mit der naechsten
+       * Meldung weg und keine nachschlagbare Stelle.
+       */
+      const zeile = await page.evaluate(() =>
+        [...document.getElementById("statusBar").children]
+          .filter((el) => !el.classList.contains("status-transient"))
+          .map((el) => el.textContent.trim())
+          .join(" | "));
+
+      check(`${sprache}, ${breite} px: die Statuszeile nennt den Dateinamen nicht`,
+        !zeile.includes(LANGER_NAME), zeile);
+
+      await openAllFolds(page, sprache === "de" ? "Karte" : "Map");
+
+      const imMenue = await page.evaluate(() => {
+        const el = document.getElementById("mapAFile");
+        return {
+          text: el.textContent.trim(),
+          scrollW: el.scrollWidth,
+          clientW: el.clientWidth,
+        };
+      });
+      const getroffen = await elementGetroffen(page, "#mapAFile", { dy: 5 });
+
+      check(`${sprache}, ${breite} px: das Menü „Karte“ zeigt den Dateinamen wirklich`,
+        getroffen.ok && imMenue.text === LANGER_NAME,
+        `${getroffen.grund} / ${imMenue.text}`);
+      check(`${sprache}, ${breite} px: und zwar ungekürzt`,
+        imMenue.scrollW <= imMenue.clientW,
+        `${imMenue.clientW} sichtbar, ${imMenue.scrollW} nötig`);
+
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(200);
+    }
+  }
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(250);
 
   /* ---------------------------------------------------------------- */
   console.log("Etappe 8c: die Schwelle traegt den unguenstigsten Inhalt");
 
   /*
    * Die Schwelle der data-optional-Felder soll halten, was ihr Name sagt:
-   * oberhalb stehen alle sieben Felder VOLLSTAENDIG da, unterhalb weichen
+   * oberhalb stehen alle sechs Felder VOLLSTAENDIG da, unterhalb weichen
    * drei. Geprueft wird deshalb das Abschneiden je Textbehaelter ueber
    * scrollWidth > clientWidth - NICHT ueber die Summe der gerenderten
    * Breiten. Die kann nicht falsch werden: eine gerenderte Breite ist nie
@@ -579,7 +654,7 @@ try {
    * es, dass die frueheren vier Zusicherungen "passen ohne Stauchung" auch
    * bei 800 px bestanden, wo vier Felder sichtbar gekuerzt waren.
    *
-   * Geprueft werden ALLE sieben Felder. Auswahlzaehler und
+   * Geprueft werden ALLE sechs Felder. Auswahlzaehler und
    * Cursor-Koordinaten tragen keinen .status-value, sondern ihren Text
    * unmittelbar - wer nach der Klasse sucht, uebersieht sie.
    *
@@ -619,10 +694,10 @@ try {
      *   Zaehler       "Ganzes Feature auswaehlen" auf 128 Punkten
      *   Cursor        echte Zeigerbewegung in die linke untere Ecke
      *
-     * Der Dateiname bleibt kurz: Spalte 1 ist minmax(0,auto) und schrumpft
-     * als einzige - ein langer Name wird in JEDER Breite gekuerzt, und eine
-     * Schwelle, unter der "nichts abgeschnitten" fuer jeden Namen gilt, gibt
-     * es deshalb nicht.
+     * Der Dateiname kommt in dieser Aufzaehlung nicht mehr vor: sein Feld
+     * ist mit dem sechsten Durchgang aus der Zeile entfallen. Er stand als
+     * einziger in einer schrumpfenden Spalte und nahm den uebrigen Feldern
+     * Platz, ohne selbst je vollstaendig dazustehen.
      */
     const ring = [];
     for (let i = 0; i < 128; i++) {
@@ -709,7 +784,7 @@ try {
       await page.waitForTimeout(200);
     };
 
-    /** Welche Textbehaelter sind abgeschnitten? Alle sieben Felder. */
+    /** Welche Textbehaelter sind abgeschnitten? Alle sechs Felder. */
     const abgeschnitten = () =>
       page.evaluate(() => {
         const bar = document.getElementById("statusBar");
@@ -718,7 +793,7 @@ try {
           getComputedStyle(el).display !== "none");
         const treffer = [];
         for (const feld of sichtbar) {
-          const eigene = feld.querySelectorAll(".status-value, .filename");
+          const eigene = feld.querySelectorAll(".status-value");
           const behaelter = eigene.length ? [...eigene] : [feld];
           for (const t of behaelter) {
             if (t.scrollWidth > t.clientWidth + 0.5) {
@@ -745,8 +820,8 @@ try {
       await page.waitForTimeout(300);
       const ander = await abgeschnitten();
 
-      check(`${sprache}: an der Schwelle (${schwelleAusCss} px) stehen alle sieben Felder`,
-        ander.felder === 7, JSON.stringify(ander));
+      check(`${sprache}: an der Schwelle (${schwelleAusCss} px) stehen alle sechs Felder`,
+        ander.felder === 6, JSON.stringify(ander));
       check(`${sprache}: und an der Schwelle ist kein Feld abgeschnitten`,
         ander.treffer.length === 0, ander.treffer.join(", "));
 
@@ -755,7 +830,7 @@ try {
       const darunter = await abgeschnitten();
 
       check(`${sprache}: bei Schwelle−1 (${schwelleAusCss - 1} px) greift die schmale Fassung`,
-        darunter.felder === 4, JSON.stringify(darunter));
+        darunter.felder === 3, JSON.stringify(darunter));
       check(`${sprache}: und auch dort ist kein Feld abgeschnitten`,
         darunter.treffer.length === 0, darunter.treffer.join(", "));
 
@@ -770,7 +845,7 @@ try {
         const mass = await abgeschnitten();
 
         check(`${sprache}: bei ${breite} px gilt die schmale Fassung`,
-          mass.felder === 4, JSON.stringify(mass));
+          mass.felder === 3, JSON.stringify(mass));
       }
     }
 
