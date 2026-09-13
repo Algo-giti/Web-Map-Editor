@@ -3647,6 +3647,13 @@ Zahl zu führen.
 **Die frühere Schwelle 770 px nahm den Feldern den Platz nicht zu früh,
 sondern zu spät:** zwischen 770 und 952 px standen sie da, aber gestaucht.
 
+**Seit dem elften Durchgang gibt es eine zweite Schwelle bei 960 px, und sie
+ist nicht diese hier.** Die Kontext-Knopfleiste steht ab 960 px über der Karte
+(Abschnitt 7); ihre Zahl hat einen eigenen Grund und eine eigene Messung. Dass
+beide dieselbe Breite nennen, ist ein Zusammentreffen. **Wer eine der beiden
+Zahlen ändert, ändert die andere nicht mit** – und eine Zusicherung, die die
+eine liest, darf die andere nicht treffen.
+
 #### Die Regel, neu gefasst mit Schritt 1 des siebten Durchgangs
 
 **Die Schwelle folgt NICHT dem gemessenen Bedarf.** So stand es hier bis
@@ -4600,11 +4607,18 @@ genau der Aufwand, den die Zurückstellung vermeiden soll.
 Inspektor gemeint ist (dann erfüllen zwei Wege alle Kriterien und es ist zu
 wählen), und ob Weg 3 vor Etappe 10 gebaut werden soll oder mit ihr.
 
-**Dazu kommt seit dem achten Durchgang eine dritte, und sie liegt davor:** die
-**Kontext-Knopfleiste am Auswahlzustand** steht als offener Punkt in
-Abschnitt 7. Knöpfe mit eigener Beschriftung tragen ihre Erklärung am Knopf –
-damit ist Weg 3 nicht mehr der alleinige Kandidat. **8b wird erst nach dieser
-Entscheidung angefasst.**
+**Dazu kam seit dem achten Durchgang eine dritte, und sie lag davor:** die
+**Kontext-Knopfleiste am Auswahlzustand**. Knöpfe mit eigener Beschriftung
+tragen ihre Erklärung am Knopf – damit ist Weg 3 nicht mehr der alleinige
+Kandidat.
+
+**Diese dritte Frage ist mit dem elften Durchgang entschieden** (Abschnitt 7):
+die Leiste kommt, senkrecht links über der Karte, ab 960 px, mit Symbol und
+Text. **8b bleibt trotzdem offen, und zwar unverändert** – entschieden ist,
+dass die Leiste Knöpfe mit Beschriftung trägt, nicht, wohin die vierzehn
+gebrauchten Erklärungen gehören. Die Wartebedingung „erst nach dieser
+Entscheidung" ist damit erfüllt, die beiden Fragen an den Projektinhaber
+stehen unverändert.
 
 **5. Der Schalter „vollständige Fassung" existiert nicht.** Nachgesehen: es
 gibt sechs `localStorage`-Schlüssel – `referenceOrigin`, `toolRailCollapsed`,
@@ -6507,11 +6521,19 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   worden. Wer den Punkt aufnimmt, erhebt es zuerst – der Eintrag behauptet
   weder, dass es sie gibt, noch, dass sie fehlt.
 
-- **Kontext-Knopfleiste am Auswahlzustand – Eintrag, kein Auftrag;
-  eingetragen mit Schritt 3 des achten Durchgangs.** Gewünscht ist eine
-  **waagerechte Leiste mit beschrifteten Knöpfen**, die erscheint, wenn etwas
-  ausgewählt ist – etwa ein Punkt. Vorbild ist
+- **Kontext-Knopfleiste am Auswahlzustand – ENTSCHIEDEN mit dem elften
+  Durchgang; die Umsetzung ist offen.** Eingetragen als Eintrag ohne Auftrag
+  mit Schritt 3 des achten Durchgangs, vermessen mit dem neunten und dem
+  zehnten. **Als offener Punkt ist er damit ausgetragen** – was hier noch
+  aussteht, ist Arbeit, keine Frage. Die Entscheidung steht unmittelbar
+  darunter; die beiden Bestandsaufnahmen bleiben als Beleg stehen, weil die
+  Entscheidung auf ihren Zahlen ruht.
+
+  Der ursprüngliche Wunsch lautete: eine **Leiste mit beschrifteten Knöpfen**,
+  die erscheint, wenn etwas ausgewählt ist – etwa ein Punkt. Vorbild ist
   [`Algo-giti/MapmakerBT`](https://github.com/Algo-giti/MapmakerBT).
+  **Aus „waagerecht" ist mit der Entscheidung „senkrecht" geworden**, siehe
+  unten.
 
   **Sie berührt Etappe 9**, und zwar deren Teilschritte **9a** (der
   Auswahlzustand des Inspektors wird entdoppelt) und **9c** (die
@@ -6523,6 +6545,69 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Hilfe-Overlay". **Knöpfe mit eigener Beschriftung tragen ihre Erklärung am
   Knopf** – damit fällt Weg 3 als **alleiniger** Kandidat weg. **8b wird erst
   nach dieser Entscheidung angefasst.**
+
+  #### Die Entscheidung, elfter Durchgang: senkrecht, links über der Karte, ab 960 px
+
+  **Entschieden vom Projektinhaber; gebaut ist nichts.** Die Entscheidung
+  beantwortet genau die Fragen, die die beiden Bestandsaufnahmen offen gelassen
+  haben – Ort, Ausrichtung, Sichtbarkeit und das Verhalten im schmalen Fenster.
+  Was sie **nicht** beantwortet, steht am Ende dieses Abschnitts.
+
+  | | |
+  |---|---|
+  | Ort | **links über der Karte**, als Ebene – nicht in der Inspektorspalte |
+  | Ausrichtung | **senkrecht** |
+  | Knöpfe | **Symbol und Text**, wie in der Werkzeugleiste |
+  | sichtbar | **nur bei Auswahl**; der Inhalt wechselt mit `single` / `multi` / `feature`, bei `empty` ist sie nicht sichtbar |
+  | ab | **960 px** Fensterbreite – eigener Eintrag mit eigenem Grund, siehe unten |
+  | darunter | dieselben Knöpfe stehen dort, wo sie heute stehen: im Inspektor |
+  | Markup | **eines**, das den Ort wechselt – **keine zwei Fassungen** |
+
+  **Warum die Breite trägt – die Zahlen sind die des zehnten Durchgangs
+  (`f07a331`), nicht neu erhoben.** Die Leiste ist so breit wie ihre längste
+  Beschriftung; gemessen sind 172,38 px im Punktzustand und 187,34 px im
+  breitesten Fall („Exclusion duplizieren"), deutsch, mit den Maßen des
+  Bestandes:
+
+  | Fensterbreite | Kartenbreite | Leiste 172,38 px | Leiste 187,34 px |
+  |---|---|---|---|
+  | 1280 px | 792 px | 21,8 % | **23,7 %** |
+  | 960 px | 584 px | 29,5 % | **32,1 %** |
+  | 744 px | **368 px** | 46,8 % | **50,9 %** |
+
+  Die Prozentwerte der rechten Spalte sind die gemessenen aus `f07a331`; die
+  der mittleren sind aus denselben Messwerten gerechnet, nicht eigens gemessen.
+  **Die Höhe ist dabei nie die Grenze:** der höchste Zustand braucht 288 px von
+  759 px Kartenhöhe bei 900 px Fensterhöhe.
+
+  **Warum ab 960 px und nicht durchgehend:** bei 744 px nähme die Leiste rund
+  die Hälfte der Karte. Die Knöpfe stehen dort weiterhin im Inspektor – nicht
+  als Rückfallebene, sondern als der Ort, an dem sie heute stehen und der sich
+  bewährt hat.
+
+  **Warum EIN Markup und nicht zwei Fassungen mit einer Medienregel dazwischen
+  – das ist der Teil der Entscheidung, der am meisten festlegt.** Zwei Fassungen
+  hießen: jede der acht Beschriftungen zweimal, jeder Handler zweimal, jede
+  Freigaberegel zweimal. Das ist die Fehlerklasse **„eine Tatsache an mehreren
+  Orten"**, die diese Datei an fünf Stellen belegt – doppelte `id`s im Markup,
+  eine zweite Fassung von `isWholeFeatureSelected()`, doppelte Schlüssel in
+  `I18N_EN`, Breitenwerte neben den Rastervariablen, verwaiste CSS-Regeln. Und
+  sie arbeitete unmittelbar gegen **9a**, dessen ganzer Inhalt es ist, eine
+  dreifach dastehende Angabe auf eine zu bringen: eine Etappe, die Doppelungen
+  entfernt, neben einem Schritt, der acht neue einführt.
+
+  **Was die Entscheidung für Etappe 8b heißt.** Knöpfe mit eigener Beschriftung
+  tragen ihre Erklärung am Knopf; Weg 3 („ins Hilfe-Overlay") ist damit nicht
+  mehr der alleinige Kandidat. Das war schon mit dem achten Durchgang vermerkt
+  und ist jetzt eingelöst – **8b bleibt trotzdem offen**, denn die Entscheidung
+  sagt, dass die Leiste Knöpfe mit Text trägt, und nicht, wohin die vierzehn
+  gebrauchten Erklärungen gehören.
+
+  **Was die Entscheidung NICHT beantwortet**, unverändert aus der
+  Bestandsaufnahme des zehnten Durchgangs: die Zustände `mixed`, `drawing` und
+  `measuring`; welche Zeigerregel die Leiste bekommt (die 42-px-Stelle steht als
+  eigener offener Punkt weiter unten); die acht Symbole; und was aus
+  `#inspectorPoint` über 960 px wird, wenn seine Knöpfe umziehen.
 
   #### Die Bestandsaufnahme – gemessen mit dem neunten Durchgang, Stand `5b0b89e`
 
@@ -7014,6 +7099,67 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   - **Kein Entwurf, keine Bewertung, keine Empfehlung.** Ob die Leiste gebaut
     wird, wohin sie kommt und was dann aus `#inspectorPoint` wird, ist nicht
     entschieden und war nicht Gegenstand.
+
+  **Überholt durch die Entscheidung weiter oben sind davon zwei Punkte:** wohin
+  die Leiste kommt, ist entschieden, und die Bewertung der Breite ebenso. Die
+  übrigen bleiben offen und stehen als solche in der Entscheidung noch einmal
+  aufgezählt.
+
+- **Die Schwelle der Kontext-Knopfleiste liegt bei 960 px – EIGENER Eintrag,
+  eigener Grund; eingetragen mit dem elften Durchgang, nicht gebaut.** Dieser
+  Eintrag steht getrennt von der Entscheidung darüber, und das ist Absicht: die
+  Zahl ist eine eigene Festlegung und keine Folge des Ortes.
+
+  | | |
+  |---|---|
+  | **Schwelle** | **960 px** – ab hier steht die Leiste über der Karte, darunter stehen ihre Knöpfe im Inspektor |
+  | **woher die Zahl kommt** | eine **Entscheidung des Projektinhabers**, kein Rechenergebnis |
+  | **was sie erreichen soll** | die Leiste steht nur dort über der Karte, wo sie einen vertretbaren Teil davon nimmt |
+  | **worauf sie sich stützt** | die Breitenmessung aus `f07a331`: bei 960 px nimmt die Leiste 29,5 % der Kartenbreite, bei 744 px 46,8 % |
+  | CSS-Fundstelle | **noch keine** – die Schwelle ist entschieden, nicht gebaut |
+
+  **Sie ist NICHT die Schwelle aus 8c, sie fällt nur mit ihr zusammen.** Die
+  8c-Schwelle beantwortet, ab wann die Statuszeile ihre `data-optional`-Felder
+  weichen lässt; diese hier beantwortet, ab wann eine Ebene über der Karte
+  vertretbar ist. Zwei Fragen, zwei Begründungen, zwei Messungen – dass beide
+  Antworten dieselbe Zahl tragen, ist ein Zusammentreffen und keine
+  Ableitung. **Wer eine der beiden Zahlen ändert, ändert die andere nicht
+  mit**, und wer sie zusammenlegt, bindet zwei Entscheidungen aneinander, die
+  nichts miteinander zu tun haben.
+
+  **Was daraus für den Test folgt, wenn gebaut wird.** `schwelleAusCss(page)` in
+  `tools/test-statusbar.mjs` sucht heute die Medienregel, deren Rumpf einen
+  `[data-optional]`-Selektor enthält – sie trifft also die 8c-Regel und nicht
+  eine zweite mit derselben Breite. **Eine neue Regel bei 959/960 px darf diese
+  Suche nicht mehrdeutig machen**; sie wird ebenso über ihren eigenen Selektor
+  gefunden, nicht über ihre Zahl. Die Zahl steht in keinem Test als Literal.
+
+- **Die eigene Touch-Größe über der Karte ist 42 px, die Vorgabe 44 – offener
+  Punkt, eingetragen mit dem elften Durchgang, ausdrücklich nicht gebaut.**
+  Gemessen im zehnten Durchgang (`f07a331`), nicht vermutet:
+
+  | gemessen | fein | grob |
+  |---|---|---|
+  | `#zoomInBtn` (`.map-tool-button`) | 36 × 36 px | **42 × 42 px** |
+  | blanker `<button>` über der Karte | 16 px Schrift, `min-height:0px` | 16 px Schrift, `min-height:0px` |
+  | blanker `<button>` im Inspektor | 16 px Schrift, `min-height:auto` | 16 px Schrift, **`min-height:44px`** |
+
+  **Der `@media (pointer: coarse)`-Block erreicht nichts über der Karte.** Seine
+  44 px hängen an `aside button`, seine 16 px an `aside input, aside select,
+  aside button`; eine Ebene über der Karte trifft keinen dieser Selektoren.
+  `.map-tool-button` ist die **einzige** Regel des Bestandes, die dort etwas
+  vergrößert – und sie vergrößert auf 42 px, nicht auf 44.
+
+  **Damit stehen zwei Zahlen für dieselbe Sache nebeneinander**, und keine ist
+  falsch: 44 px ist die Vorgabe aus Etappe 8a, 42 px ist das, was die Karte
+  heute tut. Zu entscheiden ist, welche gilt – und die Frage stellt sich
+  spätestens, wenn die Kontext-Knopfleiste eine eigene Zeigerregel bekommt, denn
+  sie läge über der Karte und bekäme heute gar keine.
+
+  **Nicht gebaut, und das ist eine Anweisung, kein Versäumnis:** der
+  Projektinhaber hat die Stelle im elften Durchgang ausdrücklich von der
+  Umsetzung ausgenommen. Wer sie anfasst, ändert die Größe eines
+  Bedienelements, das seit Etappe 3 so dasteht.
 
 ---
 
