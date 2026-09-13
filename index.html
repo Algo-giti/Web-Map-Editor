@@ -1601,7 +1601,7 @@
    * löschen - bei einem zweispaltigen Raster ist das zugleich die
    * Tab-Reihenfolge.
    */
-  #inspectorPoint .editor-actions {
+  #pointActions {
     display:grid;
     grid-template-columns:1fr 1fr;
     gap:6px;
@@ -1676,7 +1676,7 @@
    * Bei 14 px bleiben 8 px Luft - genug, damit eine etwas breitere
    * Übersetzung nicht sofort anstößt. Englisch passt ohnehin schon bei 16 px.
    */
-  #inspectorPoint .editor-actions button {
+  #pointActions button {
     padding:8px 6px;
     font-size:14px;
   }
@@ -1920,6 +1920,73 @@
     box-shadow:0 10px 22px rgba(0,0,0,.22);
     backdrop-filter:blur(6px);
   }
+
+  /*
+   * DIE AUSWAHLLEISTE, ab 960 px als Ebene links über der Karte.
+   *
+   * Sie steht hier bei den übrigen Kartenebenen, obwohl ihr Markup im
+   * Inspektor liegt: die Regeln unten hängen am ORT (`#viewer > …`), nicht an
+   * einer Klasse, die jemand umschalten müsste. Ein Zustand, den niemand
+   * umschaltet, kann auch nicht auseinanderlaufen.
+   *
+   * z-index 6 und nicht 7, und das ist eine Entscheidung: die Kartenfenster
+   * liegen auf 7, und ein geöffnetes Fenster ist eine ausdrückliche Handlung -
+   * es soll die Leiste verdecken und nicht umgekehrt. Die Leiste erscheint
+   * dagegen von selbst, sobald etwas ausgewählt ist.
+   *
+   * `max-height` und `overflow:auto`: `.viewer` trägt `overflow:hidden`, eine
+   * zu hohe Leiste wäre also unten abgeschnitten statt rollbar. Gemessen
+   * braucht der höchste Zustand 288 px von 759 px Kartenhöhe bei 900 px
+   * Fensterhöhe - die Klammer greift erst weit darunter.
+   */
+  .selection-actions { display:flex; flex-direction:column; gap:6px; }
+
+  /*
+   * Eine Exclusion hat "Exclusion duplizieren", ein Perimeter nicht. Mit
+   * display:contents hinterlässt die leere Gruppe keinen Abstand; ausgeblendet
+   * wird sie trotzdem sauber, weil `[hidden]` !important trägt.
+   */
+  #featureActions { display:contents; }
+
+  #viewer > .selection-actions {
+    position:absolute;
+    left:12px;
+    top:12px;
+    z-index:6;
+    padding:6px;
+    max-height:calc(100% - 24px);
+    overflow:auto;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:rgba(10,15,24,.94);
+    box-shadow:0 10px 22px rgba(0,0,0,.22);
+  }
+
+  /*
+   * Über der Karte ist sie SENKRECHT - die beiden Gruppen tragen im Inspektor
+   * ein zweispaltiges Raster, und das gilt dort weiter. Zwei id-Selektoren
+   * schlagen die dortigen Regeln, ohne dass eine davon angefasst werden muss.
+   */
+  #viewer #pointActions,
+  #viewer #inspectorSelection {
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+
+  /*
+   * Die Maße des Leistenknopfes kommen von `.tool-button` der Werkzeugleiste -
+   * der einzigen senkrechten Leiste des Hauses. Links ausgerichtet, weil
+   * untereinander stehende Beschriftungen sonst flattern.
+   */
+  #viewer .selection-actions button {
+    font-size:13px;
+    min-height:34px;
+    padding:6px 8px;
+    text-align:left;
+  }
+
+  #viewer #deletePointBtn { grid-column:auto; }
 
   .map-tool-button {
     width:36px;
@@ -3598,16 +3665,6 @@
           </label>
         </div>
 
-        <div class="editor-actions">
-          <button id="insertPointBeforeBtn" type="button" disabled>Davor einfügen</button>
-          <button id="insertPointAfterBtn" type="button" disabled>Danach einfügen</button>
-          <button id="setStartPointBtn" type="button" disabled
-                  title="Dreht den Ring so, dass der ausgewählte Punkt Punkt 1 wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Endpunkt setzen“ auf dem Punkt davor bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.">Startpunkt setzen</button>
-          <button id="setEndPointBtn" type="button" disabled
-                  title="Dreht den Ring so, dass der ausgewählte Punkt letzter Punkt wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Startpunkt setzen“ auf dem Punkt danach bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.">Endpunkt setzen</button>
-          <button id="deletePointBtn" class="danger" type="button" disabled>Punkt löschen</button>
-        </div>
-
         <div id="selectionDeltaInfo" class="comparison-status" aria-live="polite">
           Verschiebungen bleiben bis zum Speichern als Vergleich sichtbar.
         </div>
@@ -3683,7 +3740,6 @@
         <div class="stat"><span>Punkte</span><strong id="featurePointStat">–</strong></div>
         <div id="featureAreaRow" class="stat" hidden><span>Fläche</span><strong id="featureAreaStat">–</strong></div>
         <div id="featureIdxRow" class="stat" hidden><span>idx</span><strong id="featureIdxStat">–</strong></div>
-        <button id="duplicateFeatureBtn" type="button" hidden>Exclusion duplizieren</button>
         <div class="hint">
           Verschieben durch Ziehen an der Geometrie auf der Karte.
         </div>
@@ -3761,18 +3817,60 @@
       </div>
 
       <!--
-        Aktionen, die zu JEDER Auswahl passen. Eigener Block, weil sie in vier
-        Zuständen gelten - kopieren wäre eine doppelte id.
+        DIE AUSWAHLLEISTE - EIN Markup, das den Ort wechselt.
+
+        Ab 960 px liegt sie als Ebene links über der Karte, darunter steht sie
+        hier im Inspektor. Es gibt sie GENAU EINMAL: zwei Fassungen, zwischen
+        denen eine Medienregel umschaltet, hätten jede der acht Beschriftungen
+        und jeden Behandler doppelt - die Fehlerklasse "eine Tatsache an
+        mehreren Orten", gegen die Etappe 9a gerade antritt.
+
+        Den Ortswechsel macht applySelectionBarPlacement(); die Stelle hier
+        merkt sich ein Ankerknoten, damit die Leiste beim Zurückkommen wieder
+        VOR der Feature-Navigation steht und nicht am Ende der Spalte. Gemessen
+        ist dabei: ein appendChild() erhält Objekt, Behandler, disabled,
+        Beschriftung und Übersetzung - verloren geht allein der Fokus, und
+        genau den holt die Funktion zurück.
+
+        Die drei Gruppen sind die drei Zustandsmengen: die Punktknöpfe gelten
+        bei genau einem Punkt, "Exclusion duplizieren" beim ganzen Feature, die
+        beiden Auswahlaktionen in allen vier Auswahlzuständen. Sie stehen
+        deshalb als eigene Einträge in INSPECTOR_BLOCKS - dieselbe Mechanik wie
+        bisher, nur mit einem Behälter darum.
       -->
-      <div id="inspectorSelection" class="inspector-block" hidden>
-        <button id="deleteMultiSelectionBtn" class="danger" type="button" disabled
-                title="Löschen: entfernt alle aktuell ausgewählten Punkte. Mit Undo rückgängig.">
-          Auswahl löschen
-        </button>
-        <button id="clearMultiSelectionBtn" type="button" disabled
-                title="Auswahl aufheben: entfernt alle Markierungen, ohne Punkte zu löschen.">
-          Auswahl aufheben
-        </button>
+      <div id="selectionActions" class="selection-actions" hidden>
+        <div id="pointActions" class="editor-actions" hidden>
+          <button id="insertPointBeforeBtn" type="button" disabled>Davor einfügen</button>
+          <button id="insertPointAfterBtn" type="button" disabled>Danach einfügen</button>
+          <button id="setStartPointBtn" type="button" disabled
+                  title="Dreht den Ring so, dass der ausgewählte Punkt Punkt 1 wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Endpunkt setzen“ auf dem Punkt davor bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.">Startpunkt setzen</button>
+          <button id="setEndPointBtn" type="button" disabled
+                  title="Dreht den Ring so, dass der ausgewählte Punkt letzter Punkt wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Startpunkt setzen“ auf dem Punkt danach bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.">Endpunkt setzen</button>
+          <button id="deletePointBtn" class="danger" type="button" disabled>Punkt löschen</button>
+        </div>
+
+        <!--
+          display:contents - eine Exclusion hat den Knopf, ein Perimeter nicht.
+          Ohne das stünde bei einem Perimeter eine leere Gruppe mit Abstand da.
+        -->
+        <div id="featureActions" hidden>
+          <button id="duplicateFeatureBtn" type="button" hidden>Exclusion duplizieren</button>
+        </div>
+
+        <!--
+          Aktionen, die zu JEDER Auswahl passen. Eigener Block, weil sie in vier
+          Zuständen gelten - kopieren wäre eine doppelte id.
+        -->
+        <div id="inspectorSelection" class="inspector-block" hidden>
+          <button id="deleteMultiSelectionBtn" class="danger" type="button" disabled
+                  title="Löschen: entfernt alle aktuell ausgewählten Punkte. Mit Undo rückgängig.">
+            Auswahl löschen
+          </button>
+          <button id="clearMultiSelectionBtn" type="button" disabled
+                  title="Auswahl aufheben: entfernt alle Markierungen, ohne Punkte zu löschen.">
+            Auswahl aufheben
+          </button>
+        </div>
       </div>
 
       <!--
@@ -4536,7 +4634,22 @@ const INSPECTOR_BLOCKS = [
   {id:"inspectorFeature", states:["feature"]},
   {id:"inspectorDraw", states:["drawing"]},
   {id:"inspectorMeasure", states:["measuring"]},
-  {id:"inspectorSelection", states:["single", "multi", "mixed", "feature"]}
+  {id:"inspectorSelection", states:["single", "multi", "mixed", "feature"]},
+
+  /*
+   * Die Auswahlleiste und ihre beiden zusätzlichen Gruppen. Sie laufen über
+   * dieselbe Mechanik wie die Blöcke des Inspektors, weil es dieselbe Frage
+   * ist: welcher Zustand zeigt was. Der Behälter trägt die Vereinigung der
+   * Zustände seiner Gruppen - ohne ihn stünde bei `empty` ein leerer Rahmen
+   * über der Karte.
+   *
+   * `featureActions` ist die Gruppe, NICHT der Knopf: dessen `hidden` sagt
+   * "Exclusion oder nicht" und wird in updateInspectorBlocks() gesetzt. Zwei
+   * Schreiber auf demselben Attribut liefen auseinander.
+   */
+  {id:"selectionActions", states:["single", "multi", "mixed", "feature"]},
+  {id:"pointActions", states:["single"]},
+  {id:"featureActions", states:["feature"]}
 ];
 
 /**
@@ -5287,6 +5400,71 @@ function toggleInspector() {
   applyInspectorState();
   handleViewerResize();
 }
+
+/* --------------------------------------------------------------------------
+   Der Ort der Auswahlleiste
+   --------------------------------------------------------------------------
+   Ab dieser Breite liegt die Leiste als Ebene über der Karte, darunter im
+   Inspektor. EIN Markup, das den Ort wechselt - siehe den Kommentar am Markup.
+
+   Die Schwelle steht hier und NUR hier. Sie ist nicht die Schwelle der
+   Statuszeile aus Etappe 8c, auch wenn beide dieselbe Zahl nennen: die eine
+   beantwortet, ab wann die Statusfelder weichen, diese, ab wann eine Ebene
+   über der Karte vertretbar ist. Wer eine der beiden ändert, ändert die
+   andere nicht mit.
+
+   Gemessen zur Begründung (zehnter Durchgang): die Leiste braucht 172 px, die
+   Karte hat bei 744 px noch 368 px - dort nähme sie die halbe Karte. Bei
+   960 px sind es 584 px Karte.
+   -------------------------------------------------------------------------- */
+const SELECTION_BAR_WIDE_QUERY = "(min-width: 960px)";
+
+const selectionBarWide =
+  typeof window.matchMedia === "function"
+    ? window.matchMedia(SELECTION_BAR_WIDE_QUERY)
+    : null;
+
+/*
+ * Der Ankerknoten merkt sich die Stelle im Inspektor. Ohne ihn käme die Leiste
+ * beim Zurückkommen ans ENDE der Spalte - hinter die Feature-Navigation, den
+ * Bestand und die Kartenprüfung -, und die Tab-Reihenfolge wäre eine andere.
+ * Ein Kommentarknoten, weil er kein Element ist: er kostet keinen Kasten,
+ * keinen Abstand im Flex-Raster und keine `id`.
+ */
+let selectionBarHome = null;
+
+function applySelectionBarPlacement() {
+  const bar = document.getElementById("selectionActions");
+  const viewer = document.getElementById("viewer");
+
+  if (!bar || !viewer) return;
+
+  if (!selectionBarHome) {
+    selectionBarHome = document.createComment("Auswahlleiste");
+    bar.parentElement?.insertBefore(selectionBarHome, bar);
+  }
+
+  const ueberDerKarte = !!selectionBarWide?.matches;
+  const ziel = ueberDerKarte ? viewer : selectionBarHome.parentElement;
+
+  if (!ziel) return;
+  if (ueberDerKarte ? bar.parentElement === viewer
+                    : bar.nextSibling === selectionBarHome) return;
+
+  /*
+   * Ein appendChild() nimmt dem Knoten den Fokus - gemessen: document
+   * .activeElement wird BODY. Alles andere überlebt (Behandler, disabled,
+   * Beschriftung, Übersetzung), deshalb genügt es, ihn danach zurückzusetzen.
+   */
+  const fokus = document.activeElement;
+  const hatteFokus = bar.contains(fokus);
+
+  if (ueberDerKarte) viewer.appendChild(bar);
+  else ziel.insertBefore(bar, selectionBarHome);
+
+  if (hatteFokus && typeof fokus.focus === "function") fokus.focus();
+}
+
 
 /** Ab hier ist die Leiste immer eingeklappt, unabhängig vom Wunsch. */
 const TOOL_RAIL_NARROW_QUERY = "(max-width: 1000px)";
@@ -18519,6 +18697,17 @@ if (toolRailNarrow) {
   toolRailNarrow.addEventListener("change", applyToolRailState);
 }
 
+/*
+ * Der Ortswechsel der Auswahlleiste. Dieselbe Machart wie eine Zeile darüber:
+ * die Schwelle lebt in JS, nicht in einer Medienregel, weil sie einen Knoten
+ * umhängt und nicht nur sein Aussehen ändert - Letzteres kann CSS, Ersteres
+ * nicht (gemessen: ein absolut positioniertes Kind des Inspektors wird von
+ * dessen `overflow` abgeschnitten und ist über der Karte nicht treffbar).
+ */
+if (selectionBarWide) {
+  selectionBarWide.addEventListener("change", applySelectionBarPlacement);
+}
+
 document.getElementById("fitBtn").addEventListener("click", fit);
 
 document.getElementById("zoomInBtn").addEventListener("click", () => {
@@ -19675,6 +19864,7 @@ function initialize() {
   applyToolRailState();
   restoreInspectorState();
   applyInspectorState();
+  applySelectionBarPlacement();
   updateCircleHint();
   /*
    * Kein eingebetteter Karteninhalt:

@@ -21,7 +21,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-inspector.mjs
 
-import { createChecker, elementGetroffen, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import { createChecker, elementGetroffen, indexUrl, launchBrowser, openAllFolds } from "./browser-harness.mjs";
 
 const TOOL = "test-inspector";
 
@@ -91,6 +91,71 @@ try {
       box.dispatchEvent(new Event("change", { bubbles: true }));
     });
     await page.waitForTimeout(200);
+  };
+
+  /*
+   * Die Schwelle, ab der die Auswahlleiste ueber der Karte liegt, wird aus dem
+   * BESTAND gelesen und nicht als Zahl gefuehrt: sie steht in JS als
+   * SELECTION_BAR_WIDE_QUERY, so wie die Schwelle der Statuszeile in einer
+   * Medienregel steht. Wer die Zahl in index.html aendert, zieht damit auch
+   * diesen Test mit.
+   *
+   * Sie ist NICHT die Schwelle aus Etappe 8c, auch wenn beide heute dieselbe
+   * Zahl nennen - siehe CLAUDE.md, Abschnitt 7.
+   */
+  const schwelle = async () => page.evaluate(() => {
+    const treffer = /(\d+)/.exec(SELECTION_BAR_WIDE_QUERY);
+    return treffer ? Number(treffer[1]) : null;
+  });
+
+  /** Wo haengt die Leiste gerade - und wo wird sie gezeichnet? */
+  const leiste = () => page.evaluate(() => {
+    const bar = document.getElementById("selectionActions");
+    const viewer = document.getElementById("viewer");
+    const aside = document.querySelector("aside");
+    const br = bar.getBoundingClientRect();
+    const vr = viewer.getBoundingClientRect();
+    const ar = aside.getBoundingClientRect();
+    const sichtbar = getComputedStyle(bar).display !== "none";
+
+    return {
+      sichtbar,
+      imViewer: viewer.contains(bar),
+      imInspektor: aside.contains(bar),
+      /* Die WIRKUNG, nicht die Herkunft: wo wird sie wirklich gezeichnet? */
+      ueberDerKarte: sichtbar &&
+        br.left >= vr.left && br.right <= vr.right &&
+        br.top >= vr.top && br.bottom <= vr.bottom,
+      inDerSpalte: sichtbar &&
+        br.left >= ar.left && br.right <= ar.right,
+      /*
+       * Gerendert, nicht nur display: ein Knopf in einer ausgeblendeten
+       * Gruppe meldet sein eigenes display weiterhin als "flex".
+       */
+      knoepfe: [...bar.querySelectorAll("button")]
+        .filter((b) => b.getClientRects().length > 0)
+        .map((b) => b.id),
+      grob: window.matchMedia(SELECTION_BAR_WIDE_QUERY).matches,
+    };
+  });
+
+  /*
+   * Ein Klick auf einen Knopf der Auswahlleiste setzt voraus, dass sie da ist.
+   * Ohne Waechter wird aus einer verschwundenen Leiste ein stummer Timeout
+   * statt einer benannten Zusicherung - dieselbe Regel und derselbe Grund wie
+   * bei klickeFreienKnopf() in tools/test-merge.mjs. Die Zusicherung steht
+   * IMMER da, nicht nur im Fehlerfall: eine, die man nur sieht, wenn sie
+   * reisst, belegt im Gutfall nichts.
+   */
+  const klickeLeistenknopf = async (id, name) => {
+    const da = await page.locator(`#${id}`).isVisible();
+
+    check(`${name}: der Knopf steht in der Auswahlleiste`, da, `#${id} ist nicht sichtbar`);
+
+    if (!da) return false;
+
+    await page.locator(`#${id}`).click();
+    return true;
   };
 
   /** Sichtbarkeit über den berechneten Stil, nicht über das Attribut. */
@@ -229,8 +294,13 @@ try {
     (await sichtbareBloecke()).join(",") === "inspectorEmpty",
     (await sichtbareBloecke()).join(","));
 
-  /* Die Auswahlleiste ist von der Karte verschwunden. */
-  check("auf der Karte liegt keine Auswahlleiste mehr",
+  /*
+   * Die verwaiste Klasse aus Etappe 5 hat weiterhin KEIN Markup. Der Name der
+   * Zusicherung sagt seit dem elften Durchgang genau das - "auf der Karte
+   * liegt keine Auswahlleiste mehr" waere jetzt falsch: es liegt wieder eine
+   * dort, nur traegt sie eine andere Klasse und ein anderes Verhalten.
+   */
+  check("die verwaiste Klasse .map-selection-toolbar hat weiterhin kein Markup",
     (await page.locator(".map-selection-toolbar").count()) === 0);
 
   /* --- ein Punkt ------------------------------------------------- */
@@ -303,7 +373,7 @@ try {
     !(await visible("duplicateFeatureBtn")));
 
   /* Gegenprobe an der Exclusion: dort gibt es beides. */
-  await page.locator("#clearMultiSelectionBtn").click();
+  await klickeLeistenknopf("clearMultiSelectionBtn", "Auswahl aufheben");
   await page.waitForTimeout(200);
   /* Beide Ringe: die Exclusion hat ein Loch, das sind acht Punkte. */
   await ringe.nth(0).click();
@@ -321,7 +391,7 @@ try {
   check("und den Duplizieren-Knopf",
     await visible("duplicateFeatureBtn"));
 
-  await page.locator("#clearMultiSelectionBtn").click();
+  await klickeLeistenknopf("clearMultiSelectionBtn", "Auswahl aufheben");
   await page.waitForTimeout(200);
   await marks.nth(0).click();
   for (let i = 1; i < 4; i += 1) {
@@ -366,7 +436,7 @@ try {
    * ein einfacher Klick auf einen bereits markierten Punkt hebt die Gruppe
    * bewusst NICHT auf - sie soll ziehbar bleiben.
    */
-  await page.locator("#clearMultiSelectionBtn").click();
+  await klickeLeistenknopf("clearMultiSelectionBtn", "Auswahl aufheben");
   await page.waitForTimeout(200);
   await marks.nth(0).click();
   await marks.nth(2).click({ modifiers: ["Control"] });
@@ -605,6 +675,145 @@ try {
     (await sichtbareBloecke()).join(","));
 
   /* ---------------------------------------------------------------- */
+  console.log("Die Auswahlleiste wechselt den Ort, statt zweimal dazustehen");
+
+  /*
+   * EIN Markup, zwei Orte. Zugesichert wird beides: WO die Leiste gezeichnet
+   * wird (geometrisch, nicht ueber die Herkunft des Knotens - beides kann
+   * auseinanderfallen) und DASS sie dort getroffen wird.
+   *
+   * Die Breiten kommen aus SELECTION_BAR_WIDE_QUERY im Bestand. Kein Literal.
+   */
+  const engerAlsSchwelle = (await schwelle()) - 1;
+  const ueberSchwelle = (await schwelle()) + 320;
+
+  await page.setViewportSize({ width: ueberSchwelle, height: 900 });
+  await page.waitForTimeout(300);
+  await load();
+
+  {
+    const lage = await leiste();
+    check(`ueber der Schwelle (${ueberSchwelle} px) greift die Abfrage wirklich`,
+      lage.grob, JSON.stringify(lage));
+    check("ohne Auswahl ist die Leiste nicht sichtbar",
+      !lage.sichtbar, JSON.stringify(lage));
+  }
+
+  await marks.nth(0).click();
+  await page.waitForTimeout(300);
+
+  {
+    const lage = await leiste();
+    check("ein Punkt: die Leiste liegt ueber der Karte",
+      lage.sichtbar && lage.imViewer && lage.ueberDerKarte,
+      JSON.stringify(lage));
+    check("ein Punkt: sie traegt die fuenf Punktknoepfe und die zwei Auswahlaktionen",
+      lage.knoepfe.join(",") === "insertPointBeforeBtn,insertPointAfterBtn," +
+        "setStartPointBtn,setEndPointBtn,deletePointBtn," +
+        "deleteMultiSelectionBtn,clearMultiSelectionBtn",
+      lage.knoepfe.join(","));
+  }
+
+  check("und sie wird auf der Karte wirklich getroffen",
+    await elementGetroffen(page, "#selectionActions", { dy: 12 }));
+
+  /*
+   * Mehrere Punkte: der zweite Klick geht auf einen Marker AUSSERHALB des
+   * Leistenrechtecks - die Leiste steht seit dem ersten Klick da und faengt
+   * Zeigerereignisse ab, genau wie die Zoom-Leiste oben rechts.
+   */
+  const freierMarker = await page.evaluate(() => {
+    const bar = document.getElementById("selectionActions").getBoundingClientRect();
+    const marker = [...document.querySelectorAll("circle.vertex")];
+    const frei = marker.find((m) => {
+      if (m.classList.contains("selected")) return false;
+      const r = m.getBoundingClientRect();
+      return r.left > bar.right + 8 || r.top > bar.bottom + 8;
+    });
+    return frei ? frei.dataset.vertexKey : null;
+  });
+
+  check("es gibt einen Marker ausserhalb des Leistenrechtecks",
+    freierMarker !== null, String(freierMarker));
+
+  if (freierMarker) {
+    await page.locator(`circle.vertex[data-vertex-key="${freierMarker}"]`)
+      .click({ modifiers: ["Control"] });
+    await page.waitForTimeout(300);
+
+    const lage = await leiste();
+    check("mehrere Punkte: nur noch die beiden Auswahlaktionen",
+      lage.sichtbar && lage.ueberDerKarte &&
+      lage.knoepfe.join(",") === "deleteMultiSelectionBtn,clearMultiSelectionBtn",
+      JSON.stringify(lage));
+  }
+
+  /* Ganzes Feature: dazu kommt "Exclusion duplizieren" - aber nur bei einer. */
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  await openAllFolds(page);
+  await page.locator('[data-action="select-whole-feature"][data-feature-index="0"]')
+    .click();
+  await page.waitForTimeout(350);
+
+  {
+    const lage = await leiste();
+    check("ganzes Feature: der Perimeter bekommt KEIN Duplizieren",
+      lage.sichtbar && lage.ueberDerKarte &&
+      !lage.knoepfe.includes("duplicateFeatureBtn"),
+      JSON.stringify(lage));
+  }
+
+  /*
+   * Derselbe Zustand unter der Schwelle: dieselben Knoepfe, anderer Ort. Der
+   * Vergleich ist der eigentliche Beleg fuer "ein Markup" - waeren es zwei
+   * Fassungen, koennten sie hier verschieden sein.
+   */
+  const obenKnoepfe = (await leiste()).knoepfe.join(",");
+
+  await page.setViewportSize({ width: engerAlsSchwelle, height: 900 });
+  await page.waitForTimeout(350);
+
+  {
+    const lage = await leiste();
+    check(`unter der Schwelle (${engerAlsSchwelle} px) greift die Abfrage nicht mehr`,
+      !lage.grob, JSON.stringify(lage));
+    check("unter der Schwelle steht dieselbe Leiste im Inspektor",
+      lage.sichtbar && lage.imInspektor && !lage.imViewer && lage.inDerSpalte,
+      JSON.stringify(lage));
+    check("und sie traegt dieselben Knoepfe wie darueber",
+      lage.knoepfe.join(",") === obenKnoepfe,
+      `${lage.knoepfe.join(",")} gegen ${obenKnoepfe}`);
+  }
+
+  /* Der Ankerknoten: sie kommt an ihre Stelle zurueck, nicht ans Spaltenende. */
+  const nachbar = await page.evaluate(() =>
+    document.getElementById("selectionActions").nextElementSibling?.id || "keiner");
+
+  check("sie steht wieder vor der Feature-Navigation, nicht am Spaltenende",
+    nachbar === "featureNavigationSection", nachbar);
+
+  check("es gibt sie genau einmal",
+    (await page.locator("#selectionActions").count()) === 1 &&
+    (await page.locator("#deletePointBtn").count()) === 1,
+    `${await page.locator("#selectionActions").count()} Leisten, ` +
+    `${await page.locator("#deletePointBtn").count()} Loeschknoepfe`);
+
+  /* Und zurueck: der Weg ist in beide Richtungen derselbe. */
+  await page.setViewportSize({ width: ueberSchwelle, height: 900 });
+  await page.waitForTimeout(350);
+
+  {
+    const lage = await leiste();
+    check("zurueck ueber der Schwelle liegt sie wieder ueber der Karte",
+      lage.sichtbar && lage.imViewer && lage.ueberDerKarte,
+      JSON.stringify(lage));
+  }
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.waitForTimeout(300);
+
+  /* ---------------------------------------------------------------- */
   console.log("Die Punktrolle steht nur da, wenn es eine gibt");
 
   /*
@@ -712,9 +921,34 @@ try {
   /* ---------------------------------------------------------------- */
   console.log("Die Punktknöpfe stehen als Paare");
 
+  /*
+   * ZWEISPALTIG IST DIE ANORDNUNG IM INSPEKTOR, und die gibt es seit dem
+   * elften Durchgang nur noch unterhalb der Schwelle: darueber liegen dieselben
+   * Knoepfe senkrecht in der Leiste ueber der Karte. Gemessen wird deshalb bei
+   * Schwelle-1, und die Breite kommt aus dem Bestand, nicht aus einer Zahl.
+   */
+  /*
+   * 1100 px hoch, nicht 900: rollt die Spalte, wird sie in Chrome selbst zum
+   * Tabstopp - ein Halt ohne id mitten in der Kette, der nichts mit der
+   * DOM-Reihenfolge zu tun hat. Gemessen, nicht vermutet.
+   */
+  await page.setViewportSize({ width: engerAlsSchwelle, height: 1100 });
+  await page.waitForTimeout(300);
+
   await load();
   await marks.nth(0).click();
   await page.waitForTimeout(300);
+
+  /*
+   * Die Bedingung, unter der gemessen wird, ist selbst zugesichert - sonst
+   * belegte der ganze Abschnitt nur, dass irgendwo zweispaltig etwas steht.
+   */
+  {
+    const lage = await leiste();
+    check(`unter der Schwelle (${engerAlsSchwelle} px) steht die Leiste im Inspektor`,
+      lage.imInspektor && !lage.imViewer && lage.inDerSpalte,
+      JSON.stringify(lage));
+  }
 
   const kasten = (id) => page.evaluate((x) => {
     const r = document.getElementById(x).getBoundingClientRect();
@@ -753,9 +987,9 @@ try {
    * Umsortierung im Markup oder ein `order`/`grid-area` in CSS zerreißen,
    * ohne dass man es sieht.
    */
-  await page.locator("#pointNorthInput").focus();
-  const reihenfolge = [];
-  for (let i = 0; i < 5; i += 1) {
+  await page.locator("#insertPointBeforeBtn").focus();
+  const reihenfolge = ["insertPointBeforeBtn"];
+  for (let i = 0; i < 4; i += 1) {
     await page.keyboard.press("Tab");
     reihenfolge.push(await page.evaluate(() => document.activeElement?.id));
   }
@@ -813,6 +1047,9 @@ try {
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(400);
 
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.waitForTimeout(300);
+
   /* ---------------------------------------------------------------- */
   console.log("Leere Felder sagen, warum sie leer sind");
 
@@ -826,7 +1063,7 @@ try {
       "mehrere Punkte ausgewählt",
     await page.locator("#pointEastInput").getAttribute("placeholder"));
 
-  await page.locator("#clearMultiSelectionBtn").click();
+  await klickeLeistenknopf("clearMultiSelectionBtn", "Auswahl aufheben");
   await page.waitForTimeout(250);
 
   check("ohne Auswahl sagen sie das",
@@ -974,6 +1211,15 @@ try {
    * deshalb die Eigenbreite einer Kopie mit width:max-content - und die Kopie
    * muss IM Block haengen, sonst erbt sie 16 px statt der 14.
    */
+  await page.setViewportSize({ width: engerAlsSchwelle, height: 900 });
+  await page.waitForTimeout(300);
+
+  {
+    const lage = await leiste();
+    check("die Zeilenmessung laeuft unter der Schwelle, im Inspektor",
+      lage.imInspektor && !lage.imViewer, JSON.stringify(lage));
+  }
+
   const auswahlknoepfe = await page.evaluate(() => {
     const block = document.getElementById("inspectorSelection");
     const knoepfe = [...block.querySelectorAll("button")];
@@ -999,6 +1245,9 @@ try {
 
   check("und keine Beschriftung läuft über den Rand",
     auswahlknoepfe.every((k) => k.luft >= 0), JSON.stringify(auswahlknoepfe));
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.waitForTimeout(300);
 
   /*
    * Bei 800 px darf die Spalte scrollen - das ist der ZUGELASSENE Fall, kein
@@ -1192,9 +1441,40 @@ try {
   check("von East führt Tab nach North",
     (await focusAfterTabs("pointEastInput", 1)) === "pointNorthInput",
     await focusAfterTabs("pointEastInput", 1));
-  check("von North zum ersten Knopf des Blocks",
-    (await focusAfterTabs("pointNorthInput", 1)) === "insertPointBeforeBtn",
-    await focusAfterTabs("pointNorthInput", 1));
+
+  /*
+   * "Der erste Knopf des Blocks" gilt, solange die Knoepfe im Block stehen -
+   * also unterhalb der Schwelle. Darueber liegen sie ueber der Karte, und die
+   * Karte kommt in der DOM- und damit in der Tab-Reihenfolge VOR dem
+   * Inspektor; das ist die dokumentierte Reihenfolge Kopfzeile - Leiste -
+   * Karte - Inspektor und kein Bruch.
+   */
+  await page.setViewportSize({ width: engerAlsSchwelle, height: 900 });
+  await page.waitForTimeout(300);
+
+  /*
+   * Seit dem elften Durchgang steht zwischen dem North-Feld und dem ersten
+   * Knopf ein Halt mehr: die Knoepfe liegen nicht mehr IM Punktblock, sondern
+   * in der Auswahlleiste dahinter, und die Faltzeile des Punktblocks ist ein
+   * Tabstopp. Zugesichert wird deshalb, welcher KNOPF als erster kommt - dass
+   * es ueberhaupt einer aus der Leiste ist, und der richtige.
+   */
+  const ersterKnopfNachNorth = await (async () => {
+    await page.locator("#pointNorthInput").focus();
+    for (let i = 0; i < 4; i += 1) {
+      await page.keyboard.press("Tab");
+      const treffer = await page.evaluate(() => document.activeElement?.tagName === "BUTTON"
+        ? document.activeElement.id : null);
+      if (treffer) return treffer;
+    }
+    return "keiner";
+  })();
+
+  check("von North fuehrt Tab zum ersten Knopf der Auswahlleiste",
+    ersterKnopfNachNorth === "insertPointBeforeBtn", ersterKnopfNachNorth);
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.waitForTimeout(300);
 
   /*
    * Der entscheidende Punkt: aus dem sichtbaren Block darf man nicht in den

@@ -5127,9 +5127,15 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   über der Karte (`left:12px`, `top:12px`, `z-index:7`, Polsterung, Rundung,
   `max-width:calc(100% - 350px)`); das zugehörige Markup ist mit **Etappe 5**
   entfallen. Dieser Fall ist schärfer als die beiden darüber:
-  `tools/test-inspector.mjs` sichert mit „auf der Karte liegt keine
-  Auswahlleiste mehr" ausdrücklich zu, dass es kein Markup gibt – die Regel
-  kann also nicht wieder lebendig werden, ohne dass eine Zusicherung reißt.
+  `tools/test-inspector.mjs` sichert ausdrücklich zu, dass es kein Markup gibt –
+  die Regel kann also nicht wieder lebendig werden, ohne dass eine Zusicherung
+  reißt. **Die Zusicherung heißt seit dem elften Durchgang „die verwaiste
+  Klasse `.map-selection-toolbar` hat weiterhin kein Markup"**; ihr alter Name
+  („auf der Karte liegt keine Auswahlleiste mehr") wäre jetzt falsch, denn
+  seit Schritt 3 liegt dort wieder eine – nur unter der Klasse
+  `.selection-actions` und mit anderem Verhalten. **Die verwaisten Regeln sind
+  dabei NICHT wiederbelebt worden**: die neue Leiste hat eigene, und die alten
+  stehen unverändert ohne Markup da.
   Gefunden bei der Messung zur senkrechten Knopfleiste, weil sie den Platz
   beschreibt, um den es dort geht; nicht entfernt, das wäre eine Codeänderung.
 
@@ -6783,6 +6789,105 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Ein Behälter ist keiner der acht Knöpfe; die Bedingung greift also nicht, und
   das ist hier ausdrücklich vermerkt statt stillschweigend vorausgesetzt.
 
+  #### Gebaut mit Schritt 3 des elften Durchgangs – der Stand
+
+  **Ein Behälter, `#selectionActions`, der den Ort wechselt.** Er liegt im
+  Markup an der Stelle, an der bis dahin `#inspectorSelection` stand, und hält
+  drei Gruppen: `#pointActions` (die fünf Punktknöpfe, vorher `.editor-actions`
+  in `#inspectorPoint`), `#featureActions` (nur `#duplicateFeatureBtn`, vorher
+  in `#inspectorFeature`) und `#inspectorSelection` selbst, das seine `id`
+  behalten hat. **Keiner der acht Knöpfe hat einen neuen Bezeichner bekommen.**
+
+  | Zustand | was die Leiste trägt |
+  |---|---|
+  | `empty` | nichts – sie ist nicht sichtbar |
+  | `single` | die fünf Punktknöpfe und die beiden Auswahlaktionen |
+  | `multi`, `mixed` | die beiden Auswahlaktionen |
+  | `feature`, Perimeter | die beiden Auswahlaktionen |
+  | `feature`, Exclusion | zusätzlich „Exclusion duplizieren" |
+  | `drawing`, `measuring` | nichts – wie bisher schlägt ein laufendes Werkzeug jede Auswahl |
+
+  **Die Sichtbarkeit läuft über `INSPECTOR_BLOCKS`, nicht über eine neue
+  Mechanik.** Die drei Gruppen sind Einträge wie jeder Zustandsblock; der
+  Behälter trägt die Vereinigung ihrer Zustände, sonst stünde bei `empty` ein
+  leerer Rahmen über der Karte. **`mixed` ist dabei mitgenommen und nicht
+  entschieden** – die Entscheidung nannte `single`/`multi`/`feature` und „bei
+  `empty` nicht sichtbar"; die beiden Auswahlaktionen gelten in `mixed` seit
+  Etappe 7b, und ihnen diesen Zustand zu nehmen wäre eine Änderung gewesen, die
+  niemand verlangt hat.
+
+  **Der Ort hängt am Ort, nicht an einer Klasse.** Die Regeln für die Ebene
+  lauten `#viewer > .selection-actions` und `#viewer #pointActions`; es gibt
+  keine `is-over-map`-Klasse, die jemand mitführen müsste. Über der Karte
+  senkrecht, im Inspektor weiter zweispaltig – die dortigen Regeln sind
+  unverändert geblieben, nur ihre Selektoren heißen jetzt `#pointActions`
+  statt `#inspectorPoint .editor-actions`, weil die Gruppe ihren Block
+  verlassen hat. **Eine verwaiste CSS-Regel ist dabei nicht entstanden**, und
+  genau das war die Gefahr.
+
+  **`z-index: 6`, nicht 7 – eine Entscheidung.** Die Kartenfenster liegen auf 7
+  und sollen die Leiste verdecken: ein geöffnetes Fenster ist eine
+  ausdrückliche Handlung, die Leiste erscheint von selbst. Ohne diese
+  Reihenfolge verdeckte sie den Kopf des Verbinden-Fensters, das bis 223 px an
+  die Kartenoberkante heranreicht.
+
+  **Die Schwelle steht in JS, an einer Stelle:** `SELECTION_BAR_WIDE_QUERY =
+  "(min-width: 960px)"`, dazu `applySelectionBarPlacement()` und ein
+  `matchMedia`-Horcher – dieselbe Machart wie `TOOL_RAIL_NARROW_QUERY`. Der
+  Test liest die Zahl aus dieser Konstanten und führt sie nicht selbst.
+
+  **Der Ankerknoten ist ein Kommentar.** Er merkt sich die Stelle im Inspektor,
+  kostet keinen Kasten, keinen Abstand im Flex-Raster und keine `id`; ohne ihn
+  käme die Leiste hinter der Feature-Navigation und den Faltblöcken zurück.
+  Zugesichert ist genau das: unter der Schwelle steht sie wieder **vor**
+  `#featureNavigationSection`.
+
+  **Der Fokus wird zurückgeholt.** Ein `appendChild()` nimmt ihn (gemessen in
+  Schritt 2), alles andere überlebt; `applySelectionBarPlacement()` setzt ihn
+  danach auf dasselbe Element zurück.
+
+  **Drei Mutationsproben, je eine Schreibstelle**, Sicherungskopie außerhalb
+  des Repositories, Prüfsumme vorher = nachher (`fe57bcf…`), je **0 Timeouts**:
+
+  | Mutation | gerissene Zusicherungen |
+  |---|---|
+  | Leiste dauerhaft sichtbar (`selectionActions` bekommt zusätzlich `empty`) | **1** – „ohne Auswahl ist die Leiste nicht sichtbar" |
+  | Leiste dauerhaft unsichtbar (Zustandsliste leer) | **23**, darunter dreimal „Auswahl aufheben: der Knopf steht in der Auswahlleiste" und „ein Punkt: die Leiste liegt ueber der Karte" |
+  | Ortswechsel ausgehebelt (`ueberDerKarte` fest auf `false`) | **4** – „ein Punkt: die Leiste liegt ueber der Karte", „mehrere Punkte …", „ganzes Feature …", „zurueck ueber der Schwelle liegt sie wieder ueber der Karte" |
+
+  **Die zweite Mutation lief zuerst in einen Timeout statt in eine benannte
+  Zusicherung**, und das ist der Grund für zwei Änderungen am Test, die mit der
+  Leiste selbst nichts zu tun haben: der Abschnitt über die Leiste steht jetzt
+  **früh** in `tools/test-inspector.mjs`, und die vier Klicks auf
+  `#clearMultiSelectionBtn` laufen über den Wächter `klickeLeistenknopf()`, der
+  vor dem Klick zusichert und bei fehlender Leiste **nicht klickt**. Dieselbe
+  Regel und derselbe Grund wie bei `klickeFreienKnopf()` in
+  `tools/test-merge.mjs`.
+
+  **Was am Test sonst nachgezogen wurde, und warum:**
+
+  | Zusicherung | vorher | jetzt |
+  |---|---|---|
+  | „auf der Karte liegt keine Auswahlleiste mehr" | prüfte `.map-selection-toolbar` auf Anzahl 0 und **hieß**, es liege keine Leiste dort | heißt „die verwaiste Klasse `.map-selection-toolbar` hat weiterhin kein Markup" – die Prüfung ist dieselbe, der Name sagt jetzt, was sie prüft |
+  | die zweispaltige Anordnung der Punktknöpfe, die Zeile der Auswahlknöpfe, die `max-content`-Breiten | bei 1600 px gemessen | bei **Schwelle−1** gemessen, mit einer Zusicherung daneben, dass die Leiste dort wirklich im Inspektor steht |
+  | „Tab folgt den Paaren" | ab `#pointNorthInput` | ab `#insertPointBeforeBtn` – dazwischen steht seit dem Umzug ein Halt mehr, siehe unten |
+  | „von North zum ersten Knopf des Blocks" | genau ein Tab | „von North fuehrt Tab zum ersten Knopf der Auswahlleiste" – der erste **Knopf**, gleich wie viele Halte davor liegen |
+
+  **Zwei Folgen, die beim Bauen sichtbar wurden und benannt gehören:**
+
+  1. **Die Tab-Kette hat zwischen dem North-Feld und dem ersten Knopf einen
+     Halt mehr.** Die Knöpfe liegen nicht mehr im Punktblock, und die Faltzeile
+     dieses Blocks ist ein Tabstopp. Gemessen: `#pointNorthInput` → `SUMMARY` →
+     `#insertPointBeforeBtn`. Über der Schwelle kommen die Knöpfe sogar **vor**
+     dem Inspektor, weil die Karte in der DOM-Reihenfolge vor ihm steht – das
+     ist die dokumentierte Reihenfolge Kopfzeile → Leiste → Karte → Inspektor
+     und kein Bruch.
+  2. **Eine rollende Inspektorspalte ist in Chrome selbst ein Tabstopp.**
+     Gemessen beim Umstellen der Tab-Zusicherung auf Schwelle−1: bei 900 px
+     Fensterhöhe stand ein Halt ohne `id` in der Kette, bei 1100 px nicht. Wer
+     eine Tab-Kette zusichert, misst sie in einem Fenster, in dem die Spalte
+     nicht rollt.
+
   #### Die Bestandsaufnahme – gemessen mit dem neunten Durchgang, Stand `5b0b89e`
 
   **Reiner Befund, nichts gebaut und nichts entschieden.** Gemessen im Browser
@@ -7307,6 +7412,50 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   eine zweite mit derselben Breite. **Eine neue Regel bei 959/960 px darf diese
   Suche nicht mehrdeutig machen**; sie wird ebenso über ihren eigenen Selektor
   gefunden, nicht über ihre Zahl. Die Zahl steht in keinem Test als Literal.
+
+- **Die Leiste verdeckt Punktmarker – Befund aus dem Bau, elfter Durchgang;
+  nicht behoben, weil die Antwort eine Entscheidung ist.** Das ist die
+  Nebenwirkung, die beim Messen der zehnten Runde nicht sichtbar war und beim
+  Bauen sofort zuschlug.
+
+  **Der Befund, gemessen bei 1280 × 720 mit dem Perimeter aus
+  `tools/test-merge.mjs`:** die Leiste steht im Punktzustand auf
+  180–325 / 60–348, und der Marker des Punktes bei E −60 / N 40 liegt bei
+  312 / 86 – also darunter. Playwright meldet beim Klick „subtree intercepts
+  pointer events"; ein Nutzer trifft ihn ebenso wenig.
+
+  **Das ist dieselbe Klasse wie bei der Zoom-Leiste**, für die diese Datei seit
+  jeher sagt: *„Ein Punktmarker darunter lässt sich nicht anklicken …
+  Testpunkte deshalb nicht in die obere rechte Ecke der Karte legen."* Der
+  Unterschied ist die Größe und der Zeitpunkt:
+
+  | | Zoom-Leiste | Auswahlleiste |
+  |---|---|---|
+  | Fläche | 120 × 36 px | **145 × 288 px** im Punktzustand |
+  | Ort | oben rechts | **oben links** – dort sitzt bei einer eingepassten Karte die linke obere Ecke der Geometrie |
+  | wann | immer | **genau dann, wenn etwas ausgewählt ist** – also während man mit Markern arbeitet |
+
+  **Die praktische Folge für den Nutzer:** wer einen Punkt links oben auswählt,
+  kann seine Nachbarn dort nicht mehr per Strg-Klick dazunehmen. Die Leiste
+  erscheint mit dem ersten Klick und deckt sie zu.
+
+  **Was im Test daraus geworden ist, und es ist ausdrücklich eine Umgehung und
+  keine Lösung:** `waehlePunkte()` in `tools/test-merge.mjs` klickt die Marker
+  jetzt in der Reihenfolge ihrer Nähe zur linken oberen Ecke – der verdeckte
+  zuerst, solange die Leiste noch nicht da ist. **Was ausgewählt wird, ändert
+  das nicht, nur die Reihenfolge.** Bei **zwei** verdeckten Markern trüge die
+  Umgehung nicht mehr.
+
+  **Drei denkbare Antworten, keine davon entschieden:**
+
+  | Antwort | was sie kostet |
+  |---|---|
+  | so lassen, wie bei der Zoom-Leiste | der Nutzer muss die Karte verschieben oder zoomen, um an einen verdeckten Punkt zu kommen – bei der Zoom-Leiste ist das eine Ecke von 120 × 36 px, hier ein Viertel der Kartenbreite |
+  | das Einpassen (`fit`) lässt links einen Rand frei, solange die Leiste stehen kann | die Kartenansicht hinge am Zustand der Leiste – dieselbe Kopplung, die bei 9b als Preis benannt ist |
+  | die Leiste woandershin | die Entscheidung sagt „links über der Karte"; jeder andere Ort ist eine neue Entscheidung, und verdecken würde sie dort auch etwas |
+
+  **Nicht entschieden und nicht gebaut.** Der Befund steht hier, damit er nicht
+  beim nächsten Testfehlschlag als Rätsel wiederkehrt.
 
 - **Die eigene Touch-Größe über der Karte ist 42 px, die Vorgabe 44 – offener
   Punkt, eingetragen mit dem elften Durchgang, ausdrücklich nicht gebaut.**

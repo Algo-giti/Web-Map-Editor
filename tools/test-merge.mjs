@@ -658,9 +658,41 @@ try {
       `#multiSelectionInfo meldet "${vorher}" statt "0 ausgewaehlt" - zwei ` +
       `Escape haben die vorige Auswahl nicht aufgehoben`);
 
-    let ersterKlick = true;
+    /*
+     * DIE REIHENFOLGE DER KLICKS IST NICHT BELIEBIG, seit die Auswahlleiste
+     * links oben ueber der Karte liegt (elfter Durchgang): der erste Klick
+     * laesst sie erscheinen, und danach faengt sie in ihrem Rechteck jedes
+     * Zeigerereignis ab - ein Marker darunter ist nicht mehr anklickbar,
+     * Playwright meldet "subtree intercepts pointer events". Dasselbe gilt
+     * seit jeher fuer die Zoom-Leiste oben rechts.
+     *
+     * Geklickt wird deshalb der Marker zuerst, der der linken oberen Ecke am
+     * naechsten liegt - dort steht die Leiste noch nicht. WAS ausgewaehlt
+     * wird, aendert sich dadurch nicht; nur die Reihenfolge.
+     *
+     * Gemessen bei 1280 x 720: Leiste 180-325 / 60-348, der Marker bei
+     * E -60 / N 40 liegt bei 312 / 86 und damit darunter.
+     */
+    const mitLage = [];
 
     for (const koordinate of koordinaten) {
+      const schluessel = await markerSchluessel(koordinate, layer);
+      const lage = schluessel
+        ? await page.evaluate((k) => {
+            const r = document.querySelector(
+              `circle.vertex[data-vertex-key="${k}"]`).getBoundingClientRect();
+            return r.left + r.top;
+          }, schluessel)
+        : Number.MAX_SAFE_INTEGER;
+
+      mitLage.push({ koordinate, lage });
+    }
+
+    mitLage.sort((a, b) => a.lage - b.lage);
+
+    let ersterKlick = true;
+
+    for (const { koordinate } of mitLage) {
       const schluessel = await markerSchluessel(koordinate, layer);
 
       check(`Marker ${layer} bei E ${koordinate[0]} / N ${koordinate[1]} ist eindeutig`,
