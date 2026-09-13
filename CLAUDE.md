@@ -5107,6 +5107,18 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `.feature-nav-feature` fiel bei der Fehlersuche in 7c auf. Beide
   stehengelassen, weil sie nicht zu den Umzügen gehören; sie gehören hierher.
 
+  **Dritter Fall, eingetragen mit dem zehnten Durchgang:
+  `.map-selection-toolbar`, an zwei Stellen** – die Grundregel und eine Fassung
+  im Block unterhalb 744 px. Sie beschreiben vollständig eine Ebene links oben
+  über der Karte (`left:12px`, `top:12px`, `z-index:7`, Polsterung, Rundung,
+  `max-width:calc(100% - 350px)`); das zugehörige Markup ist mit **Etappe 5**
+  entfallen. Dieser Fall ist schärfer als die beiden darüber:
+  `tools/test-inspector.mjs` sichert mit „auf der Karte liegt keine
+  Auswahlleiste mehr" ausdrücklich zu, dass es kein Markup gibt – die Regel
+  kann also nicht wieder lebendig werden, ohne dass eine Zusicherung reißt.
+  Gefunden bei der Messung zur senkrechten Knopfleiste, weil sie den Platz
+  beschreibt, um den es dort geht; nicht entfernt, das wäre eine Codeänderung.
+
   Kein Laufzeitfehler, aber genau die Klasse, gegen die `check-dom-ids.mjs`
   gebaut wurde: tote Verweise, die niemand sieht. Machbar mit Bordmitteln –
   Klassenselektoren aus dem `<style>`-Block sammeln, gegen die
@@ -6742,6 +6754,266 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     Karte, in der Spalte oder anderswo steht, welche Knöpfe sie trägt und was
     dann aus `#inspectorPoint` wird, ist nicht entschieden und war nicht
     Gegenstand.
+
+  #### Die senkrechte Leiste links über der Karte – gemessen mit dem zehnten Durchgang, Stand `ae029fe`
+
+  **Reiner Befund, nichts gebaut und nichts entschieden.** Gegenstand ist eine
+  senkrechte Ebene links über der Karte: Knöpfe mit Symbol und Text, sichtbar
+  nur bei Auswahl, Inhalt wechselnd mit `single` / `multi` / `feature`, bei
+  `empty` nicht sichtbar.
+
+  **Kein Knopf ist dafür in `index.html` eingebaut worden.** Das Messgerüst
+  liegt außerhalb des Repositories und setzt seine Knöpfe zur Laufzeit in die
+  geladene Seite ein; nach jeder Messung nimmt es sie wieder heraus. Alle Zahlen
+  unten sind im Lauf gemessen, keine steht als Literal im Messskript – auch die
+  Beschriftungen nicht: sie werden über die acht Bezeichner aus `ae029fe` aus
+  dem laufenden DOM gelesen, auf Englisch nach `setLanguage("en")` und
+  unmittelbar danach.
+
+  **Woher das Gerüst seine Maße nimmt, und warum gerade von dort:**
+
+  | Teil | Quelle | gemessen |
+  |---|---|---|
+  | Knopf | Klon eines echten `.tool-rail .tool-button` | Schrift 13 px, Mindesthöhe 34 px, Polsterung 6/8 px, Lücke 9 px, Symbol 18 px |
+  | Rahmen | Probeelement mit der Klasse `.map-selection-toolbar` | Polsterung 6 px, Rand 1 px, Lücke 6 px, `left:12px`, `top:12px` |
+
+  Der Knopf ist geklont, weil die Werkzeugleiste die **einzige senkrechte Leiste
+  des Editors mit Symbol UND Text** ist – Schrift, Polsterung und Symbolgröße
+  kommen damit aus dem Bestand statt aus dem Messskript. **Kalibriert:** der Klon
+  trägt dieselbe Schriftgröße, dieselbe Schriftart, dieselbe Polsterung und
+  dieselbe Mindesthöhe wie das Original, alle vier im Lauf verglichen.
+
+  **Der Rahmen kommt dagegen aus einer verwaisten Regel, und das gehört
+  dazu:** `.map-selection-toolbar` ist die Hausregel für genau dieses Ding – eine
+  Ebene über der Karte, links oben –, hat aber seit Etappe 5 **kein Markup mehr**.
+  Ihre Werte beschreiben also einen früheren Stand, keinen laufenden. Zwei der
+  Zahlen sind durch lebende Regeln gedeckt: `left:12px` steht ebenso an
+  `.map-window`, und die Lücke 6 px ebenso an `.map-view-toolbar`.
+
+  **1. Breitenbedarf.** Leistenbreite = breitester Knopf + 12 px Polsterung +
+  2 px Rand. Der Knopf ist mit `width:max-content` gemessen, der Text also
+  ungekürzt.
+
+  | Zustand | Knöpfe | DE fein | DE grob | EN fein | EN grob |
+  |---|---|---|---|---|---|
+  | `empty` | 0 | – | – | – | – |
+  | `single` | 7 | **172,38** | **172,38** | **156,36** | **156,36** |
+  | `multi` | 2 | 172,38 | 172,38 | 156,36 | 156,36 |
+  | `feature`, Perimeter | 2 | 172,38 | 172,38 | 156,36 | 156,36 |
+  | `feature`, Exclusion | 3 | **187,34** | **187,34** | **176,97** | **176,97** |
+
+  **Fein und grob liefern dieselbe Breite, und das ist kein Fehler der Messung,
+  sondern der Befund.** Nachgemessen an drei Stellen:
+
+  | gemessen | fein | grob |
+  |---|---|---|
+  | blanker `<button>` über der Karte | 16 px Schrift, `min-height:0px` | 16 px Schrift, `min-height:0px` |
+  | blanker `<button>` im Inspektor | 16 px Schrift, `min-height:auto` | 16 px Schrift, **`min-height:44px`** |
+  | Klon des Leistenknopfes über der Karte | 13 px, 34 px hoch | 13 px, 34 px hoch |
+
+  **Der `@media (pointer: coarse)`-Block erreicht nichts über der Karte.** Seine
+  44 px hängen an `aside button`, und die 16 px an `aside input, aside select,
+  aside button` – eine Ebene über der Karte trifft keinen dieser Selektoren. Dass
+  ein blanker Knopf dort trotzdem 16 px trägt, ist die **Seitenschrift**
+  (`button { font:inherit }`, `body` 16 px) und nicht die Bedienart; sie ist bei
+  feinem Zeiger dieselbe. Und die Klasse `.tool-button` nagelt die Schrift auf
+  13 px fest, weshalb der Klon in beiden Zeigerarten gleich breit ausfällt.
+
+  **Die eigene Touch-Größe des Hauses über der Karte ist 42 px, nicht 44.**
+  Gemessen an `#zoomInBtn`: 36 × 36 px bei feinem, **42 × 42 px** bei grobem
+  Zeiger (`.map-tool-button`). Das ist die einzige Regel des Bestandes, die eine
+  Ebene über der Karte überhaupt vergrößert.
+
+  **Die 44-px-Ziele sind deshalb eine Vorgabe, kein Bestandswert.** Gemessen ist
+  die Leiste zusätzlich mit den Touch-Maßen, die das Haus im Inspektor anwendet –
+  beide **im Lauf am Probeknopf abgelesen**, 16 px Schrift und 44 px Mindesthöhe:
+
+  | Zustand | DE, 16 px/44 px | EN, 16 px/44 px |
+  |---|---|---|
+  | `single` | **198,55** | **178,81** |
+  | `multi` | 198,55 | 178,81 |
+  | `feature`, Perimeter | 198,55 | 178,81 |
+  | `feature`, Exclusion | **216,95** | **204,19** |
+
+  **Je Knopf, damit die längste Beschriftung nachlesbar ist** (Knopfbreite ohne
+  Rahmen, 13 px / 16 px):
+
+  | Bezeichner | deutsch | 13 px | 16 px | englisch | 13 px | 16 px |
+  |---|---|---|---|---|---|---|
+  | `#insertPointBeforeBtn` | Davor einfügen | 139,59 | 161,42 | Insert before | 124,56 | 142,91 |
+  | `#insertPointAfterBtn` | Danach einfügen | 149,36 | 173,44 | Insert after | 113,61 | 129,44 |
+  | `#setStartPointBtn` | Startpunkt setzen | 153,00 | 177,92 | Set start point | 131,14 | 151,03 |
+  | `#setEndPointBtn` | Endpunkt setzen | 147,08 | 170,63 | Set end point | 126,23 | 144,97 |
+  | `#deletePointBtn` | Punkt löschen | 131,05 | 150,89 | Delete point | 119,86 | 137,14 |
+  | `#duplicateFeatureBtn` | Exclusion duplizieren | **173,34** | **202,95** | Duplicate exclusion | **162,97** | **190,19** |
+  | `#deleteMultiSelectionBtn` | Auswahl löschen | 146,94 | 170,47 | Delete selection | **142,36** | **164,81** |
+  | `#clearMultiSelectionBtn` | Auswahl aufheben | **158,38** | **184,55** | Clear selection | 134,39 | 155,02 |
+
+  **Die längste Beschriftung ist in beiden Sprachen eine andere.** Deutsch trägt
+  im Punktzustand „Auswahl aufheben" die Leiste, englisch „Delete selection" –
+  wer nur eine Sprache misst, misst den falschen Knopf. Über alle Zustände ist
+  „Exclusion duplizieren" / „Duplicate exclusion" der breiteste, und er steht
+  ausgerechnet in dem Zustand mit den wenigsten Knöpfen.
+
+  **Alle acht Beschriftungen haben eine englische Fassung** – nachgemessen,
+  keine kam unverändert zurück.
+
+  **2. Höhenbedarf.** Leistenhöhe = Knopfzahl × Knopfhöhe + Lücken à 6 px +
+  12 px Polsterung + 2 px Rand. Knopfhöhe 34 px aus dem Bestand, 44 px als
+  Vorgabe.
+
+  | Zustand | Knöpfe | fein (34 px) | grob (44 px) |
+  |---|---|---|---|
+  | `single` | 7 | **288** | **358** |
+  | `multi` | 2 | 88 | 108 |
+  | `feature`, Perimeter | 2 | 88 | 108 |
+  | `feature`, Exclusion | 3 | 128 | 158 |
+
+  **Die Kartenhöhe bei 900 px Fensterhöhe ist 759 px** – gemessen bei 1280, 960
+  und 744 px Breite und in **beiden** Zeigerarten identisch. Die Kopfzeile bleibt
+  auch bei grobem Zeiger 48 px hoch (die 44-px-Menütitel passen hinein), Legende
+  30 px, Statuszeile 63 px.
+
+  **Der höchste Zustand passt.** `single` braucht 288 px von 759 (37,9 %) bzw.
+  358 px (47,2 %); es bleiben 471 bzw. 401 px. **Die Höhe ist damit nicht die
+  Grenze dieser Leiste – die Breite ist es**, siehe Punkt 3.
+
+  **3. Was sie verdeckt.** Gemessen mit einem gewählten Punkt, Fensterhöhe
+  900 px. Das Leistenrechteck ist `left` 12 bis 12 + Breite, `top` 12 bis
+  12 + Höhe; genommen ist der jeweils größte Fall (fein 187 × 288, grob
+  217 × 358).
+
+  | Fensterbreite | `main`-Spalten | Kartenfläche | Leiste fein | Leiste grob |
+  |---|---|---|---|---|
+  | 1280 px | 168 / 792 / 320 | 792 × 759 | 23,7 % der Breite | 27,4 % |
+  | 960 px | 56 / 584 / 320 | 584 × 759 | 32,1 % | 37,1 % |
+  | 744 px | 56 / 368 / 320 | **368 × 759** | **50,9 %** | **59,0 %** |
+
+  **Bei 744 px nimmt die Leiste über die Hälfte der Kartenbreite.** Das ist die
+  Zahl, an der sich der Ort entscheidet, und sie ist im schmalsten Zielgerät
+  gemessen, nicht im breitesten.
+
+  **Was heute im linken Streifen liegt – vollständig, mit Bezeichner:**
+
+  | Element | Lage in der Karte | trifft die Leiste |
+  |---|---|---|
+  | `#svg` | 0/0, volle Kartenfläche | ja – die Karte selbst liegt darunter |
+  | `#scaleNotice` | **12/12**, 768 / 560 / 344 px breit, 75 / 92 / **145** px hoch | **ja, deckungsgleich am selben Ort** |
+  | `#mergeWindow` | 12/223, 300 × 524 px | **ja**, in jeder Breite und beiden Zeigerarten |
+  | `#gridWindow` | 12/409 (bei 744 px: 12/360), 300 × 338 px | nur bei 744 px und grobem Zeiger |
+  | `#mowerWindow` | 12/380, 300 × 367 px | nein |
+  | `.map-view-toolbar` | 660 / 452 / **236** px von links, 12 oben, 120 × 36 px | nein – Abstand 461 / 253 / **37** px (fein), **7 px** bei 744 px und grobem Zeiger |
+  | `#emptyMapState` | mittig, `min(360px, 100% − 40px)` | nein – er steht nur ohne Karte, und dort ist die Leiste nach der Vorgabe unsichtbar |
+  | `#helpOverlay` | 0/0, volle Fläche, `z-index:20` | ja, aber als Modalfenster über allem – kein Fall für diese Frage |
+  | `#tip` | folgt dem Zeiger, `z-index:5` | kann überall liegen, auch links oben; **niedrigerer `z-index` als jedes Kartenfenster** |
+  | `#mapLegend` | **nicht in `.viewer`** – volle Fensterbreite, 30 px, unter der Karte | nein |
+
+  **Drei Befunde daraus, und der erste ist der harte:**
+
+  - **`#scaleNotice` belegt genau den vorgesehenen Platz.** Er steht bei
+    `left:12px; right:12px; top:12px` und wächst nach unten, je schmaler das
+    Fenster ist – bei 744 px ist er **145 px hoch**. Er erscheint bei unklarem
+    Maßstab und ist dauerhaft, kein Hinweis, der von selbst verschwindet. Zwei
+    Ebenen am selben Ort, und die eine sagt, dass die Karte nicht vertrauenswürdig
+    vermessen ist.
+  - **`#mergeWindow` reicht bis 223 px von oben hinauf** und wird von der
+    Leiste im Punktzustand in **jeder** gemessenen Breite getroffen. Die
+    Kartenfenster sind unten links verankert, weil oben rechts die Zoom-Leiste
+    liegt – links oben ist damit nicht frei, sondern die Gegenseite eines bereits
+    getroffenen Ausweichens.
+  - **Bei 744 px und grobem Zeiger bleiben 7 px zwischen Leiste und
+    Zoom-Leiste.** Das ist keine Kollision, aber es ist der Rest.
+
+  **Gibt es links ein Gegenstück zur Zoom-Leiste? Nein – aber der Platz ist
+  vergeben.** Gesucht wurde nach jedem absolut positionierten Element in
+  `.viewer` mit `left ≤ 40` und `top ≤ 40`; gefunden wurden genau zwei,
+  `#scaleNotice` und `#helpOverlay`. Ein Bedienelement ist keines davon.
+
+  **Beifang, und er gehört in die Liste der verwaisten CSS-Regeln in diesem
+  Abschnitt: `.map-selection-toolbar` steht noch im CSS, an zwei Stellen.** Die
+  Grundregel und eine Fassung im Block unterhalb 744 px – zusammen die
+  vollständige Beschreibung einer Ebene links oben über der Karte, mit
+  `left:12px`, `top:12px`, `z-index:7`, Polsterung, Rundung und
+  `max-width:calc(100% - 350px)`. **Markup dazu gibt es seit Etappe 5 nicht
+  mehr**, und `tools/test-inspector.mjs` sichert mit „auf der Karte liegt keine
+  Auswahlleiste mehr" ausdrücklich zu, dass es keines gibt. Die Regel ist damit
+  tot und kann nicht wieder lebendig werden, ohne dass diese Zusicherung reißt.
+  Sie stand in der Liste der verwaisten Regeln bisher **nicht**; eingetragen ist
+  sie mit diesem Durchgang. **Nicht entfernt** – das wäre eine Codeänderung.
+
+  **4. Zusicherungen, die die Kartenbreite oder die Karte gegen den Inspektor
+  messen.** Gesucht wurde im ganzen Verzeichnis `tools/` nach
+  `gridTemplateColumns`, nach `boundingBox()` auf `#svg` und `#viewer` und nach
+  jeder Zusicherung, deren Name eine Breite nennt.
+
+  | Datei | Zusicherung | was sie misst | berührt eine Ebene sie? |
+  |---|---|---|---|
+  | `tools/test-toolbar.mjs` | „⟨fein/grob⟩, ⟨Breite⟩ px: die Karte ist breiter als der Inspektor" – die Zusicherung, die bei 744 px die 368 px liefert | `#viewer` gegen `aside`, beide Kastenbreiten in **einem** Durchgang | **nein** |
+  | `tools/test-toolbar.mjs` | „ausgeklappt füllt die Leiste ihre Rasterspalte genau" und die eingeklappte Entsprechung | erste Spalte aus `gridTemplateColumns` gegen `#toolRail` | **nein** |
+  | `tools/test-toolbar.mjs` | „⟨…⟩: `main` ist ein Raster mit drei Spalten" | Zahl der Spalten in `gridTemplateColumns` | **nein** |
+  | `tools/test-toolbar.mjs` | „⟨…⟩: die Leiste steht senkrecht, der Inspektor ist 320 px" | Ausrichtung der Leiste, Breite von `aside` | **nein** |
+  | `tools/test-toolbar.mjs` | „breit: 168 px", „mittel: die Breite bleibt", „eng: die Leiste ist schmal" | `#toolRail`, nicht die Karte | **nein** |
+  | `tools/test-toolbar.mjs` | „`#fitBtn`/`#zoomInBtn`/`#zoomOutBtn` liegt im Kartenbereich" | `#viewer.contains(...)`, kein Maß | **nein** |
+  | `tools/test-toolbar.mjs` | „⟨…⟩, 400 px: gestapelt statt dreispaltig" und „nichts wird abgewiesen" | `display`/`flex-direction` von `main`, Vorhandensein | **nein** |
+
+  **Die Begründung ist für alle dieselbe und in einem Satz gesagt: sie messen
+  die SPALTE, nicht die freie Fläche.** `#viewer` ist die Rasterspalte; eine
+  Ebene darin ist ein Kind mit `position:absolute` und ändert den Kasten ihres
+  Vorfahren nicht. Gemessen, nicht überlegt: das Probeelement der Rahmenmessung
+  stand während der Messung in `#viewer`, und die Spaltenbreiten blieben
+  792 / 584 / 368 px.
+
+  **Damit wäre die Antwort auf Punkt 4 vollständig – und sie wäre irreführend,
+  wenn der zweite Fund danebenfehlte.** Nicht die Breitenmessungen sind der
+  Berührungspunkt, sondern die **Klicks auf Kartenkoordinaten**: eine Ebene mit
+  `z-index` fängt Zeigerereignisse ab, und Playwright meldet das als „subtree
+  intercepts pointer events" – dieselbe Klasse, die in dieser Datei schon für
+  die Zoom-Leiste festgehalten ist („Testpunkte deshalb nicht in die obere
+  rechte Ecke der Karte legen").
+
+  **Vollständig erhoben sind die Klicks mit fester Koordinate** – acht im ganzen
+  Verzeichnis, gefunden über `position: { x:` :
+
+  | Fundstelle | Koordinate | liegt im Leistenrechteck |
+  |---|---|---|
+  | `tools/test-inspector.mjs`, zweimal | 2 / 2 | nein – 10 px links daneben |
+  | `tools/test-menu.mjs` | 5 / 5 | nein – 7 px links daneben |
+  | `tools/scan-i18n.mjs` | 200 / 200 | **fein nein** (15,6 px daneben), **grob ja** |
+  | `tools/scan-i18n.mjs` | 400 / 300, 300 / 300 | nein |
+  | `tools/test-i18n-dynamic.mjs` | 300 / 300, 380 / 320 | nein |
+
+  **Die drei Klicks, die „auf leere Karte klicken, um abzuwählen" meinen, liegen
+  7 bis 10 px neben der Leiste** – im Rand, den `left:12px` freilässt. Sie
+  bestehen also, aber nicht mit Absicht: niemand hat 2 und 5 gewählt, weil dort
+  Platz bleiben sollte.
+
+  **NICHT erhoben sind die Klicks mit gerechneter Koordinate.**
+  `tools/test-dockpath.mjs`, `tools/test-inspector.mjs`, `tools/test-shapes.mjs`
+  und `tools/test-merge.mjs` rechnen ihre Zielpunkte aus Weltkoordinaten bzw. aus
+  dem Kasten eines Markers; `tools/test-statusbar.mjs` klickt auf Bruchteile der
+  Kartenfläche. Wo diese Punkte landen, hängt am Einpassen der Ansicht und ist
+  ohne eigenen Lauf je Stelle nicht zu beantworten. **Das ist hier nicht gemessen
+  worden und darf nicht als Befund zitiert werden.**
+
+  **5. Was NICHT erhoben wurde.**
+
+  - **Die Zustände `mixed`, `drawing` und `measuring`.** Die Vorgabe nannte
+    `single` / `multi` / `feature` und „bei `empty` nicht sichtbar"; was eine
+    Leiste am Auswahlzustand tut, während ein Werkzeug läuft, ist weiterhin
+    offen – `getInspectorState()` lässt ein laufendes Werkzeug jede Auswahl
+    schlagen.
+  - **Ob die Leiste eine eigene Zeigerregel bekäme.** Gemessen ist, dass der
+    Bestand ihr keine gibt; welche sie bekommen soll – 42 px wie die Zoom-Leiste,
+    44 px wie der Inspektor, oder eine dritte –, ist eine Entscheidung.
+  - **Die Symbole.** Gemessen ist der Platz für ein Symbol von 18 px, weil der
+    geklonte Knopf eines trägt. Welche acht Symbole das wären, ist nicht
+    entworfen; für das Abrunden steht in dieser Datei ein Entwurf, für diese
+    acht keiner.
+  - **Wie MapmakerBT seine Leiste anordnet** – unverändert nicht angesehen, wie
+    schon im neunten Durchgang vermerkt.
+  - **Kein Entwurf, keine Bewertung, keine Empfehlung.** Ob die Leiste gebaut
+    wird, wohin sie kommt und was dann aus `#inspectorPoint` wird, ist nicht
+    entschieden und war nicht Gegenstand.
 
 ---
 
