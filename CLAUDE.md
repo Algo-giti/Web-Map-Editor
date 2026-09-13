@@ -6609,6 +6609,180 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   eigener offener Punkt weiter unten); die acht Symbole; und was aus
   `#inspectorPoint` über 960 px wird, wenn seine Knöpfe umziehen.
 
+  #### Wie EIN Markup den Ort wechselt – gemessen mit Schritt 2 des elften Durchgangs, Stand `804bf80`
+
+  **Reiner Befund mit einer Wahl am Ende; gebaut ist nichts, `index.html` ist
+  unverändert.** Gemessen mit Probeelementen, die ein Gerüst außerhalb des
+  Repositories zur Laufzeit einsetzt und wieder entfernt. Alle Zahlen und alle
+  Ja/Nein-Werte unten sind im Lauf gemessen.
+
+  **Die eine Lesart, die dieser Befund voraussetzt, und sie steht hier, damit
+  sie widersprechbar ist:** „unter 960 px stehen dieselben **Knöpfe** wie heute
+  im Inspektor" ist als *dieselben Knöpfe* gelesen, nicht als *an denselben drei
+  Stellen*. Der Unterschied ist nicht klein – die acht Knöpfe liegen heute in
+  **drei** Gruppen an drei Orten:
+
+  | Gruppe | Knöpfe | heutiger Elternteil |
+  |---|---|---|
+  | `.editor-actions` | `#insertPointBeforeBtn`, `#insertPointAfterBtn`, `#setStartPointBtn`, `#setEndPointBtn`, `#deletePointBtn` | `#inspectorPoint` |
+  | einzeln | `#duplicateFeatureBtn` | `#inspectorFeature`, zwischen Kennzahlzeilen und Hinweis |
+  | `#inspectorSelection` | `#deleteMultiSelectionBtn`, `#clearMultiSelectionBtn` | eigener Block |
+
+  **Unter der strengen Lesart gäbe es kein „ein Markup", sondern drei**, die
+  unabhängig voneinander an drei Ziele wandern – und eine Leiste ist ein
+  Stapel, dessen Teile voneinander wissen müssen. Die weite Lesart führt die
+  acht in **einen** Behälter zusammen, der als Ganzes den Ort wechselt; unter
+  960 px steht dieser Behälter im Inspektor. **Das ist die Lesart, auf der
+  alles Weitere ruht.**
+
+  **Vier Wege, und zwei davon scheiden gemessen aus.**
+
+  | Weg | Kern | Messergebnis |
+  |---|---|---|
+  | **1** – Knoten bleibt im Inspektor, `position:absolute` | CSS allein | **scheidet aus** |
+  | **2** – Knoten bleibt im Inspektor, `position:fixed` | CSS allein | **trägt**, mit einem Preis |
+  | **3** – Knoten liegt in `#viewer`, ragt unter 960 px in die Spalte | CSS allein, umgekehrte Richtung | **scheidet aus** |
+  | **4** – ein Behälter, per JS umgehängt | wie `applyToolRailState()` | **trägt** |
+
+  **Weg 1 scheitert am abschneidenden Vorfahren, und der Befund ist ein
+  Lehrstück für die Hausregel „der Test prüft die Wirkung".** Ein
+  Probeelement in `#inspectorPoint`, `position:absolute`, 200 px nach links
+  hinausgeschoben, meldet einen Kasten, der **wirklich über der Karte liegt** –
+  und `document.elementFromPoint()` liefert an seiner Mitte trotzdem `svg`:
+
+  | gemessen | Wert |
+  |---|---|
+  | Kasten der Probe | 773 / 399, 80 × 40 px – links vom Inspektor, innerhalb der Karte |
+  | `elementFromPoint()` an der Mitte | **`svg`**, nicht die Probe |
+  | `overflow` von `aside` | **`hidden` waagerecht, `auto` senkrecht** |
+
+  Der Rechteckwert lügt, die Trefferprüfung sagt die Wahrheit – genau der Fall,
+  den diese Datei für die Menüpanels führt. **Weg 3 ist derselbe Befund in der
+  Gegenrichtung:** ein Kind von `#viewer`, 40 px über den rechten Rand hinaus,
+  liegt rechnerisch in der Inspektorspalte (Kasten bei 1000 px, Spalte ab
+  960 px), getroffen wird dort aber `#inspectorTitle` – `.viewer` trägt
+  `overflow:hidden`.
+
+  **Weg 2 trägt: `position:fixed` entkommt beiden Klemmungen.** Dieselbe Probe
+  mit `position:fixed` und den Koordinaten der Kartenecke wird getroffen. Kein
+  Vorfahr von `aside` trägt ein `transform` (gemessen, sonst wäre `fixed` an
+  ihn gebunden). **Sein Preis sind die Koordinaten:** `fixed` rechnet gegen das
+  Fenster, nicht gegen die Karte.
+
+  | Größe | steht heute als | verfügbar für CSS |
+  |---|---|---|
+  | linke Kante der Karte, 168 px | `--rail-col` an `.app` | **ja**, als Variable |
+  | obere Kante der Karte, 48 px | Höhe der Kopfzeile | **nein** – keine Variable, sie stünde als Zahl im Rechenausdruck |
+
+  Damit brächte Weg 2 die Kopfzeilenhöhe als **zweite Quelle** in die Datei –
+  genau die Fehlerklasse, gegen die `--rail-col` und `--inspector-col`
+  eingeführt wurden. Dazu kommt: eine `fixed`-Ebene wird von `.viewer` **nicht**
+  beschnitten; eine zu hohe Leiste liefe über Legende und Statuszeile, statt an
+  der Kartenkante zu enden.
+
+  **Weg 4 trägt und kostet keine zweite Quelle.** Der Behälter liegt über 960 px
+  als `position:absolute`-Kind in `#viewer` – dieselbe Machart wie
+  `.map-window`, `.map-view-toolbar` und `.scale-notice`, mit `left:12px;
+  top:12px` gegen die Karte selbst gerechnet; `#viewer` trägt bereits
+  `position:relative`. Unter 960 px hängt er im Inspektor. Umgehängt wird per
+  JS an einer `matchMedia`-Abfrage, wie es `applyToolRailState()` seit
+  Etappe 3 für die Werkzeugleiste tut.
+
+  **Was ein `appendChild()` überlebt – gemessen, nicht angenommen**, mit einem
+  echten Knopf (`#deletePointBtn`) bei ausgewähltem Punkt:
+
+  | | vor dem Umhängen | danach |
+  |---|---|---|
+  | dasselbe Objekt | – | **ja** |
+  | Ereignisbehandler | 1 Klick gezählt | **2 Klicks** – der Behandler feuert weiter |
+  | `disabled` | `false` | `false` |
+  | Beschriftung | „Punkt löschen" | „Punkt löschen" |
+  | Wert eines Eingabefeldes | „getippt" | „getippt" |
+  | `<details open>` | offen | offen |
+  | **Fokus** | **auf dem Knopf** | **weg – `document.activeElement` ist `BODY`** |
+
+  **Der Fokus ist das einzige, was verlorengeht**, und er ist in einer Zeile
+  zurückzuholen, weil das Element dasselbe bleibt. Wer umhängt, ohne ihn
+  wiederherzustellen, nimmt einem Tastaturnutzer mitten im Fenstergrößenwechsel
+  die Stelle weg, an der er stand.
+
+  **Die Übersetzung überlebt den Umzug in beiden Sprachen.** Auf Englisch
+  umgehängt und zurückgehängt bleibt „Delete point" stehen, danach liefert
+  `setLanguage("de")` wieder „Punkt löschen". Der `MutationObserver` sieht einen
+  umgehängten Knoten als **hinzugefügt** und schickt ihn durch
+  `translateDynamicElement()` – bei bereits englischem Text ändert das nichts.
+
+  **Zurück an dieselbe Stelle führt ein Ankerknoten.** Gemessen mit einem
+  Kommentarknoten als Platzhalter: `.editor-actions` kehrt mit demselben
+  nächsten Geschwister (`#selectionDeltaInfo`) zurück wie vorher. Ohne Anker
+  landete die Gruppe am Ende ihres Blocks – die Tab-Reihenfolge, die diese
+  Datei ausdrücklich als Kette festhält, wäre eine andere.
+
+  **Warum nicht ein Raster über beide Spalten (der naheliegende fünfte Weg):**
+  ein vierter, gewöhnlicher Kindknoten von `main` erzeugt eine **zweite
+  Rasterzeile** – gemessen wechselt `grid-template-rows` von `759px` auf
+  `749px 10px`, die Karte verliert also genau die Höhe des neuen Kindes.
+  Absolut positioniert lässt er die Vorlage unberührt (`759px`, Karte weiter
+  792 px breit), ist dann aber kein Rasterelement mehr und braucht wieder
+  Koordinaten – und unter 960 px landete er in einer Zeile über die volle
+  Breite, nicht im Inspektor.
+
+  **GEWÄHLT ist Weg 4.** Er ist der einzige, der ohne eine zweite Quelle
+  auskommt, er benutzt die Ebenenmachart, die im Haus fünfmal dasteht, und
+  seine Schwelle hat mit `TOOL_RAIL_NARROW_QUERY` ein Vorbild. Sein einziger
+  gemessener Verlust – der Fokus – ist benannt und behebbar; die Preise der
+  Alternativen sind es nicht.
+
+  **Woran ein Test abliest, wo die Knöpfe gerade stehen – drei Lesarten, und
+  sie sind nicht gleichwertig.**
+
+  | Lesart | Ausdruck | was sie belegt |
+  |---|---|---|
+  | strukturell | `viewer.contains(knopf)` bzw. `knopf.closest("#viewer")` | wo der Knoten **hängt** |
+  | geometrisch | Kasten des Knopfes innerhalb des Kastens von `#viewer` | wo er **gezeichnet wird** |
+  | Treffer | `elementGetroffen()` aus dem Harness | ob ihn jemand **erreicht** |
+
+  **Sie können auseinanderfallen, und das ist gemessen:** ein Probeknopf, der
+  als gewöhnliches Kind an `#viewer` angehängt wurde, meldete
+  `viewer.contains()` als wahr und lag mit seinem Kasten trotzdem **außerhalb**
+  der Karte (Oberkante 807 px bei einer Karte von 48 bis 807 px). Die
+  strukturelle Lesart allein sagt also nur, was gemeint war. **Zugesichert
+  gehört die geometrische, und daneben der Treffer** – dieselbe Regel wie
+  „Sichtbarkeit über den berechneten Stil, und was über seinen Container
+  hinausragt, zusätzlich auf Trefferbarkeit".
+
+  **Und die Breite steht in keinem Test als Literal.** Die Schwelle wird
+  gelesen, wie `schwelleAusCss()` es für die 8c-Regel tut – nur aus der anderen
+  Quelle: sie lebt bei Weg 4 in JS. **Gemessen: eine oberste `const` des
+  Inline-Skripts ist aus `page.evaluate()` heraus lesbar** –
+  `typeof TOOL_RAIL_NARROW_QUERY` liefert `"string"` und den Wert
+  `"(max-width: 1000px)"`. Ein Test holt sich die Abfrage also aus dem Bestand,
+  zieht die Zahl heraus und misst bei ihr und bei Zahl−1. **Die Zahl der
+  Knopfleiste darf dabei nicht mit der 8c-Schwelle verwechselt werden**, siehe
+  den eigenen Eintrag weiter unten.
+
+  **Was das für die bestehenden Zusicherungen heißt – namentlich, und die
+  erste ist die unangenehme:**
+
+  | Zusicherung | Datei | Folge |
+  |---|---|---|
+  | „auf der Karte liegt keine Auswahlleiste mehr" (`.map-selection-toolbar`, Anzahl 0) | `tools/test-inspector.mjs` | **reißt**, sobald die neue Leiste diese Klasse trägt. Entweder bekommt die Leiste einen anderen Namen, oder diese Zusicherung wird im selben Schritt umgeschrieben – stehen lassen und umgehen geht nicht |
+  | die Blocksichtbarkeit je Zustand (46 prüfende Zusicherungen) | `tools/test-inspector.mjs` | betroffen, sobald die acht Knöpfe ihre Blöcke verlassen: `#inspectorSelection` wäre leer, `#inspectorPoint` verlöre seine `.editor-actions` |
+  | „Zustand ein Punkt passt ohne Scrollen" und die Reserve von 12 px | `tools/test-inspector.mjs` | die Höhe von `#inspectorPoint` ändert sich – die 448 px der Bestandsaufnahme gelten nicht mehr |
+  | die Tab-Kette davor/danach/Start/Ende/löschen | `tools/test-inspector.mjs` | hängt an der DOM-Reihenfolge und damit am Ankerknoten des Umzugs |
+  | die Eigenbreite der Punktknöpfe (139-px-Spalte, `width:max-content`) | `tools/test-inspector.mjs` | gilt für die zweispaltige Anordnung im Inspektor, nicht für eine senkrechte Leiste |
+  | 22 Stellen, die `#deleteMultiSelectionBtn` / `#clearMultiSelectionBtn` als **Geste** klicken | sieben Dateien | die Bezeichner bleiben, der Ort wechselt. Die Vorgabegröße eines Playwright-Kontexts ist 1280 px breit, die Knöpfe lägen dort also über der Karte – klickbar bleiben sie nur, wenn die Leiste wirklich getroffen wird |
+  | die Breitenmessungen gegen `#viewer` und `aside` | `tools/test-toolbar.mjs` | **unberührt** – gemessen im zehnten Durchgang: ein absolut positioniertes Kind ändert den Kasten seines Vorfahren nicht |
+
+  **Die ANHALTEBEDINGUNG ist nicht eingetreten: kein Weg verlangt, einen der
+  acht Knöpfe umzubenennen.** Ein `appendChild()` lässt Bezeichner unberührt –
+  gemessen, `document.getElementById()` liefert nach dem Umzug dasselbe Objekt.
+  Was einen **Namen bekommen muss**, ist etwas anderes: der neue Behälter, und
+  der Ankerpunkt, an den `.editor-actions` zurückkehrt. `.editor-actions` trägt
+  heute **keine `id`** – sie ist eine Klasse und in `#inspectorPoint` einmalig.
+  Ein Behälter ist keiner der acht Knöpfe; die Bedingung greift also nicht, und
+  das ist hier ausdrücklich vermerkt statt stillschweigend vorausgesetzt.
+
   #### Die Bestandsaufnahme – gemessen mit dem neunten Durchgang, Stand `5b0b89e`
 
   **Reiner Befund, nichts gebaut und nichts entschieden.** Gemessen im Browser
