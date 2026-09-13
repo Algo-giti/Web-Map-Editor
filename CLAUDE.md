@@ -6888,6 +6888,60 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
      eine Tab-Kette zusichert, misst sie in einem Fenster, in dem die Spalte
      nicht rollt.
 
+  #### Der obere Stapel der Karte – Schritt 4 des elften Durchgangs
+
+  **Der Maßstabshinweis weicht, und zwar nach unten.** `#scaleNotice` stand bei
+  `left:12px; right:12px; top:12px` – genau dort, wo die Leiste jetzt liegt.
+  Die Bestandsaufnahme des zehnten Durchgangs hatte das als den härtesten
+  Punkt der Überdeckung genannt: zwei Ebenen am selben Ort, und die eine sagt,
+  dass die Karte nicht verlässlich vermessen ist.
+
+  **Gewählt ist der Weg über das Layout, nicht über einen gerechneten
+  Versatz.** Beide liegen seitdem in **einem** Stapel, `#mapTopStack`: eine
+  absolut positionierte Spalte am oberen Kartenrand, `display:flex`,
+  `flex-direction:column`, `gap:12px`. Die Leiste hängt sich als **erstes**
+  Kind hinein, der Hinweis rückt dadurch von selbst darunter.
+
+  **Warum nicht der naheliegende Versatz** (`top: calc(12px + Höhe der Leiste
+  + 12px)` oder eine Einrückung nach rechts um ihre Breite): beide Maße
+  **wechseln mit dem Zustand** – gemessen 288 px hoch bei einem Punkt gegen
+  88 px bei mehreren, 145 px breit gegen 160 px bei einer Exclusion. Ein
+  Versatz wäre eine Zahl, die jemand nachführen müsste, sobald die Leiste eine
+  Zeile mehr trägt; der Stapel rechnet nichts und kann deshalb auch nicht
+  veralten. Das ist dieselbe Entscheidung wie überall sonst in dieser Datei:
+  lieber eine Quelle, die von selbst stimmt, als eine Zahl, die gepflegt
+  werden muss.
+
+  **Zwei Kleinigkeiten, die dazugehören:** der Stapel spannt sich über die
+  ganze Kartenbreite und trägt deshalb `pointer-events:none`, seine Kinder
+  `auto` – sonst finge er Klicks auf die Karte ab. Und die Höhenklammer
+  (`max-height:calc(100% - 24px)`) sitzt jetzt am Stapel statt an der Leiste:
+  `.viewer` trägt `overflow:hidden`, ein zu hoher Stapel wäre also unten
+  abgeschnitten statt rollbar.
+
+  **Zugesichert ist die Wirkung, nicht der berechnete Stil** – so war es
+  verlangt und so ist es gemessen: die beiden Rechtecke schneiden einander
+  nicht, der Hinweis steht mit Auswahl **tiefer** als ohne, und **beide werden
+  an ihrer eigenen Stelle getroffen** (`elementFromPoint` fünf Pixel innerhalb
+  der jeweiligen linken oberen Ecke). Die Vorbedingung – der Hinweis erscheint
+  überhaupt – ist selbst zugesichert; hergestellt wird sie mit einer Karte von
+  0,5 × 0,5 Ausdehnung, also einem unklaren Maßstab.
+
+  **Gemessen bei 1280 × 900:**
+
+  | | Leiste | Hinweis |
+  |---|---|---|
+  | ohne Auswahl | nicht sichtbar | 60 bis 135 |
+  | ein Punkt gewählt | **60 bis 348** | **360 bis 435** |
+
+  **Gegengeprüft mit einer Mutation** (die Leiste bekommt wieder
+  `position:absolute; left:0; top:0` und liegt damit auf dem Hinweis),
+  Sicherungskopie außerhalb des Repositories, Prüfsumme vorher = nachher: sie
+  reißt **drei** benannte Zusicherungen bei **0 Timeouts** – „und ihre
+  Rechtecke schneiden einander nicht", „der Hinweis ist dabei tiefer gerueckt,
+  nicht verschwunden" und „beide werden an ihrer eigenen Stelle getroffen",
+  Letztere mit `hinweisGetroffen:false`.
+
   #### Die Bestandsaufnahme – gemessen mit dem neunten Durchgang, Stand `5b0b89e`
 
   **Reiner Befund, nichts gebaut und nichts entschieden.** Gemessen im Browser

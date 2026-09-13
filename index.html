@@ -1406,8 +1406,30 @@
 
   /* Komplette Feature-Navigation standardmäßig geschlossen. */
   /* Neutraler Startzustand ohne Karte und Raster. */
-  .scale-notice {
+  /*
+   * Der Stapel traegt die Positionierung, seine Kinder stehen im Fluss. Die
+   * Leiste haengt sich als erstes Kind hinein (applySelectionBarPlacement),
+   * der Hinweis rueckt dadurch von selbst darunter.
+   */
+  .map-top-stack {
     position:absolute; left:12px; right:12px; top:12px; z-index:6;
+    display:flex; flex-direction:column; gap:12px;
+    pointer-events:none;
+    /*
+     * Die Klammer sitzt am Stapel, nicht an der Leiste: `.viewer` traegt
+     * overflow:hidden, ein zu hoher Stapel waere also unten abgeschnitten
+     * statt rollbar. Prozente rechnen hier gegen die Karte, weil der Stapel
+     * absolut in ihr positioniert ist.
+     */
+    max-height:calc(100% - 24px);
+  }
+
+  .map-top-stack > * { pointer-events:auto; }
+
+  /* Die Leiste ist so breit wie ihre Beschriftung, nicht wie die Karte. */
+  .map-top-stack > .selection-actions { align-self:flex-start; }
+
+  .scale-notice {
     padding:10px 12px; border-radius:9px;
     border:1px solid rgba(255,196,84,.75);
     background:rgba(58,42,14,.94); color:#ffe0a3;
@@ -1948,13 +1970,10 @@
    */
   #featureActions { display:contents; }
 
-  #viewer > .selection-actions {
-    position:absolute;
-    left:12px;
-    top:12px;
-    z-index:6;
+  #viewer .selection-actions {
     padding:6px;
-    max-height:calc(100% - 24px);
+    /* min-height:0 - sonst schrumpft ein Flex-Kind nicht unter seinen Inhalt. */
+    min-height:0;
     overflow:auto;
     border:1px solid var(--line);
     border-radius:10px;
@@ -3310,7 +3329,23 @@
     <section class="viewer" id="viewer">
       <svg id="svg" aria-label="RTK Karte"></svg>
 
-      <div id="scaleNotice" class="scale-notice" role="status" hidden></div>
+      <!--
+        DER OBERE STAPEL DER KARTE.
+
+        Er ist die Antwort auf eine Ueberdeckung: der Maszstabshinweis stand
+        bei left:12/top:12 - genau dort, wo seit dem elften Durchgang die
+        Auswahlleiste liegt. Statt den Hinweis mit einem gerechneten Versatz
+        wegzuschieben, stehen beide untereinander in EINEM Stapel; wo der
+        Hinweis landet, entscheidet damit das Layout und nicht eine Zahl, die
+        jemand nachfuehren muesste, sobald die Leiste eine Zeile mehr traegt.
+
+        pointer-events:none am Stapel, auto an den Kindern: der Stapel spannt
+        sich ueber die ganze Kartenbreite, und die Karte darunter muss
+        anklickbar bleiben.
+      -->
+      <div id="mapTopStack" class="map-top-stack">
+        <div id="scaleNotice" class="scale-notice" role="status" hidden></div>
+      </div>
 
       <div id="emptyMapState" class="empty-map-state">
         <div class="empty-map-title">Keine Karte geladen</div>
@@ -5435,7 +5470,14 @@ let selectionBarHome = null;
 
 function applySelectionBarPlacement() {
   const bar = document.getElementById("selectionActions");
-  const viewer = document.getElementById("viewer");
+
+  /*
+   * Ziel ist der obere Stapel der Karte, nicht `#viewer` selbst: dort steht
+   * auch der Maszstabshinweis, und die beiden sollen einander nicht
+   * ueberdecken. Der Stapel ordnet sie untereinander, ohne dass irgendwo eine
+   * Hoehe gerechnet wird.
+   */
+  const viewer = document.getElementById("mapTopStack");
 
   if (!bar || !viewer) return;
 
@@ -5459,7 +5501,8 @@ function applySelectionBarPlacement() {
   const fokus = document.activeElement;
   const hatteFokus = bar.contains(fokus);
 
-  if (ueberDerKarte) viewer.appendChild(bar);
+  /* Erstes Kind: der Hinweis rueckt darunter, nicht darueber. */
+  if (ueberDerKarte) viewer.insertBefore(bar, viewer.firstChild);
   else ziel.insertBefore(bar, selectionBarHome);
 
   if (hatteFokus && typeof fokus.focus === "function") fokus.focus();

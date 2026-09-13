@@ -814,6 +814,102 @@ try {
   await page.waitForTimeout(300);
 
   /* ---------------------------------------------------------------- */
+  console.log("Leiste und Maszstabshinweis ueberdecken einander nicht");
+
+  /*
+   * Beide wollen an denselben Platz: links oben ueber der Karte. Seit dem
+   * elften Durchgang stehen sie deshalb untereinander in EINEM Stapel.
+   *
+   * Gemessen wird die WIRKUNG, nicht der berechnete Stil: zwei Rechtecke, die
+   * sich nicht schneiden, und beide an ihrer eigenen Stelle wirklich
+   * getroffen. getComputedStyle sagte nur, was gemeint war - die beiden
+   * koennten sich trotzdem ueberlagern.
+   *
+   * Der Hinweis erscheint bei unklarem Maszstab; eine Karte mit 0,5 x 0,5
+   * Ausdehnung ist genau dieser Fall.
+   */
+  await page.setViewportSize({ width: ueberSchwelle, height: 900 });
+  await page.goto(indexUrl(), { waitUntil: "load" });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "load" });
+  await page.locator("#fileInput").setInputFiles({
+    name: "mehrdeutig.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(JSON.stringify({
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: { name: "perimeter" },
+        geometry: { type: "Polygon", coordinates: [[
+          [0, 0], [0.5, 0], [0.5, 0.5], [0, 0.5], [0, 0],
+        ]] },
+      }],
+    })),
+  });
+  await page.waitForTimeout(600);
+
+  const obenLinks = () => page.evaluate(() => {
+    const kasten = (id) => {
+      const el = document.getElementById(id);
+      const b = el.getBoundingClientRect();
+      return {
+        sichtbar: getComputedStyle(el).display !== "none",
+        l: Math.round(b.left), o: Math.round(b.top),
+        r: Math.round(b.right), u: Math.round(b.bottom),
+      };
+    };
+
+    const bar = kasten("selectionActions");
+    const hinweis = kasten("scaleNotice");
+
+    /* Der Treffer an der eigenen linken oberen Ecke, ein paar Pixel hinein. */
+    const trifft = (k, id) => {
+      if (!k.sichtbar) return null;
+      const el = document.elementFromPoint(k.l + 5, k.o + 5);
+      return !!(el && el.closest(`#${id}`));
+    };
+
+    return {
+      bar, hinweis,
+      ueberdeckt: bar.sichtbar && hinweis.sichtbar &&
+        bar.l < hinweis.r && hinweis.l < bar.r &&
+        bar.o < hinweis.u && hinweis.o < bar.u,
+      barGetroffen: trifft(bar, "selectionActions"),
+      hinweisGetroffen: trifft(hinweis, "scaleNotice"),
+    };
+  });
+
+  {
+    const lage = await obenLinks();
+    check("Vorbedingung: der Maszstabshinweis steht wirklich da",
+      lage.hinweis.sichtbar, JSON.stringify(lage.hinweis));
+    check("ohne Auswahl steht der Hinweis oben und wird getroffen",
+      !lage.bar.sichtbar && lage.hinweisGetroffen === true,
+      JSON.stringify(lage));
+  }
+
+  const oben = (await obenLinks()).hinweis.o;
+
+  await page.locator("circle.vertex").first().click();
+  await page.waitForTimeout(350);
+
+  {
+    const lage = await obenLinks();
+    check("mit Auswahl stehen beide da",
+      lage.bar.sichtbar && lage.hinweis.sichtbar, JSON.stringify(lage));
+    check("und ihre Rechtecke schneiden einander nicht",
+      !lage.ueberdeckt, JSON.stringify(lage));
+    check("der Hinweis ist dabei tiefer gerueckt, nicht verschwunden",
+      lage.hinweis.o > oben, `${lage.hinweis.o} gegen vorher ${oben}`);
+    check("beide werden an ihrer eigenen Stelle getroffen",
+      lage.barGetroffen === true && lage.hinweisGetroffen === true,
+      JSON.stringify(lage));
+  }
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.waitForTimeout(300);
+
+  /* ---------------------------------------------------------------- */
   console.log("Die Punktrolle steht nur da, wenn es eine gibt");
 
   /*
