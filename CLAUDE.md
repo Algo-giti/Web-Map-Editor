@@ -6942,6 +6942,77 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   nicht verschwunden" und „beide werden an ihrer eigenen Stelle getroffen",
   Letztere mit `hinweisGetroffen:false`.
 
+  #### Die Klicks auf die Karte – Schritt 5 des elften Durchgangs
+
+  **Die drei festen Koordinaten sind weg.** „Auf die leere Karte klicken, um
+  abzuwählen" stand zweimal in `tools/test-inspector.mjs` auf `2/2` und einmal
+  in `tools/test-menu.mjs` auf `5/5` – gemessen 10 bzw. 7 px neben dem
+  Leistenstreifen. Sie bestanden also, aber nicht mit Absicht: niemand hatte
+  diese Zahlen gewählt, weil dort Platz bleiben sollte.
+
+  **`freieKartenstelle(page)` im Harness sucht die Stelle, statt sie zu
+  setzen.** Frei heißt dabei: der Punkt **und seine Umgebung** liegen auf dem
+  `svg` – geprüft mit `elementFromPoint()` am Punkt selbst und an vier Stellen
+  12 px darum herum. Damit hängt die Stelle an keiner Zahl und an keiner
+  Breite; sie stimmt auch dann noch, wenn die Leiste eine Zeile mehr trägt.
+
+  **Der Rand war nötig, und das ist gemessen:** die erste Fassung prüfte nur
+  den Punkt selbst und fand damit den **8 px breiten Streifen** links neben der
+  Leiste – frei, aber wieder nur zufällig. Mit dem Rand liegt die Stelle rechts
+  neben der Leiste, gemessen **17 px** Abstand statt 8.
+
+  **Ein Helfer, nicht zwei.** Er steht in `tools/browser-harness.mjs` neben
+  `elementGetroffen()` und `openAllFolds()`; zwei Kopien in zwei Testdateien
+  wären genau die zweite Quelle, gegen die diese Datei an mehreren Stellen
+  argumentiert. Liefert er `null` – die Karte wäre vollständig verdeckt –,
+  steht an beiden Aufrufstellen eine **benannte Zusicherung** und kein Klick
+  ins Blaue.
+
+  **Die vierte feste Koordinate bleibt, mit Begründung:**
+  `tools/scan-i18n.mjs` klickt auf `200/200`, `400/300` und `300/300`. Das
+  Werkzeug ist kein Browsertest und läuft nicht im Läufer; nachgemessen liegt
+  sein engster Klick bei feinem Zeiger **43 px** neben der Leiste, und ein
+  vollständiger Lauf meldet unverändert **NEU 0**. Bei grobem Zeiger läge er
+  nach der Messung des zehnten Durchgangs darin – das Werkzeug wird aber nur
+  mit feinem Zeiger gefahren.
+
+  #### Die Klicks mit gerechneter Koordinate – jetzt erhoben
+
+  **Erhoben als Laufzeitmessung, nicht am Quelltext.** Eine statische Liste
+  beantwortet die Frage nicht: wo ein aus Weltkoordinaten oder aus einem
+  Markerkasten gerechneter Klick landet, hängt am Einpassen der Ansicht. Das
+  Harness wurde deshalb **vorübergehend** ausgerüstet – ein Aufzeichner, der
+  zu jedem `pointerdown` innerhalb der Karte den Punkt, das Ziel und das
+  Rechteck der Leiste notiert –, danach aus einer Sicherungskopie
+  zurückgespielt; Prüfsumme vorher = nachher.
+
+  **Gezählt sind nur Klicks auf die Karte**: Treffer auf die Knöpfe der Leiste
+  selbst liegen naturgemäß in ihrem Rechteck und sagen nichts.
+
+  | Datei | Klicks bei stehender Leiste | darunter | engster Abstand |
+  |---|---|---|---|
+  | `tools/test-inspector.mjs` | 112 | **0** | **17 px** |
+  | `tools/test-merge.mjs` | 152 | **0** | 170 px |
+  | `tools/test-statusbar.mjs` | 8 | **0** | 345 px |
+  | `tools/test-menu.mjs` | 4 | **0** | 287 px |
+  | `tools/test-dockpath.mjs` | 4 | **0** | 528 px |
+  | `tools/test-shapes.mjs` | 0 | – | die Leiste steht dort nie |
+  | `tools/test-i18n-dynamic.mjs` | 0 | – | ebenso |
+
+  **Kein gerechneter Klick landet heute unter der Leiste.** Der eine, der es
+  tat, ist nicht durch diese Messung gefunden worden, sondern durch den
+  Testlauf von Schritt 3: `waehlePunkte()` in `tools/test-merge.mjs` klickte
+  den Marker bei E −60 / N 40, der bei 312 / 86 unter der Leiste liegt.
+  **Das ist der eigentliche Befund** – nicht die Liste, sondern dass die Liste
+  sich mit jeder Karte ändert, die ein Test lädt. Die Umgehung dort (den
+  Marker zuerst klicken, der der Ecke am nächsten liegt) steht als solche
+  benannt beim offenen Punkt „Die Leiste verdeckt Punktmarker".
+
+  **Die 17 px in `tools/test-inspector.mjs` sind der engste Fall und stammen
+  aus dem Helfer selbst** – er sucht von links oben und nimmt die erste freie
+  Stelle. Wer ihm mehr Luft geben will, erhöht seinen `luft`-Wert; die Zahl
+  steht an einer Stelle.
+
   #### Die Bestandsaufnahme – gemessen mit dem neunten Durchgang, Stand `5b0b89e`
 
   **Reiner Befund, nichts gebaut und nichts entschieden.** Gemessen im Browser

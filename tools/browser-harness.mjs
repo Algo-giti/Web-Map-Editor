@@ -236,6 +236,60 @@ export async function launchBrowser(toolName) {
 }
 
 /**
+ * Liefert eine Stelle auf der Karte, an der WIRKLICH die Karte liegt.
+ *
+ * Der Anlass ist die Auswahlleiste des elften Durchgangs: sie liegt links oben
+ * über der Karte, sobald etwas ausgewählt ist, und faengt dort jedes
+ * Zeigerereignis ab. Die drei Klicks "auf die leere Karte" standen bis dahin
+ * auf festen 2/2 bzw. 5/5 - gemessen 7 bis 10 px neben dem Leistenstreifen.
+ * Sie bestanden also, aber nicht mit Absicht: niemand hatte diese Zahlen
+ * gewaehlt, weil dort Platz bleiben sollte.
+ *
+ * GESUCHT WIRD, STATT GERECHNET: der Helfer sucht den ersten Punkt, an dem
+ * `elementFromPoint()` das `svg` SELBST liefert - keinen Marker, keine Ebene,
+ * kein Fenster. Damit haengt die Stelle an keiner Breite und an keiner Zahl;
+ * sie stimmt auch dann noch, wenn die Leiste eine Zeile mehr traegt oder
+ * woandershin zieht.
+ *
+ * Zurueckgegeben wird die Stelle RELATIV zum svg, also so, wie
+ * `locator.click({position})` sie erwartet, oder `null`, wenn die Karte
+ * vollstaendig verdeckt ist - dann gehoert eine benannte Zusicherung dorthin
+ * und kein Klick ins Blaue.
+ */
+export function freieKartenstelle(page, { schritt = 8, luft = 12 } = {}) {
+  return page.evaluate(({ weite, luft: rand }) => {
+    const svg = document.getElementById("svg");
+
+    if (!svg) return null;
+
+    const r = svg.getBoundingClientRect();
+
+    /*
+     * Frei heisst: der Punkt UND seine Umgebung liegen auf dem svg. Ohne den
+     * Rand faende die Suche den 8 px breiten Streifen links neben der
+     * Auswahlleiste - gemessen, das war die erste Fassung. Ein Klick dort
+     * ginge zwar durch, aber er stuende wieder nur zufaellig frei, und genau
+     * das war der Anlass fuer diesen Helfer.
+     */
+    const frei = (x, y) =>
+      document.elementFromPoint(x, y) === svg &&
+      document.elementFromPoint(x - rand, y) === svg &&
+      document.elementFromPoint(x + rand, y) === svg &&
+      document.elementFromPoint(x, y - rand) === svg &&
+      document.elementFromPoint(x, y + rand) === svg;
+
+    for (let y = r.top + rand + 2; y < r.bottom - rand - 2; y += weite) {
+      for (let x = r.left + rand + 2; x < r.right - rand - 2; x += weite) {
+        if (frei(x, y)) return { x: Math.round(x - r.left), y: Math.round(y - r.top) };
+      }
+    }
+
+    return null;
+  }, { weite: schritt, luft });
+}
+
+
+/**
  * Baut den Auslöser für Menübefehle: Menü öffnen, Eintrag anklicken.
  *
  * Der Helfer kapselt AUSSCHLIESSLICH diese beiden Gesten. Das Lauschen auf

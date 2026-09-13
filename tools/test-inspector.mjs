@@ -21,7 +21,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-inspector.mjs
 
-import { createChecker, elementGetroffen, indexUrl, launchBrowser, openAllFolds } from "./browser-harness.mjs";
+import { createChecker, elementGetroffen, freieKartenstelle, indexUrl, launchBrowser, openAllFolds } from "./browser-harness.mjs";
 
 const TOOL = "test-inspector";
 
@@ -155,6 +155,25 @@ try {
     if (!da) return false;
 
     await page.locator(`#${id}`).click();
+    return true;
+  };
+
+  /*
+   * "Auf die leere Karte klicken, um abzuwaehlen" - die Stelle wird GESUCHT,
+   * nicht gesetzt. Bis zum elften Durchgang standen hier feste 2/2; das lag
+   * gemessen 10 px neben der Auswahlleiste, und niemand hatte diese Zahl
+   * gewaehlt, weil dort Platz bleiben sollte. freieKartenstelle() liefert den
+   * ersten Punkt, an dem wirklich das svg liegt.
+   */
+  const klickeLeereKarte = async (name) => {
+    const stelle = await freieKartenstelle(page);
+
+    check(`${name}: es gibt eine freie Stelle auf der Karte`,
+      stelle !== null, "die Karte ist vollstaendig verdeckt");
+
+    if (!stelle) return false;
+
+    await page.locator("#svg").click({ position: stelle });
     return true;
   };
 
@@ -1666,7 +1685,7 @@ try {
   await page.fill("#pointEastInput", "12,5");
   await page.locator("#pointEastInput").press("Enter");
   await page.waitForTimeout(350);
-  await page.locator("#svg").click({ position: { x: 2, y: 2 } });
+  await klickeLeereKarte("Abwaehlen vor dem Sprachwechsel");
   await page.waitForTimeout(200);
   await marks.nth(1).click();
   await page.waitForTimeout(300);
@@ -1718,7 +1737,7 @@ try {
   await page.waitForTimeout(400);
 
   /* Zuruecksetzen fuer die folgenden Abschnitte. */
-  await page.locator("#svg").click({ position: { x: 2, y: 2 } });
+  await klickeLeereKarte("Zuruecksetzen nach dem Sprachwechsel");
   await page.waitForTimeout(200);
 
   /* ---------------------------------------------------------------- */

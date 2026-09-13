@@ -26,6 +26,7 @@ import {
   createChecker,
   createMenueBefehl,
   elementGetroffen,
+  freieKartenstelle,
   indexUrl,
   launchBrowser,
 } from "./browser-harness.mjs";
@@ -176,7 +177,19 @@ try {
   /* ---------------------------------------------------------------- */
   console.log("Tastaturvertrag der Leiste");
 
-  await page.locator("#svg").click({ position: { x: 5, y: 5 } });
+  /*
+   * Die Stelle wird gesucht, nicht gesetzt: feste 5/5 lagen gemessen 7 px
+   * neben der Auswahlleiste, die seit dem elften Durchgang links oben ueber
+   * der Karte liegt. freieKartenstelle() liefert den ersten Punkt, an dem
+   * wirklich das svg liegt - unabhaengig davon, wie breit die Leiste ist.
+   */
+  const leereStelle = await freieKartenstelle(page);
+
+  check("es gibt eine freie Stelle auf der Karte",
+    leereStelle !== null, "die Karte ist vollstaendig verdeckt");
+
+  if (leereStelle) await page.locator("#svg").click({ position: leereStelle });
+
   await page.keyboard.press("F10");
   await page.waitForTimeout(150);
 
