@@ -1266,6 +1266,122 @@ nicht stillschweigend als vollständig getestet ausgeben.
 
 ---
 
+### 4.5 Bestandszahlen und ihre Messmethoden
+
+**Eine Bestandszahl ist eine Zahl in dieser Datei, die einen gemessenen Zustand
+des Codes beschreibt** – „die Prüfung hat 49 Fundstellen", „31 Statustexte
+haben keine englische Fassung", „52 prüfende Zusicherungen". Sie veraltet
+**nicht durch Irrtum, sondern durch Arbeit**: wer eine Schreibstelle ergänzt
+oder einen Text übersetzt, ändert sie, ohne sie zu lesen.
+
+**Die Messmethode gehört deshalb hierher und nicht in den Bericht des
+Durchgangs, der sie gemessen hat.** Eine Zahl ohne ihre Methode ist beim
+nächsten Nachmessen nicht zu prüfen, sondern neu zu erfinden – und zwei
+verschiedene Methoden liefern zwei verschiedene Zahlen, von denen keine falsch
+aussieht. Die Rekonstruktion der drei Methoden unten hat einen ganzen Schritt
+gekostet; sie steht hier, damit das kein zweites Mal nötig ist.
+
+**Eine nachgemessene Methode wird gegen den Stand kalibriert, an dem die Zahl
+entstanden ist, und muss dort die dokumentierte Zahl wiederliefern.** Erst dann
+ist ein abweichender heutiger Wert eine Veralterung und kein Fehler der
+Rekonstruktion. Liefert sie dort etwas anderes, ist die Methode falsch
+getroffen – nicht die Zahl. Ist sie gar nicht rekonstruierbar, wird die Zahl
+als **nicht mehr prüfbar** gemeldet und nicht geschätzt.
+
+**Stand des sechzehnten Durchgangs:**
+
+| Zahl | Fundstelle | Kalibrierungsstand | dort gemessen | heute | Urteil |
+|---|---|---|---|---|---|
+| 49 Fundstellen der Prüfung | Abschnitt 5, „Der Prüfbericht liegt im Inspektor" | `2acf6ea` | **49** ✓ | **49** | **weiterhin richtig** |
+| 31 Statustexte ohne englische Fassung | Abschnitt 7 | `d9354ee` | **31** ✓ | **28** | **überholt** |
+| 52 prüfende / 22 herstellende, davon 46 in `tools/test-inspector.mjs` | Abschnitt 7, Bestandsaufnahme des neunten Durchgangs | `ae029fe` | **52 / 22 / 46** ✓ | **56 / 22 / 50** | prüfend und Inspektorzahl **überholt**, herstellend unverändert |
+
+**Alle drei Methoden waren rekonstruierbar** – keine der Zahlen ist als nicht
+mehr prüfbar zu melden.
+
+#### Die 49 Fundstellen der Prüfung
+
+Gezählt werden die Schreibstellen auf die drei Befundlisten – `errors.push(`,
+`warnings.push(` und `info.push(` – in **zwei** Funktionen zusammen:
+`validateMapData()` **und** `collectGeometryFindings()`. Die zweite ist leicht
+zu übersehen, weil der Satz an der Fundstelle nur von „der Prüfung" spricht;
+ohne sie kommen 37 statt 49 heraus.
+
+| | `errors` | `warnings` | `info` | zusammen |
+|---|---|---|---|---|
+| `validateMapData()` | 20 | 11 | 6 | **37** |
+| `collectGeometryFindings()` | 0 | 9 | 3 | **12** |
+| | | | | **49** |
+
+**Die Aufteilung ist an beiden Ständen dieselbe**, nicht nur die Summe – das
+ist der eigentliche Beleg dafür, dass die Methode getroffen ist.
+
+**Die Zahl steht an ZWEI Stellen in dieser Datei**, und beide meinen dasselbe:
+„die Prüfung hat 49 Fundstellen, die alle Zeichenketten liefern" in Abschnitt 5
+und „von 49 Schreibstellen tragen sechs eine formatierte Zahl" in Abschnitt 7.
+Wer die eine ändert, ändert die andere mit.
+
+#### Die 31 Statustexte ohne englische Fassung
+
+Die Grundgesamtheit sind die **literalen ersten Argumente** von
+`setEditStatus()`, `setMultiSelectionStatus()`, `setReduceStatus()`,
+`setRectifyStatus()` und `updateGridStatus()`. Gezählt wird davon, was
+`translateGermanText()` **unverändert** zurückgibt – also weder einen
+Wörterbucheintrag noch ein passendes Muster hat.
+
+**Gemessen wird gegen die laufende Übersetzungsmechanik, nicht gegen den
+Dateitext.** `I18N_EN`, `I18N_PATTERNS`, `I18N_LABEL_PREFIXES`,
+`normalizeI18nText()`, `translateHistoryLabel()` und `translateGermanText()`
+werden aus dem Inline-Script geschnitten und in einer Sandbox ausgeführt –
+dieselbe Machart wie in `tools/test-cassandra.mjs`. Eine Textsuche über
+`I18N_EN` genügt nicht: ein Muster fängt Texte ab, die als Schlüssel nirgends
+dastehen.
+
+**Die Grundgesamtheit ist an beiden Ständen 57.** Es sind also keine Texte
+hinzugekommen; drei haben seither eine englische Fassung bekommen, und alle
+drei sind in dieser Datei als erledigt verzeichnet – „Karte A und B wurden
+verbunden …" (Schritt 3 des fünften Durchgangs), „Raster wird nach dem Öffnen
+einer Karte angezeigt." (Schritt 7 des vierten Durchgangs) und „Zeichnung
+abgebrochen.". **Der Rückgang ist damit unabhängig bestätigt**, nicht nur
+gemessen.
+
+#### Die 52 prüfenden und 22 herstellenden Zusicherungen
+
+Gesucht wird über die Bezeichner der Auswahlblöcke des Inspektors, **mit
+Wortgrenzen**; ohne sie meldet `tools/test-cassandra.mjs` fünf Treffer, die
+sämtlich von `featureTypeState()` stammen – der Bezeichner `featureTypeStat`
+ist sein Präfix. **Prüfend** heißt, der Bezeichner steht im `check()`-Aufruf
+selbst; **herstellend** heißt, er steht nur im Vorlauf seit dem vorigen
+`check()`.
+
+Drei Dinge daran sind beim Nachmessen im sechzehnten Durchgang zugestoßen und
+standen bis dahin nirgends:
+
+- **`check()`-Aufrufe gehen über mehrere Zeilen.** Eine zeilenweise Suche
+  zählt den **eigenen Kalibrierungstreffer nicht**: bei „ein Punkt:
+  Punktzustand plus Auswahlaktionen" in `tools/test-inspector.mjs` steht der
+  Bezeichner eine Zeile unter dem `check(`. Nötig ist ein Aufruf-Parser, der
+  jeden `check(` über die **Klammerbilanz** abgrenzt und dabei Strings
+  überspringt, dazu ein Kommentarfilter – sonst zählt eine auskommentierte
+  Zeile oder eine Konstantenliste als Vorlauf.
+- **Die Bezeichnerliste ist die der Auswahlblöcke OHNE die Abmessungsfelder.**
+  `#widthStat`, `#heightStat` und `#areaStat` liegen im Markup zwar innerhalb
+  von `#inspectorEmpty`, gehören aber zum **Abmessungsblock** und nicht zum
+  Auswahlzustand. Mit ihnen ergeben sich 54/23 und ein achter Eintrag
+  `tools/test-scale.mjs` mit 0/1, den die dokumentierte Tabelle nicht hat.
+  `#featureStat` und `#pointStat` sind für die Zahl gleichgültig – sie kommen
+  im ganzen Verzeichnis `tools/` nicht vor.
+- **Der Beleg ist die Deckung Zeile für Zeile über alle sieben Dateien, nicht
+  die Gesamtsumme.** Eine bloß passende Summe kann aus zwei Fehlern entstehen,
+  die sich aufheben; sieben übereinstimmende Zeilen können es nicht.
+
+**`tools/smoke-test.mjs` fällt aus der Zählung**, obwohl es `#widthStat` und
+`#heightStat` liest: es führt überhaupt kein `check()`. Das ist keine Lücke der
+Methode, sondern ihre Definition – gezählt werden Zusicherungen, und dort gibt
+es keine.
+
+---
+
 ## 5. Domänenregeln (aus AGENTS.md, weiterhin gültig)
 
 Vollständige Details stehen in [`AGENTS.md`](AGENTS.md) und
