@@ -1436,19 +1436,19 @@ dieser ganze Abschnitt.
 **Die Form:**
 
 ```
-   ...die Prüfung hat <!-- bestand: NAME -->49 Fundstellen...
-   ...rund <!-- bestand: NAME +-500 -->21 000 Zeilen...
+   ...die Prüfung hat <!-- bestand: pruefstellen -->49 Fundstellen...
+   ...rund <!-- bestand: zeilen-index-html +-500 -->21 000 Zeilen...
 ```
 
-`NAME` steht hier für den Namen der Messung – in Wirklichkeit `pruefstellen`
-bzw. `zeilen-index-html`; die Tabelle unten nennt alle. **Im Beispiel steht er
-absichtlich in Großbuchstaben**, denn der Prüfer liest Namen aus
-Kleinbuchstaben und übersieht diese Zeilen dadurch. Mit den echten Namen
-geschrieben wären es zwei zusätzliche Fundstellen, und der Prüfer zählte eine
-Formbeschreibung als Aussage über den Bestand mit – gemessen, als dieser
-Abschnitt entstand: 25 Marken statt 23. **Ein Codeblock zeigt die Form, er
-behauptet keinen Bestand**; dass der Prüfer das heute nicht unterscheiden kann,
-steht als offener Punkt in Abschnitt 7.
+**Das Beispiel trägt die echten Namen, und das ist eine Zusicherung, keine
+Bequemlichkeit.** Ein Codeblock zeigt die **Form** einer Markierung, er
+behauptet keinen Bestand – `tools/check-bestandszahlen.mjs` überspringt
+Codeblöcke deshalb beim Lesen. Solange das Beispiel echt ist, fällt es auf,
+wenn diese Unterscheidung je verlorengeht: die gezählte Stellenzahl stiege
+sofort. Eine frühere Fassung schrieb hier `NAME` in Großbuchstaben, weil der
+Prüfer nur Kleinbuchstaben als Namen liest – das trug, **war aber eine
+Verabredung und keine Bedingung, die reißen kann**, und hätte beim nächsten
+Beispiel in Kleinbuchstaben still zu hoch gezählt.
 
 Die Marke steht unmittelbar **vor** der Zahl und trägt nur den Namen der
 Messung; gelesen wird die erste Zahl dahinter. **Der Wert selbst bleibt an
@@ -5436,29 +5436,87 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   (`classList.add("…")`) mitzählen. Fehlalarme sind zu erwarten, deshalb eher
   als Warnung denn als Fehler.
 
-- **Der Bestandsprüfer unterscheidet Codeblöcke nicht von Fließtext –
-  eingetragen mit dem sechzehnten Durchgang, nicht behoben.** Eine Markierung
-  in einem ```-Block ist ein **Beispiel** und keine Aussage über den Bestand;
-  `tools/check-bestandszahlen.mjs` liest sie trotzdem als Marke. Gemessen beim
-  Schreiben von Abschnitt 4.5: das Formbeispiel dort erzeugte zwei
-  Scheinmarken, der Prüfer meldete 25 statt 23.
+- **ERLEDIGT mit dem siebzehnten Durchgang: der Bestandsprüfer überspringt
+  Codeblöcke.** Der Eintrag bleibt stehen, weil er eine Regel trägt und weil
+  der Unterschied zwischen der Umgehung und der Lösung der eigentliche Inhalt
+  ist.
 
-  **Umgangen, nicht gelöst:** das Beispiel schreibt den Namen in
-  Großbuchstaben, die der Prüfer nicht als Namen liest. Das trägt, solange
-  jeder daran denkt – und genau diese Art Bedingung ist es, die beim nächsten
-  Mal niemand kennt.
+  Der Befund war: eine Markierung in einem Codeblock ist ein **Beispiel** und
+  keine Aussage über den Bestand, der Prüfer las sie trotzdem als Marke –
+  gemessen beim Schreiben von Abschnitt 4.5, 25 Fundstellen statt 23.
+  Getragen wurde das zunächst allein davon, dass das Beispiel den Namen in
+  **Großbuchstaben** schrieb, die der Prüfer nicht als Namen liest. **Das war
+  eine Verabredung und keine Bedingung, die reißen kann**: wer später ein
+  Beispiel in Kleinbuchstaben schreibt, lässt den Prüfer still zu hoch zählen –
+  und dann meldet er eine Abweichung an einer Stelle, die es nicht gibt, oder
+  eine echte bleibt zugedeckt.
 
-  **Die Behebung wäre klein** – beim Lesen von CLAUDE.md die ```-Blöcke durch
-  Leerraum ersetzen, damit die Zeilennummern stimmen –, war aber in dem
-  Schritt, in dem der Befund anfiel, ausdrücklich ausgeschlossen: der war
-  „nur Doku". **Sie ist eine eigene Entscheidung.**
+  **Gelöst wird es beim Lesen, nicht beim Schreiben:** der Inhalt eines
+  Codeblocks wird längengleich durch Leerraum ersetzt, bevor nach Marken
+  gesucht wird, sodass die gemeldeten Zeilennummern unverändert bleiben. Das
+  Beispiel in 4.5 trägt seitdem wieder die **echten** Namen – erst dadurch ist
+  die Lösung überhaupt beobachtbar: ginge die Unterscheidung verloren, stiege
+  die gezählte Stellenzahl sofort.
 
-  Der Fall ist der dritte derselben Klasse in einem Durchgang, und das ist der
-  eigentliche Eintrag: **ein Prüfer, der Text durchsucht, findet sich selbst.**
+  **Drei Fallstricke dabei, alle drei gemessen und alle drei im Prüfer
+  vermerkt.**
+
+  **Die Fence-Erkennung darf nicht nur auf den Zeilenanfang sehen.** Diese
+  Datei schreibt über ihre eigenen Codeblöcke, und dabei stehen drei Backticks
+  mitten im Fließtext. Verlangt wird deshalb, dass nach den Backticks nur noch
+  ein Infostring steht und sonst nichts – **und dass dieser Infostring keinen
+  Bindestrich trägt**, denn sonst öffnete eine Zeile, die mit „```-Bloecke"
+  beginnt, einen Block. Die hier benutzten Infostrings sind `bash`, `js` und
+  `svg`.
+
+  **Ein fehlender schließender Fence wird über die Parität gefunden, nicht am
+  Dateiende.** Der erste Entwurf brach ab, wenn am Ende der Datei noch ein
+  Block offen war – und traf damit den wirklichen Fall nicht: fehlt **irgendwo**
+  ein Schließer, so schließt der nächste Block den vorigen, und alles dazwischen
+  wird verschluckt. Gemessen: ein einziger zusätzlicher Fence ließ die Zahl der
+  Fundstellen von 23 auf 22 fallen, **und der Prüfer blieb grün**, weil die
+  betroffene Messung eine zweite Fundstelle hatte. Geprüft wird deshalb, dass
+  die Zahl der Fence-Zeilen gerade ist; der Abbruch nennt sie. **Zwei
+  gleichzeitig fehlende Fences bleiben unerkannt – eine benannte Grenze, keine
+  Zusicherung.**
+
+  Der zweite Entwurf ist damit ein Beispiel für die Hausregel „eine Behauptung
+  ist kein Beleg" an der eigenen Arbeit: der Kommentar am Wächter versprach
+  einen harten Abbruch, und gemessen hat er nichts gemeldet.
+
+  Der Fall war der dritte derselben Klasse in einem Durchgang, und das ist die
+  Regel, die bleibt: **ein Prüfer, der Text durchsucht, findet sich selbst.**
   Vorher zählte er ein `check(` in seiner eigenen Beschreibung als Aufruf und
   sich selbst als Aufrufer von `openAllFolds()` und `menueBefehl()`. Wer eine
   textsuchende Prüfung baut, prüft als Erstes, was sie auf sich selbst und auf
   ihre eigene Dokumentation antwortet.
+
+- **Vier Stellen des Bestandsprüfers bauen weiter auf eine Verabredung –
+  aufgenommen mit dem siebzehnten Durchgang, nicht behoben.** Sie stehen hier,
+  weil eine Verabredung genau das ist, was dieser Durchgang an einer Stelle
+  beseitigt hat: eine Bedingung, die nicht reißen kann, sondern nur von jemandem
+  eingehalten werden muss, der sie kennt. Alle vier sind gemessen, nicht
+  vermutet.
+
+  | Stelle | was sie voraussetzt | gemessen |
+  |---|---|---|
+  | `EIGENE_DATEI` ist ein Literal | der Prüfer heißt weiterhin `check-bestandszahlen.mjs` | unter anderem Namen zählt er sich wieder selbst mit: `zusicherungen-herstellend` 22 → 23, `openallfolds-aufrufer` 14 → 15, `menuebefehl-aufrufe` 43 → 45 |
+  | Markennamen sind kleingeschrieben | niemand schreibt `<!-- bestand: Pruefstellen -->` | eine solche Marke wird **still übersehen** – weder gezählt noch gemeldet, Exit 0 |
+  | `AUSWAHLBEZEICHNER`, `STATUSFUNKTIONEN` | wer einen Bezeichner umbenennt, zieht die Liste mit | dieselbe Klasse wie die `NAMES`-Liste in `tools/test-cassandra.mjs`, nur ohne deren Abbruch: ein fehlender Name fällt hier **still** aus der Zählung |
+  | die Suchmuster | die Schreibweise bleibt, wie sie ist – etwa `position: { x:` mit Leerzeichen | eine Umformatierung verschöbe die Zahl, ohne dass sich am Bestand etwas geändert hätte |
+
+  **Die erste ist in einer Zeile zu beheben** (`import.meta.url` statt des
+  Literals), die zweite in wenigen (Namen unabhängig von der Schreibung suchen
+  und einen nicht kleingeschriebenen melden). Die dritte wäre ein eigener
+  Messbefehl: jeder Bezeichner der Liste muss als `id` in `index.html`
+  vorkommen, jede Statusfunktion dort deklariert sein – dann meldete sich eine
+  Umbenennung, statt die Zahl zu verschieben. **Die vierte ist keine, die sich
+  auflösen lässt**: ein Suchmuster ist die Definition der Messung, und sie
+  hängt zwangsläufig an einer Schreibweise. Sie steht hier, damit niemand sie
+  für die dritte hält.
+
+  **Nicht behoben, weil der Auftrag des Durchgangs danach fragte, nicht danach
+  verlangte.** Ob und in welcher Reihenfolge, ist eine Entscheidung.
 
 - **`tools/check-dom-ids.mjs` prüft IDs und doppelte Funktionsnamen, aber
   keine Variablennamen und keine verwaisten Funktionen.** Verwaister Code nach

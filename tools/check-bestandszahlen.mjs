@@ -509,9 +509,97 @@ const MESSUNGEN = {
 /* Marken lesen und vergleichen                                          */
 /* ===================================================================== */
 
+/**
+ * Eine Fence-Zeile: drei oder mehr Backticks, danach hoechstens ein
+ * Infostring ("```bash", "```js") und sonst nichts.
+ *
+ * Das "und sonst nichts" ist der ganze Punkt. CLAUDE.md schreibt ueber ihre
+ * eigenen Codebloecke, und dabei stehen drei Backticks mitten im Fliesztext
+ * ("die ```-Bloecke durch Leerraum ersetzen"). Eine Erkennung, die nur auf
+ * den Zeilenanfang sieht, haelte so eine Zeile fuer einen Blockanfang und
+ * verschluckte alles dahinter - stillschweigend.
+ *
+ * Tilden-Fences (~~~) kennt Markdown auch, diese Datei benutzt sie nicht,
+ * und sie kollidieren optisch mit der Durchstreichung ~~so~~. Deshalb nur
+ * Backticks.
+ *
+ * Und der Infostring traegt keinen Bindestrich, obwohl Markdown ihn erlaubt:
+ * sonst gaelte eine Zeile, die mit "```-Bloecke" beginnt, als Blockanfang.
+ * Genau darueber schreibt diese Datei. Die hier benutzten Infostrings sind
+ * bash, js und svg.
+ */
+const FENCE_AUF = /^`{3,}[A-Za-z0-9_+]*$/;
+const FENCE_ZU = /^`{3,}$/;
+
+/**
+ * Ersetzt den Inhalt von Codebloecken durch Leerraum.
+ *
+ * GRUND: ein Codeblock zeigt die FORM einer Markierung, er behauptet keinen
+ * Bestand. Das Formbeispiel in Abschnitt 4.5 wurde sonst als echte Marke
+ * gelesen - gemessen 25 Fundstellen statt 23.
+ *
+ * Ersetzt wird zeichenweise und laengengleich, damit die Offsets und damit
+ * die gemeldeten Zeilennummern unveraendert bleiben.
+ */
+function ohneCodebloecke(text) {
+  const zeilen = text.split("\n");
+  let imBlock = false;
+  let beginn = 0;
+
+  /* Fehlt IRGENDWO ein schlieszender Fence, so schlieszt der naechste Block
+     den vorigen, und alles dazwischen wird verschluckt - mitsamt echten
+     Marken. Gemessen: ein einzelner zusaetzlicher Fence liesz die Zahl der
+     Fundstellen von 23 auf 22 fallen, und der Pruefer blieb gruen, weil die
+     betroffene Messung eine zweite Fundstelle hatte.
+
+     Die Zahl der Fence-Zeilen muss deshalb gerade sein. Das faengt den
+     realistischen Fall - einer fehlt oder einer ist zu viel - und faengt ihn
+     dort, wo er entsteht, statt am Dateiende. Zwei gleichzeitig fehlende
+     Fences bleiben unerkannt; das ist eine benannte Grenze, keine Zusicherung. */
+  const fences = zeilen.filter((zeile) => {
+    const rand = zeile.trim();
+    return FENCE_AUF.test(rand) || FENCE_ZU.test(rand);
+  }).length;
+
+  if (fences % 2 !== 0) {
+    throw new Error(
+      `CLAUDE.md: ungerade Zahl von Codeblock-Begrenzern (${fences}) - ` +
+        "irgendwo fehlt ein ``` oder steht eines zu viel."
+    );
+  }
+
+  const maskiert = zeilen.map((zeile, index) => {
+    const rand = zeile.trim();
+
+    if (!imBlock && FENCE_AUF.test(rand)) {
+      imBlock = true;
+      beginn = index + 1;
+      return " ".repeat(zeile.length);
+    }
+
+    if (imBlock && FENCE_ZU.test(rand)) {
+      imBlock = false;
+      return " ".repeat(zeile.length);
+    }
+
+    return imBlock ? " ".repeat(zeile.length) : zeile;
+  });
+
+  /* Ein nie geschlossener Block wuerde den Rest der Datei verschlucken, und
+     zwar lautlos: der Pruefer meldete dann "keine Markierung" fuer alles
+     Folgende. Lieber ein harter Abbruch mit der Zeile, an der es anfing. */
+  if (imBlock) {
+    throw new Error(
+      `CLAUDE.md: der Codeblock ab Zeile ${beginn} wird nirgends geschlossen.`
+    );
+  }
+
+  return maskiert.join("\n");
+}
+
 /** Liest jede Marke samt der Zahl dahinter und ihrer Zeilennummer. */
 function leseMarkierungen() {
-  const text = readFileSync(join(repoRoot, "CLAUDE.md"), "utf8");
+  const text = ohneCodebloecke(readFileSync(join(repoRoot, "CLAUDE.md"), "utf8"));
   const gefunden = [];
 
   for (const treffer of text.matchAll(
