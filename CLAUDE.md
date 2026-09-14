@@ -570,9 +570,26 @@ diese Zusicherung**: die vier Menüpanels, die schwebenden Fenster über der
 Karte, jedes künftige Overlay.
 
 **Dritter Fall derselben Regel: ein geschlossenes `<details>` rendert seinen
-Inhalt nicht – meldet aber `display` und einen Kasten.** Die Regel ist eine,
-die Fälle sind drei: abschneidender `overflow`-Vorfahr, Spezifitätsfalle,
-nicht gerendertes `<details>`.
+Inhalt nicht – meldet aber `display` und einen Kasten.**
+
+**Die Regel ist eine, die Fälle sind vier:**
+
+1. **abschneidender `overflow`-Vorfahr** – das Element will sichtbar sein, ein
+   Vorfahr schneidet es weg.
+2. **Spezifitätsfalle** – eine Autorenregel schlägt `[hidden]{display:none}`,
+   und `element.hidden` meldet trotzdem `true`.
+3. **nicht gerendertes `<details>`** – der Inhalt eines geschlossenen
+   `<details>` wird nicht gezeichnet, `display` sagt das nicht.
+4. **geschlossenes `<details>`, gegen das Rechteck gemessen** –
+   `getClientRects()` trägt hindurch: gemessen **36 × 122 px** an
+   `#deletePointBtn` in der zugeklappten Kontext-Knopfleiste, also an einer
+   Stelle, an der nichts gezeichnet wird. Wer Rechtecke zählt, um
+   Sichtbarkeit festzustellen, zählt dort mit.
+
+**Der vierte Fall betrifft dasselbe `<details>` wie der dritte, aber ein
+anderes Messmittel**, und deshalb steht er als eigener Eintrag: der dritte sagt,
+dass `display` lügt, der vierte, dass das Rechteck lügt. Wer nur den dritten
+kennt, weicht auf die Geometrie aus und fällt genau dort wieder hinein.
 
 Gemessen in Etappe 7 c: der Knopf „Ganzes Feature auswählen" der
 Feature-Navigation hatte `getComputedStyle(...).display === "block"` und ein
@@ -7959,9 +7976,13 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `getComputedStyle(...).display` meldet weiterhin `block`. Erst
   `elementFromPoint` sagt die Wahrheit – dort liegt das `svg` der Karte.
 
-  Die Regel hatte bisher drei Fälle: abschneidender `overflow`-Vorfahr,
-  Spezifitätsfalle, nicht gerenderter `<details>`-Inhalt. **Das hier ist der
-  vierte, und er ist der leiseste** – er trifft genau das Messmittel, mit dem
+  **Die Regel selbst steht in Abschnitt 4.2, und dort steht sie vollständig:
+  seit dem fünfzehnten Durchgang führt ihre Aufzählung diesen Fall als
+  vierten.** Dieser Abschnitt hier ist die ausführliche Fassung mit der
+  Messung und ihrem Anlass – **eine Quelle, nicht zwei gleichrangige.** Wer die
+  Regel anwendet oder erweitert, tut es in 4.2.
+
+  **Er ist der leiseste der vier** – er trifft genau das Messmittel, mit dem
   `leiste()` in `tools/test-inspector.mjs` bis dahin gezählt hat. Die
   Zusicherungen über den Faltzustand zählen deshalb keine Rechtecke, sondern
   fragen `elementFromPoint`: `getroffeneKnoepfe()` im selben Skript.
