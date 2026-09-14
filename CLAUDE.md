@@ -7853,10 +7853,123 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   verschwindet nicht. Gemessen ist der Gewinn an zwei Kartenformen und zwei
   Breiten, nicht an allen.
 
-  **Was NICHT erhoben wurde:** ob der Griff unter 960 px – also im Inspektor –
-  ebenfalls erscheinen soll und was er dort an Höhe kostet; welches Zeichen
-  oder welche Beschriftung er trägt; und die acht Symbole, die weiterhin eine
-  eigene Sache sind.
+  **Was NICHT erhoben wurde – zwei der drei Punkte sind mit Schritt 2
+  beantwortet und hier ausgetragen:** ob der Griff unter 960 px erscheinen
+  soll (**nein**, er kostete im Inspektor rund 42 px bei 12 px Reserve) und
+  welches Zeichen er trägt (**▸ / ▾**, dasselbe wie an den Faltblöcken, und
+  keine Beschriftung). Offen bleiben die acht Symbole; sie sind weiterhin eine
+  eigene Sache.
+
+  #### Gebaut mit Schritt 2 des dreizehnten Durchgangs – die Leiste klappt zu
+
+  **`#selectionActions` ist ein natives `<details>`, sein Griff das
+  `<summary id="selectionActionsHandle">`.** Der Zustand steht damit an genau
+  einer Stelle – im `open`-Attribut, dort wo er gelesen wird –, und er lebt nur
+  in der Sitzung: es gibt **keinen** `localStorage`-Schlüssel dazu.
+
+  | | |
+  |---|---|
+  | Ausgangszustand | **aufgeklappt** – `open` steht im Markup, und zurückgesetzt wird es nirgends |
+  | Griff | quadratisch, **36 px** fein und 42 px grob, ohne Beschriftung |
+  | woher die Größe kommt | die Klasse `.map-tool-button` aus dem Bestand; in der neuen Regel steht keine Zahl |
+  | zugeklappt | die Leiste misst **38 × 38 px** statt 145,38 × 330 px |
+  | unter 960 px | kein Griff, und aufgeklappt – siehe die benannte Lücke unten |
+
+  **Der Griff ist klein, weil er es sein muss** – der Befund darüber hat
+  gemessen, dass ein Griff in voller Leistenbreite den verdeckten Marker bei
+  1280 px weiter zudeckt. Am gebauten Stand nachgemessen, Perimeter 40 × 40,
+  900 px Fensterhöhe:
+
+  | Fensterbreite | Marker ab der Leistenecke | aufgeklappt getroffen | zugeklappt getroffen |
+  |---|---|---|---|
+  | 1280 px | dx 54,0 / dy 37,5 | nein – `selectionActions` | **ja** |
+  | 960 px | dx 26,1 / dy 113,6 | nein – `insertPointAfterBtn` | **ja** |
+
+  **Drei Entscheidungen, die der Auftrag nicht vorgegeben hat:**
+
+  - **Der Inhalt liegt in `.selection-actions-body`.** Ein `<details>` mit
+    Flex-Container verliert die Anordnung von `summary` und Inhalt – dasselbe,
+    weswegen `.inspector-fold` `display:block` trägt und seinen Inhalt in
+    `.fold-body` legt. Der Weg ist der vorhandene, kein neuer.
+  - **Zugeklappt fällt die Polsterung der Leiste weg.** Mit ihr misst die
+    zugeklappte Leiste 50 px statt 38; die gemessene Bedingung lautet
+    „höchstens 48 px breit".
+  - **Unter der Schwelle ist der Griff ausgeblendet.** Im Inspektor gibt es
+    keine Karte freizugeben, und der Griff kostete dort rund 42 px – die
+    verbindliche Reserve bei 900 px Fensterhöhe beträgt 12 px. Die Frage stand
+    im Befund ausdrücklich als „nicht erhoben"; hiermit ist sie beantwortet.
+
+  **BENANNTE LÜCKE: ein Breitenwechsel über 960 px vergisst den
+  Zuklappwunsch.** Weil unter der Schwelle kein Griff steht, klappt
+  `applySelectionBarPlacement()` dort auf – sonst stünde eine zugeklappte
+  Leiste ohne Weg zurück da. Zurück über der Karte ist sie damit wieder offen.
+  Den Wunsch daneben zu merken hieße, einen **zweiten** Zustandshalter
+  einzuführen, und genau dagegen ist `<details>` gewählt worden. **Nicht
+  behoben; die Behebung wäre eine Entscheidung, kein Nachtrag.**
+
+  **Was NICHT erreicht ist, und es stand schon im Befund:** ein Griff ist klein,
+  aber nicht nichts. Ein Marker, der auf seinen 38 × 38 px liegt, bleibt
+  verdeckt. Die Verdeckung schrumpft von 145 × 330 px auf die Griffgröße, sie
+  verschwindet nicht.
+
+  #### Vierter Fall der Regel „der Test prüft die Wirkung": ein Rechteck ohne Darstellung
+
+  **`getClientRects()` trägt durch ein geschlossenes `<details>` hindurch.**
+  Gemessen beim Bauen an `#deletePointBtn` in der zugeklappten Leiste: ein
+  Rechteck von **36 × 122 px** an einer Stelle, an der nichts gezeichnet wird;
+  `getComputedStyle(...).display` meldet weiterhin `block`. Erst
+  `elementFromPoint` sagt die Wahrheit – dort liegt das `svg` der Karte.
+
+  Die Regel hatte bisher drei Fälle: abschneidender `overflow`-Vorfahr,
+  Spezifitätsfalle, nicht gerenderter `<details>`-Inhalt. **Das hier ist der
+  vierte, und er ist der leiseste** – er trifft genau das Messmittel, mit dem
+  `leiste()` in `tools/test-inspector.mjs` bis dahin gezählt hat. Die
+  Zusicherungen über den Faltzustand zählen deshalb keine Rechtecke, sondern
+  fragen `elementFromPoint`: `getroffeneKnoepfe()` im selben Skript.
+
+  **Die vorhandene `knoepfe`-Zählung in `leiste()` ist davon unberührt
+  richtig** – sie beantwortet „welche Gruppe gilt in diesem Zustand", und dort
+  ist die Leiste immer aufgeklappt. Sie taugt nur nicht für die Frage, ob
+  zugeklappt ist. Das steht hier, damit sie beim nächsten Lesen nicht für die
+  falsche Frage benutzt wird.
+
+  #### Die Mutationsproben – und zwei davon waren beim ersten Anlauf wirkungslos
+
+  Je Schreibstelle eine, Sicherungskopie außerhalb des Repositories, Prüfsumme
+  vorher = nachher (`2e4595ac…`), **je 0 Timeouts**:
+
+  | Mutation | Schreibstelle | gerissene Zusicherungen |
+  |---|---|---|
+  | `pointer-events:none` am `<summary>` | der Klick auf den Griff | **2** – „⟨1280/960⟩ px: der Griff ist aufgeklappt getroffen", Detail `grund:"selectionActions"` |
+  | `open = true` in `updateInspector()` | der Zustand bei jeder Auswahl | **4** – „⟨Breite⟩ px: ein anderer Punkt laesst sie zugeklappt" und „… die naechste Auswahl bekommt sie ebenfalls zugeklappt" |
+  | Griff auf 145 px Breite | zugeklappt gibt die Karte frei | **1** – „1280 px: zugeklappt ist der verdeckte Marker wieder erreichbar" |
+  | `if (!ueberDerKarte) bar.open = true;` entfernt | das erzwungene Aufklappen | **1** – „unter der Schwelle steht sie wieder aufgeklappt da" |
+
+  **Die dritte reißt nur bei 1280 px, und das ist kein Mangel, sondern der
+  Befund:** bei 960 px liegt der verdeckte Marker 113,6 px unter der
+  Leistenecke und damit unter jedem 38 px hohen Griff. Eine Zusicherung, die
+  dort ebenfalls risse, gäbe es nur mit einer Karte, die den Marker anders
+  einpasst.
+
+  **Zwei der vier Mutationen waren beim ersten Anlauf WIRKUNGSLOS, und beide
+  Male lag es an der Probe, nicht am Test.** Beide sind ersetzt und nicht
+  umformuliert, bis sie doch reißen – die Regel dafür steht in Abschnitt 4.2:
+
+  | erster Anlauf | warum wirkungslos | Ersatz |
+  |---|---|---|
+  | `bar.open = true` in `applySelectionBarPlacement()` | die Funktion läuft beim Start und beim Breitenwechsel, **nicht** bei jeder Auswahl | dieselbe Zeile in `updateInspector()` |
+  | `width:100%` am `<summary>` | löst sich gegen eine Leiste auf, die selbst nur so breit ist wie der Griff – die zugeklappte Leiste blieb 38 px | `width:145px`, die gemessene Leistenbreite |
+
+  **Ein Messwert als Literal ist in einer Mutation zulässig, in einer
+  Zusicherung nicht.** Die 145 px stehen deshalb in der Mutation und in keiner
+  `check()`-Zeile; die Testbreiten kommen aus `SELECTION_BAR_WIDE_QUERY`.
+
+  **Der Wächter vor dem Klick ist aus der ersten Probe entstanden.** Ohne ihn
+  riss die Griff-Mutation zwar eine Zusicherung, lief aber unmittelbar danach
+  in einen **Timeout** – dieselbe Klasse wie „die Zusicherung allein genügt
+  nicht, der Klick muss unterbleiben". `klickeGriff()` sichert zu **und**
+  klickt nicht, wenn der Griff nicht getroffen ist; danach: 2 gerissene
+  Zusicherungen, 0 Timeouts.
 
 - **Die eigene Touch-Größe über der Karte ist 42 px, die Vorgabe 44 – offener
   Punkt, eingetragen mit dem elften Durchgang, ausdrücklich nicht gebaut.**

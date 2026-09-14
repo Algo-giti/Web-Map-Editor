@@ -140,6 +140,52 @@ try {
   });
 
   /*
+   * Welche Knoepfe der Leiste werden WIRKLICH getroffen?
+   *
+   * getClientRects() taugt dafuer nicht: ein Knopf in einem geschlossenen
+   * <details> meldet weiterhin ein Rechteck - gemessen 36 x 122 px an einer
+   * Stelle, an der nichts gezeichnet wird. Dieselbe Klasse wie "display ist
+   * nicht das letzte Wort": gefragt ist, was der Browser an der Stelle
+   * zeichnet, und das beantwortet allein elementFromPoint.
+   */
+  const getroffeneKnoepfe = () => page.evaluate(() => {
+    const bar = document.getElementById("selectionActions");
+
+    return [...bar.querySelectorAll("button")].filter((b) => {
+      const r = b.getBoundingClientRect();
+      if (!r.width || !r.height) return false;
+      const treffer = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !!treffer && b.contains(treffer);
+    }).map((b) => b.id);
+  });
+
+  /*
+   * Der Marker, der unter der aufgeklappten Leiste liegt - gesucht, nicht
+   * gesetzt, und nach der Wirkung bestimmt: elementFromPoint auf seine Mitte
+   * liefert etwas anderes als ihn selbst. Ein Rechteckvergleich sagte nur,
+   * was gemeint ist.
+   */
+  const verdeckterMarker = () => page.evaluate(() => {
+    for (const m of document.querySelectorAll("circle.vertex")) {
+      const r = m.getBoundingClientRect();
+      const treffer = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (treffer !== m) {
+        return { key: m.dataset.vertexKey, deckel: treffer ? (treffer.id || treffer.tagName) : "nichts" };
+      }
+    }
+    return null;
+  });
+
+  /** Trifft man diesen Marker? Dieselbe Messung, nur fuer einen bekannten. */
+  const markerGetroffen = (key) => page.evaluate((k) => {
+    const m = document.querySelector(`circle.vertex[data-vertex-key="${k}"]`);
+    if (!m) return { ok: false, grund: "Marker fehlt" };
+    const r = m.getBoundingClientRect();
+    const treffer = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { ok: treffer === m, grund: treffer ? (treffer.id || treffer.tagName) : "nichts" };
+  }, key);
+
+  /*
    * Ein Klick auf einen Knopf der Auswahlleiste setzt voraus, dass sie da ist.
    * Ohne Waechter wird aus einer verschwundenen Leiste ein stummer Timeout
    * statt einer benannten Zusicherung - dieselbe Regel und derselbe Grund wie
@@ -155,6 +201,24 @@ try {
     if (!da) return false;
 
     await page.locator(`#${id}`).click();
+    return true;
+  };
+
+  /*
+   * Derselbe Waechter fuer den Griff der Leiste: geklickt wird nur, wenn er
+   * wirklich getroffen ist. Ohne ihn wird aus einem wirkungslosen Griff ein
+   * stummer Timeout statt einer benannten Zusicherung - gemessen an genau
+   * dieser Mutation. Die Zusicherung steht immer da, nicht nur im Fehlerfall.
+   */
+  const klickeGriff = async (name) => {
+    const treffer = await elementGetroffen(page, "#selectionActionsHandle", { dy: 12 });
+
+    check(name, treffer.ok, JSON.stringify(treffer));
+
+    if (!treffer.ok) return false;
+
+    await page.locator("#selectionActionsHandle").click();
+    await page.waitForTimeout(250);
     return true;
   };
 
@@ -827,6 +891,102 @@ try {
     check("zurueck ueber der Schwelle liegt sie wieder ueber der Karte",
       lage.sichtbar && lage.imViewer && lage.ueberDerKarte,
       JSON.stringify(lage));
+  }
+
+  /* ---------------------------------------------------------------- */
+  console.log("Die Auswahlleiste laesst sich zuklappen und gibt die Karte frei");
+
+  /*
+   * Gemessen wird die WIRKUNG, nicht der Faltzustand: ob der verdeckte Marker
+   * per elementFromPoint erreichbar ist, ob der Griff getroffen wird und
+   * welche Knoepfe wirklich dastehen. Kein getComputedStyle, kein
+   * open-Attribut.
+   *
+   * Beide Breiten, weil der Befund sie unterschiedlich misst: bei der oberen
+   * liegt der verdeckte Marker dicht unter der Leistenecke, bei der Schwelle
+   * selbst weit darunter. Ein Griff, der nur bei einer der beiden freigibt,
+   * faellt hier auf. Die Zahlen kommen aus SELECTION_BAR_WIDE_QUERY.
+   */
+  for (const breite of [ueberSchwelle, await schwelle()]) {
+    await page.setViewportSize({ width: breite, height: 900 });
+    await page.waitForTimeout(250);
+    await load();
+    await marks.nth(0).click();
+    await page.waitForTimeout(300);
+
+    /* Ausgangszustand bei neuer Auswahl: AUFGEKLAPPT, ohne Zutun. */
+    const offen = await getroffeneKnoepfe();
+
+    check(`${breite} px: bei neuer Auswahl steht die Leiste aufgeklappt da`,
+      offen.length > 0, offen.join(","));
+
+    /* Die Vorbedingung selbst zusichern - ohne verdeckten Marker beweist der
+       Rest nichts. */
+    const verdeckt = await verdeckterMarker();
+
+    check(`${breite} px: aufgeklappt liegt wirklich ein Marker unter der Leiste`,
+      verdeckt !== null && verdeckt.deckel !== "nichts", JSON.stringify(verdeckt));
+
+    if (!verdeckt) continue;
+    if (!(await klickeGriff(`${breite} px: der Griff ist aufgeklappt getroffen`))) continue;
+
+    const frei = await markerGetroffen(verdeckt.key);
+
+    check(`${breite} px: zugeklappt ist der verdeckte Marker wieder erreichbar`,
+      frei.ok, `${verdeckt.key}: ${JSON.stringify(frei)}`);
+
+    const zu = await getroffeneKnoepfe();
+
+    check(`${breite} px: zugeklappt steht kein Knopf mehr auf der Karte`,
+      zu.length === 0, zu.join(","));
+
+    const griffZu = await elementGetroffen(page, "#selectionActionsHandle", { dy: 12 });
+
+    check(`${breite} px: und der Griff ist auch zugeklappt getroffen`,
+      griffZu.ok, JSON.stringify(griffZu));
+
+    /*
+     * Der Zustand ueberlebt den Wechsel der Auswahl - erst einen anderen
+     * Punkt, dann gar keinen und wieder einen. Genau das ist die Festlegung
+     * "wer zuklappt, bekommt bei der naechsten Auswahl die zugeklappte
+     * Leiste".
+     */
+    await marks.nth(1).click();
+    await page.waitForTimeout(300);
+
+    check(`${breite} px: ein anderer Punkt laesst sie zugeklappt`,
+      (await getroffeneKnoepfe()).length === 0,
+      (await getroffeneKnoepfe()).join(","));
+
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+    await marks.nth(1).click();
+    await page.waitForTimeout(300);
+
+    check(`${breite} px: und die naechste Auswahl bekommt sie ebenfalls zugeklappt`,
+      (await getroffeneKnoepfe()).length === 0,
+      (await getroffeneKnoepfe()).join(","));
+  }
+
+  /*
+   * Unter der Schwelle gibt es keinen Griff - dort steht die Leiste im
+   * Inspektor, und ein zugeklappter Zustand haette keinen Weg zurueck. Sie
+   * wird deshalb aufgeklappt, obwohl eben zugeklappt wurde.
+   */
+  await page.setViewportSize({ width: engerAlsSchwelle, height: 900 });
+  await page.waitForTimeout(350);
+
+  {
+    const unten = await getroffeneKnoepfe();
+
+    check("unter der Schwelle steht sie wieder aufgeklappt da",
+      unten.length > 0, unten.join(","));
+
+    const griffUnten = await page.evaluate(() =>
+      document.getElementById("selectionActionsHandle").getClientRects().length);
+
+    check("und der Griff ist dort nicht gezeichnet",
+      griffUnten === 0, String(griffUnten));
   }
 
   await page.setViewportSize({ width: 1600, height: 900 });

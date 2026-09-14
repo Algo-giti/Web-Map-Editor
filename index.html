@@ -1961,7 +1961,47 @@
    * braucht der höchste Zustand 288 px von 759 px Kartenhöhe bei 900 px
    * Fensterhöhe - die Klammer greift erst weit darunter.
    */
-  .selection-actions { display:flex; flex-direction:column; gap:6px; }
+  /*
+   * display:block, nicht flex: ein <details> mit flex-Container verliert die
+   * Anordnung von summary und Inhalt. Der Inhalt trägt das Raster stattdessen
+   * selbst - dieselbe Aufteilung wie `.inspector-fold` und `.fold-body`.
+   */
+  .selection-actions { display:block; }
+  .selection-actions-body { display:flex; flex-direction:column; gap:6px; }
+
+  /*
+   * DER GRIFF. Die Größe kommt über `.map-tool-button` aus dem Bestand - hier
+   * steht deshalb keine Zahl, und die grobe Größe (42 px) zieht mit. Rahmen
+   * und Grund bekommt er nicht: `.map-tool-button` setzt allein die Maße, der
+   * Rest stammt dort von `button {}`, und ein <summary> ist keiner. Genau
+   * richtig, denn die Leiste bringt ihren eigenen Rahmen mit.
+   */
+  .selection-actions > summary {
+    list-style:none;
+    cursor:pointer;
+    user-select:none;
+    color:var(--muted);
+  }
+
+  .selection-actions > summary::-webkit-details-marker { display:none; }
+
+  /* Dasselbe Zeichen wie an den Faltblöcken des Inspektors. */
+  .selection-actions > summary::before { content:"▾"; }
+  .selection-actions:not([open]) > summary::before { content:"▸"; }
+
+  .selection-actions > summary:focus-visible {
+    outline:2px solid var(--blue);
+    outline-offset:2px;
+  }
+
+  /*
+   * Im Inspektor gibt es keine Karte freizugeben. Der Griff entfällt dort
+   * deshalb - er kostete im Punktzustand rund 42 px, und die verbindliche
+   * Reserve bei 900 px Fensterhöhe beträgt 12 px. Aufgeklappt wird dort in
+   * applySelectionBarPlacement(); ohne Griff stünde eine zugeklappte Leiste
+   * sonst ohne Weg zurück da.
+   */
+  .inspector .selection-actions > summary { display:none; }
 
   /*
    * Eine Exclusion hat "Exclusion duplizieren", ein Perimeter nicht. Mit
@@ -1980,6 +2020,18 @@
     background:rgba(10,15,24,.94);
     box-shadow:0 10px 22px rgba(0,0,0,.22);
   }
+
+  /*
+   * Zugeklappt gibt die Leiste die Karte frei bis auf den Griff: ohne die
+   * Polsterung misst sie genau ihn plus Rahmen. Gemessen ist die Bedingung,
+   * nicht gewählt - der verdeckte Marker liegt bei 1280 px 54 px rechts der
+   * Leistenecke, bei einem Markerradius von 6 px muss der Griff also unter
+   * 48 px breit bleiben.
+   */
+  #viewer .selection-actions:not([open]) { padding:0; }
+
+  /* Derselbe Abstand wie zwischen den Knöpfen, deshalb dieselbe Zahl. */
+  #viewer .selection-actions[open] > .selection-actions-body { padding-top:6px; }
 
   /*
    * Über der Karte ist sie SENKRECHT - die beiden Gruppen tragen im Inspektor
@@ -3872,41 +3924,78 @@
         beiden Auswahlaktionen in allen vier Auswahlzuständen. Sie stehen
         deshalb als eigene Einträge in INSPECTOR_BLOCKS - dieselbe Mechanik wie
         bisher, nur mit einem Behälter darum.
+
+        ZUSAMMENKLAPPBAR seit dem dreizehnten Durchgang, und zwar als natives
+        <details>. Gewählt, weil es den Zustand an genau EINER Stelle hält -
+        im `open`-Attribut, dort wo er gelesen wird - und weil sechs der elf
+        Faltbereiche des Hauses ihn genau so halten: in der Sitzung ja, darüber
+        hinaus nein. Die Mechanik aus Klasse und eigenem Umschaltknopf
+        (Werkzeugleiste, Inspektor) führt ihn an drei Orten und hat keine
+        Instanz ohne localStorage.
+
+        `open` steht im Markup: der Ausgangszustand ist aufgeklappt, und
+        zurückgesetzt wird er nirgends - wer zuklappt, bekommt bei der nächsten
+        Auswahl die zugeklappte Leiste.
       -->
-      <div id="selectionActions" class="selection-actions" hidden>
-        <div id="pointActions" class="editor-actions" hidden>
-          <button id="insertPointBeforeBtn" type="button" disabled>Davor einfügen</button>
-          <button id="insertPointAfterBtn" type="button" disabled>Danach einfügen</button>
-          <button id="setStartPointBtn" type="button" disabled
-                  title="Dreht den Ring so, dass der ausgewählte Punkt Punkt 1 wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Endpunkt setzen“ auf dem Punkt davor bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.">Startpunkt setzen</button>
-          <button id="setEndPointBtn" type="button" disabled
-                  title="Dreht den Ring so, dass der ausgewählte Punkt letzter Punkt wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Startpunkt setzen“ auf dem Punkt danach bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.">Endpunkt setzen</button>
-          <button id="deletePointBtn" class="danger" type="button" disabled>Punkt löschen</button>
-        </div>
+      <details id="selectionActions" class="selection-actions" open hidden>
+        <!--
+          DER GRIFF. Quadratisch in der Groesse der Kartenknoepfe, ohne
+          Beschriftung - gemessen: ein Griff in voller Leistenbreite deckt den
+          verdeckten Marker bei 1280 px weiter zu, er liegt nur 54 px rechts
+          und 38 px unter der Leistenecke. Die Masze kommen ueber
+          `.map-tool-button` aus dem Bestand, damit hier keine zweite Zahl
+          steht; sie zieht auch die grobe Groesse mit.
+
+          Ein `title` auf einem Knopf ohne Text ist kein Erklaertext, sondern
+          sein NAME - derselbe Fall wie bei Einpassen und Zoom, und deshalb
+          keiner fuer Etappe 8b.
+        -->
+        <summary id="selectionActionsHandle" class="map-tool-button"
+                 title="Auswahlleiste ein- und ausklappen"
+                 aria-label="Auswahlleiste ein- und ausklappen"></summary>
 
         <!--
-          display:contents - eine Exclusion hat den Knopf, ein Perimeter nicht.
-          Ohne das stünde bei einem Perimeter eine leere Gruppe mit Abstand da.
+          Der Inhalt liegt in einem eigenen Behaelter, weil ein <details> mit
+          flex-Container die Anordnung von summary und Inhalt verliert - im
+          Haus gemessen und der Grund, aus dem `.inspector-fold` display:block
+          traegt und seinen Inhalt in `.fold-body` legt. Derselbe Weg, kein
+          neuer.
         -->
-        <div id="featureActions" hidden>
-          <button id="duplicateFeatureBtn" type="button" hidden>Exclusion duplizieren</button>
-        </div>
+        <div class="selection-actions-body">
+          <div id="pointActions" class="editor-actions" hidden>
+            <button id="insertPointBeforeBtn" type="button" disabled>Davor einfügen</button>
+            <button id="insertPointAfterBtn" type="button" disabled>Danach einfügen</button>
+            <button id="setStartPointBtn" type="button" disabled
+                    title="Dreht den Ring so, dass der ausgewählte Punkt Punkt 1 wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Endpunkt setzen“ auf dem Punkt davor bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.">Startpunkt setzen</button>
+            <button id="setEndPointBtn" type="button" disabled
+                    title="Dreht den Ring so, dass der ausgewählte Punkt letzter Punkt wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Startpunkt setzen“ auf dem Punkt danach bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.">Endpunkt setzen</button>
+            <button id="deletePointBtn" class="danger" type="button" disabled>Punkt löschen</button>
+          </div>
 
-        <!--
-          Aktionen, die zu JEDER Auswahl passen. Eigener Block, weil sie in vier
-          Zuständen gelten - kopieren wäre eine doppelte id.
-        -->
-        <div id="inspectorSelection" class="inspector-block" hidden>
-          <button id="deleteMultiSelectionBtn" class="danger" type="button" disabled
-                  title="Löschen: entfernt alle aktuell ausgewählten Punkte. Mit Undo rückgängig.">
-            Auswahl löschen
-          </button>
-          <button id="clearMultiSelectionBtn" type="button" disabled
-                  title="Auswahl aufheben: entfernt alle Markierungen, ohne Punkte zu löschen.">
-            Auswahl aufheben
-          </button>
+          <!--
+            display:contents - eine Exclusion hat den Knopf, ein Perimeter nicht.
+            Ohne das stünde bei einem Perimeter eine leere Gruppe mit Abstand da.
+          -->
+          <div id="featureActions" hidden>
+            <button id="duplicateFeatureBtn" type="button" hidden>Exclusion duplizieren</button>
+          </div>
+
+          <!--
+            Aktionen, die zu JEDER Auswahl passen. Eigener Block, weil sie in vier
+            Zuständen gelten - kopieren wäre eine doppelte id.
+          -->
+          <div id="inspectorSelection" class="inspector-block" hidden>
+            <button id="deleteMultiSelectionBtn" class="danger" type="button" disabled
+                    title="Löschen: entfernt alle aktuell ausgewählten Punkte. Mit Undo rückgängig.">
+              Auswahl löschen
+            </button>
+            <button id="clearMultiSelectionBtn" type="button" disabled
+                    title="Auswahl aufheben: entfernt alle Markierungen, ohne Punkte zu löschen.">
+              Auswahl aufheben
+            </button>
+          </div>
         </div>
-      </div>
+      </details>
 
       <!--
         FEATURE-NAVIGATION.
@@ -3928,7 +4017,7 @@
         <div class="fold-body">
           <div id="featureNavigator" class="feature-nav" aria-live="polite">
             Keine Karte geladen.
-          </div>
+            </div>
         </div>
       </details>
 
@@ -3970,7 +4059,7 @@
             Beide gibt es pro Karte nur einmal. Search Wire und Docking-Pfad
             sind offene Linien mit mindestens 2 Punkten; beim Docking-Pfad sind
             3 üblich, aber nicht vorgeschrieben.
-          </div>
+            </div>
         </div>
       </details>
 
@@ -4178,7 +4267,7 @@
 
           <div id="originStatus" class="grid-status" aria-live="polite">
             Kein Bezugspunkt gesetzt.
-          </div>
+            </div>
         </div>
       </details>
     </aside>
@@ -5487,6 +5576,19 @@ function applySelectionBarPlacement() {
   }
 
   const ueberDerKarte = !!selectionBarWide?.matches;
+
+  /*
+   * Unter der Schwelle steht die Leiste im Inspektor, und dort ist der Griff
+   * ausgeblendet (CSS): eine zugeklappte Leiste stuende ohne Weg zurueck da.
+   * Deshalb wird dort aufgeklappt - vor dem fruehen Ausstieg unten, sonst
+   * liefe die Zeile nur beim Ortswechsel.
+   *
+   * BENANNTE LUECKE: damit vergisst ein Breitenwechsel ueber die Schwelle den
+   * Zuklappwunsch. Ihn daneben zu merken hiesse, einen zweiten Zustandshalter
+   * einzufuehren - und genau dagegen ist <details> gewaehlt worden.
+   */
+  if (!ueberDerKarte) bar.open = true;
+
   const ziel = ueberDerKarte ? viewer : selectionBarHome.parentElement;
 
   if (!ziel) return;
@@ -20033,6 +20135,7 @@ const I18N_EN = new Map(Object.entries({
   "Legt alle Punkte zwischen den beiden ausgewählten exakt auf die gerade Verbindungslinie. Die beiden ausgewählten Punkte bleiben, wo sie sind; es wird kein Punkt entfernt.":"Puts every point between the two selected ones exactly onto the straight line connecting them. The two selected points stay where they are; no point is removed.",
   "Entfernt Punkte, die weniger als die eingestellte Toleranz von der Linie abweichen (Douglas-Peucker). Die Form bleibt damit innerhalb der Toleranz erhalten. Bei geschlossenen Ringen bleibt der Startpunkt immer.":"Removes points that deviate from the line by less than the configured tolerance (Douglas-Peucker). The shape is therefore preserved within the tolerance. On closed rings the start point is always kept.",
   "Dreht jede Kante des Features auf die nächste Achse seiner eigenen Vorzugsrichtung, sofern sie weniger als die Toleranz davon abweicht. Ausgerichtet wird nicht auf East/North, und es wird kein Punkt entfernt.":"Rotates every edge of the feature onto the nearest axis of its own preferred direction, as long as it deviates from it by less than the tolerance. Alignment is not to East/North, and no point is removed.",
+  "Auswahlleiste ein- und ausklappen":"Collapse or expand the selection bar",
   "Inspektor einklappen":"Collapse inspector",
   "Inspektor ausklappen":"Expand inspector",
   "Bezugspunkt setzen":"Place reference point",
