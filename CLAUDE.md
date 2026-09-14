@@ -7627,12 +7627,26 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   kann seine Nachbarn dort nicht mehr per Strg-Klick dazunehmen. Die Leiste
   erscheint mit dem ersten Klick und deckt sie zu.
 
+  **Mit Schritt 3 des dreizehnten Durchgangs geprüft und stehen gelassen:
+  das Zuklappen macht die Umgehung NICHT entbehrlich.** Ohne sie bricht
+  `tools/test-merge.mjs` mit 0 gerissenen Zusicherungen und 7 abgefangenen
+  Klicks ab – die Begründung steht beim Bau-Eintrag weiter unten.
+
   **Was im Test daraus geworden ist, und es ist ausdrücklich eine Umgehung und
   keine Lösung:** `waehlePunkte()` in `tools/test-merge.mjs` klickt die Marker
   jetzt in der Reihenfolge ihrer Nähe zur linken oberen Ecke – der verdeckte
   zuerst, solange die Leiste noch nicht da ist. **Was ausgewählt wird, ändert
   das nicht, nur die Reihenfolge.** Bei **zwei** verdeckten Markern trüge die
   Umgehung nicht mehr.
+
+  **Mit dem dreizehnten Durchgang ist eine vierte dazugekommen und gebaut:
+  die Leiste klappt zu.** Sie steht nicht in der Tabelle darunter, weil sie
+  keine der drei ist – sie lässt den Ort, wo er ist, und gibt dem Nutzer einen
+  Griff für den Einzelfall. Was sie **nicht** leistet, steht beim Bau-Eintrag
+  weiter unten: die Verdeckung schrumpft auf 38 × 38 px, sie verschwindet
+  nicht, und weil der Ausgangszustand aufgeklappt ist, trifft der erste Klick
+  einer Auswahl unverändert auf die volle Leiste. **Die drei Antworten unten
+  bleiben deshalb offen.**
 
   **Drei denkbare Antworten, keine davon entschieden:**
 
@@ -7970,6 +7984,46 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   nicht, der Klick muss unterbleiben". `klickeGriff()` sichert zu **und**
   klickt nicht, wenn der Griff nicht getroffen ist; danach: 2 gerissene
   Zusicherungen, 0 Timeouts.
+
+  #### Schritt 3: die Umgehung in `waehlePunkte()` bleibt – BENANNTE LÜCKE
+
+  **Die Frage war, ob das Zuklappen die Umgehung aus dem elften Durchgang
+  entbehrlich macht. Gemessen: nein.**
+
+  `waehlePunkte()` in `tools/test-merge.mjs` sortiert die Marker nach ihrer
+  Nähe zur linken oberen Ecke und klickt den nächstgelegenen zuerst – dort
+  steht die Leiste noch nicht. In einer Arbeitskopie ohne diese Sortierung
+  (Sicherungskopie außerhalb des Repositories, Prüfsumme vorher = nachher,
+  `15e2b2c6…`):
+
+  | | |
+  |---|---|
+  | benannte Zusicherungen gerissen | **0** |
+  | abgefangene Klicks | **7** |
+  | Exit | 1, Abbruch in `waehlePunkte` |
+
+  Abgefangen wird der Marker `0:0:1` (E −60 / N 40) von
+  `#setStartPointBtn` – wörtlich: *„from `<div id="mapTopStack">` subtree
+  intercepts pointer events"*. Es ist damit derselbe Befund wie im elften
+  Durchgang, nur mit dem Stapel statt der Leiste im Meldungstext.
+
+  **Der Grund, und er folgt aus einer Festlegung dieses Durchgangs:** der
+  Ausgangszustand bei neuer Auswahl ist **aufgeklappt**. Der erste Klick lässt
+  die Leiste also in voller Größe erscheinen, und ab da gilt die Verdeckung
+  unverändert. Das Zuklappen hilft dem Nutzer im Einzelfall – dem Test hilft
+  es nur, wenn er es selbst auslöst.
+
+  **Die naheliegende Alternative ist erwogen und verworfen: der Test könnte
+  die Leiste vor den Klicks zuklappen.** Sie beseitigt die Umgehung nicht,
+  sondern tauscht sie gegen eine andere – und sie ließe sämtliche
+  Merge-Zusicherungen in einem Zustand laufen, den ein Nutzer bei der ersten
+  Auswahl gar nicht hat. Eine Umgehung, die den gemessenen Zustand verändert,
+  ist schlechter als eine, die nur die Reihenfolge ändert.
+
+  **Die Lücke bleibt damit offen und ist dieselbe wie im elften Durchgang:**
+  bei **zwei** verdeckten Markern trüge die Sortierung nicht mehr, denn nach
+  dem ersten Klick steht die Leiste. Gemessen ist sie an einer Karte mit
+  einem verdeckten Marker; eine mit zweien ist nicht gefahren worden.
 
 - **Die eigene Touch-Größe über der Karte ist 42 px, die Vorgabe 44 – offener
   Punkt, eingetragen mit dem elften Durchgang, ausdrücklich nicht gebaut.**
