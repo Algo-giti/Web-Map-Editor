@@ -797,8 +797,11 @@ try {
       lage.knoepfe.join(","));
   }
 
+  const leisteGetroffen =
+    await elementGetroffen(page, "#selectionActions", { dy: 12 });
+
   check("und sie wird auf der Karte wirklich getroffen",
-    await elementGetroffen(page, "#selectionActions", { dy: 12 }));
+    leisteGetroffen.ok, JSON.stringify(leisteGetroffen));
 
   /*
    * Mehrere Punkte: der zweite Klick geht auf einen Marker AUSSERHALB des
