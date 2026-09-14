@@ -7730,6 +7730,134 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   unverändert, und „die Leiste woandershin" hat jetzt eine Messung mehr unter
   sich.
 
+  #### Der Befund zum Zusammenklappen – Schritt 1 des dreizehnten Durchgangs
+
+  **Entschieden ist: die Leiste bleibt oben links und wird
+  ZUSAMMENKLAPPBAR.** Schritt 2 und 3 des zwölften Durchgangs sind damit
+  hinfällig, der Ort von `1f8f6d6` bleibt. Dieser Abschnitt ist der Befund
+  davor – **reiner Befund, `index.html` ist unverändert.** Gemessen mit
+  Proben, die ein Gerüst außerhalb des Repositories zur Laufzeit einsetzt und
+  wieder entfernt.
+
+  **Die Frage war: gibt es im Bestand schon einen zusammenklappbaren Behälter
+  mit Griff? Ja, zwei – und sie sind nicht gleichwertig.** Die
+  Anhaltebedingung greift deshalb nicht; die Wahl steht unten mit ihrem Grund.
+
+  **Mechanik A – natives `<details>`/`<summary>`.** Zur Laufzeit gezählt: elf
+  Instanzen in vier Rollen.
+
+  | Rolle | Instanzen | Bezeichner | Zustand in | über die Sitzung hinaus |
+  |---|---|---|---|---|
+  | `.inspector-fold` | 5 | `#featureNavigationSection`, `#inspectorStock`, `#inspectorTransform`, `#inspectorValidation`, `#originSection` | `details.open` | **drei davon** über `INSPECTOR_FOLDS` im `localStorage`; Navigation und Bezugspunkt **nicht** |
+  | `.tool-settings` | 2 | ohne `id`, in `#inspectorTransform` | `details.open` | nein |
+  | `.inspector-note` | 2 | ohne `id`, in den Abmessungen und im Mäherblock | `details.open` | nein |
+  | `.feature-card` | je Feature | aus `renderFeatureNavigator()` | `details.open` | nein – sie werden bei jeder Auswahländerung neu gebaut |
+
+  Der Griff ist das `<summary>`: nativ, mit der Tastatur erreichbar, eigener
+  Fokusrahmen (`.inspector-fold > summary:focus-visible`), eigener Pfeil über
+  `::before`. **Zugesichert** ist die Mechanik an vier Stellen:
+  `openAllFolds()` im Harness ist die einzige Stelle im ganzen Verzeichnis
+  `tools/` mit `setAttribute("open", …)`; `tools/test-inspector.mjs` sichert
+  „beide sind beim ersten Start zu", „zugeklappt kostet der Umformblock nur
+  seine Kopfzeile" – gemessen an der **Blockhöhe**, ausdrücklich nicht am
+  berechneten Stil – und den geschlossenen Notizblock;
+  `tools/test-origin-conflict.mjs` misst das selbsttätige Aufklappen des
+  Bezugspunktblocks nach seiner **Wirkung**.
+
+  **Mechanik B – eigene Klasse und eigener Umschaltknopf.** Zwei Instanzen
+  derselben Machart; der Kommentar an `INSPECTOR_STORAGE_KEY` sagt das selbst
+  („Dieselbe Mechanik wie bei der Werkzeugleiste, aber MIT localStorage").
+
+  | Instanz | Umschalter | Zustand in | über die Sitzung hinaus |
+  |---|---|---|---|
+  | Werkzeugleiste | `#toolRailToggle` | `let toolRailCollapsed` **plus** `.is-collapsed` an `#toolRail` **plus** `.rail-collapsed` an `.app` | ja, `TOOL_RAIL_STORAGE_KEY` |
+  | Inspektor | `#inspectorToggle` | `let inspectorCollapsed` **plus** `.inspector-collapsed` an `.app` | ja, `INSPECTOR_STORAGE_KEY` |
+
+  Beschriftung, `aria-label` und `aria-expanded` des Griffs schreibt JS
+  (`applyToolRailState()`, `applyInspectorState()`). **Zugesichert** in
+  `tools/test-toolbar.mjs` (168 gegen 56 px, Rasterspalte gleich der
+  Elementbreite, Zustand überlebt den Neuaufbau) und in
+  `tools/test-inspector.mjs` (320 gegen unter 40 px, der Inhalt ist wirklich
+  weg, der Umschalter der **einzige** Tabstopp, Zustand überlebt den
+  Neuaufbau).
+
+  **Mechanik C – die Kartenfenster – ist keine.** `openMapWindow()` und
+  `closeMapWindow()` blenden ganz aus (`hidden`), höchstens eines ist offen,
+  und **es bleibt kein Griff stehen**: geöffnet wird aus dem Menü. Sie steht
+  hier nur, damit sie nicht später als dritte Möglichkeit gesucht wird.
+
+  **Warum A und B nicht gleichwertig sind – gegen die drei Festlegungen des
+  Durchgangs gehalten:**
+
+  | Festlegung | A `<details>` | B Klasse und Knopf |
+  |---|---|---|
+  | Zustand bleibt in der Sitzung, **nicht** darüber hinaus | **sechs** der elf Instanzen halten ihn genau so | **keine** Instanz. Die einzige, die es je tat, war `#sidebarToggle`, und sie ist mit Etappe 6 b1 entfallen – „ein Behelf bekommt kein Gedächtnis" |
+  | Griff sichtbar und anklickbar | `<summary>`, nativ | eigener Knopf, Beschriftung und ARIA von JS geschrieben |
+  | Zustandshalter | **einer**: das `open`-Attribut, dort wo es gelesen wird | **drei**: Modulvariable, Klasse, Speicher |
+
+  **Beide überleben das Umhängen und das `hidden`-Schalten – gemessen, nicht
+  angenommen.** Das zählt hier besonders, weil die Leiste an der Schwelle von
+  960 px ihren Elternteil wechselt und `INSPECTOR_BLOCKS` ihr `hidden`
+  schaltet:
+
+  | Probe | `open` vorher | nach `appendChild` in den Inspektor | zurück in `#viewer` | nach `hidden` an und aus |
+  |---|---|---|---|---|
+  | `<details>` | **true** | true | true | true |
+  | dieselbe | **false** | false | false | false |
+
+  **GEWÄHLT ist A.** Sie hält den Zustand dort, wo er gelesen wird, und sie
+  ist die einzige mit einem Vorbild für „in der Sitzung ja, darüber hinaus
+  nein". Eine zweite Mechanik entsteht damit nicht.
+
+  **Was A in diesem Fall kostet, und es ist im Haus bereits gemessen:** ein
+  `<details>` mit einem Flex-Container verliert die Anordnung von `summary`
+  und Inhalt – deshalb trägt `.inspector-fold` ausdrücklich `display:block`
+  und legt den Inhalt in `.fold-body`. `.selection-actions` ist genau so ein
+  Flex-Container (`display:flex; flex-direction:column; gap:6px`). Der Weg
+  dorthin ist also der vorhandene und kein neuer.
+
+  #### Der Befund, der die Umsetzung bindet: der Griff muss klein sein
+
+  **Ein zugeklappter Griff in voller Leistenbreite gibt den verdeckten Marker
+  NICHT frei.** Gemessen bei 900 px Fensterhöhe, synthetischer Perimeter
+  40 × 40 mit einer Exclusion, ein Punkt ausgewählt. Die Probe trägt die
+  gemessenen Maße der Leiste (145,38 × 288,00 px) und die Faltmachart des
+  Hauses; zugeklappt misst sie **40 px** Höhe bei unveränderter Breite.
+
+  | Fensterbreite | Marker unter der offenen Leiste | mit einem Griff von 145 × 40 px noch verdeckt | Lage des Markers ab der Leistenecke |
+  |---|---|---|---|
+  | 1280 px | 1 von 8 | **1** | dx 54 / dy 38, Markerradius 6 |
+  | 960 px | 1 von 8 | **0** | dx 26 / dy 114, Markerradius 6 |
+
+  Beide Exclusion-Lagen – 10 … 20 wie in `tools/test-merge.mjs` und 5 … 15 –
+  liefern dieselben Zahlen; die Lage des Markers hängt an der Einpassung, nicht
+  an der Exclusion.
+
+  **Bei 1280 px liegt der verdeckte Marker im obersten Streifen der Leiste**,
+  38 px unter ihrer Oberkante, und ein Griff von 40 px Höhe deckt ihn weiter
+  zu. Das ist kein Zufall: bei eingepasster Karte liegt die Ecke der Geometrie
+  nahe der Kartenecke, und die Leiste beginnt 12 px daneben.
+
+  **Daraus die Bedingung an den Griff, aus der Messung abgeleitet und nicht
+  gewählt:** er darf den Punkt (54 / 38) nicht treffen. Mit dem Markerradius
+  von 6 px heißt das **höchstens 48 px breit oder höchstens 32 px hoch**. Die
+  Quadratgröße des Hauses über der Karte – `.map-tool-button`, 36 × 36 px bei
+  feinem und 42 × 42 px bei grobem Zeiger – erfüllt die erste Hälfte in beiden
+  Zeigerarten. **Ein Griff in voller Leistenbreite mit einer Textbeschriftung
+  erfüllt sie nicht**, und eine Beschriftung „Auswahl" allein misst schon mehr
+  als 48 px.
+
+  **Was damit NICHT erreicht ist, und es gehört dazu:** ein Griff ist klein,
+  aber nicht nichts. Ein Marker, der auf genau seiner Fläche liegt, bleibt
+  verdeckt – die Verdeckung schrumpft von 145 × 288 px auf die Griffgröße, sie
+  verschwindet nicht. Gemessen ist der Gewinn an zwei Kartenformen und zwei
+  Breiten, nicht an allen.
+
+  **Was NICHT erhoben wurde:** ob der Griff unter 960 px – also im Inspektor –
+  ebenfalls erscheinen soll und was er dort an Höhe kostet; welches Zeichen
+  oder welche Beschriftung er trägt; und die acht Symbole, die weiterhin eine
+  eigene Sache sind.
+
 - **Die eigene Touch-Größe über der Karte ist 42 px, die Vorgabe 44 – offener
   Punkt, eingetragen mit dem elften Durchgang, ausdrücklich nicht gebaut.**
   Gemessen im zehnten Durchgang (`f07a331`), nicht vermutet:
