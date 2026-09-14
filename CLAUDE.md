@@ -278,6 +278,16 @@ Führt nacheinander aus:
   Adoptionsregel und die Exportsperre in beiden Modi. Liegt lokal eine Karte
   unter `test/` (nicht im Repository), wird zusätzlich ein Rundlauf damit
   gefahren; fehlt der Ordner, überspringt das Skript den Fall.
+- **`tools/test-geometry.mjs`** – Unit-Tests der reinen Geometriefunktionen:
+  Projektion auf die Gerade, Wegwahl zwischen zwei Punkten, Douglas-Peucker,
+  Kreis- und Rechteckformen, Streckenschnitt und Punktlage, Abstände,
+  Selbstüberschneidung, Lage zweier Ringe, enge Stellen, mähbarer Bereich,
+  Kantenwinkel und Vorzugsrichtung, Ecken rechtwinklig. **Dieser Eintrag
+  fehlte hier**, obwohl `check-all.mjs` das Skript seit Längerem ausführt – die
+  Liste nannte vier Skripte, gelaufen sind fünf. Aufgefallen beim Einhängen des
+  Bestandsprüfers.
+- **`tools/check-bestandszahlen.mjs`** – prüft die markierten Bestandszahlen
+  dieser Datei gegen eine Messung am heutigen Code. Siehe Abschnitt 4.5.
 
 Die Skripte sind einzeln aufrufbar (`node tools/check-syntax.mjs` etc.),
 `check-all.mjs` bündelt sie nur.
@@ -1309,7 +1319,9 @@ als **nicht mehr prüfbar** gemeldet und nicht geschätzt.
 | 52 prüfende / 22 herstellende, davon 46 in `tools/test-inspector.mjs` | Abschnitt 7, Bestandsaufnahme des neunten Durchgangs | `ae029fe` | **52 / 22 / 46** ✓ | **56 / 22 / 50** | prüfend und Inspektorzahl **überholt**, herstellend unverändert |
 
 **Alle drei Methoden waren rekonstruierbar** – keine der Zahlen ist als nicht
-mehr prüfbar zu melden.
+mehr prüfbar zu melden. **Die beiden überholten sind mit demselben Durchgang
+richtiggestellt**; die Spalte „Urteil" beschreibt den Stand, in dem sie
+vorgefunden wurden, und bleibt als Befund stehen.
 
 #### Die 49 Fundstellen der Prüfung
 
@@ -1404,6 +1416,125 @@ standen bis dahin nirgends:
 `#heightStat` liest: es führt überhaupt kein `check()`. Das ist keine Lücke der
 Methode, sondern ihre Definition – gezählt werden Zusicherungen, und dort gibt
 es keine.
+
+#### Ab jetzt sind sie markiert und geprüft
+
+**`tools/check-bestandszahlen.mjs` hält jede markierte Zahl dieser Datei gegen
+eine Messung am heutigen Code.** Es läuft in `tools/check-all.mjs` mit, also in
+jeder Umgebung ohne Vorbereitung. Der Anlass ist die Entscheidung des
+Projektinhabers: eine Bestandszahl veraltet nicht durch Irrtum, sondern durch
+Arbeit, und **eine Zahl, die nicht reißen kann, ist genau das, was die
+Testregeln sonst überall verbieten**.
+
+**Eine neue Bestandszahl ohne Markierung ist ein Versäumnis.** Kein
+Ermessensspielraum und kein Nachtrag für später: wer eine Zahl in diese Datei
+schreibt, die einen gemessenen Zustand des Codes beschreibt, gibt ihr im selben
+Zug eine Marke und dem Prüfer einen Messbefehl. Sonst steht hier wieder eine
+Zahl, die niemandem auffällt, wenn sie falsch wird – und genau davon handelt
+dieser ganze Abschnitt.
+
+**Die Form:**
+
+```
+   ...die Prüfung hat <!-- bestand: NAME -->49 Fundstellen...
+   ...rund <!-- bestand: NAME +-500 -->21 000 Zeilen...
+```
+
+`NAME` steht hier für den Namen der Messung – in Wirklichkeit `pruefstellen`
+bzw. `zeilen-index-html`; die Tabelle unten nennt alle. **Im Beispiel steht er
+absichtlich in Großbuchstaben**, denn der Prüfer liest Namen aus
+Kleinbuchstaben und übersieht diese Zeilen dadurch. Mit den echten Namen
+geschrieben wären es zwei zusätzliche Fundstellen, und der Prüfer zählte eine
+Formbeschreibung als Aussage über den Bestand mit – gemessen, als dieser
+Abschnitt entstand: 25 Marken statt 23. **Ein Codeblock zeigt die Form, er
+behauptet keinen Bestand**; dass der Prüfer das heute nicht unterscheiden kann,
+steht als offener Punkt in Abschnitt 7.
+
+Die Marke steht unmittelbar **vor** der Zahl und trägt nur den Namen der
+Messung; gelesen wird die erste Zahl dahinter. **Der Wert selbst bleibt an
+genau einer Stelle** – in dem Satz, den ein Mensch liest. Ein Kommentar, der
+den Wert mitführte (`<!-- bestand: pruefstellen=49 -->`), wäre die zweite
+Quelle, gegen die der Prüfer gerade gebaut ist.
+
+Dazu drei Regeln, jede mit ihrem Anlass:
+
+- **Dieselbe Marke darf mehrfach stehen, und dann werden alle Stellen
+  geprüft.** Die 49 steht an zwei Orten, die Zeilenzahl ebenfalls – und die
+  beiden Zeilenangaben hatten sich vor diesem Durchgang bereits
+  auseinandergelebt („gut elftausend" gegen „rund 17 000"). Mit derselben Marke
+  kann das nicht mehr passieren.
+- **Ein Leerzeichen als Tausendertrenner ist erlaubt** („21 000"), weil die
+  Dokumentation große Zahlen so schreibt.
+- **`+-N` erlaubt eine Toleranz** und ist für **gerundete** Angaben da. „Rund
+  21 000 Zeilen" risse sonst bei jeder Änderung an `index.html`, ohne dass die
+  Aussage falsch geworden wäre. Die Toleranz macht die Zahl **träge, nicht
+  unreißbar**: wächst die Datei über die Grenze, ist die Rundung falsch, und
+  der Prüfer meldet es. Nachgemessen in beide Richtungen.
+
+**Die geprüften Zahlen und ihr Messbefehl:**
+
+| Marke | Fundstellen | gemessen wird |
+|---|---|---|
+| `pruefstellen` | 2 | `errors/warnings/info.push(` in `validateMapData()` **und** `collectGeometryFindings()` |
+| `statustexte-ohne-englisch` | 1 | literale erste Argumente der fünf Statusfunktionen, die `translateGermanText()` unverändert zurückgibt – **eindeutige Texte**, nicht Fundstellen |
+| `zusicherungen-pruefend` | 1 | `check()`-Aufrufe in `tools/`, die einen Auswahlbezeichner im Aufruf selbst tragen |
+| `zusicherungen-herstellend` | 1 | dieselben Aufrufe, Bezeichner nur im Vorlauf seit dem vorigen `check()` |
+| `zusicherungen-inspector` | 1 | davon prüfend in `tools/test-inspector.mjs` |
+| `zeilen-index-html` | 2 | Zeilen in `index.html`, Toleranz 500 |
+| `globale-funktionen` | 1 | Funktionsdeklarationen am Zeilenanfang, Toleranz 20 |
+| `i18n-muster` | 1 | Einträge in `I18N_PATTERNS`, an der ausgeführten Liste gezählt |
+| `openallfolds-aufrufer` | 2 | Skripte in `tools/`, die `openAllFolds()` aufrufen, ohne `tools/browser-harness.mjs` |
+| `klickefreienknopf-aufrufe` | 1 | Aufrufe von `klickeFreienKnopf()` in `tools/test-merge.mjs` |
+| `menuebefehl-aufrufe` | 1 | Aufrufe von `menueBefehl()` in den Browsertests, ohne `tools/scan-i18n.mjs` |
+| `title-fundstellen` | 1 | `title`-Attribute im Markup und per Skript zusammen |
+| `title-markup` | 1 | literale `title="` in `index.html` |
+| `title-js` | 1 | per Skript gesetzte, **umgebrochene Zuweisungen eingeschlossen** |
+| `details-instanzen` | 1 | `<details>` des Markups in seinen vier Rollen |
+| `details-inspector-fold` | 1 | davon `.inspector-fold` |
+| `details-tool-settings` | 1 | davon `.tool-settings` |
+| `details-inspector-note` | 1 | davon `.inspector-note` |
+| `details-selection-actions` | 1 | davon `.selection-actions` |
+| `klicks-feste-koordinate` | 1 | `position: { x:` in `tools/` |
+
+**Was der Prüfer außerdem meldet**, weil es ohne ihn stillschweigend
+durchginge: eine Marke, hinter der keine Zahl steht; eine Marke, die er nicht
+kennt; und einen Messbefehl, zu dem keine Marke mehr existiert. Die letzte ist
+der Fall „jemand hat die Zahl aus dem Text genommen" – ohne die Meldung bliebe
+ein Messbefehl zurück, der nichts mehr prüft.
+
+**Der Prüfer ist von jeder Zählung über `tools/` ausgenommen**, und das ist
+keine Bequemlichkeit: seine Beschreibungen nennen genau die Muster, nach denen
+er sucht – „Aufrufe von `menueBefehl()`", „Skripte, die `openAllFolds()`
+aufrufen". Ohne den Ausschluss zählte er sich als Aufrufer mit. Gemessen beim
+Bau, an drei Zahlen gleichzeitig; dasselbe galt für ein `check(` in seiner
+eigenen Beschreibung.
+
+#### Was NICHT geprüft wird, und warum
+
+**Keine der drei Zahlen aus Schritt 1 ist unprüfbar** – alle drei Methoden
+ließen sich rekonstruieren und gegen ihren Ursprungsstand kalibrieren. Die
+Kategorie „nicht mehr prüfbar" ist also leer. Nicht markiert sind trotzdem
+vier Zahlen, jede aus einem eigenen Grund:
+
+| Zahl | warum keine Marke |
+|---|---|
+| „**154** der 181 Muster sind so erfassbar; die übrigen **27**" | beide entstehen in der Analyse von `tools/test-cassandra.mjs`, das sie bei jedem Lauf selbst ausgibt. Sie hier ein zweites Mal zu rechnen hieße, dieselbe Analyse an zwei Orten zu führen. Die 181 trägt eine Marke |
+| „`.feature-card` – **je Feature**" | hängt an der geladenen Karte und ist deshalb keine Eigenschaft des Codes. Genau daran ist die frühere Zählung „elf Instanzen" gescheitert |
+| „**vier** Rollen" | eine Aussage über die Tabelle darunter, nicht über den Code |
+| „Alle **17** Browsertests grün" in Abschnitt 4.2 | ein **Zitat** einer damals unbelegten Behauptung. Es beschreibt, was in neun Commit-Nachrichten stand, nicht den heutigen Bestand – eine mitwandernde Zahl würde die Geschichte verfälschen |
+
+**Die 17 des Läufers braucht keine Marke**, und das beantwortet zugleich die
+Frage nach der Doppelprüfung: `tools/run-browser-tests.mjs` gleicht die
+**Tabelle** in Abschnitt 4.2 gegen das Verzeichnis `tools/` ab, nicht eine
+Zahl. Im ganzen Abschnitt steht keine Zahl der Browsertests, die ein zweiter
+Prüfer lesen könnte – es wird also nichts doppelt geprüft, und es stört
+nichts. Die Tabelle ist dabei die schärfere Form: sie nennt bei Abweichung
+**beide Richtungen**, während eine Zahl nur „stimmt nicht" sagen könnte.
+
+**Messwerte in Messtabellen tragen keine Marke.** Eine Tabelle, die einen
+Stand mit Datum und Commit festhält, beschreibt die Vergangenheit und soll
+gerade **nicht** mitwandern – das gilt hier wie überall sonst in dieser Datei.
+Markiert wird die Zahl, die eine Aussage über den **heutigen** Bestand macht.
 
 ---
 
@@ -5304,6 +5435,30 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `class="…"`-Literale des Markups halten, dynamisch gesetzte Klassen
   (`classList.add("…")`) mitzählen. Fehlalarme sind zu erwarten, deshalb eher
   als Warnung denn als Fehler.
+
+- **Der Bestandsprüfer unterscheidet Codeblöcke nicht von Fließtext –
+  eingetragen mit dem sechzehnten Durchgang, nicht behoben.** Eine Markierung
+  in einem ```-Block ist ein **Beispiel** und keine Aussage über den Bestand;
+  `tools/check-bestandszahlen.mjs` liest sie trotzdem als Marke. Gemessen beim
+  Schreiben von Abschnitt 4.5: das Formbeispiel dort erzeugte zwei
+  Scheinmarken, der Prüfer meldete 25 statt 23.
+
+  **Umgangen, nicht gelöst:** das Beispiel schreibt den Namen in
+  Großbuchstaben, die der Prüfer nicht als Namen liest. Das trägt, solange
+  jeder daran denkt – und genau diese Art Bedingung ist es, die beim nächsten
+  Mal niemand kennt.
+
+  **Die Behebung wäre klein** – beim Lesen von CLAUDE.md die ```-Blöcke durch
+  Leerraum ersetzen, damit die Zeilennummern stimmen –, war aber in dem
+  Schritt, in dem der Befund anfiel, ausdrücklich ausgeschlossen: der war
+  „nur Doku". **Sie ist eine eigene Entscheidung.**
+
+  Der Fall ist der dritte derselben Klasse in einem Durchgang, und das ist der
+  eigentliche Eintrag: **ein Prüfer, der Text durchsucht, findet sich selbst.**
+  Vorher zählte er ein `check(` in seiner eigenen Beschreibung als Aufruf und
+  sich selbst als Aufrufer von `openAllFolds()` und `menueBefehl()`. Wer eine
+  textsuchende Prüfung baut, prüft als Erstes, was sie auf sich selbst und auf
+  ihre eigene Dokumentation antwortet.
 
 - **`tools/check-dom-ids.mjs` prüft IDs und doppelte Funktionsnamen, aber
   keine Variablennamen und keine verwaisten Funktionen.** Verwaister Code nach
