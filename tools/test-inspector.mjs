@@ -897,6 +897,131 @@ try {
   }
 
   /* ---------------------------------------------------------------- */
+  console.log("Die Knoepfe der Auswahlleiste tragen je ein Symbol");
+
+  /*
+   * Gemessen wird die WIRKUNG, nicht die Absicht: wieviele <svg> im Knopf
+   * stehen, ob das Symbol an seiner Stelle wirklich getroffen wird, ob der
+   * Text daneben eine EIGENE getroffene Flaeche hat - und ob die Strichfarbe
+   * die Textfarbe IST. Kein getComputedStyle auf display, keine Klasse.
+   *
+   * Die Farbpruefung braucht ihre eigene Gegenprobe: "jeder Strich ist
+   * entweder none oder die Textfarbe" waere auch dann erfuellt, wenn gar kein
+   * Strich gezeichnet wuerde. Deshalb wird zusaetzlich gezaehlt, dass
+   * mindestens einer wirklich faerbt.
+   */
+  const symbolLage = async (ids) =>
+    page.evaluate((liste) => liste.map((id) => {
+      const knopf = document.getElementById(id);
+      if (!knopf) return { id, fehlt: true };
+
+      const svgs = knopf.querySelectorAll("svg");
+      const svg = svgs[0];
+      if (!svg) return { id, svgs: 0 };
+
+      const textKnoten = [...knopf.childNodes]
+        .find((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+
+      const bereich = document.createRange();
+      if (textKnoten) bereich.selectNodeContents(textKnoten);
+      const textKasten = textKnoten ? bereich.getBoundingClientRect() : null;
+      const symbolKasten = svg.getBoundingClientRect();
+
+      const treffer = (kasten) => kasten && kasten.width > 0
+        ? document.elementFromPoint(
+            kasten.left + kasten.width / 2,
+            kasten.top + kasten.height / 2
+          )
+        : null;
+
+      const amSymbol = treffer(symbolKasten);
+      const amText = treffer(textKasten);
+      const farbe = getComputedStyle(knopf).color;
+      const striche = [...svg.querySelectorAll("*")]
+        .map((el) => getComputedStyle(el).stroke);
+
+      return {
+        id,
+        svgs: svgs.length,
+        text: textKnoten ? textKnoten.textContent.trim() : null,
+        symbolGetroffen: amSymbol === svg || svg.contains(amSymbol),
+        textGetroffen: amText === knopf,
+        nebeneinander: !!textKasten && textKasten.left >= symbolKasten.right - 0.5,
+        farbeFolgt: striche.every((strich) => strich === "none" || strich === farbe),
+        faerbendeStriche: striche.filter((strich) => strich !== "none").length,
+        eigeneFarbe: /(stroke|fill)="(#|rgb|hsl)/i.test(svg.outerHTML),
+        farbe,
+      };
+    }), ids);
+
+  const PUNKT_UND_AUSWAHL = [
+    "insertPointBeforeBtn", "insertPointAfterBtn", "setStartPointBtn",
+    "setEndPointBtn", "deletePointBtn",
+    "deleteMultiSelectionBtn", "clearMultiSelectionBtn",
+  ];
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  await page.locator("circle.vertex").first().click();
+  await page.waitForTimeout(300);
+
+  for (const lage of await symbolLage(PUNKT_UND_AUSWAHL)) {
+    check(`${lage.id}: genau ein Symbol, und es wird getroffen`,
+      lage.svgs === 1 && lage.symbolGetroffen, JSON.stringify(lage));
+    check(`${lage.id}: die Beschriftung steht daneben und wird getroffen`,
+      !!lage.text && lage.nebeneinander && lage.textGetroffen, JSON.stringify(lage));
+    check(`${lage.id}: die Strichfarbe IST die Textfarbe`,
+      lage.farbeFolgt && lage.faerbendeStriche > 0 && !lage.eigeneFarbe,
+      JSON.stringify(lage));
+  }
+
+  /*
+   * Der achte Knopf haengt am Zustand "ganzes Feature" einer EXCLUSION - am
+   * Perimeter gibt es ihn nicht. Deshalb eine eigene Karte und ein eigener
+   * Abschnitt statt einer Zusicherung ueber ein verstecktes Element.
+   */
+  await load([MIT_LOCH]);
+  await openAllFolds(page);
+  await page.locator('[data-action="select-whole-feature"][data-feature-index="1"]')
+    .click();
+  await page.waitForTimeout(350);
+
+  for (const lage of await symbolLage(["duplicateFeatureBtn"])) {
+    check("duplicateFeatureBtn: genau ein Symbol, und es wird getroffen",
+      lage.svgs === 1 && lage.symbolGetroffen, JSON.stringify(lage));
+    check("duplicateFeatureBtn: die Beschriftung steht daneben und wird getroffen",
+      !!lage.text && lage.nebeneinander && lage.textGetroffen, JSON.stringify(lage));
+    check("duplicateFeatureBtn: die Strichfarbe IST die Textfarbe",
+      lage.farbeFolgt && lage.faerbendeStriche > 0 && !lage.eigeneFarbe,
+      JSON.stringify(lage));
+  }
+
+  /*
+   * Und die Entscheidung, dass die Symbole NUR ueber der Karte stehen: im
+   * Inspektor braeuchten dieselben Knoepfe in ihrer 139-px-Spalte 142 bis
+   * 163 px, die Beschriftungen liefen still ueber den Rand. Ohne diese
+   * Zusicherung waere das eine Verabredung.
+   */
+  await page.setViewportSize({ width: engerAlsSchwelle, height: 900 });
+  await page.waitForTimeout(350);
+
+  {
+    const imInspektor = await page.evaluate(() => {
+      const leiste = document.getElementById("selectionActions");
+      const sichtbare = [...leiste.querySelectorAll("svg")]
+        .filter((svg) => svg.getBoundingClientRect().width > 0);
+      return { symbole: leiste.querySelectorAll("svg").length, sichtbare: sichtbare.length };
+    });
+
+    check("unter der Schwelle steht kein Symbol, die Symbole bleiben aber im Markup",
+      imInspektor.symbole > 0 && imInspektor.sichtbare === 0,
+      JSON.stringify(imInspektor));
+  }
+
+  await page.setViewportSize({ width: ueberSchwelle, height: 900 });
+  await page.waitForTimeout(350);
+
+  /* ---------------------------------------------------------------- */
   console.log("Die Auswahlleiste laesst sich zuklappen und gibt die Karte frei");
 
   /*

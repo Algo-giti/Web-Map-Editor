@@ -1411,6 +1411,16 @@ standen bis dahin nirgends:
   und verschob die herstellende Zahl um eins. **Ein Prüfer, der seine Zahl
   durch seine bloße Existenz ändert, misst sich selbst mit**; die Aufrufsuche
   überspringt Strings deshalb ebenso wie die Klammerbilanz.
+- **Ein Anführungszeichen in einem REGEX ist kein String-Anfang.** Der Parser
+  kannte Strings und Kommentare, aber nicht die dritte Form, in der ein `"`
+  harmlos auftreten darf. Ein Muster wie `/(stroke|fill)="(#|rgb|hsl)/i` ließ
+  ihn einen String öffnen, der bis zum nächsten `"` lief – gemessen im
+  neunzehnten Durchgang: die Zahlen fielen von **59/23/53 auf 34/15/28**, und
+  das sah aus wie ein Einbruch im Bestand. **Eine falsch gemessene Zahl ist
+  gefährlicher als eine fehlende**: wer sie einträgt, schreibt den Messfehler
+  fest. Regex-Literale werden deshalb übersprungen; erkannt über die übliche
+  Heuristik, dass ein `/` nach einem Wert eine Division ist und sonst ein
+  Muster beginnt.
 
 **`tools/smoke-test.mjs` fällt aus der Zählung**, obwohl es `#widthStat` und
 `#heightStat` liest: es führt überhaupt kein `check()`. Das ist keine Lücke der
@@ -7451,38 +7461,63 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   **Nicht gebaut.** Der Eintrag ist ein Befund über die Methode, kein Auftrag.
 
-  #### Die acht Symbole fehlen – die Leiste trägt bis dahin nur Text
+  #### ERLEDIGT mit dem neunzehnten Durchgang: die acht Symbole sind da
 
-  **Eingetragen mit Schritt 4 des zwölften Durchgangs, damit die gemessenen
-  Breiten nicht für den Endzustand gehalten werden.** Die Entscheidung des
-  elften Durchgangs lautet „Symbol und Text, wie in der Werkzeugleiste";
-  gebaut ist davon der Text. Kein Knopf der Leiste trägt ein `<svg>`.
+  Der Eintrag bleibt stehen, weil seine Zahl die Vorhersage war und der
+  Vergleich der eigentliche Gewinn ist.
 
-  **Der Platz dafür ist in den gemessenen Breiten enthalten, aber nur in
-  denen des zehnten Durchgangs.** Die Zahlen stehen nebeneinander, weil sie
-  sonst für einander gehalten werden:
+  **Die Vorhersage ist eingetroffen, auf zwei Nachkommastellen.** Der zehnte
+  Durchgang hatte mit den Maßen von `.tool-button` gerechnet – 18 px Symbol,
+  9 px Lücke – und **172,38 px** vorhergesagt; die gebaute Leiste misst im
+  Punktzustand auf Deutsch genau **172,38 px**. Der Bestandswert **145,38 px**
+  aus dem zwölften Durchgang beschreibt damit den Stand *ohne* Symbole und ist
+  überholt.
 
-  | | Breite im Punktzustand, deutsch |
+  | | Breite im Punktzustand |
   |---|---|
-  | gemessen im zehnten Durchgang, **mit** Symbol | **172,38 px** |
-  | gemessen am Bestand, **ohne** Symbol | **145,38 px** |
-  | Differenz | 27,00 px = 18 px Symbol + 9 px Lücke |
+  | vorhergesagt im zehnten Durchgang, mit Symbol | 172,38 px |
+  | **gemessen am gebauten Stand, deutsch** | **172,38 px** |
+  | **gemessen am gebauten Stand, englisch** | **156,36 px** |
+  | überholt: ohne Symbole (zwölfter Durchgang) | 145,38 px |
 
-  Die 27 px sind kein Schätzwert: `.tool-button` der Werkzeugleiste – die
-  einzige senkrechte Leiste des Hauses mit Symbol und Text – trägt 18 px
-  Symbolgröße und 9 px Lücke, und der Klon, an dem der zehnte Durchgang
-  gemessen hat, stammt von dort.
+  Gemessen bei 1280 **und** 960 px Fensterbreite; die Leiste ist so breit wie
+  ihr breitester Knopf und hängt deshalb nicht an der Fensterbreite. Die
+  englische Fassung ist 16 px schmaler, weil dort „Delete selection" die Leiste
+  trägt und nicht „Auswahl aufheben".
 
-  **Die Folge für jede Messung, die sich auf die Leiste stützt: sie wird
-  breiter, nicht schmaler.** Wer heute misst, misst eine Untergrenze. Das
-  betrifft die Verdeckungsanteile des zwölften Durchgangs ebenso wie die
-  Prozentwerte der Kartenbreite aus dem zehnten – letztere sind mit 172,38 px
-  gerechnet und bleiben damit gültig, sobald die Symbole kommen.
+  **Die Höhe ist unverändert 330 px** im Punktzustand, zugeklappt 38 × 38 px –
+  die Symbole sitzen in der Knopfhöhe und kosten keine.
 
-  **Welche acht Symbole es wären, ist nicht entworfen.** Das steht schon im
-  zehnten Durchgang unter „Was NICHT erhoben wurde" und gilt unverändert; für
-  das Abrunden gibt es in dieser Datei einen Symbolentwurf, für diese acht
-  keinen.
+  **Dass die Vorhersage traf, ist kein Zufall, sondern eine Entscheidung beim
+  Bau:** die Lücke zwischen Symbol und Text ist mit 9 px die von
+  `.tool-button` übernommen. Mit einer eigenen Zahl wäre die Leiste anders
+  breit, und die Rechnung des zehnten Durchgangs ließe sich nicht mehr
+  gegenprüfen.
+
+  **Die Farbe kommt ausschließlich aus `currentColor`.** Kein Symbol trägt eine
+  eigene Farbangabe; gemessen folgt die Strichfarbe der Textfarbe ihres Knopfes
+  in jedem Zustand, auch bei `.danger`, wo beide rot sind. Zugesichert ist die
+  starke Fassung: *jeder* Strich eines Symbols ist entweder `none` oder exakt
+  die Textfarbe – mit der Gegenprobe, dass überhaupt einer färbt, sonst wäre
+  die Bedingung bei einem leeren Symbol auch erfüllt.
+
+  **Eine Ausnahme mit Begründung: das vordere Rechteck von „Exclusion
+  duplizieren" ist gefüllt**, damit es das hintere verdeckt. Dafür gibt es
+  **keine** Variable der Knopffläche – sie ist ein Verlauf aus zwei Literalen
+  (`linear-gradient(rgba(28,41,63,.96), rgba(20,31,48,.96))`), gemessen im
+  Browser. Genommen ist `var(--panel2)` (#172235): die nächstliegende
+  Bestandsvariable, 1 bis 2 Stufen je Kanal von der Verlaufsmitte entfernt.
+  Eine erfundene Deckfarbe wäre genau das Hartkodieren, das die Regel oben
+  verbietet.
+
+  **Die Symbole stehen NUR über der Karte, und das ist gemessen, nicht
+  gewählt.** Unter der Schwelle stehen dieselben Knöpfe zweispaltig in einer
+  139-px-Spalte und brauchen mit Symbol 142 bis 163 px; sie tragen
+  `white-space:nowrap`, die Beschriftungen liefen also still über den Rand.
+  Gefangen hat das die vorhandene Zusicherung „keine Beschriftung läuft über
+  den Rand" mit −12 und −24 px. Die Regel hängt deshalb am **Ort**
+  (`#viewer .action-icon`), wie die übrigen Regeln der Leiste, und nicht an
+  einer Klasse. Entschieden vom Projektinhaber.
 
   #### Die Bestandsaufnahme – gemessen mit dem neunten Durchgang, Stand `5b0b89e`
 
@@ -7673,23 +7708,24 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   | Datei | prüfend | nur herstellend |
   |---|---|---|
-  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**50** | 9 |
+  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**53** | 9 |
   | `tools/test-merge.mjs` | 5 | 5 |
   | `tools/test-map-switch.mjs` | 1 | 1 |
   | `tools/test-dockpath.mjs` | – | 2 |
   | `tools/test-menu.mjs` | – | 3 |
   | `tools/test-reduce.mjs` | – | 1 |
   | `tools/test-toolbar.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**56** | <!-- bestand: zusicherungen-herstellend -->**22** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**59** | <!-- bestand: zusicherungen-herstellend -->**23** |
 
-  **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen.** Der neunte
-  hatte 52 / 22 / 46 gezählt, am Stand `ae029fe`; die vier zusätzlichen
-  prüfenden Zusicherungen stehen sämtlich in `tools/test-inspector.mjs` und
-  stammen aus dem Bau der Kontext-Knopfleiste. Die Methode ist gegen `ae029fe`
+  **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und mit dem
+  neunzehnten fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
+  Stand `ae029fe`; vier prüfende kamen aus dem Bau der Kontext-Knopfleiste
+  dazu, drei weitere prüfende und eine herstellende aus den Symbolen des
+  neunzehnten Durchgangs. Sie stehen sämtlich in `tools/test-inspector.mjs`. Die Methode ist gegen `ae029fe`
   kalibriert und liefert dort die damalige Tabelle Zeile für Zeile wieder –
   siehe Abschnitt 4.5.
 
-  **Der Auswahlzustand hängt praktisch an einer Datei.** 50 der 56 prüfenden
+  **Der Auswahlzustand hängt praktisch an einer Datei.** 53 der 59 prüfenden
   Zusicherungen stehen in `tools/test-inspector.mjs`; die fünf in
   `tools/test-merge.mjs` prüfen die beiden Punktknöpfe und ihre
   Überschreibungsmeldung. Wer die Leiste baut, fasst diese eine Datei an –
@@ -8092,12 +8128,17 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   trägt die **heute gemessenen** Maße der Leiste im Punktzustand.
 
   **Vorbemerkung zur Breite, und sie gehört hierher, weil alle Zahlen unten
-  daran hängen: die Leiste ist heute 145,38 px breit, nicht 172,38 px.** Die
-  172,38 px des zehnten Durchgangs sind der Wert **mit** Symbol – 18 px Symbol
-  plus 9 px Lücke ergeben genau die Differenz. Die Symbole sind bis heute nicht
-  gebaut, die Leiste trägt nur Text. Gemessen wurde deshalb mit 145,38 ×
-  288,00 px; mit Symbolen wäre das Rechteck breiter und jede Verdeckung
-  darunter größer, nicht kleiner.
+  daran hängen: die Leiste war zum Zeitpunkt dieser Messung 145,38 px breit,
+  nicht 172,38 px.** Die 172,38 px des zehnten Durchgangs sind der Wert **mit**
+  Symbol – 18 px Symbol plus 9 px Lücke ergeben genau die Differenz. Die
+  Symbole waren damals nicht gebaut, die Leiste trug nur Text. Gemessen wurde
+  deshalb mit 145,38 × 288,00 px; mit Symbolen wäre das Rechteck breiter und
+  jede Verdeckung darunter größer, nicht kleiner.
+
+  **Seit dem neunzehnten Durchgang sind die Symbole da, und die Leiste misst
+  172,38 px** – die Vorhersage ist eingetroffen. Die Zahlen dieses Abschnitts
+  bleiben als Messung ihres Standes stehen; wer sie fortschreibt, rechnet mit
+  der breiteren Leiste.
 
   **Befund 1: alle drei Kartenfenster stehen genau dort – und verdecken die
   Leiste vollständig.** `.map-window` trägt `left:12px; bottom:12px` und
@@ -8268,7 +8309,9 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   NICHT frei.** Gemessen bei 900 px Fensterhöhe, synthetischer Perimeter
   40 × 40 mit einer Exclusion, ein Punkt ausgewählt. Die Probe trägt die
   gemessenen Maße der Leiste (145,38 × 288,00 px) und die Faltmachart des
-  Hauses; zugeklappt misst sie **40 px** Höhe bei unveränderter Breite.
+  Hauses; zugeklappt misst sie **40 px** Höhe bei unveränderter Breite. (Beides
+  der Stand vor den Symbolen; seit dem neunzehnten Durchgang ist die Leiste
+  172,38 px breit, und der gebaute Griff misst 38 × 38 px.)
 
   | Fensterbreite | Marker unter der offenen Leiste | mit einem Griff von 145 × 40 px noch verdeckt | Lage des Markers ab der Leistenecke |
   |---|---|---|---|
@@ -8318,7 +8361,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | Ausgangszustand | **aufgeklappt** – `open` steht im Markup, und zurückgesetzt wird es nirgends |
   | Griff | quadratisch, **36 px** fein und 42 px grob, ohne Beschriftung |
   | woher die Größe kommt | die Klasse `.map-tool-button` aus dem Bestand; in der neuen Regel steht keine Zahl |
-  | zugeklappt | die Leiste misst **38 × 38 px** statt 145,38 × 330 px |
+  | zugeklappt | die Leiste misst **38 × 38 px** statt 172,38 × 330 px |
   | unter 960 px | kein Griff, und aufgeklappt – siehe die benannte Lücke unten |
 
   **Der Griff ist klein, weil er es sein muss** – der Befund darüber hat
@@ -8380,8 +8423,16 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   **Was NICHT erreicht ist, und es stand schon im Befund:** ein Griff ist klein,
   aber nicht nichts. Ein Marker, der auf seinen 38 × 38 px liegt, bleibt
-  verdeckt. Die Verdeckung schrumpft von 145 × 330 px auf die Griffgröße, sie
+  verdeckt. Die Verdeckung schrumpft von 172 × 330 px auf die Griffgröße, sie
   verschwindet nicht.
+
+  **Mit den Symbolen nachgemessen (neunzehnter Durchgang): die Lage ist
+  unverändert.** Der Griff hat eine feste Größe und wächst mit der Leiste
+  nicht mit; zugeklappt misst sie weiterhin 38 × 38 px. Bei 1280 **und** 960 px
+  ist danach **kein** Marker mehr verdeckt, aufgeklappt jeweils einer – dieselbe
+  Lage wie vor den Symbolen. Die breitere Leiste verschlechtert die
+  Verdeckung also nicht, weil sie im zugeklappten Zustand gar nicht breiter
+  ist.
 
   #### Vierter Fall der Regel „der Test prüft die Wirkung": ein Rechteck ohne Darstellung
 

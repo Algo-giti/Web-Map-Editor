@@ -198,6 +198,43 @@ const AUSWAHLBEZEICHNER = [
   "inspectorSubtitle",
 ];
 
+/**
+ * Beginnt an dieser Stelle ein Regex-Literal?
+ *
+ * Gebraucht, weil ein Regex Anfuehrungszeichen enthalten darf: das Muster
+ * /(stroke|fill)="(#|rgb|hsl)/i in tools/test-inspector.mjs liesz den
+ * Stringueberspringer einen String oeffnen, der bis zum naechsten " lief -
+ * gemessen fielen die Zusicherungszahlen dadurch von 59/23/53 auf 34/15/28.
+ * Der Parser kannte bis dahin Strings und Kommentare, aber nicht die dritte
+ * Form, in der ein Anfuehrungszeichen harmlos auftreten kann.
+ *
+ * Die Heuristik ist die uebliche: nach einem Wert (Bezeichner, Zahl,
+ * schlieszende Klammer) ist / eine Division, sonst ein Regex-Anfang.
+ */
+function istRegexAnfang(quelle, index) {
+  let i = index - 1;
+  while (i >= 0 && /\s/.test(quelle[i])) i--;
+  if (i < 0) return true;
+  return !/[A-Za-z0-9_$)\]]/.test(quelle[i]);
+}
+
+/** Liefert den Index des schlieszenden / eines Regex-Literals. */
+function regexEnde(quelle, von) {
+  let inKlasse = false;
+
+  for (let i = von + 1; i < quelle.length; i++) {
+    const zeichen = quelle[i];
+
+    if (zeichen === "\\") { i++; continue; }
+    if (zeichen === "\n") return von;      /* ueber eine Zeile: kein Regex */
+    if (zeichen === "[") inKlasse = true;
+    else if (zeichen === "]") inKlasse = false;
+    else if (zeichen === "/" && !inKlasse) return i;
+  }
+
+  return von;
+}
+
 /** Ersetzt Kommentare durch Leerraum; Strings bleiben erhalten. */
 function ohneKommentare(quelle) {
   let aus = "";
@@ -231,6 +268,17 @@ function ohneKommentare(quelle) {
       aus += quelle.slice(i, j + 1);
       i = j;
       continue;
+    }
+
+    /* Ein Regex bleibt stehen, seine Anfuehrungszeichen oeffnen aber keinen
+       String - sonst verschluckt der naechste Ueberspringer den halben Rest. */
+    if (zeichen === "/" && istRegexAnfang(quelle, i)) {
+      const ende = regexEnde(quelle, i);
+      if (ende > i) {
+        aus += quelle.slice(i, ende + 1);
+        i = ende;
+        continue;
+      }
     }
 
     aus += zeichen;
@@ -278,6 +326,11 @@ function checkAufrufe(quelle) {
       continue;
     }
 
+    if (zeichen === "/" && istRegexAnfang(quelle, start)) {
+      const ende = regexEnde(quelle, start);
+      if (ende > start) { start = ende; continue; }
+    }
+
     if (!quelle.startsWith("check", start)) continue;
     if (istWortzeichen(quelle[start - 1])) continue;
 
@@ -293,6 +346,11 @@ function checkAufrufe(quelle) {
       if (z === '"' || z === "'" || z === "`") {
         i = stringEnde(i);
         continue;
+      }
+
+      if (z === "/" && istRegexAnfang(quelle, i)) {
+        const ende = regexEnde(quelle, i);
+        if (ende > i) { i = ende; continue; }
       }
 
       if (z === "(") tiefe++;
