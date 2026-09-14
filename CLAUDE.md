@@ -7582,6 +7582,91 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   **Nicht entschieden und nicht gebaut.** Der Befund steht hier, damit er nicht
   beim nächsten Testfehlschlag als Rätsel wiederkehrt.
 
+  #### ANGEHALTEN mit Schritt 1 des zwölften Durchgangs: der untere Rand löst es nicht
+
+  **Entschieden war, die Leiste an den UNTEREN Rand des linken Streifens zu
+  rücken** – gegen genau diese Verdeckung. **Der Befund vor der Umsetzung sagt,
+  dass der Umzug sein Ziel nicht erreicht und einen zweiten Schaden dazu
+  bringt.** Gebaut ist deshalb nichts; die Entscheidung liegt beim
+  Projektinhaber.
+
+  **Gemessen am Stand `aa80638`**, 900 px Fensterhöhe, Kartenhöhe in allen drei
+  Breiten 759 px. Das gedachte Rechteck ist `left:12px`, `bottom:12px` und
+  trägt die **heute gemessenen** Maße der Leiste im Punktzustand.
+
+  **Vorbemerkung zur Breite, und sie gehört hierher, weil alle Zahlen unten
+  daran hängen: die Leiste ist heute 145,38 px breit, nicht 172,38 px.** Die
+  172,38 px des zehnten Durchgangs sind der Wert **mit** Symbol – 18 px Symbol
+  plus 9 px Lücke ergeben genau die Differenz. Die Symbole sind bis heute nicht
+  gebaut, die Leiste trägt nur Text. Gemessen wurde deshalb mit 145,38 ×
+  288,00 px; mit Symbolen wäre das Rechteck breiter und jede Verdeckung
+  darunter größer, nicht kleiner.
+
+  **Befund 1: alle drei Kartenfenster stehen genau dort – und verdecken die
+  Leiste vollständig.** `.map-window` trägt `left:12px; bottom:12px` und
+  `z-index:7`; die Leiste liegt auf 6. Das ist kein Versehen, sondern die
+  Entscheidung aus dem elften Durchgang („ein geöffnetes Fenster ist eine
+  ausdrückliche Handlung, die Leiste erscheint von selbst"). Am unteren Rand
+  wird daraus aber eine andere Größenordnung:
+
+  | Fenster | Kasten in der Karte | verdeckt die Leiste UNTEN | verdeckt sie OBEN |
+  |---|---|---|---|
+  | `#mergeWindow` | 12/223 … 312/747, 300 × 524 px | **100 %** | 26,7 % |
+  | `#gridWindow` | 12/409 … 312/747, 300 × 338 px | **100 %** | frei |
+  | `#mowerWindow` | 12/380 … 312/747, 300 × 367 px | **100 %** | frei |
+
+  Die Werte gelten für 1280 px und 960 px gleichermaßen; bei 744 px liegt die
+  Leiste im Inspektor, dort stellt sich die Frage nicht. **Heute verdeckt genau
+  ein Fenster ein gutes Viertel der Leiste, danach verdeckt jedes von dreien
+  sie ganz.**
+
+  **Befund 2, und er ist der schwerere: die Verdeckung von Punktmarkern wird
+  nicht kleiner, sondern größer.** Die Begründung des Umzugs lautet, oben links
+  liege bei eingepasster Karte die Ecke der Geometrie. Das stimmt – **unten
+  links liegt die andere Ecke derselben Geometrie**, und eine eingepasste Karte
+  füllt beide Richtungen gleich aus.
+
+  **Gemessen nach der WIRKUNG, nicht nach Rechteckarithmetik:** eine Probe mit
+  den Maßen und dem `z-index` der Leiste wird an beide Stellen gesetzt, und für
+  jeden Marker wird `elementFromPoint()` vorher und nachher verglichen. Die
+  Probe wird danach wieder entfernt; `index.html` ist unverändert.
+
+  | Karte | Breite | Marker treffbar ohne Leiste | Leiste OBEN verdeckt | Leiste UNTEN verdeckt |
+  |---|---|---|---|---|
+  | Perimeter 40 × 40, Exclusion 10 … 20 (wie `tools/test-merge.mjs`) | 1280 px | 8 von 8 | **1** | **1** |
+  | dieselbe | 960 px | 8 von 8 | **1** | **1** |
+  | Perimeter 40 × 40, Exclusion 5 … 15 | 1280 px | 8 von 8 | **1** | **3** |
+  | dieselbe | 960 px | 8 von 8 | **1** | **2** |
+
+  **Auf der Karte, die den Befund des elften Durchgangs ausgelöst hat, ist es
+  ein Tausch: ein verdeckter Marker vorher, ein verdeckter Marker nachher** –
+  nur ein anderer. Auf der zweiten Karte ist der untere Rand **schlechter**,
+  weil die Exclusion dort näher an der unteren linken Ecke liegt. Die
+  Umgehung in `waehlePunkte()` („den der Ecke nächsten Marker zuerst klicken")
+  wäre damit weiterhin nötig, nur gegen die andere Ecke.
+
+  **Was sonst noch im unteren linken Streifen liegt: nichts.** Ohne geöffnetes
+  Kartenfenster tragen `#viewer` nur `#mapTopStack` (oben, über die ganze
+  Breite) und `.map-view-toolbar` (oben rechts); `#emptyMapState` steht mittig
+  und nur ohne Karte – dort kann nichts ausgewählt sein, die Leiste ist also
+  gar nicht da. `#tip` folgt dem Zeiger, liegt auf `z-index:5` und damit
+  **unter** der Leiste; er ist im Ruhezustand `display:none`.
+
+  **Wohin die Leiste wächst, wenn sie höher wird: nach OBEN.** Gemessen mit
+  einer Probe an `bottom:12px`, von 288 auf 388 px Höhe: die Unterkante bleibt
+  bei 747, die Oberkante wandert von 459 auf 359. Sie wächst also **nicht**
+  über den unteren Rand hinaus – die Klammer `max-height` schützt weiterhin
+  vor dem Abschneiden durch `overflow:hidden` an `.viewer`. **Das ist die eine
+  Eigenschaft, in der der untere Rand dem oberen gleichwertig ist.**
+
+  **Die Anhaltebedingung ist damit zweifach eingetreten**, und beide Hälften
+  sind eigenständig: die Kartenfenster verdecken die Leiste am neuen Ort
+  vollständig statt zu einem Viertel, und die Markerverdeckung, gegen die der
+  Umzug gerichtet war, bleibt bestehen oder wird schlimmer. **Ein dritter Ort
+  ist damit nicht vorgeschlagen** – die drei Antworten der Tabelle oben stehen
+  unverändert, und „die Leiste woandershin" hat jetzt eine Messung mehr unter
+  sich.
+
 - **Die eigene Touch-Größe über der Karte ist 42 px, die Vorgabe 44 – offener
   Punkt, eingetragen mit dem elften Durchgang, ausdrücklich nicht gebaut.**
   Gemessen im zehnten Durchgang (`f07a331`), nicht vermutet:
