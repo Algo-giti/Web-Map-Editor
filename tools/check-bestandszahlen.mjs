@@ -10,7 +10,16 @@
 // MARKIERUNG: <!-- bestand: name --> unmittelbar vor der Zahl. Gelesen wird
 // die erste Zahl nach der Marke, und zwischen beiden darf keine weitere
 // Ziffer stehen. Der Wert bleibt damit an genau EINER Stelle - in dem Satz,
-// den ein Mensch liest; der Pruefer fuehrt ihn nicht als Literal.
+// den ein Mensch liest; der Pruefer fuehrt ihn nicht als Literal. Ein
+// Leerzeichen als Tausendertrenner ist erlaubt ("21 000"), weil die
+// Dokumentation groesze Zahlen so schreibt.
+//
+// TOLERANZ: <!-- bestand: name +-500 --> laesst eine Abweichung zu. Sie ist
+// fuer GERUNDETE Angaben da ("rund 21 000 Zeilen"), die sonst bei jeder
+// Aenderung an index.html rissen, ohne dass die Aussage falsch geworden
+// waere. Eine Toleranz macht die Zahl traege, nicht unreiszbar: waechst die
+// Datei ueber die Grenze hinaus, ist die Rundung falsch und der Pruefer
+// meldet es. Ohne Angabe wird exakt verglichen.
 //
 // Dieselbe Marke darf mehrfach vorkommen. Das ist kein Versehen, sondern der
 // Fall, den CLAUDE.md selbst beschreibt: die 49 steht an zwei Stellen, und
@@ -25,6 +34,21 @@ import { readInlineScript, extractDeclarations } from "./extract-script.mjs";
 
 const repoRoot = new URL("..", import.meta.url).pathname;
 const toolsDir = new URL(".", import.meta.url).pathname;
+
+/**
+ * Der Pruefer selbst, und er ist von JEDER Zaehlung ueber tools/
+ * ausgenommen.
+ *
+ * Das ist keine Bequemlichkeit, sondern notwendig: seine Beschreibungen
+ * nennen genau die Muster, nach denen er sucht - "Aufrufe von menueBefehl()",
+ * "Skripte, die openAllFolds() aufrufen". Ohne den Ausschluss zaehlt er sich
+ * als Aufrufer mit und verschiebt jede dieser Zahlen um eins. Gemessen beim
+ * Bau, an drei Zahlen gleichzeitig.
+ *
+ * Er ist ausserdem kein Testskript: er fuehrt keine Zusicherung und ruft
+ * keinen der Helfer auf, ueber die hier gezaehlt wird.
+ */
+const EIGENE_DATEI = "check-bestandszahlen.mjs";
 
 /* ===================================================================== */
 /* Messung 1: die Schreibstellen der Kartenpruefung                      */
@@ -294,7 +318,7 @@ function messeZusicherungen() {
   const ergebnis = { pruefend: 0, herstellend: 0, inspector: 0 };
 
   for (const datei of readdirSync(toolsDir).sort()) {
-    if (!datei.endsWith(".mjs")) continue;
+    if (!datei.endsWith(".mjs") || datei === EIGENE_DATEI) continue;
 
     const quelle = ohneKommentare(readFileSync(join(toolsDir, datei), "utf8"));
     let pruefend = 0;
@@ -315,6 +339,73 @@ function messeZusicherungen() {
   zusicherungenGemessen = ergebnis;
   return ergebnis;
 }
+
+/* ===================================================================== */
+/* Weitere Messungen: Umfang der Datei, Zaehlungen im Verzeichnis        */
+/* ===================================================================== */
+
+const leseHtml = () => readFileSync(join(repoRoot, "index.html"), "utf8");
+
+/**
+ * Die Zahl der Uebersetzungsmuster.
+ *
+ * Gezaehlt wird die ausgefuehrte Liste und nicht ihr Quelltext: eine
+ * Textzaehlung ueber die Zeilenanfaenge kommt auf 178 statt 181, weil drei
+ * Eintraege anders umbrochen sind. tools/test-cassandra.mjs nennt dieselbe
+ * Zahl in seiner Ausgabe ("154 von 181 Mustern automatisch geprueft").
+ */
+function messeI18nMuster() {
+  const code = extractDeclarations(readInlineScript(), ["I18N_PATTERNS"]);
+  const sandkasten = {};
+  runInNewContext(`${code}\nthis.anzahl = I18N_PATTERNS.length;`, sandkasten);
+  return sandkasten.anzahl;
+}
+
+const zaehle = (text, muster) => (text.match(muster) || []).length;
+
+/** Alle .mjs-Dateien in tools/, ausser den genannten. */
+function toolsDateien(ausser = []) {
+  return readdirSync(toolsDir)
+    .filter(
+      (datei) =>
+        datei.endsWith(".mjs") &&
+        datei !== EIGENE_DATEI &&
+        !ausser.includes(datei)
+    )
+    .map((datei) => ({ datei, quelle: readFileSync(join(toolsDir, datei), "utf8") }));
+}
+
+/**
+ * Zaehlt die <details>-Elemente einer Rolle im Markup.
+ *
+ * Ueber die Klasse und nicht ueber "<details", weil das Wort sieben Mal in
+ * Kommentaren des Skripts steht - eine Zaehlung ohne Klasse kaeme auf 17
+ * statt auf 10.
+ */
+function detailsMitKlasse(klasse) {
+  return zaehle(leseHtml(), new RegExp(`<details[^>]*class="[^"]*\\b${klasse}\\b`, "g"));
+}
+
+const DETAILS_ROLLEN = [
+  "inspector-fold",
+  "tool-settings",
+  "inspector-note",
+  "selection-actions",
+];
+
+/** Die literalen title-Attribute im Markup. */
+const messeTitleMarkup = () => zaehle(leseHtml(), /title="/g);
+
+/**
+ * Die per Skript gesetzten title-Zuweisungen.
+ *
+ * \s* statt eines Leerzeichens: drei der Zuweisungen sind ueber die
+ * Zeilengrenze umgebrochen, und genau daran ist die Zaehlung des achten
+ * Durchgangs vorbeigelaufen - sie meldete 36 statt 39.
+ */
+const messeTitleJs = () =>
+  zaehle(leseHtml(), /\.title\s*=[^=]/g) +
+  zaehle(leseHtml(), /setAttribute\("title"/g);
 
 /* ===================================================================== */
 /* Die geprueften Zahlen                                                 */
@@ -341,6 +432,77 @@ const MESSUNGEN = {
     was: "davon pruefend in tools/test-inspector.mjs",
     messen: () => messeZusicherungen().inspector,
   },
+  "zeilen-index-html": {
+    was: "Zeilen in index.html",
+    messen: () => leseHtml().split("\n").length - 1,
+  },
+  "globale-funktionen": {
+    was: "Funktionsdeklarationen am Zeilenanfang, also ohne Einrueckung und damit global",
+    messen: () => zaehle(leseHtml(), /^function [A-Za-z_$][A-Za-z0-9_$]*\s*\(/gm),
+  },
+  "i18n-muster": {
+    was: "Eintraege in I18N_PATTERNS",
+    messen: messeI18nMuster,
+  },
+  "openallfolds-aufrufer": {
+    was: "Skripte in tools/, die openAllFolds() aufrufen (ohne browser-harness.mjs, das den Helfer definiert)",
+    messen: () =>
+      toolsDateien(["browser-harness.mjs"]).filter((d) => /openAllFolds\(/.test(d.quelle))
+        .length,
+  },
+  "klickefreienknopf-aufrufe": {
+    was: "Aufrufe von klickeFreienKnopf() in tools/test-merge.mjs",
+    messen: () =>
+      zaehle(
+        readFileSync(join(toolsDir, "test-merge.mjs"), "utf8"),
+        /klickeFreienKnopf\(/g
+      ),
+  },
+  "menuebefehl-aufrufe": {
+    was: "Aufrufe von menueBefehl() in den Browsertests (ohne scan-i18n.mjs, das kein Test ist)",
+    messen: () =>
+      toolsDateien(["scan-i18n.mjs"]).reduce(
+        (summe, d) => summe + zaehle(d.quelle, /menueBefehl\(/g),
+        0
+      ),
+  },
+  "title-fundstellen": {
+    was: "title-Attribute im Markup und per Skript gesetzte zusammen",
+    messen: () => messeTitleMarkup() + messeTitleJs(),
+  },
+  "title-markup": {
+    was: "literale title-Attribute in index.html",
+    messen: messeTitleMarkup,
+  },
+  "title-js": {
+    was: "per Skript gesetzte title-Attribute, umgebrochene Zuweisungen eingeschlossen",
+    messen: messeTitleJs,
+  },
+  "details-instanzen": {
+    was: "<details>-Elemente des Markups in ihren vier Rollen",
+    messen: () => DETAILS_ROLLEN.reduce((summe, rolle) => summe + detailsMitKlasse(rolle), 0),
+  },
+  "details-inspector-fold": {
+    was: "<details class=\"... inspector-fold\"> im Markup",
+    messen: () => detailsMitKlasse("inspector-fold"),
+  },
+  "details-tool-settings": {
+    was: "<details class=\"tool-settings\"> im Markup",
+    messen: () => detailsMitKlasse("tool-settings"),
+  },
+  "details-inspector-note": {
+    was: "<details class=\"inspector-note\"> im Markup",
+    messen: () => detailsMitKlasse("inspector-note"),
+  },
+  "details-selection-actions": {
+    was: "<details class=\"selection-actions\"> im Markup",
+    messen: () => detailsMitKlasse("selection-actions"),
+  },
+  "klicks-feste-koordinate": {
+    was: "Klicks mit fester Koordinate in tools/, gefunden ueber \"position: { x:\"",
+    messen: () =>
+      toolsDateien().reduce((summe, d) => summe + zaehle(d.quelle, /position: \{ x:/g), 0),
+  },
 };
 
 /* ===================================================================== */
@@ -353,11 +515,12 @@ function leseMarkierungen() {
   const gefunden = [];
 
   for (const treffer of text.matchAll(
-    /<!--\s*bestand:\s*([a-z0-9-]+)\s*-->([^\d\n]*)(\d+)/g
+    /<!--\s*bestand:\s*([a-z0-9-]+)\s*(?:\+-(\d+)\s*)?-->([^\d\n]*)(\d[\d\u00a0 ]*\d|\d)/g
   )) {
     gefunden.push({
       name: treffer[1],
-      wert: Number(treffer[3]),
+      toleranz: treffer[2] ? Number(treffer[2]) : 0,
+      wert: Number(treffer[4].replace(/[\u00a0 ]/g, "")),
       zeile: text.slice(0, treffer.index).split("\n").length,
     });
   }
@@ -365,7 +528,9 @@ function leseMarkierungen() {
   /* Eine Marke ohne Zahl dahinter faellt oben durch das Muster - sie waere
      eine Markierung, die nichts markiert, und wird darum eigens gesucht. */
   const ohneZahl = [];
-  for (const treffer of text.matchAll(/<!--\s*bestand:\s*([a-z0-9-]+)\s*-->/g)) {
+  for (const treffer of text.matchAll(
+    /<!--\s*bestand:\s*([a-z0-9-]+)\s*(?:\+-\d+\s*)?-->/g
+  )) {
     const zeile = text.slice(0, treffer.index).split("\n").length;
     if (!gefunden.some((m) => m.zeile === zeile && m.name === treffer[1])) {
       ohneZahl.push({ name: treffer[1], zeile });
@@ -417,11 +582,15 @@ for (const [name, messung] of Object.entries(MESSUNGEN)) {
   }
 
   for (const marke of marken) {
-    if (marke.wert === gemessen) {
-      console.log(`  ok   ${name} = ${gemessen} (CLAUDE.md:${marke.zeile})`);
+    const abweichung = Math.abs(marke.wert - gemessen);
+
+    if (abweichung <= marke.toleranz) {
+      const spanne = marke.toleranz ? ` (+-${marke.toleranz}, gemessen ${gemessen})` : "";
+      console.log(`  ok   ${name} = ${marke.wert}${spanne} (CLAUDE.md:${marke.zeile})`);
     } else {
+      const spanne = marke.toleranz ? ` +-${marke.toleranz}` : "";
       console.error(
-        `  ROT  CLAUDE.md:${marke.zeile} - "${name}": dort steht ${marke.wert}, ` +
+        `  ROT  CLAUDE.md:${marke.zeile} - "${name}": dort steht ${marke.wert}${spanne}, ` +
           `gemessen ${gemessen}.`
       );
       console.error(`       gezaehlt werden: ${messung.was}`);

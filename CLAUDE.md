@@ -38,7 +38,7 @@ Abschnitt 5 (Domänenregeln) und `DISCLAIMER.md`.
 ## 2. Architektur
 
 Das gesamte Projekt ist **eine einzige Datei**: [`index.html`](index.html)
-(gut elftausend Zeilen: HTML, `<style>`-CSS, ein einziger inline
+(rund <!-- bestand: zeilen-index-html +-500 -->21 000 Zeilen: HTML, `<style>`-CSS, ein einziger inline
 `<script>`-Block). Es gibt bewusst **keine** weiteren Build-Artefakte, kein
 `package.json` für die App selbst, keine externen `<script src>`/`<link>`-
 Referenzen und keine `fetch()`/`XMLHttpRequest`-Aufrufe – die Datei ist
@@ -136,9 +136,14 @@ erklärt beides.
   Fehler" ein „1 errors" – an der sichtbarsten Stelle der englischen
   Oberfläche. `tools/test-cassandra.mjs` prüft die ganze Liste jetzt
   automatisch darauf: für jedes Muster wird ein Beispieltext erzeugt und
-  gesucht, ob ein früheres, allgemeineres ihn abfängt. 101 der 125 Muster sind
-  so erfassbar; die übrigen 24 sind lange Meldungen mit eindeutigem Präfix und
-  wurden von Hand durchgesehen.
+  gesucht, ob ein früheres, allgemeineres ihn abfängt. 154 der
+  <!-- bestand: i18n-muster -->181 Muster sind so erfassbar; die übrigen 27 sind
+  lange Meldungen mit eindeutigem Präfix und wurden von Hand durchgesehen.
+
+  **Nur die 181 trägt eine Markierung, die 154 und die 27 nicht.** Sie stammen
+  aus der Analyse in `tools/test-cassandra.mjs`, das sie bei jedem Lauf selbst
+  ausgibt („154 von 181 Mustern automatisch geprueft"); sie im Bestandsprüfer
+  ein zweites Mal zu rechnen hieße, dieselbe Analyse an zwei Orten zu führen.
 
   **Zusammengesetzte Texte** kann ein `I18N_PATTERNS`-Muster nicht übersetzen:
   ein Ersetzungsmuster setzt `$1` unverändert ein, der eingebettete Teil bliebe
@@ -419,7 +424,7 @@ nächsten Mal wie eine Zusicherung. Der Helfer stand seit Etappe 6 b2 im Harness
 Nachricht ihn als Bündelung „der bisher acht Mal kopierten Faltgeste"
 beschrieb – **aufgerufen hat ihn danach kein einziger Test**, alle acht Kopien
 blieben stehen. Damit erreichte die Reparatur der Navigationskarten zunächst
-niemanden. Seit Etappe 7 f rufen **elf Skripte** den Helfer auf, und
+niemanden. Seit Etappe 7 f rufen <!-- bestand: openallfolds-aufrufer -->**14 Skripte** den Helfer auf, und
 `setAttribute("open", …)` steht im ganzen `tools/`-Verzeichnis an genau einer
 Stelle. **Keine neunte Kopie anlegen** – auch nicht unter anderem Namen; drei
 der acht hießen `expand()` statt `expandSidebar()` oder standen inline.
@@ -757,7 +762,7 @@ gerissene `check()`-Zusicherung bricht den Lauf nicht ab; unmittelbar danach
 klickt das Skript weiter, und der gesperrte Knopf liefert doch den Timeout.
 Gemessen in Etappe 7d-3d an der Mutation „Klickreihenfolge statt `min`/`max`":
 mit bloßem Wächter riss die benannte Zusicherung zwar, der Lauf endete
-trotzdem im Abbruch. `tools/test-merge.mjs` führt deshalb **alle dreizehn**
+trotzdem im Abbruch. `tools/test-merge.mjs` führt deshalb <!-- bestand: klickefreienknopf-aufrufe -->**alle 23**
 Klicks auf sperrbare Knöpfe über den einen Helfer `klickeFreienKnopf()`, der
 zusichert **und** bei gesperrtem Knopf nicht klickt. Danach meldet dieselbe
 Mutation fünf benannte Zusicherungen und null Timeouts. Kein zweiter Helfer
@@ -1069,7 +1074,7 @@ Menüeintrag trotzdem anklickte – gemessen an „Karte B" ohne geladene Datei 
 und Playwright dann dreißig Sekunden auf eine Freigabe wartete, die nicht
 kommt. Es ist derselbe Fall, für den es `klickeFreienKnopf()` gibt, nur eine
 Ebene höher; offen blieb er, weil die Behebung einen gemeinsamen Helfer
-ändert, den elf Skripte benutzen.
+ändert, den <!-- bestand: openallfolds-aufrufer -->14 Skripte benutzen.
 
 Aus `menueBefehl(page, menue, eintrag)` ist deshalb die Fabrik
 `createMenueBefehl(page, check)` geworden, gebaut wie `createKlicker()`: sie
@@ -1082,7 +1087,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die 46 Menübefehle stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->43 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -4646,7 +4651,7 @@ sortiert:**
 | „Deutsch / English" | wiederholt die Beschriftung |
 | „Keine Änderung zum Rückgängigmachen/Wiederholen" | Zustandsansage, kein Erklärtext |
 
-**RICHTIGSTELLUNG mit dem neunten Durchgang: es sind 39 Fundstellen, nicht 36 –
+**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->40 Fundstellen –
 und ein genannter Wortlaut steht zur Laufzeit nirgends.** Beides fiel bei der
 Bestandsaufnahme zur Kontext-Knopfleiste an; es ist ein Beifang und wird hier
 richtiggestellt, nicht gelöscht.
@@ -4662,7 +4667,7 @@ deshalb durch:
 | `updateMultiSelectionUi()`, `snapToggle.title =` | den Ablehnungsgrund des Rasterfangs bei unbekanntem Maßstab |
 | `updateMultiSelectionUi()`, `straightenButton.title =` | `TRANSFORM_TOOL_HELP.straightenSelectionBtn` |
 
-**Es sind damit 23 im Markup und 16 per JS.** Dass ausgerechnet das Muster über
+**Es sind damit <!-- bestand: title-markup -->24 im Markup und <!-- bestand: title-js -->16 per JS.** Dass ausgerechnet das Muster über
 Zeilengrenzen versagte, ist in dieser Datei schon einmal gemessen worden – bei
 der Locator-Suche aus Schritt 11 des vierten Durchgangs, wo der bekannte
 Treffer umgebrochen war und die einzeilige Fassung ihn nicht fand. **Es ist
@@ -5180,7 +5185,8 @@ dokumentiert, aber im Code konsistent sichtbar):
   Schlüssel in einem Objektliteral (`I18N_EN`).
 
   In `index.html` ist das **wahrscheinlich, nicht unwahrscheinlich**: rund
-  17 000 Zeilen und über 330 globale Funktionen liegen in einem einzigen
+  <!-- bestand: zeilen-index-html +-500 -->21 000 Zeilen und rund
+  <!-- bestand: globale-funktionen +-20 -->380 globale Funktionen liegen in einem einzigen
   Gültigkeitsbereich, ohne Module, ohne Namensräume. Wer eine Hilfsfunktion
   schreibt, sieht die 9 000 Zeilen weiter unten nicht, und naheliegende Namen
   (`isWholeFeatureSelected`, `describeFeature`, `updateX`) sind genau die, die
@@ -5582,7 +5588,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   **Stand danach:** `tools/scan-i18n.mjs` meldet über alle damals siebzehn Zustände
   **null** neue Treffer.
 
-- <!-- bestand: statustexte-ohne-englisch -->**31 Statustexte haben keine englische Fassung.** Sie wurden beim Umzug der
+- <!-- bestand: statustexte-ohne-englisch -->**28 Statustexte haben keine englische Fassung.** Sie wurden beim Umzug der
   Ausgaben in die Statuszeile systematisch erfasst: literale Argumente von
   `setEditStatus()`, `setMultiSelectionStatus()`, `setReduceStatus()`,
   `setRectifyStatus()` und `updateGridStatus()`, die weder in `I18N_EN` stehen
@@ -5592,6 +5598,15 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   sauber hin und her – es gibt nur nichts zu wechseln. Nachzutragen, wenn die
   betroffenen Bereiche im weiteren Umbau ohnehin angefasst werden; einzeln
   nachzupflegen lohnt nicht.
+
+  **Es waren 31, als die Liste entstand; drei haben seither eine englische
+  Fassung bekommen** – und zwar genau die drei, deren Nachtrag in dieser Datei
+  verzeichnet ist: „Karte A und B wurden verbunden …" (Schritt 3 des fünften
+  Durchgangs), „Raster wird nach dem Öffnen einer Karte angezeigt." (Schritt 7
+  des vierten Durchgangs) und „Zeichnung abgebrochen.". Neu dazugekommen ist
+  keiner; die Grundgesamtheit ist mit 57 unverändert. **Das ist die Veralterung
+  durch Arbeit, gegen die der Bestandsprüfer gebaut ist** – niemand hat die Zahl
+  falsch gemessen, sie ist durch drei Übersetzungen richtig geworden.
 - **`CHANGELOG.md` (deutsch) beginnt erst bei Ausgabe 047.** Die Historie der
   Ausgaben 001–046 existiert nur in `CHANGELOG_EN.md`. Neue Einträge ab
   jetzt bitte in beiden Dateien pflegen.
@@ -7418,16 +7433,23 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   | Datei | prüfend | nur herstellend |
   |---|---|---|
-  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**46** | 9 |
+  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**50** | 9 |
   | `tools/test-merge.mjs` | 5 | 5 |
   | `tools/test-map-switch.mjs` | 1 | 1 |
   | `tools/test-dockpath.mjs` | – | 2 |
   | `tools/test-menu.mjs` | – | 3 |
   | `tools/test-reduce.mjs` | – | 1 |
   | `tools/test-toolbar.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**52** | <!-- bestand: zusicherungen-herstellend -->**22** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**56** | <!-- bestand: zusicherungen-herstellend -->**22** |
 
-  **Der Auswahlzustand hängt praktisch an einer Datei.** 46 der 52 prüfenden
+  **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen.** Der neunte
+  hatte 52 / 22 / 46 gezählt, am Stand `ae029fe`; die vier zusätzlichen
+  prüfenden Zusicherungen stehen sämtlich in `tools/test-inspector.mjs` und
+  stammen aus dem Bau der Kontext-Knopfleiste. Die Methode ist gegen `ae029fe`
+  kalibriert und liefert dort die damalige Tabelle Zeile für Zeile wieder –
+  siehe Abschnitt 4.5.
+
+  **Der Auswahlzustand hängt praktisch an einer Datei.** 50 der 56 prüfenden
   Zusicherungen stehen in `tools/test-inspector.mjs`; die fünf in
   `tools/test-merge.mjs` prüfen die beiden Punktknöpfe und ihre
   Überschreibungsmeldung. Wer die Leiste baut, fasst diese eine Datei an –
@@ -7676,21 +7698,26 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   die Zoom-Leiste festgehalten ist („Testpunkte deshalb nicht in die obere
   rechte Ecke der Karte legen").
 
-  **Vollständig erhoben sind die Klicks mit fester Koordinate** – acht im ganzen
-  Verzeichnis, gefunden über `position: { x:` :
+  **Vollständig erhoben sind die Klicks mit fester Koordinate** – zum Zeitpunkt
+  der Erhebung acht im ganzen Verzeichnis, gefunden über `position: { x:` .
+  **Heute sind es <!-- bestand: klicks-feste-koordinate -->5**: Schritt 5 des
+  elften Durchgangs hat die drei Klicks auf die leere Karte durch
+  `freieKartenstelle()` ersetzt. Die Tabelle nennt den Stand der Erhebung und
+  markiert, was seitdem entfallen ist:
 
   | Fundstelle | Koordinate | liegt im Leistenrechteck |
   |---|---|---|
-  | `tools/test-inspector.mjs`, zweimal | 2 / 2 | nein – 10 px links daneben |
-  | `tools/test-menu.mjs` | 5 / 5 | nein – 7 px links daneben |
+  | ~~`tools/test-inspector.mjs`, zweimal~~ – entfallen | 2 / 2 | nein – 10 px links daneben |
+  | ~~`tools/test-menu.mjs`~~ – entfallen | 5 / 5 | nein – 7 px links daneben |
   | `tools/scan-i18n.mjs` | 200 / 200 | **fein nein** (15,6 px daneben), **grob ja** |
   | `tools/scan-i18n.mjs` | 400 / 300, 300 / 300 | nein |
   | `tools/test-i18n-dynamic.mjs` | 300 / 300, 380 / 320 | nein |
 
-  **Die drei Klicks, die „auf leere Karte klicken, um abzuwählen" meinen, liegen
+  **Die drei Klicks, die „auf leere Karte klicken, um abzuwählen" meinten, lagen
   7 bis 10 px neben der Leiste** – im Rand, den `left:12px` freilässt. Sie
-  bestehen also, aber nicht mit Absicht: niemand hat 2 und 5 gewählt, weil dort
-  Platz bleiben sollte.
+  bestanden also, aber nicht mit Absicht: niemand hatte 2 und 5 gewählt, weil
+  dort Platz bleiben sollte. Genau das war der Anlass, sie durch eine **gesuchte**
+  Stelle zu ersetzen.
 
   **NICHT erhoben sind die Klicks mit gerechneter Koordinate.**
   `tools/test-dockpath.mjs`, `tools/test-inspector.mjs`, `tools/test-shapes.mjs`
@@ -7910,15 +7937,27 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   mit Griff? Ja, zwei – und sie sind nicht gleichwertig.** Die
   Anhaltebedingung greift deshalb nicht; die Wahl steht unten mit ihrem Grund.
 
-  **Mechanik A – natives `<details>`/`<summary>`.** Zur Laufzeit gezählt: elf
-  Instanzen in vier Rollen.
+  **Mechanik A – natives `<details>`/`<summary>`.** Im Markup stehen
+  <!-- bestand: details-instanzen -->10 Instanzen in vier Rollen; dazu kommen
+  die Karten der Feature-Navigation, deren Zahl von der geladenen Karte abhängt.
 
   | Rolle | Instanzen | Bezeichner | Zustand in | über die Sitzung hinaus |
   |---|---|---|---|---|
-  | `.inspector-fold` | 5 | `#featureNavigationSection`, `#inspectorStock`, `#inspectorTransform`, `#inspectorValidation`, `#originSection` | `details.open` | **drei davon** über `INSPECTOR_FOLDS` im `localStorage`; Navigation und Bezugspunkt **nicht** |
-  | `.tool-settings` | 2 | ohne `id`, in `#inspectorTransform` | `details.open` | nein |
-  | `.inspector-note` | 2 | ohne `id`, in den Abmessungen und im Mäherblock | `details.open` | nein |
+  | `.inspector-fold` | <!-- bestand: details-inspector-fold -->5 | `#featureNavigationSection`, `#inspectorStock`, `#inspectorTransform`, `#inspectorValidation`, `#originSection` | `details.open` | **drei davon** über `INSPECTOR_FOLDS` im `localStorage`; Navigation und Bezugspunkt **nicht** |
+  | `.tool-settings` | <!-- bestand: details-tool-settings -->2 | ohne `id`, in `#inspectorTransform` | `details.open` | nein |
+  | `.inspector-note` | <!-- bestand: details-inspector-note -->2 | ohne `id`, in den Abmessungen und im Mäherblock | `details.open` | nein |
+  | `.selection-actions` | <!-- bestand: details-selection-actions -->1 | `#selectionActions` | `details.open` | nein |
   | `.feature-card` | je Feature | aus `renderFeatureNavigator()` | `details.open` | nein – sie werden bei jeder Auswahländerung neu gebaut |
+
+  **Die Zählung ist gegenüber dem dreizehnten Durchgang in zwei Dingen
+  richtiggestellt.** Erstens fehlte `.selection-actions`: Schritt 2 desselben
+  Durchgangs hat sie angelegt, und die Tabelle darüber wurde nicht nachgezogen –
+  **die Zahl war beim Aufschreiben richtig und wurde vom eigenen Bau zwei
+  Schritte später überholt.** Zweitens zählte sie zur **Laufzeit** und kam
+  deshalb auf elf: die beiden Karten der damaligen Testkarte waren mitgezählt.
+  Eine Zahl, die von der geladenen Karte abhängt, lässt sich nicht prüfen –
+  gezählt wird jetzt das **Markup**, und die Karten stehen als „je Feature"
+  daneben.
 
   Der Griff ist das `<summary>`: nativ, mit der Tastatur erreichbar, eigener
   Fokusrahmen (`.inspector-fold > summary:focus-visible`), eigener Pfeil über
@@ -7958,7 +7997,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   | Festlegung | A `<details>` | B Klasse und Knopf |
   |---|---|---|
-  | Zustand bleibt in der Sitzung, **nicht** darüber hinaus | **sechs** der elf Instanzen halten ihn genau so | **keine** Instanz. Die einzige, die es je tat, war `#sidebarToggle`, und sie ist mit Etappe 6 b1 entfallen – „ein Behelf bekommt kein Gedächtnis" |
+  | Zustand bleibt in der Sitzung, **nicht** darüber hinaus | **sieben** der zehn Instanzen halten ihn genau so | **keine** Instanz. Die einzige, die es je tat, war `#sidebarToggle`, und sie ist mit Etappe 6 b1 entfallen – „ein Behelf bekommt kein Gedächtnis" |
   | Griff sichtbar und anklickbar | `<summary>`, nativ | eigener Knopf, Beschriftung und ARIA von JS geschrieben |
   | Zustandshalter | **einer**: das `open`-Attribut, dort wo es gelesen wird | **drei**: Modulvariable, Klasse, Speicher |
 
