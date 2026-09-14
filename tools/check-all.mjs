@@ -11,6 +11,7 @@ const checks = [
   "check-privacy.mjs",
   "test-cassandra.mjs",
   "test-geometry.mjs",
+  "check-bestandszahlen.mjs",
 ];
 
 let failed = false;

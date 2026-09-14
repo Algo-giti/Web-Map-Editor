@@ -1269,10 +1269,17 @@ nicht stillschweigend als vollständig getestet ausgeben.
 ### 4.5 Bestandszahlen und ihre Messmethoden
 
 **Eine Bestandszahl ist eine Zahl in dieser Datei, die einen gemessenen Zustand
-des Codes beschreibt** – „die Prüfung hat 49 Fundstellen", „31 Statustexte
-haben keine englische Fassung", „52 prüfende Zusicherungen". Sie veraltet
-**nicht durch Irrtum, sondern durch Arbeit**: wer eine Schreibstelle ergänzt
-oder einen Text übersetzt, ändert sie, ohne sie zu lesen.
+des Codes beschreibt** – wie viele Fundstellen die Kartenprüfung hat, wie viele
+Statustexte keine englische Fassung haben, wie viele Zusicherungen am
+Auswahlzustand hängen. Sie veraltet **nicht durch Irrtum, sondern durch
+Arbeit**: wer eine Schreibstelle ergänzt oder einen Text übersetzt, ändert sie,
+ohne sie zu lesen.
+
+**Die Zahlen in diesem Abschnitt sind selbst keine Bestandszahlen.** Sie sind
+die Messung des sechzehnten Durchgangs (14.09.2026, Stand `e94a334`) und
+bleiben als solche stehen, wie jede andere Messtabelle dieser Datei. Die
+mitwandernden Zahlen sind die **markierten** an ihren Fundstellen – deshalb
+nennt dieser Abschnitt sie nicht noch einmal, sondern sagt nur, wo sie stehen.
 
 **Die Messmethode gehört deshalb hierher und nicht in den Bericht des
 Durchgangs, der sie gemessen hat.** Eine Zahl ohne ihre Methode ist beim
@@ -1290,7 +1297,7 @@ als **nicht mehr prüfbar** gemeldet und nicht geschätzt.
 
 **Stand des sechzehnten Durchgangs:**
 
-| Zahl | Fundstelle | Kalibrierungsstand | dort gemessen | heute | Urteil |
+| Zahl | Fundstelle | Kalibrierungsstand | dort gemessen | gemessen 14.09.2026 | Urteil |
 |---|---|---|---|---|---|
 | 49 Fundstellen der Prüfung | Abschnitt 5, „Der Prüfbericht liegt im Inspektor" | `2acf6ea` | **49** ✓ | **49** | **weiterhin richtig** |
 | 31 Statustexte ohne englische Fassung | Abschnitt 7 | `d9354ee` | **31** ✓ | **28** | **überholt** |
@@ -1317,9 +1324,10 @@ ohne sie kommen 37 statt 49 heraus.
 ist der eigentliche Beleg dafür, dass die Methode getroffen ist.
 
 **Die Zahl steht an ZWEI Stellen in dieser Datei**, und beide meinen dasselbe:
-„die Prüfung hat 49 Fundstellen, die alle Zeichenketten liefern" in Abschnitt 5
-und „von 49 Schreibstellen tragen sechs eine formatierte Zahl" in Abschnitt 7.
-Wer die eine ändert, ändert die andere mit.
+der Satz über `findValidationTarget()` in Abschnitt 5 und der Satz über die
+Befunde ohne Zahl in Abschnitt 7. **Beide tragen dieselbe Markierung und werden
+beide geprüft** – eine Zahl, die zweimal dasteht, darf nicht an einer der
+beiden Stellen still zurückbleiben.
 
 #### Die 31 Statustexte ohne englische Fassung
 
@@ -1336,6 +1344,12 @@ werden aus dem Inline-Script geschnitten und in einer Sandbox ausgeführt –
 dieselbe Machart wie in `tools/test-cassandra.mjs`. Eine Textsuche über
 `I18N_EN` genügt nicht: ein Muster fängt Texte ab, die als Schlüssel nirgends
 dastehen.
+
+**Gezählt werden TEXTE, nicht Fundstellen.** Zehn der Texte stehen an mehr als
+einer Stelle; wer die Fundstellen zählt, bekommt heute 38 statt 28 – und am
+Ursprungsstand nicht die dokumentierten 31. Der Satz an der Fundstelle sagt es
+selbst („31 Statustexte"), aber die Zählweise ist beim Rekonstruieren der erste
+Punkt, an dem man danebengreift.
 
 **Die Grundgesamtheit ist an beiden Ständen 57.** Es sind also keine Texte
 hinzugekommen; drei haben seither eine englische Fassung bekommen, und alle
@@ -1374,6 +1388,12 @@ standen bis dahin nirgends:
 - **Der Beleg ist die Deckung Zeile für Zeile über alle sieben Dateien, nicht
   die Gesamtsumme.** Eine bloß passende Summe kann aus zwei Fehlern entstehen,
   die sich aufheben; sieben übereinstimmende Zeilen können es nicht.
+- **Ein `check(` INNERHALB eines Strings ist kein Aufruf.** In den Testskripten
+  kommt das nicht vor, in `tools/check-bestandszahlen.mjs` schon – seine eigene
+  Beschreibung „check()-Aufrufe in tools/" wurde beim Bau als Aufruf gezählt
+  und verschob die herstellende Zahl um eins. **Ein Prüfer, der seine Zahl
+  durch seine bloße Existenz ändert, misst sich selbst mit**; die Aufrufsuche
+  überspringt Strings deshalb ebenso wie die Klammerbilanz.
 
 **`tools/smoke-test.mjs` fällt aus der Zählung**, obwohl es `#widthStat` und
 `#heightStat` liest: es führt überhaupt kein `check()`. Das ist keine Lücke der
@@ -2688,7 +2708,7 @@ an (`selectWholeFeature()`); die übrigen bleiben `<div>`. Knöpfe statt divs mi
 Klick-Handler, damit sie mit der Tastatur erreichbar sind.
 
 Die Zuordnung entsteht in `findValidationTarget()` **aus dem Text**, und das ist
-eine Abwägung: die Prüfung hat 49 Fundstellen, die alle Zeichenketten liefern,
+eine Abwägung: die Prüfung hat <!-- bestand: pruefstellen -->49 Fundstellen, die alle Zeichenketten liefern,
 und jede um eine Feature-Nummer zu erweitern hieße, die durchgerechnete
 Geometrieprüfung für eine Anzeigefrage anzufassen. Erkannt werden die drei
 Schreibweisen, die tatsächlich vorkommen: „Feature 7: …", „Perimeter 2: …" und
@@ -5562,7 +5582,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   **Stand danach:** `tools/scan-i18n.mjs` meldet über alle damals siebzehn Zustände
   **null** neue Treffer.
 
-- **31 Statustexte haben keine englische Fassung.** Sie wurden beim Umzug der
+- <!-- bestand: statustexte-ohne-englisch -->**31 Statustexte haben keine englische Fassung.** Sie wurden beim Umzug der
   Ausgaben in die Statuszeile systematisch erfasst: literale Argumente von
   `setEditStatus()`, `setMultiSelectionStatus()`, `setReduceStatus()`,
   `setRectifyStatus()` und `updateGridStatus()`, die weder in `I18N_EN` stehen
@@ -5631,7 +5651,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   lautet wortgleich wie vorher, nur entsteht er später.
 
   **Ein Befund ohne Zahl bleibt sein eigener Text.** Er hat keine Rohwerte, und
-  ihn in ein Objekt zu zwingen wäre Zeremonie; von 49 Schreibstellen tragen
+  ihn in ein Objekt zu zwingen wäre Zeremonie; von <!-- bestand: pruefstellen -->49 Schreibstellen tragen
   sechs eine formatierte Zahl.
 
   **`pruefErgebnis()` macht die Textlisten zur Ableitung, nicht zur zweiten
@@ -7398,14 +7418,14 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   | Datei | prüfend | nur herstellend |
   |---|---|---|
-  | `tools/test-inspector.mjs` | **46** | 9 |
+  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**46** | 9 |
   | `tools/test-merge.mjs` | 5 | 5 |
   | `tools/test-map-switch.mjs` | 1 | 1 |
   | `tools/test-dockpath.mjs` | – | 2 |
   | `tools/test-menu.mjs` | – | 3 |
   | `tools/test-reduce.mjs` | – | 1 |
   | `tools/test-toolbar.mjs` | – | 1 |
-  | **zusammen** | **52** | **22** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**52** | <!-- bestand: zusicherungen-herstellend -->**22** |
 
   **Der Auswahlzustand hängt praktisch an einer Datei.** 46 der 52 prüfenden
   Zusicherungen stehen in `tools/test-inspector.mjs`; die fünf in
