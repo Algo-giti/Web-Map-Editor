@@ -7914,12 +7914,37 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     im Befund ausdrücklich als „nicht erhoben"; hiermit ist sie beantwortet.
 
   **BENANNTE LÜCKE: ein Breitenwechsel über 960 px vergisst den
-  Zuklappwunsch.** Weil unter der Schwelle kein Griff steht, klappt
+  Zuklappwunsch. Sie bleibt BEWUSST OFFEN – entschieden mit Schritt 2 des
+  vierzehnten Durchgangs.** Weil unter der Schwelle kein Griff steht, klappt
   `applySelectionBarPlacement()` dort auf – sonst stünde eine zugeklappte
   Leiste ohne Weg zurück da. Zurück über der Karte ist sie damit wieder offen.
   Den Wunsch daneben zu merken hieße, einen **zweiten** Zustandshalter
   einzuführen, und genau dagegen ist `<details>` gewählt worden. **Nicht
   behoben; die Behebung wäre eine Entscheidung, kein Nachtrag.**
+
+  **Das steht hier, damit die Lücke beim nächsten Lesen weder für ein Versehen
+  noch für geschlossen gehalten wird: sie ist beides nicht, sondern offen und
+  gewollt.** Derselbe Fall wie bei der Abschneideprüfung unterhalb der
+  8c-Schwelle, nur an einer anderen Stelle.
+
+  **Der Auslöser ist ausschließlich der Breitenwechsel – gemessen, und die
+  Messung hat eine naheliegende Annahme widerlegt.** Angenommen war, der Fall
+  trete nur ein, wenn das Fenster **bei stehender Auswahl** über die Schwelle
+  gezogen wird. Das stimmt nicht: `applySelectionBarPlacement()` hängt an
+  `matchMedia`, nicht an der Auswahl, und das `open`-Attribut überlebt das
+  `hidden`-Schalten. Eine ausgeblendete Leiste verliert ihren Zuklappwunsch
+  deshalb genauso. Gemessen an einem synthetischen Perimeter, Schwelle aus
+  `SELECTION_BAR_WIDE_QUERY` gelesen:
+
+  | Folge | `open` danach |
+  |---|---|
+  | zuklappen, Fenster unter die Schwelle und zurück, Auswahl steht durchgehend | **true** – der Wunsch ist weg |
+  | zuklappen, **abwählen**, Fenster unter die Schwelle und zurück, dann neu auswählen | **true** – der Wunsch ist ebenso weg, obwohl nichts ausgewählt war |
+  | zuklappen, abwählen, neu auswählen – **ohne** Breitenwechsel | **false** – der Wunsch bleibt, wie festgelegt |
+
+  **Die dritte Zeile ist die Gegenprobe** und belegt, dass nicht etwa jeder
+  Auswahlwechsel den Wunsch verliert: es ist genau der Sprung über die
+  Schwelle, und nur er.
 
   **Was NICHT erreicht ist, und es stand schon im Befund:** ein Griff ist klein,
   aber nicht nichts. Ein Marker, der auf seinen 38 × 38 px liegt, bleibt
