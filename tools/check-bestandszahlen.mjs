@@ -28,7 +28,7 @@
 // Die Messmethoden sind in CLAUDE.md, Abschnitt 4.5, beschrieben.
 
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { runInNewContext } from "node:vm";
 import { readInlineScript, extractDeclarations } from "./extract-script.mjs";
 
@@ -47,8 +47,13 @@ const toolsDir = new URL(".", import.meta.url).pathname;
  *
  * Er ist ausserdem kein Testskript: er fuehrt keine Zusicherung und ruft
  * keinen der Helfer auf, ueber die hier gezaehlt wird.
+ *
+ * Der Name wird aus import.meta.url abgeleitet und nicht hingeschrieben: als
+ * Literal haengt der Ausschluss am Dateinamen, und eine Umbenennung liesze
+ * den Pruefer sich wieder selbst mitzaehlen. Gemessen an einer Kopie unter
+ * anderem Namen: drei Zahlen verschoben sich auf 23 / 15 / 45.
  */
-const EIGENE_DATEI = "check-bestandszahlen.mjs";
+const EIGENE_DATEI = basename(new URL(import.meta.url).pathname);
 
 /* ===================================================================== */
 /* Messung 1: die Schreibstellen der Kartenpruefung                      */
@@ -532,16 +537,22 @@ const FENCE_AUF = /^`{3,}[A-Za-z0-9_+]*$/;
 const FENCE_ZU = /^`{3,}$/;
 
 /**
- * Ersetzt den Inhalt von Codebloecken durch Leerraum.
+ * Ersetzt Codebeispiele durch Leerraum - Codebloecke UND Code-Spans in
+ * einfachen Backticks.
  *
- * GRUND: ein Codeblock zeigt die FORM einer Markierung, er behauptet keinen
- * Bestand. Das Formbeispiel in Abschnitt 4.5 wurde sonst als echte Marke
- * gelesen - gemessen 25 Fundstellen statt 23.
+ * GRUND: ein Codebeispiel zeigt die FORM einer Markierung, es behauptet
+ * keinen Bestand. Das Formbeispiel in Abschnitt 4.5 wurde sonst als echte
+ * Marke gelesen - gemessen 25 Fundstellen statt 23.
+ *
+ * Die Code-Spans kamen dazu, als der Pruefer anfing, formaehnliche Marken zu
+ * melden: CLAUDE.md zeigt die verworfene Form `<!-- bestand: name=49 -->` und
+ * eine falsch geschriebene in Backticks, und beide sind Beispiele und keine
+ * Versaeumnisse.
  *
  * Ersetzt wird zeichenweise und laengengleich, damit die Offsets und damit
  * die gemeldeten Zeilennummern unveraendert bleiben.
  */
-function ohneCodebloecke(text) {
+function ohneCodebeispiele(text) {
   const zeilen = text.split("\n");
   let imBlock = false;
   let beginn = 0;
@@ -594,12 +605,53 @@ function ohneCodebloecke(text) {
     );
   }
 
-  return maskiert.join("\n");
+  /* Code-Spans zeilenweise: ein Span ueber einen Zeilenumbruch kommt in
+     dieser Datei nicht vor, und ein Muster darueber verschluckte im Zweifel
+     ganze Absaetze. */
+  return maskiert
+    .map((zeile) =>
+      zeile.replace(/(`+)([^`\n]*)\1/g, (treffer) => " ".repeat(treffer.length))
+    )
+    .join("\n");
+}
+
+/**
+ * Was der Form nahekommt, aber nicht passt - und warum.
+ *
+ * Vorher wurde so etwas STILL uebergangen: eine Marke mit groszgeschriebenem
+ * Namen fiel durch das strenge Muster, war damit keine Marke, und kein
+ * einziges Wort der Ausgabe erwaehnte sie. Das ist schwerer als eine falsche
+ * Zahl - wer sie so schreibt, glaubt, seine Zahl sei geprueft.
+ */
+function grundDerAblehnung(schluessel, rest) {
+  if (schluessel !== "bestand") {
+    return `das Schluesselwort muss "bestand" heiszen, hier steht "${schluessel}"`;
+  }
+
+  if (!rest) return "hinter dem Doppelpunkt steht kein Name";
+
+  const [name, ...weiteres] = rest.split(/\s+/);
+  const zusatz = weiteres.join(" ");
+  const verboten = [...new Set([...name].filter((zeichen) => !/[a-z0-9-]/.test(zeichen)))];
+
+  if (verboten.length > 0) {
+    return (
+      `der Name "${name}" enthaelt ${verboten.map((z) => `"${z}"`).join(", ")} - ` +
+      "erlaubt sind nur a-z, 0-9 und der Bindestrich"
+    );
+  }
+
+  if (zusatz && !/^\+-\d+$/.test(zusatz)) {
+    return `die Toleranz muss "+-N" heiszen, hier steht "${zusatz}"`;
+  }
+
+  return "sie passt nicht auf die Form <!-- bestand: name -->";
 }
 
 /** Liest jede Marke samt der Zahl dahinter und ihrer Zeilennummer. */
 function leseMarkierungen() {
-  const text = ohneCodebloecke(readFileSync(join(repoRoot, "CLAUDE.md"), "utf8"));
+  const roh = readFileSync(join(repoRoot, "CLAUDE.md"), "utf8");
+  const text = ohneCodebeispiele(roh);
   const gefunden = [];
 
   for (const treffer of text.matchAll(
@@ -625,11 +677,44 @@ function leseMarkierungen() {
     }
   }
 
-  return { gefunden, ohneZahl };
+  /* Alles, was wie eine Marke aussieht - auch mit falsch geschriebenem
+     Schluesselwort oder Namen. Was davon nicht als richtige Marke erkannt
+     wurde, wird gemeldet statt uebergangen. */
+  const formaehnlich = [];
+  for (const treffer of text.matchAll(/<!--\s*(bestand)\s*:\s*([^>]*?)\s*-->/gi)) {
+    const zeile = text.slice(0, treffer.index).split("\n").length;
+    const erkannt =
+      gefunden.some((m) => m.zeile === zeile) || ohneZahl.some((m) => m.zeile === zeile);
+
+    if (!erkannt) {
+      const rest = treffer[2];
+      formaehnlich.push({
+        wortlaut: rest.split(/\s+/)[0] || "(ohne Namen)",
+        zeile,
+        grund: grundDerAblehnung(treffer[1], rest),
+      });
+    }
+  }
+
+  /* Wieviel in Codebeispielen stand, wird genannt und nicht verschwiegen:
+     eine Marke, die versehentlich in Backticks geraet, faellt sonst lautlos
+     aus der Zaehlung. */
+  const alle = (roh.match(/<!--\s*bestand\s*:/gi) || []).length;
+  const sichtbar = (text.match(/<!--\s*bestand\s*:/gi) || []).length;
+
+  return { gefunden, ohneZahl, formaehnlich, inBeispielen: alle - sichtbar };
 }
 
-const { gefunden, ohneZahl } = leseMarkierungen();
+const { gefunden, ohneZahl, formaehnlich, inBeispielen } = leseMarkierungen();
 let fehler = 0;
+
+for (const fast of formaehnlich) {
+  console.error(
+    `  ROT  CLAUDE.md:${fast.zeile} - "${fast.wortlaut}" sieht wie eine Markierung ` +
+      `aus, ist aber keine: ${fast.grund}.`
+  );
+  fehler += 1;
+}
 
 for (const marke of ohneZahl) {
   console.error(
@@ -694,7 +779,13 @@ if (fehler > 0) {
   );
   process.exitCode = 1;
 } else {
+  const beispiele =
+    inBeispielen > 0
+      ? ` (${inBeispielen} weitere stehen in Codebeispielen und zaehlen nicht)`
+      : "";
+
   console.log(
-    `\ncheck-bestandszahlen: alle ${gefunden.length} markierten Zahlen stimmen mit der Messung ueberein.`
+    `\ncheck-bestandszahlen: alle ${gefunden.length} markierten Zahlen stimmen mit der ` +
+      `Messung ueberein${beispiele}.`
   );
 }

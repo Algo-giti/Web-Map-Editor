@@ -1433,6 +1433,14 @@ Zug eine Marke und dem Prüfer einen Messbefehl. Sonst steht hier wieder eine
 Zahl, die niemandem auffällt, wenn sie falsch wird – und genau davon handelt
 dieser ganze Abschnitt.
 
+**Das ist die eine Stelle, an der der Prüfer schweigen muss, und sie ist nicht
+auflösbar.** Er kann eine unmarkierte Bestandszahl nicht von jeder anderen Zahl
+im Fließtext unterscheiden – „drei Gründe", „zwei Fassungen", „Etappe 7f" sind
+ebenfalls Zahlen. Alles andere meldet er: eine Marke ohne Zahl, eine Marke ohne
+Messbefehl, einen Messbefehl ohne Marke, eine Marke, die der Form nur
+nahekommt. **Die fehlende Marke bleibt Sache dessen, der die Zahl schreibt** –
+deshalb steht die Regel oben so scharf da.
+
 **Die Form:**
 
 ```
@@ -1502,12 +1510,32 @@ kennt; und einen Messbefehl, zu dem keine Marke mehr existiert. Die letzte ist
 der Fall „jemand hat die Zahl aus dem Text genommen" – ohne die Meldung bliebe
 ein Messbefehl zurück, der nichts mehr prüft.
 
+**Und alles, was der Form nahekommt, ohne zu passen** – seit dem achtzehnten
+Durchgang. `<!-- bestand: Pruefstellen -->`, ein Wert in der Marke statt
+dahinter, ein falsch geschriebenes Schlüsselwort, `+/-500` statt `+-500`: jede
+dieser Formen wird **namentlich rot, mit Fundstelle und dem Grund**, warum sie
+nicht erkannt wurde. Vorher fiel so etwas durch das strenge Muster und war
+damit schlicht keine Marke – kein Wort der Ausgabe erwähnte sie, Exit 0.
+**Das ist schwerer als eine falsche Zahl**: wer seine Marke so schreibt,
+glaubt, seine Zahl sei geprüft. Still kleinschreiben und durchwinken wäre der
+falsche Ausweg – wer sie so schreibt, soll es erfahren.
+
+**Codebeispiele sind davon ausgenommen, Codeblöcke wie Inline-Backticks.** Ein
+Beispiel zeigt die Form, es behauptet keinen Bestand – und diese Datei zeigt
+absichtlich auch die *falschen* Formen. Damit das nicht zur stillen Lücke
+wird, nennt die Schlusszeile ihre Zahl („… (4 weitere stehen in Codebeispielen
+und zählen nicht)"): eine Marke, die versehentlich in Backticks gerät, fällt
+sonst lautlos aus der Zählung.
+
 **Der Prüfer ist von jeder Zählung über `tools/` ausgenommen**, und das ist
 keine Bequemlichkeit: seine Beschreibungen nennen genau die Muster, nach denen
 er sucht – „Aufrufe von `menueBefehl()`", „Skripte, die `openAllFolds()`
 aufrufen". Ohne den Ausschluss zählte er sich als Aufrufer mit. Gemessen beim
 Bau, an drei Zahlen gleichzeitig; dasselbe galt für ein `check(` in seiner
-eigenen Beschreibung.
+eigenen Beschreibung. **Der eigene Dateiname kommt dabei aus
+`import.meta.url` und steht nicht als Literal da** – sonst hinge der
+Ausschluss am Namen der Datei, und eine Umbenennung ließe den Prüfer sich
+wieder selbst mitzählen.
 
 #### Was NICHT geprüft wird, und warum
 
@@ -5491,32 +5519,31 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   textsuchende Prüfung baut, prüft als Erstes, was sie auf sich selbst und auf
   ihre eigene Dokumentation antwortet.
 
-- **Vier Stellen des Bestandsprüfers bauen weiter auf eine Verabredung –
-  aufgenommen mit dem siebzehnten Durchgang, nicht behoben.** Sie stehen hier,
-  weil eine Verabredung genau das ist, was dieser Durchgang an einer Stelle
-  beseitigt hat: eine Bedingung, die nicht reißen kann, sondern nur von jemandem
-  eingehalten werden muss, der sie kennt. Alle vier sind gemessen, nicht
-  vermutet.
+- **Zwei Stellen des Bestandsprüfers bauen auf eine Verabredung statt auf eine
+  prüfbare Bedingung – zwei weitere sind mit dem achtzehnten Durchgang behoben.**
+  Der Eintrag stand zunächst mit vier Stellen hier; die beiden billigen sind
+  erledigt, und sie sind unten als solche gekennzeichnet, damit niemand sie ein
+  zweites Mal sucht. Alle vier sind gemessen, nicht vermutet.
 
-  | Stelle | was sie voraussetzt | gemessen |
+  | Stelle | was sie voraussetzt | Stand |
   |---|---|---|
-  | `EIGENE_DATEI` ist ein Literal | der Prüfer heißt weiterhin `check-bestandszahlen.mjs` | unter anderem Namen zählt er sich wieder selbst mit: `zusicherungen-herstellend` 22 → 23, `openallfolds-aufrufer` 14 → 15, `menuebefehl-aufrufe` 43 → 45 |
-  | Markennamen sind kleingeschrieben | niemand schreibt `<!-- bestand: Pruefstellen -->` | eine solche Marke wird **still übersehen** – weder gezählt noch gemeldet, Exit 0 |
-  | `AUSWAHLBEZEICHNER`, `STATUSFUNKTIONEN` | wer einen Bezeichner umbenennt, zieht die Liste mit | dieselbe Klasse wie die `NAMES`-Liste in `tools/test-cassandra.mjs`, nur ohne deren Abbruch: ein fehlender Name fällt hier **still** aus der Zählung |
-  | die Suchmuster | die Schreibweise bleibt, wie sie ist – etwa `position: { x:` mit Leerzeichen | eine Umformatierung verschöbe die Zahl, ohne dass sich am Bestand etwas geändert hätte |
+  | `EIGENE_DATEI` war ein Literal | der Prüfer heißt weiterhin `check-bestandszahlen.mjs` | **ERLEDIGT** – der Name kommt aus `import.meta.url`. Vorher zählte er sich unter anderem Namen wieder selbst mit (`zusicherungen-herstellend` 22 → 23, `openallfolds-aufrufer` 14 → 15, `menuebefehl-aufrufe` 43 → 45), heute bleiben alle drei gleich |
+  | Markennamen sind kleingeschrieben | niemand schreibt `<!-- bestand: Pruefstellen -->` | **ERLEDIGT** – was der Form nahekommt und nicht passt, wird namentlich rot, mit Fundstelle und Grund |
+  | `AUSWAHLBEZEICHNER`, `STATUSFUNKTIONEN` | wer einen Bezeichner umbenennt, zieht die Liste mit | **bleibt** – Entscheidung des Projektinhabers: die Behebung wäre ein eigener Messbefehl gegen `index.html` und damit ein eigener Durchgang |
+  | die Suchmuster | die Schreibweise bleibt, wie sie ist – etwa `position: { x:` mit Leerzeichen | **bleibt, und ist nicht auflösbar**: ein Suchmuster *ist* eine Schreibweise |
 
-  **Die erste ist in einer Zeile zu beheben** (`import.meta.url` statt des
-  Literals), die zweite in wenigen (Namen unabhängig von der Schreibung suchen
-  und einen nicht kleingeschriebenen melden). Die dritte wäre ein eigener
-  Messbefehl: jeder Bezeichner der Liste muss als `id` in `index.html`
-  vorkommen, jede Statusfunktion dort deklariert sein – dann meldete sich eine
-  Umbenennung, statt die Zahl zu verschieben. **Die vierte ist keine, die sich
-  auflösen lässt**: ein Suchmuster ist die Definition der Messung, und sie
-  hängt zwangsläufig an einer Schreibweise. Sie steht hier, damit niemand sie
-  für die dritte hält.
+  **Richtigstellung zur dritten Zeile.** Hier stand, ein fehlender Name falle
+  „still aus der Zählung". Das trifft es nicht: die Zahl ändert sich, und der
+  Prüfer meldet die Abweichung sehr wohl – **aber er zeigt auf die falsche
+  Ursache**. Er sagt „dort steht 56, gemessen 54", und wer das liest, trägt 54
+  ein und schreibt damit eine Zahl fest, deren Messung eine Lücke hat. **Das
+  ist die eigentliche Gefahr dieser Stelle, und sie ist schlimmer als
+  Schweigen**: eine irreführende Meldung führt zu einer Reparatur, die den
+  Fehler festschreibt.
 
-  **Nicht behoben, weil der Auftrag des Durchgangs danach fragte, nicht danach
-  verlangte.** Ob und in welcher Reihenfolge, ist eine Entscheidung.
+  Die vierte steht hier, damit niemand sie für die dritte hält. Ein Suchmuster
+  lässt sich nicht von der Schreibweise lösen, auf die es zeigt – behebbar ist
+  nur, ob jemand von der Lücke erfährt.
 
 - **`tools/check-dom-ids.mjs` prüft IDs und doppelte Funktionsnamen, aber
   keine Variablennamen und keine verwaisten Funktionen.** Verwaister Code nach
