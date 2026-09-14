@@ -7013,6 +7013,69 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Stelle. Wer ihm mehr Luft geben will, erhöht seinen `luft`-Wert; die Zahl
   steht an einer Stelle.
 
+  **BENANNTE LÜCKE, eingetragen mit Schritt 4 des zwölften Durchgangs: diese
+  Messung konnte den einen problematischen Klick nicht finden.** Das steht
+  oben schon als Satz und ist dort richtig eingeordnet – es fehlt aber die
+  Einordnung als *Lücke*, und damit die Warnung an den nächsten, der sich auf
+  die Tabelle stützt.
+
+  **Warum sie ihn nicht fand, ist keine Nachlässigkeit, sondern ihre Bauart.**
+  Der Aufzeichner notiert, was bei einem Lauf tatsächlich angeklickt wurde.
+  Der problematische Klick in `waehlePunkte()` traf den Marker aber gar nicht
+  mehr – die Leiste fing ihn ab, Playwright lief in „subtree intercepts
+  pointer events" und **es kam kein `pointerdown` auf der Karte an**. Ein
+  Aufzeichner, der auf `pointerdown` hört, kann einen abgefangenen Klick
+  nicht sehen: **er misst die Klicks, die durchkommen, und der gesuchte ist
+  genau der, der es nicht tut.**
+
+  **Das ist dieselbe Klasse wie „eine Zusicherung über ein Ausbleiben beweist
+  nichts", eine Ebene tiefer:** die Tabelle oben mit lauter Nullen sieht aus
+  wie ein sauberer Befund und ist in Wahrheit die Aussage „bei den Klicks, die
+  ankamen, lag keiner unter der Leiste". Gefunden hat den Fall der **Testlauf**,
+  nicht die Messung.
+
+  **Was eine vollständige Suche tun müsste** – eingetragen, damit sie beim
+  nächsten Mal nicht wieder als Aufzeichner gebaut wird: nicht `pointerdown`
+  zählen, sondern **vor jedem Klick** die Zielkoordinate gegen das
+  Leistenrechteck halten, also an der Stelle, an der der Test seinen Punkt
+  ausrechnet. Der Aufzeichner bleibt trotzdem nützlich – er nennt die
+  Abstände, und die sagen, wie knapp die durchgekommenen Klicks waren.
+
+  **Nicht gebaut.** Der Eintrag ist ein Befund über die Methode, kein Auftrag.
+
+  #### Die acht Symbole fehlen – die Leiste trägt bis dahin nur Text
+
+  **Eingetragen mit Schritt 4 des zwölften Durchgangs, damit die gemessenen
+  Breiten nicht für den Endzustand gehalten werden.** Die Entscheidung des
+  elften Durchgangs lautet „Symbol und Text, wie in der Werkzeugleiste";
+  gebaut ist davon der Text. Kein Knopf der Leiste trägt ein `<svg>`.
+
+  **Der Platz dafür ist in den gemessenen Breiten enthalten, aber nur in
+  denen des zehnten Durchgangs.** Die Zahlen stehen nebeneinander, weil sie
+  sonst für einander gehalten werden:
+
+  | | Breite im Punktzustand, deutsch |
+  |---|---|
+  | gemessen im zehnten Durchgang, **mit** Symbol | **172,38 px** |
+  | gemessen am Bestand, **ohne** Symbol | **145,38 px** |
+  | Differenz | 27,00 px = 18 px Symbol + 9 px Lücke |
+
+  Die 27 px sind kein Schätzwert: `.tool-button` der Werkzeugleiste – die
+  einzige senkrechte Leiste des Hauses mit Symbol und Text – trägt 18 px
+  Symbolgröße und 9 px Lücke, und der Klon, an dem der zehnte Durchgang
+  gemessen hat, stammt von dort.
+
+  **Die Folge für jede Messung, die sich auf die Leiste stützt: sie wird
+  breiter, nicht schmaler.** Wer heute misst, misst eine Untergrenze. Das
+  betrifft die Verdeckungsanteile des zwölften Durchgangs ebenso wie die
+  Prozentwerte der Kartenbreite aus dem zehnten – letztere sind mit 172,38 px
+  gerechnet und bleiben damit gültig, sobald die Symbole kommen.
+
+  **Welche acht Symbole es wären, ist nicht entworfen.** Das steht schon im
+  zehnten Durchgang unter „Was NICHT erhoben wurde" und gilt unverändert; für
+  das Abrunden gibt es in dieser Datei einen Symbolentwurf, für diese acht
+  keinen.
+
   #### Die Bestandsaufnahme – gemessen mit dem neunten Durchgang, Stand `5b0b89e`
 
   **Reiner Befund, nichts gebaut und nichts entschieden.** Gemessen im Browser
