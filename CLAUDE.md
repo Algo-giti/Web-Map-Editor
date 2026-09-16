@@ -7109,10 +7109,41 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Sichtbarkeit je Slot ein Teil davon ist, eine Vorstufe oder eine eigene
   Sache, gehört zu dieser Klärung.
 
-  **Ungeklärt und ausdrücklich als eigener Befund vermerkt: ob es heute
-  überhaupt eine Sichtbarkeit je Slot gibt.** Das ist hier nicht erhoben
-  worden. Wer den Punkt aufnimmt, erhebt es zuerst – der Eintrag behauptet
-  weder, dass es sie gibt, noch, dass sie fehlt.
+  **ERHOBEN mit dem zwanzigsten Durchgang: eine Sichtbarkeit je Slot gibt es
+  heute nicht.** Der Eintrag verlangte das ausdrücklich vor allem Weiteren;
+  gemessen im Browser mit zwei geladenen Karten, nicht am Quelltext
+  überlegt.
+
+  | Frage | Befund |
+  |---|---|
+  | Schalter für die Sichtbarkeit eines Slots | **keiner.** Von den vierzehn Schaltern der Oberfläche ist keiner einer: `tPerimeter`, `tExclusion`, `tDock`, `tSearch`, `tOther`, `tVertices`, `tGrid` sind Ebenen, `mapAButton`/`mapBButton` die Radiogruppe, der Rest betrifft Mäher, Raster, Sprache, Merge-Vorschau und Export |
+  | inaktive Karte | wird **immer** gedämpft gezeichnet, sobald sie geladen ist – `renderOtherMapOverlay()` fragt nur `getOtherSlot()`, und das liefert den anderen Slot, sobald er `data` hält |
+  | „nicht sichtbar" | gibt es nur als **„nicht geladen"** |
+
+  **Der Zustand ist damit zweiwertig, nicht dreiwertig:** aktiv (genau einer,
+  über `aria-checked`) oder inaktiv-und-gedämpft-sichtbar. Die drei gewünschten
+  Zustände *sichtbar / aktiv / nicht sichtbar* sind heute zwei.
+
+  **Der Befund, der die Frage schwerer macht, als sie aussieht: es gibt bereits
+  eine zweite Achse, und sie liegt quer.** Die fünf Ebenen-Checkboxen wirken
+  **auf beide Karten gleichzeitig** – `syncVisibility()` läuft über
+  `svg.querySelectorAll("[data-layer]")`, und die Pfade des Overlays tragen
+  ihr `data-layer` genauso wie die der aktiven Karte. Nachgemessen: mit zwei
+  geladenen Karten fallen beim Abschalten der Exclusion-Ebene **beide**
+  Exclusions weg, die der aktiven und die der passiven Karte (Overlay-Pfade
+  sichtbar 2 → 1).
+
+  **Wer die Sichtbarkeit je Slot baut, muss deshalb sagen, wie sich die beiden
+  Achsen zueinander verhalten** – Ebene mal Slot ergibt eine Matrix, und
+  „Exclusions von A zeigen, die von B nicht" ist heute nicht ausdrückbar. Das
+  ist keine Ableitung, sondern eine Entscheidung, und sie steht hier
+  ausdrücklich **nicht** getroffen.
+
+  **Nebenbefund, gemessen: das Laden einer zweiten Karte schaltet die aktive
+  Karte selbsttätig um.** Nach dem Laden über `#secondFileInput` steht
+  `activeMapId` auf „B". Das ist heutiges Verhalten und für den Punkt insofern
+  erheblich, als ein dritter Zustand „Beide" die Frage neu stellte, worauf nach
+  dem Laden geschaltet wird.
 
 - **Kontext-Knopfleiste am Auswahlzustand – ENTSCHIEDEN mit dem elften
   Durchgang und GEBAUT mit dessen Schritt 3.** Eingetragen als Eintrag ohne
