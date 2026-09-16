@@ -6812,7 +6812,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Bezeichner statt Zeilennummern genau deshalb, weil Bezeichner beim Umbau
   stabil bleiben sollen.
 
-  **Der Befund, der die Frage aufwirft:** über 330 globale Funktionen liegen in
+  **Der Befund, der die Frage aufwirft:** über 380 globale Funktionen liegen in
   einem einzigen Gültigkeitsbereich (Abschnitt 6). Etappe 6 hat pro Teilschritt
   mindestens eine Tatsache zutage gefördert, die an mehreren Orten stand –
   doppelte `id`s im Markup, eine zweite Fassung von `isWholeFeatureSelected()`,
@@ -6839,10 +6839,11 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   **Zu entscheiden ist in dieser Reihenfolge, und die Reihenfolge ist der
   eigentliche Inhalt dieses Eintrags:**
 
-  1. **Zuerst messen.** Zeilen und Bytes getrennt nach Markup, CSS und JS; die
-     zehn größten Funktionen; die Verteilung der ~330 Funktionen auf Themen;
-     und welche Themen heute über die Datei verstreut liegen statt beieinander.
-     Ohne diese Zahlen ist jede Antwort auf 2. und 3. geraten.
+  1. **Zuerst messen – ERLEDIGT mit dem zwanzigsten Durchgang.** Die Zahlen
+     stehen unten. Sie sind eine Messung mit Datum und beschreiben den Stand
+     `c4e629c`; sie tragen deshalb **keine** Bestandsmarke, wie jede andere
+     Messtabelle dieser Datei. Die einzige mitwandernde Zahl dazu ist
+     `globale-funktionen` an ihrer Fundstelle in Abschnitt 6.
   2. **Dann: lösen Namensräume das Problem oder verschieben sie es nur?** Und
      vor allem: **was lösen sie ausdrücklich nicht?** Ein Objekt, das dreißig
      Funktionen bündelt, beseitigt die stille Doppelvergabe innerhalb seines
@@ -6859,6 +6860,113 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
      Fehlersuche zeigt. Das ist dieselbe Fehlerklasse, die Etappe 6 fünfmal
      gezeigt hat, nur größer: eine Tatsache an zwei Orten, ohne Prüfung, die
      das Auseinanderlaufen meldet.
+
+  #### Die Messung, zwanzigster Durchgang, Stand `c4e629c`
+
+  **Reine Messung; nichts umstrukturiert, nichts entschieden.** Sie beantwortet
+  Punkt 1 oben und sonst nichts.
+
+  **Zeilen und Bytes nach Bereich:**
+
+  | Bereich | Zeilen | Bytes | Anteil Zeilen |
+  |---|---|---|---|
+  | Markup vor `<style>` | 20 | 635 | 0,1 % |
+  | CSS im `<style>` | 3 045 | 88 525 | 14,4 % |
+  | Markup zwischen `</style>` und `<script>` | 1 416 | 72 480 | 6,7 % |
+  | **JS im `<script>`** | **16 589** | **545 909** | **78,7 %** |
+  | Markup danach | 3 | 16 | 0,0 % |
+  | zusammen | 21 073 | 707 569 | |
+
+  **Der Skriptblock ist die Datei.** Vier von fünf Zeilen stehen darin; CSS und
+  Markup zusammen tragen ein Fünftel. Wer über „die Struktur von `index.html`"
+  spricht, spricht über den Skriptblock.
+
+  **382 globale Funktionsdeklarationen, zusammen 11 331 Zeilen – 68,3 % des
+  Skriptblocks.** Der Rest sind Konstanten, Kommentare, Ereignisbindungen und
+  der Initialisierungslauf.
+
+  **Die zehn größten:**
+
+  | Zeilen | Funktion |
+  |---|---|
+  | 355 | `validateMapData()` |
+  | 294 | `deleteSelectedVertices()` |
+  | 278 | `updateFeatureDrawUi()` |
+  | 246 | `mergeMapSlots()` |
+  | 238 | `collectGeometryFindings()` |
+  | 233 | `updateMergePanel()` |
+  | 211 | `renderSelectionGhost()` |
+  | 191 | `renderFeatureNavigator()` |
+  | 158 | `startFeatureDrawing()` |
+  | 157 | `finishFeatureDrawing()` |
+
+  **Die vierzehn Abschnitte, und zwei davon tragen die Hälfte:**
+
+  | Abschnitt | ab Zeile | Zeilen | Funktionen |
+  |---|---|---|---|
+  | 1. Konfiguration und Anwendungszustand | 4 543 | 232 | 0 |
+  | **2A. Undo / Redo und Vergleichszustand** | 4 775 | **4 805** | **115** |
+  | 2. Karten-Slots und Koordinaten-Hilfsfunktionen | 9 580 | 315 | 10 |
+  | 3. Koordinaten- und Sunray-Hilfsfunktionen | 9 895 | 1 206 | 50 |
+  | 4. Kartenansicht / Zoom / Pan | 11 101 | 257 | 9 |
+  | 5. Geometrie-Rendering | 11 358 | 1 115 | 23 |
+  | **6. Punkteditor** | 12 473 | **3 833** | **92** |
+  | 7. Raster | 16 306 | 222 | 6 |
+  | 8. Zwei-Karten-Verbindung | 16 528 | 956 | 19 |
+  | 9. Feature-Navigation | 17 484 | 530 | 9 |
+  | 10. Statistik und Ebenen | 18 014 | 85 | 3 |
+  | 11. Datei laden / exportieren / zurücksetzen | 18 099 | 621 | 10 |
+  | 12. Event-Handler und Initialisierung | 18 720 | 1 439 | 25 |
+  | 18. Sprache / Language | 20 159 | 911 | 11 |
+
+  **`2A` und `6` tragen zusammen 8 638 Zeilen und 207 Funktionen** – **52 %
+  der Skriptzeilen und 54 % aller Funktionen**. Die übrigen zwölf Abschnitte
+  teilen sich den Rest.
+
+  **Das ist der Punkt „Abschnitt 2A enthält deutlich mehr als Undo/Redo" aus
+  diesem Abschnitt, jetzt mit Zahlen.** Er ist nicht ein Abschnitt unter
+  vierzehn, sondern der größte, und er ist mehr als doppelt so groß wie der
+  drittgrößte.
+
+  **Welche Themen verstreut liegen – gemessen über die Funktionsnamen, nicht
+  über den Präfix:** ein Präfix wie `update` sagt, *was* eine Funktion tut,
+  ein Thema, *wonach ein Leser sucht*.
+
+  | Thema | Funktionen | Abschnitte | Verteilung |
+  |---|---|---|---|
+  | **Auswahl** | 56 | **5** | 2A:28, 6:16, 3:6, 5:4, 9:2 |
+  | **Bezugspunkt** | 25 | **4** | 3:17, 11:6, 6:1, 8:1 |
+  | **Verbinden / Merge** | 17 | **4** | 8:11, 6:4, 5:1, 2A:1 |
+  | Zeichnen | 17 | 2 | 2A:14, 6:3 |
+  | **Raster / Grid** | 12 | **4** | 7:6, 2A:3, 18:2, 6:1 |
+  | Sprache / i18n | 11 | 2 | 18:10, 9:1 |
+  | Statuszeile | 11 | 3 | 2A:6, 6:4, 7:1 |
+  | Undo / Redo | 11 | 2 | 2A:8, 18:3 |
+  | Kartenprüfung | 10 | 2 | 2A:8, 6:2 |
+  | Inspektor | 8 | 1 | 2A:8 |
+  | Mäher | 4 | 2 | 5:3, 6:1 |
+  | Feature-Navigation | 2 | 1 | 9:2 |
+
+  **Vier Themen liegen in vier oder mehr Abschnitten**, und das schlimmste ist
+  die Auswahl: 56 Funktionen über fünf Abschnitte, mit dem Schwerpunkt in
+  einem Abschnitt, der „Undo / Redo" heißt.
+
+  **Drei Themen liegen beieinander** – Inspektor, Feature-Navigation und
+  (fast) i18n. Sie sind die jüngsten; das ist kein Zufall, sondern zeigt, dass
+  die Streuung durch **Wachstum** entsteht und nicht durch Absicht.
+
+  **Vier Funktionen mit demselben Zweck in vier Abschnitten zu haben ist genau
+  der Zustand, aus dem die stille Doppelvergabe entsteht**, gegen die
+  `tools/check-dom-ids.mjs` seine Funktionsnamenprüfung trägt: wer in
+  Abschnitt 6 eine Auswahlhilfe schreibt, sieht die 28 in 2A nicht.
+
+  **Was diese Messung NICHT beantwortet, und das ist Punkt 2 und 3 oben:** ob
+  Namensräume das lösen, und ob überhaupt geteilt wird. Sie liefert nur die
+  Zahlen, ohne die beides geraten wäre. **Nicht entschieden, nicht gebaut.**
+
+  **Nicht erhoben:** die Verteilung der Nicht-Funktionen (Konstanten,
+  Ereignisbindungen) auf die Abschnitte, und ob die 3 045 CSS-Zeilen ihrerseits
+  thematisch streuen.
 
 - **Nach dem UI-Umbau: fünf zusammenhängende Punkte um die Mähergeometrie.**
   Eintrag, **kein Auftrag** – und ausdrücklich **ein Paket, keine fünf
