@@ -67,6 +67,29 @@ const MAP = JSON.stringify({
  * die Ausblendreihenfolge misst unterhalb der Schwelle, Etappe 8c an ihrer
  * Kante. Zwei Suchen waeren zwei Quellen fuer dieselbe Zahl.
  */
+/**
+ * Wie viele Medienregeln einen [data-optional]-Selektor tragen.
+ *
+ * schwelleAusCss() liefert die ERSTE solche Regel und nimmt bei mehreren
+ * still eine davon. Der Eintrag zur Schwelle der Kontext-Knopfleiste
+ * (CLAUDE.md, Abschnitt 7) verlangt ausdruecklich, dass eine zweite Regel
+ * bei 959/960 px diese Suche nicht mehrdeutig macht - hier wird das
+ * zugesichert statt angenommen.
+ */
+const regelnMitOptional = (page) => page.evaluate(() => {
+  let n = 0;
+  for (const blatt of document.styleSheets) {
+    let regeln;
+    try { regeln = blatt.cssRules; } catch { continue; }
+    for (const regel of regeln || []) {
+      if (regel.type !== CSSRule.MEDIA_RULE) continue;
+      if ([...regel.cssRules].some((r) =>
+        r.selectorText && r.selectorText.includes("[data-optional]"))) n += 1;
+    }
+  }
+  return n;
+});
+
 const schwelleAusCss = (page) => page.evaluate(() => {
   for (const blatt of document.styleSheets) {
     let regeln;
@@ -540,6 +563,17 @@ try {
 
   check("die Schwelle steht als Medienregel im CSS und ist lesbar",
     Number.isFinite(schwelle), String(schwelle));
+
+  /*
+   * Genau EINE Regel, nicht "mindestens eine": die Suche nimmt die erste und
+   * saehe eine zweite nicht. Die Schwelle der Auswahlleiste traegt dieselbe
+   * Zahl 960, steht aber in JS (SELECTION_BAR_WIDE_QUERY) und nicht im CSS -
+   * gemessen, nicht angenommen. Kaeme sie je als Medienregel dazu, faellt es
+   * hier auf und nicht erst an einer still falsch gelesenen Schwelle.
+   */
+  const anzahlOptionalRegeln = await regelnMitOptional(page);
+  check("und sie ist die einzige Medienregel mit [data-optional]",
+    anzahlOptionalRegeln === 1, String(anzahlOptionalRegeln));
 
   /*
    * Geprueft ueber den BERECHNETEN Stil, nicht ueber die Medienregel im

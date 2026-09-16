@@ -7115,10 +7115,13 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   weder, dass es sie gibt, noch, dass sie fehlt.
 
 - **Kontext-Knopfleiste am Auswahlzustand – ENTSCHIEDEN mit dem elften
-  Durchgang; die Umsetzung ist offen.** Eingetragen als Eintrag ohne Auftrag
-  mit Schritt 3 des achten Durchgangs, vermessen mit dem neunten und dem
-  zehnten. **Als offener Punkt ist er damit ausgetragen** – was hier noch
-  aussteht, ist Arbeit, keine Frage. Die Entscheidung steht unmittelbar
+  Durchgang und GEBAUT mit dessen Schritt 3.** Eingetragen als Eintrag ohne
+  Auftrag mit Schritt 3 des achten Durchgangs, vermessen mit dem neunten und
+  dem zehnten. **Als offener Punkt ist er ausgetragen.** Der Kopf sagte bis
+  zum zwanzigsten Durchgang „die Umsetzung ist offen" – sie war da längst
+  gebaut, samt Zuklappgriff (dreizehnter) und Symbolen (neunzehnter). Was
+  offen bleibt, steht am Ende der Entscheidung unter „Was die Entscheidung
+  NICHT beantwortet". Die Entscheidung steht unmittelbar
   darunter; die beiden Bestandsaufnahmen bleiben als Beleg stehen, weil die
   Entscheidung auf ihren Zahlen ruht.
 
@@ -8206,9 +8209,10 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   aufgezählt.
 
 - **Die Schwelle der Kontext-Knopfleiste liegt bei 960 px – EIGENER Eintrag,
-  eigener Grund; eingetragen mit dem elften Durchgang, nicht gebaut.** Dieser
-  Eintrag steht getrennt von der Entscheidung darüber, und das ist Absicht: die
-  Zahl ist eine eigene Festlegung und keine Folge des Ortes.
+  eigener Grund; eingetragen mit dem elften Durchgang, GEBAUT mit dessen
+  Schritt 3.** Dieser Eintrag steht getrennt von der Entscheidung darüber, und
+  das ist Absicht: die Zahl ist eine eigene Festlegung und keine Folge des
+  Ortes.
 
   | | |
   |---|---|
@@ -8216,7 +8220,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | **woher die Zahl kommt** | eine **Entscheidung des Projektinhabers**, kein Rechenergebnis |
   | **was sie erreichen soll** | die Leiste steht nur dort über der Karte, wo sie einen vertretbaren Teil davon nimmt |
   | **worauf sie sich stützt** | die Breitenmessung aus `f07a331`: bei 960 px nimmt die Leiste 29,5 % der Kartenbreite, bei 744 px 46,8 % |
-  | CSS-Fundstelle | **noch keine** – die Schwelle ist entschieden, nicht gebaut |
+  | Fundstelle | **`SELECTION_BAR_WIDE_QUERY = "(min-width: 960px)"`** in `index.html` – in JS, nicht im CSS, wie `TOOL_RAIL_NARROW_QUERY` |
 
   **Sie ist NICHT die Schwelle aus 8c, sie fällt nur mit ihr zusammen.** Die
   8c-Schwelle beantwortet, ab wann die Statuszeile ihre `data-optional`-Felder
@@ -8227,12 +8231,25 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   mit**, und wer sie zusammenlegt, bindet zwei Entscheidungen aneinander, die
   nichts miteinander zu tun haben.
 
-  **Was daraus für den Test folgt, wenn gebaut wird.** `schwelleAusCss(page)` in
-  `tools/test-statusbar.mjs` sucht heute die Medienregel, deren Rumpf einen
-  `[data-optional]`-Selektor enthält – sie trifft also die 8c-Regel und nicht
-  eine zweite mit derselben Breite. **Eine neue Regel bei 959/960 px darf diese
-  Suche nicht mehrdeutig machen**; sie wird ebenso über ihren eigenen Selektor
-  gefunden, nicht über ihre Zahl. Die Zahl steht in keinem Test als Literal.
+  **Die Sorge um den Test hat sich nicht verwirklicht, und der Grund ist
+  gemessen.** Hier stand: `schwelleAusCss(page)` in `tools/test-statusbar.mjs`
+  sucht die Medienregel, deren Rumpf einen `[data-optional]`-Selektor enthält,
+  und „eine neue Regel bei 959/960 px darf diese Suche nicht mehrdeutig
+  machen". **Die Leistenschwelle steht gar nicht im CSS** – sie ist eine
+  JS-Konstante und kann eine Medienregel-Suche nicht treffen. Nachgemessen im
+  Browser: von acht Medienregeln trägt genau **eine** einen
+  `[data-optional]`-Selektor, nämlich `(max-width: 959px)`.
+
+  **Zugesichert ist das seit dem zwanzigsten Durchgang, und zwar als „genau
+  eine", nicht als „mindestens eine".** `schwelleAusCss()` liefert die
+  **erste** Treffer-Regel und nähme bei zweien still eine davon; die
+  Zusicherung „und sie ist die einzige Medienregel mit `[data-optional]`"
+  steht deshalb unmittelbar neben ihr. Gegengeprüft mit einer Mutation – eine
+  zweite Regel `@media(min-width:960px)` mit `[data-optional]` im Rumpf –, die
+  genau diese eine Zusicherung reißt, bei 0 Timeouts.
+
+  `tools/test-inspector.mjs` liest die Leistenschwelle seinerseits aus
+  `SELECTION_BAR_WIDE_QUERY`; die Zahl steht in keinem Test als Literal.
 
 - **Die Leiste verdeckt Punktmarker – Befund aus dem Bau, elfter Durchgang;
   nicht behoben, weil die Antwort eine Entscheidung ist.** Das ist die
