@@ -62,15 +62,26 @@ const EIGENE_DATEI = basename(new URL(import.meta.url).pathname);
 
 /**
  * Zaehlt die Schreibstellen auf die drei Befundlisten. Gezaehlt wird in
- * ZWEI Funktionen: validateMapData() und collectGeometryFindings(). Die
- * zweite ist leicht zu uebersehen, weil der Satz in CLAUDE.md nur von "der
- * Pruefung" spricht - ohne sie kommen 37 statt 49 heraus.
+ * DREI Funktionen: validateMapData(), collectGeometryFindings() und
+ * validatePolygonRings(). Die zweite ist leicht zu uebersehen, weil der Satz
+ * in CLAUDE.md nur von "der Pruefung" spricht - ohne sie kommen 37 statt 49
+ * heraus.
+ *
+ * Die dritte ist mit der Umstellung auf alle Polygonringe dazugekommen: die
+ * vier Ringmeldungen sind aus validateMapData() dorthin gewandert, weil
+ * Perimeter und Exclusion sie sich teilen. Ohne sie faellt die Zahl um vier -
+ * und zwar ohne dass eine einzige Meldung verschwunden waere. Wer eine
+ * Schreibstelle in eine weitere Hilfsfunktion zieht, traegt sie hier nach.
  */
 function messePruefstellen() {
   const quelle = readInlineScript();
   let summe = 0;
 
-  for (const name of ["validateMapData", "collectGeometryFindings"]) {
+  for (const name of [
+    "validateMapData",
+    "collectGeometryFindings",
+    "validatePolygonRings",
+  ]) {
     const rumpf = extractDeclarations(quelle, [name]);
     summe += (rumpf.match(/\b(?:errors|warnings|info)\.push\(/g) || []).length;
   }
@@ -477,7 +488,7 @@ const messeTitleJs = () =>
 
 const MESSUNGEN = {
   "pruefstellen": {
-    was: "Schreibstellen auf errors/warnings/info in validateMapData() und collectGeometryFindings()",
+    was: "Schreibstellen auf errors/warnings/info in validateMapData(), collectGeometryFindings() und validatePolygonRings()",
     messen: messePruefstellen,
   },
   "statustexte-ohne-englisch": {

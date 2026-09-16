@@ -6719,6 +6719,49 @@ function pruefErgebnis(errors, warnings, info) {
 }
 
 
+/**
+ * Prueft ALLE Ringe eines Polygon-Features und meldet jeden fehlerhaften.
+ *
+ * Vorher sah die Pruefung nur coordinates[0]. Ein offener oder entarteter
+ * Innenring ging damit lautlos durch, obwohl er bearbeitbar ist -
+ * enumerateEditableVertices() laeuft seit jeher ueber alle Ringe. Der Editor
+ * liess also ein Loch verschieben, das keine Pruefung je ansah.
+ *
+ * Der AEUSSERE Ring behaelt seine Meldungen wortgleich; sie sind mehrfach
+ * zugesichert. Ein Loch nennt sich zusaetzlich beim Namen - ohne das stuenden
+ * bei zwei fehlerhaften Loechern zwei gleichlautende Saetze untereinander,
+ * und die Hausregel "jede Meldung nennt die Fundstelle" waere gebrochen.
+ *
+ * Rueckgabe: false, wenn schon der aeussere Ring unbrauchbar ist - dann hat
+ * der Aufrufer nichts mehr zu rechnen.
+ */
+function validatePolygonRings(rings, label, zuWenigePunkte, errors) {
+  const outer = Array.isArray(rings) ? rings[0] : null;
+
+  if (!Array.isArray(outer) || outer.length < 4) {
+    errors.push(`${label}: ${zuWenigePunkte}`);
+    return false;
+  }
+
+  if (!coordinatesEqual(outer[0], outer[outer.length - 1])) {
+    errors.push(`${label}: Polygonring ist nicht geschlossen.`);
+  }
+
+  for (let index = 1; index < rings.length; index++) {
+    const hole = rings[index];
+    const holeLabel = `${label}, Loch ${index}`;
+
+    if (!Array.isArray(hole) || hole.length < 4) {
+      errors.push(`${holeLabel}: ${zuWenigePunkte}`);
+    } else if (!coordinatesEqual(hole[0], hole[hole.length - 1])) {
+      errors.push(`${holeLabel}: Polygonring ist nicht geschlossen.`);
+    }
+  }
+
+  return true;
+}
+
+
 function validateMapData(featureCollection = data) {
   const errors = [];
   const warnings = [];
@@ -6758,18 +6801,14 @@ function validateMapData(featureCollection = data) {
       return;
     }
 
-    const ring = feature.geometry.coordinates?.[0];
+    const ringeOk = validatePolygonRings(
+      feature.geometry.coordinates,
+      `Perimeter ${index + 1}`,
+      "weniger als 3 Eckpunkte plus Schließpunkt.",
+      errors
+    );
 
-    if (!Array.isArray(ring) || ring.length < 4) {
-      errors.push(
-        `Perimeter ${index + 1}: weniger als 3 Eckpunkte plus Schließpunkt.`
-      );
-      return;
-    }
-
-    if (!coordinatesEqual(ring[0], ring[ring.length - 1])) {
-      errors.push(`Perimeter ${index + 1}: Polygonring ist nicht geschlossen.`);
-    }
+    if (!ringeOk) return;
 
     const area = polygonAreaMeters(feature);
 
@@ -6801,16 +6840,14 @@ function validateMapData(featureCollection = data) {
       return;
     }
 
-    const ring = feature.geometry.coordinates?.[0];
+    const ringeOk = validatePolygonRings(
+      feature.geometry.coordinates,
+      label,
+      "zu wenige Polygonpunkte.",
+      errors
+    );
 
-    if (!Array.isArray(ring) || ring.length < 4) {
-      errors.push(`${label}: zu wenige Polygonpunkte.`);
-      return;
-    }
-
-    if (!coordinatesEqual(ring[0], ring[ring.length - 1])) {
-      errors.push(`${label}: Polygonring ist nicht geschlossen.`);
-    }
+    if (!ringeOk) return;
 
     const area = polygonAreaMeters(feature);
 
@@ -18014,12 +18051,9 @@ document.getElementById("featureNavigator").addEventListener("click", event => {
    10. STATISTIK UND EBENEN
    ========================================================================== */
 
-/** Berechnet die Fläche des äußeren Rings eines Polygon-Features in m². */
-function polygonAreaMeters(feature) {
-  if (feature.geometry?.type !== "Polygon") return 0;
-
-  const ring = feature.geometry.coordinates?.[0];
-  if (!ring || ring.length < 3) return 0;
+/** Fläche eines EINZELNEN Rings in m², ohne Vorzeichen. */
+function ringAreaMeters(ring) {
+  if (!Array.isArray(ring) || ring.length < 3) return 0;
 
   let doubledArea = 0;
 
@@ -18031,6 +18065,62 @@ function polygonAreaMeters(feature) {
   }
 
   return Math.abs(doubledArea / 2);
+}
+
+
+/**
+ * Fläche EINES Polygons aus seiner Ringliste: äußerer Ring minus jedes Loch.
+ *
+ * Welcher Ring ein Loch ist, sagt seine STELLE in coordinates und nicht sein
+ * Umlaufsinn. RFC 7946 verlangt zwar entgegengesetzte Drehrichtungen, aber
+ * vorgefundene Dateien halten das nicht ein - gemessen laufen beide Ringe des
+ * dokumentierten Falls gleichsinnig (+400 und +100). Eine vorzeichenbehaftete
+ * Summe lieferte dort 500 statt 300 m².
+ *
+ * Geklemmt auf 0: überdeckten die Löcher den äußeren Ring, ist die Karte
+ * fehlerhaft, und die Kartenprüfung sagt das über "Fläche ist 0 oder
+ * ungültig". Eine negative Fläche anzuzeigen behauptete dagegen einen Wert.
+ */
+function polygonRingsArea(rings) {
+  if (!Array.isArray(rings) || !rings.length) return 0;
+
+  let area = ringAreaMeters(rings[0]);
+
+  for (let index = 1; index < rings.length; index++) {
+    area -= ringAreaMeters(rings[index]);
+  }
+
+  return Math.max(0, area);
+}
+
+
+/**
+ * Fläche eines Polygon- oder MultiPolygon-Features in m², Löcher abgezogen.
+ *
+ * Vorher las die Funktion nur coordinates[0] und stieg bei jedem anderen
+ * Geometrietyp sofort aus. Beides war sicherheitsrelevant: eine Sperrfläche
+ * von 20 × 20 m mit einem Loch von 10 × 10 m stand mit 400 statt 300 m² da -
+ * ein Drittel zu viel -, und ein MultiPolygon lieferte 0 m².
+ *
+ * Es gibt bewusst keine zweite Flächenformel: die Kartenprüfung, die
+ * Flächenwarnung beim Reduzieren und die Abmessungen im Inspektor rechnen
+ * alle hier.
+ */
+function polygonAreaMeters(feature) {
+  const geometry = feature?.geometry;
+
+  if (geometry?.type === "Polygon") {
+    return polygonRingsArea(geometry.coordinates);
+  }
+
+  if (geometry?.type === "MultiPolygon") {
+    return (geometry.coordinates || []).reduce(
+      (sum, rings) => sum + polygonRingsArea(rings),
+      0
+    );
+  }
+
+  return 0;
 }
 
 
@@ -20448,6 +20538,20 @@ const I18N_PATTERNS = [
   [/^Perimeterfläche: ([\d.,]+) m²\.$/, "Perimeter area: $1 m²."],
   [/^Exclusion (\d+): ([\d.,]+) m²\.$/, "Exclusion $1: $2 m²."],
   [/^Exclusion (\d+): Geometrietyp ist nicht Polygon\.$/, "Exclusion $1: geometry type is not Polygon."],
+  /*
+   * Die Loch-Fassungen stehen VOR ihren Geschwistern - Hausregel: das
+   * speziellere Muster zuerst. Sie kollidieren hier zwar nicht (das
+   * allgemeine verlangt den Doppelpunkt unmittelbar hinter der Zahl), aber
+   * die Reihenfolge soll nicht davon abhaengen, dass jemand das nachrechnet.
+   */
+  [/^Perimeter (\d+), Loch (\d+): weniger als 3 Eckpunkte plus Schließpunkt\.$/,
+    "Perimeter $1, hole $2: fewer than 3 corner points plus closing point."],
+  [/^Perimeter (\d+), Loch (\d+): Polygonring ist nicht geschlossen\.$/,
+    "Perimeter $1, hole $2: polygon ring is not closed."],
+  [/^Exclusion (\d+), Loch (\d+): zu wenige Polygonpunkte\.$/,
+    "Exclusion $1, hole $2: too few polygon points."],
+  [/^Exclusion (\d+), Loch (\d+): Polygonring ist nicht geschlossen\.$/,
+    "Exclusion $1, hole $2: polygon ring is not closed."],
   [/^Exclusion (\d+): zu wenige Polygonpunkte\.$/, "Exclusion $1: too few polygon points."],
   [/^Exclusion (\d+): Polygonring ist nicht geschlossen\.$/, "Exclusion $1: polygon ring is not closed."],
   [/^Exclusion (\d+): Fläche ist 0 oder ungültig\.$/, "Exclusion $1: area is 0 or invalid."],

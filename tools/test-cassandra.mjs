@@ -44,9 +44,12 @@ const NAMES = [
   "SCALE_RELATIVE_MAX_EXTENT",
   "scaleFactorForData",
   "toWorld",
+  "ringAreaMeters",
+  "polygonRingsArea",
   "polygonAreaMeters",
   "geometryCoordinateSequences",
   "computeBoundsForData",
+  "validatePolygonRings",
   "validateMapData",
   /* Seit dem vierten Durchgang haelt ein Befund seine Rohwerte; die
      Textlisten von validateMapData() sind daraus abgeleitet. */

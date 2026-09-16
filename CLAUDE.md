@@ -136,13 +136,13 @@ erklärt beides.
   Fehler" ein „1 errors" – an der sichtbarsten Stelle der englischen
   Oberfläche. `tools/test-cassandra.mjs` prüft die ganze Liste jetzt
   automatisch darauf: für jedes Muster wird ein Beispieltext erzeugt und
-  gesucht, ob ein früheres, allgemeineres ihn abfängt. 154 der
-  <!-- bestand: i18n-muster -->182 Muster sind so erfassbar; die übrigen 27 sind
+  gesucht, ob ein früheres, allgemeineres ihn abfängt. 159 der
+  <!-- bestand: i18n-muster -->186 Muster sind so erfassbar; die übrigen 27 sind
   lange Meldungen mit eindeutigem Präfix und wurden von Hand durchgesehen.
 
-  **Nur die 181 trägt eine Markierung, die 154 und die 27 nicht.** Sie stammen
+  **Nur die 186 trägt eine Markierung, die 159 und die 27 nicht.** Sie stammen
   aus der Analyse in `tools/test-cassandra.mjs`, das sie bei jedem Lauf selbst
-  ausgibt („154 von 181 Mustern automatisch geprueft"); sie im Bestandsprüfer
+  ausgibt („159 von 186 Mustern automatisch geprueft"); sie im Bestandsprüfer
   ein zweites Mal zu rechnen hieße, dieselbe Analyse an zwei Orten zu führen.
 
   **Zusammengesetzte Texte** kann ein `I18N_PATTERNS`-Muster nicht übersetzen:
@@ -1356,19 +1356,32 @@ vorgefunden wurden, und bleibt als Befund stehen.
 #### Die 49 Fundstellen der Prüfung
 
 Gezählt werden die Schreibstellen auf die drei Befundlisten – `errors.push(`,
-`warnings.push(` und `info.push(` – in **zwei** Funktionen zusammen:
-`validateMapData()` **und** `collectGeometryFindings()`. Die zweite ist leicht
-zu übersehen, weil der Satz an der Fundstelle nur von „der Prüfung" spricht;
-ohne sie kommen 37 statt 49 heraus.
+`warnings.push(` und `info.push(` – in **drei** Funktionen zusammen:
+`validateMapData()`, `collectGeometryFindings()` **und**
+`validatePolygonRings()`. Die zweite ist leicht zu übersehen, weil der Satz an
+der Fundstelle nur von „der Prüfung" spricht; ohne sie kommen 37 statt 49
+heraus.
 
 | | `errors` | `warnings` | `info` | zusammen |
 |---|---|---|---|---|
-| `validateMapData()` | 20 | 11 | 6 | **37** |
+| `validateMapData()` | 16 | 11 | 6 | **33** |
 | `collectGeometryFindings()` | 0 | 9 | 3 | **12** |
+| `validatePolygonRings()` | 4 | 0 | 0 | **4** |
 | | | | | **49** |
 
-**Die Aufteilung ist an beiden Ständen dieselbe**, nicht nur die Summe – das
-ist der eigentliche Beleg dafür, dass die Methode getroffen ist.
+**Die dritte Funktion ist mit der Umstellung auf alle Polygonringe
+dazugekommen, und die Summe ist deshalb dieselbe geblieben.** Die vier
+Ringmeldungen sind aus `validateMapData()` in den gemeinsamen Prüfer gewandert,
+weil Perimeter und Exclusion sie sich teilen; dort stehen sie einmal statt
+zweimal, und die beiden neuen Lochmeldungen kommen hinzu. Ohne die dritte
+Funktion in der Messung fiele die Zahl auf 45 – **ohne dass eine einzige
+Meldung verschwunden wäre**. Wer eine Schreibstelle in eine weitere
+Hilfsfunktion zieht, trägt sie im Messbefehl nach.
+
+**Die Aufteilung war an den beiden früheren Ständen dieselbe** (37 / 12), nicht
+nur die Summe – das war der eigentliche Beleg dafür, dass die Methode getroffen
+ist. Die heutige Aufteilung ist eine andere, und der Grund dafür steht im
+Absatz darüber.
 
 **Die Zahl steht an ZWEI Stellen in dieser Datei**, und beide meinen dasselbe:
 der Satz über `findValidationTarget()` in Abschnitt 5 und der Satz über die
@@ -1523,7 +1536,7 @@ Dazu drei Regeln, jede mit ihrem Anlass:
 
 | Marke | Fundstellen | gemessen wird |
 |---|---|---|
-| `pruefstellen` | 2 | `errors/warnings/info.push(` in `validateMapData()` **und** `collectGeometryFindings()` |
+| `pruefstellen` | 2 | `errors/warnings/info.push(` in `validateMapData()`, `collectGeometryFindings()` **und** `validatePolygonRings()` |
 | `statustexte-ohne-englisch` | 1 | literale erste Argumente der fünf Statusfunktionen, die `translateGermanText()` unverändert zurückgibt – **eindeutige Texte**, nicht Fundstellen |
 | `zusicherungen-pruefend` | 1 | `check()`-Aufrufe in `tools/`, die einen Auswahlbezeichner im Aufruf selbst tragen |
 | `zusicherungen-herstellend` | 1 | dieselben Aufrufe, Bezeichner nur im Vorlauf seit dem vorigen `check()` |
@@ -6185,11 +6198,52 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `referenceOrigin` und `coordinateScale`: dass CaSSAndRAs Import sie ignoriert,
   ist am Quelltext belegt (er greift ausschließlich auf `features` zu), aber
   nicht gegen eine laufende Instanz geprüft.
-- **Löcher in Polygonen sind editierbar, aber weder geprüft noch in der
-  Fläche enthalten – potenziell sicherheitsrelevant.**
+- **ERLEDIGT: Löcher werden abgezogen.** Der Eintrag bleibt vollständig
+  stehen, weil er die Messung trägt, auf der die Entscheidung ruht – und weil
+  eine der vier genannten Stellen **nicht** umgestellt ist und weiter
+  aussteht; sie steht am Ende dieses Eintrags.
+
+  **Entschieden vom Projektinhaber: Löcher werden abgezogen, die Prüfung sieht
+  alle Ringe.** Umgesetzt ist das an **drei** der vier Stellen:
+
+  | Stelle | vorher | heute |
+  |---|---|---|
+  | `polygonAreaMeters()` | äußerer Ring, MultiPolygon 0 m² | äußerer Ring **minus jedes Loch**, MultiPolygon als **Summe seiner Teile**, Löcher darin ebenfalls abgezogen |
+  | `validateMapData()`, Perimeter | nur `coordinates[0]` | alle Ringe über `validatePolygonRings()` |
+  | `validateMapData()`, Exclusion | nur `coordinates[0]` | ebenso |
+
+  **Welcher Ring ein Loch ist, sagt seine STELLE in `coordinates`, nicht sein
+  Umlaufsinn.** Eine vorzeichenbehaftete Summe hätte am dokumentierten Fall
+  unten 500 statt 300 m² geliefert, weil dort beide Ringe gleichsinnig laufen.
+  Die Umlaufsinn-Frage bleibt damit offen und unberührt – siehe Punkt 4 und 5
+  des Mähergeometrie-Pakets.
+
+  **`ringAreaMeters()` rechnet die Fläche eines einzelnen Rings**, und damit
+  ist die dort notierte Vorhersage eingelöst: die Zahl je Ring war wirklich nur
+  ein `Math.abs()` entfernt. `polygonRingsArea()` zieht die Löcher ab und
+  klemmt auf 0 – überdecken die Löcher den äußeren Ring, ist die Karte
+  fehlerhaft, und die Kartenprüfung sagt das über „Fläche ist 0 oder ungültig".
+
+  **Der äußere Ring behält seine Meldungen wortgleich**, ein Loch nennt sich
+  zusätzlich beim Namen: „Exclusion 0, **Loch 1**: Polygonring ist nicht
+  geschlossen." Ohne den Zusatz stünden bei zwei fehlerhaften Löchern zwei
+  gleichlautende Sätze untereinander. Vier neue `I18N_PATTERNS` tragen die
+  englischen Fassungen.
+
+  **Zugesichert in `tools/test-validation.mjs`**, gemessen am sichtbaren Text
+  der Perimeterfläche und am Prüfbericht, nicht an den Funktionen: Polygon mit
+  Loch zeigt die Differenz, MultiPolygon die Summe und nicht 0, Polygon ohne
+  Loch unverändert; beide Lochmeldungen erscheinen, der äußere Ring bleibt
+  unbeanstandet, und beide sind in **beiden** Richtungen übersetzt. **Die
+  erwarteten Flächen rechnet der Test aus der Geometrie**, und zwar über die
+  Bounding-Box achsparalleler Rechtecke – absichtlich nicht über eine zweite
+  Kopie der Shoelace-Formel, die denselben Fehler trüge.
+
+  **Der ursprüngliche Befund, unverändert – er ist die Grundlage:**
+
   `enumerateEditableVertices()` läuft über **alle** Ringe eines Polygons und
   über alle Teile eines MultiPolygons; `validateMapData()` und
-  `polygonAreaMeters()` sehen dagegen ausschließlich `coordinates[0]`.
+  `polygonAreaMeters()` sahen dagegen ausschließlich `coordinates[0]`.
 
   Eine Sperrfläche mit Loch wäre damit weder validiert noch in der
   Flächenwarnung beim Reduzieren enthalten – der Editor ließe das Loch
@@ -6237,14 +6291,69 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   belegt, und zugleich der Beleg für dessen Punkt 4: **die Zahl je Ring ist
   wirklich nur ein `Math.abs()` entfernt**, wie dort notiert.
 
-  **Nicht erhoben:** was die Flächenwarnung beim Reduzieren mit einem Loch
-  meldet, und ob `enumerateEditableVertices()` bei einem MultiPolygon mit Loch
-  dieselbe Zahl Marker liefert.
+  **Nicht erhoben und ausdrücklich nicht zu erheben:** was die Flächenwarnung
+  beim Reduzieren mit einem Loch meldet, und ob `enumerateEditableVertices()`
+  bei einem MultiPolygon mit Loch dieselbe Zahl Marker liefert. Beides bleibt
+  offen.
 
-  **Nichts geändert.** Die Entscheidung – Löcher sperren oder Prüfung und
-  Flächenrechnung auf alle Ringe ausweiten – steht unverändert aus, und sie
-  ist mit der Umlaufsinn-Frage aus dem Mähergeometrie-Paket **dieselbe**:
-  beide verlangen, dass `polygonAreaMeters()` je Ring rechnet.
+  #### Die vierte Stelle ist NICHT umgestellt – `getUniqueOuterRing()`
+
+  **Angehalten und gemeldet, nicht entschieden.** Der Auftrag lautete „alle
+  vier Stellen"; drei davon waren dieselbe Frage, die vierte ist eine andere.
+
+  `getUniqueOuterRing()` liest `coordinates[0]` – aber das ist dort **kein
+  Versäumnis, sondern ihr Zweck**: sie heißt so, ihr Kommentar sagt es, und
+  ihre beiden Aufrufer brauchen genau das.
+
+  | Aufrufer | wofür | braucht |
+  |---|---|---|
+  | `getPerimeterEndpoints()` | Start- und Endpunkt des Perimeters beim Verbinden | den **äußeren** Ring – die aufzutrennende Kante liegt dort und nirgends sonst |
+  | `collectGeometryFindings()`, Helfer `worldRing` | Exclusion außerhalb des Perimeters, Überlappung, Selbstüberschneidung, enge Korridore | heute **einen** Ring je Feature; das ganze Eintragsmodell (`entry.ring`, `perimeterRings`, `exclusionRings`) ist darauf gebaut |
+
+  **Sie auf alle Ringe umzustellen wäre keine Flächenrechnung, sondern eine
+  neue Prüfregel** – und sie berührt Zusicherungen, die etwas anderes meinen
+  als eine Fläche: die Korridorbefunde in `tools/test-validation.mjs` (darunter
+  die Sanduhr mit „Enge Stellen innerhalb von Feature 0") und die
+  Auftrennstellen-Zusicherungen in `tools/test-merge.mjs`. **Damit ist die
+  Anhaltebedingung des Auftrags eingetreten**, und zwar in ihrem zweiten Zweig:
+  *„Wenn sie etwas anderes meint – anhalten und melden."*
+
+  **Was dabei zu entscheiden wäre, wenn die Stelle angefasst wird:**
+
+  - Ist die Kante eines Lochs ein Hindernis für die Korridorprüfung? Die
+    Innenseite eines Lochs ist **mähbar**, die Außenseite einer Exclusion nicht
+    – `pointIsMowable(point, perimeterRings, exclusionRings)` kennt diesen
+    Unterschied heute nicht und müsste ihn lernen.
+  - Was heißt „Exclusion liegt außerhalb des Perimeters", wenn der Perimeter
+    ein Loch hat?
+  - Meldet die Selbstüberschneidung je Ring oder je Feature? Der heutige
+    Meldungstext nennt Segmentnummern, die behälterlokal wären.
+
+  Nichts davon ist eine Ableitung. **Nicht gebaut, nicht entschieden.**
+
+  **Nebenbefund derselben Umstellung, nicht behoben:** ein MultiPolygon hat
+  jetzt eine Fläche, aber der Inspektor zeigt sie nicht – die Zeile hängt an
+  `hasArea = feature?.geometry?.type === "Polygon"` in `updateSelectionPanel()`.
+  Und `validateMapData()` lehnt ein MultiPolygon weiter mit „Geometrietyp ist
+  nicht Polygon." ab. Sichtbar ist die Summe deshalb allein an der
+  **Perimeterfläche** der Abmessungen (`#areaStat`), und genau dort misst der
+  Test sie. Ob die beiden anderen Stellen nachziehen, ist eine eigene
+  Entscheidung.
+
+  **Zweiter Nebenbefund, nicht behoben:** `findValidationTarget()` erkennt
+  „Perimeter 2: …" über `/^Perimeter (\d+)[:\s]/` und trifft damit die
+  Lochfassung „Perimeter 1, Loch 1: …" **nicht** – ein Lochbefund ist kein
+  Sprungziel. Für die Exclusion galt das schon vorher, denn `describeFeature()`
+  liefert „Exclusion #0" und nicht „Exclusion 0".
+
+  **Dritter Nebenbefund, älter als dieser Punkt:** die Ringmeldungen des
+  **Perimeters** haben überhaupt keine englische Fassung – weder
+  „Perimeter 1: Polygonring ist nicht geschlossen." noch
+  „Perimeter 1: weniger als 3 Eckpunkte plus Schließpunkt." noch
+  „Perimeter 1: Fläche ist 0 oder ungültig." stehen in `I18N_PATTERNS`, während
+  ihre drei Exclusion-Geschwister es tun. Die vier **neuen** Lochmeldungen sind
+  übersetzt, wie es §5 verlangt; die drei alten bleiben unberührt, weil sie
+  nicht Gegenstand dieses Punktes sind.
 - **Der Prüfbericht speichert Rohwerte – ERLEDIGT mit Schritt 4 des vierten
   Durchgangs.** Der Eintrag bleibt stehen, weil er die Regel trägt.
 
@@ -7321,15 +7430,21 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     äußeren Ring.
   - Er betrifft **jede** Verschiebung nach innen oder außen, also 2 und 3
     gleichermaßen.
-  - **Nachgesehen, wie gefordert: die Formel ist bereits da.**
-    `polygonAreaMeters()` summiert genau die Shoelace-Terme
-    (`x1*y2 - x2*y1`) und wirft das Vorzeichen erst in der letzten Zeile mit
-    `Math.abs()` weg. Der Umlaufsinn ist damit **eine vorhandene Quelle, keine
-    neue Formel** – er liegt ein `Math.abs()` entfernt. **Aber:** die Funktion
-    liest ausschließlich `coordinates[0]`. Für „je Ring" muss sie verallgemeinert
-    werden oder ein Geschwister auf Ringebene bekommen, und **das ist dieselbe
-    Entscheidung wie beim Punkt „Löcher in Polygonen"** weiter oben – nicht
-    zweimal getrennt beantworten.
+  - **Nachgesehen, wie gefordert: die Formel ist bereits da – und seit der
+    Umstellung auf alle Ringe steht sie auf Ringebene.** `ringAreaMeters()`
+    summiert genau die Shoelace-Terme (`x1*y2 - x2*y1`) und wirft das Vorzeichen
+    erst in der letzten Zeile mit `Math.abs()` weg. Der Umlaufsinn ist damit
+    **eine vorhandene Quelle, keine neue Formel** – er liegt ein `Math.abs()`
+    entfernt, und zwar **je Ring**. Die frühere Einschränkung „die Funktion
+    liest ausschließlich `coordinates[0]`" ist damit erledigt; das Geschwister
+    auf Ringebene gibt es.
+
+    **Was NICHT mitentschieden ist: welcher Ring ein Loch ist, sagt heute seine
+    Stelle in `coordinates` und nicht sein Umlaufsinn.** Das war Absicht – am
+    gemessenen Fall laufen beide Ringe gleichsinnig, eine
+    vorzeichenbehaftete Summe lieferte dort 500 statt 300 m². Wer den Umlaufsinn
+    einführt, entscheidet damit auch, ob er die Stellenregel ablöst oder neben
+    ihr steht.
   - **Nicht verwechseln mit `getVertexOrientation()`.** Das liefert die
     Fahrtrichtung aus der Punktfolge und sagt nichts darüber, welche Seite
     innen liegt.

@@ -17,6 +17,7 @@
 
 import {
   createChecker,
+  elementGetroffen,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -600,6 +601,187 @@ try {
     english.includes("overlap"), english.slice(0, 400));
   check("kein deutscher Resttext im Bericht",
     !english.includes("liegt vollständig außerhalb"), english.slice(0, 400));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Loecher in Polygonen werden abgezogen");
+
+  /*
+   * Bis zu dieser Umstellung las die Flaechenrechnung nur coordinates[0].
+   * Eine Sperrflaeche von 20 x 20 m mit einem Loch von 10 x 10 m stand mit
+   * 400 statt 300 m² da - ein Drittel zu viel -, und ein MultiPolygon
+   * lieferte 0 m². Gemessen wird deshalb der SICHTBARE Text der
+   * Perimeterflaeche und nicht die Funktion.
+   *
+   * Die erwarteten Werte werden aus der Geometrie gerechnet, nicht als Zahl
+   * gefuehrt - und zwar ueber die Bounding-Box achsparalleler Rechtecke. Das
+   * ist absichtlich NICHT dieselbe Rechnung wie im Bestand: eine Kopie der
+   * Shoelace-Formel traege denselben Fehler wie sie.
+   */
+  const rechteckFlaeche = (ring) => {
+    const xs = ring.map((punkt) => punkt[0]);
+    const ys = ring.map((punkt) => punkt[1]);
+
+    return (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys));
+  };
+
+  /* Das Zahlenformat kommt aus der QUELLE, damit kein Dezimalzeichen als
+     Literal im Test steht. Der WERT stammt aus der Rechnung darueber. */
+  const alsFlaechentext = (wert) =>
+    page.evaluate((w) => `${formatMeters(w, 1, 1)} m²`, wert);
+
+  const karte = (features) =>
+    JSON.stringify({ type: "FeatureCollection", features });
+
+  const perimeterMit = (coordinates, type = "Polygon") => ({
+    type: "Feature",
+    properties: { name: "perimeter" },
+    geometry: { type, coordinates },
+  });
+
+  const flaechentext = () => page.locator("#areaStat").textContent();
+
+  /* --- Polygon mit Loch: die Differenz ---------------------------- */
+  const AUSSEN = box(10, 10, 30, 30);
+  const LOCH = box(15, 15, 25, 25);
+
+  check("die drei Werte sind wirklich verschieden",
+    rechteckFlaeche(AUSSEN) !== rechteckFlaeche(LOCH) &&
+    rechteckFlaeche(AUSSEN) !== rechteckFlaeche(AUSSEN) - rechteckFlaeche(LOCH),
+    `${rechteckFlaeche(AUSSEN)} / ${rechteckFlaeche(LOCH)}`);
+
+  await validate(karte([perimeterMit([AUSSEN, LOCH])]));
+
+  const erwartetMitLoch =
+    await alsFlaechentext(rechteckFlaeche(AUSSEN) - rechteckFlaeche(LOCH));
+  const gezeigtMitLoch = await flaechentext();
+
+  check("Polygon mit Loch: die gezeigte Flaeche ist die Differenz",
+    gezeigtMitLoch === erwartetMitLoch,
+    `gezeigt ${gezeigtMitLoch}, erwartet ${erwartetMitLoch}`);
+  check("und nicht der aeussere Ring allein",
+    gezeigtMitLoch !== (await alsFlaechentext(rechteckFlaeche(AUSSEN))),
+    gezeigtMitLoch);
+
+  /*
+   * Die Zeile ist wirklich zu sehen und nicht nur im DOM: elementFromPoint()
+   * antwortet, was der Browser an dieser Stelle zeichnet - ein abschneidender
+   * Vorfahr sitzt eine Ebene hoeher und bliebe sonst unsichtbar.
+   */
+  check("und sie steht sichtbar da",
+    await elementGetroffen(page, "#areaStat"));
+
+  /* --- MultiPolygon: die Summe, nicht 0 --------------------------- */
+  const TEIL_A = box(0, 0, 8, 8);
+  const TEIL_A_LOCH = box(2, 2, 4, 4);
+  const TEIL_B = box(12, 0, 15, 3);
+
+  await validate(karte([
+    perimeterMit([[TEIL_A, TEIL_A_LOCH], [TEIL_B]], "MultiPolygon"),
+  ]));
+
+  const erwartetMulti = await alsFlaechentext(
+    rechteckFlaeche(TEIL_A) - rechteckFlaeche(TEIL_A_LOCH) + rechteckFlaeche(TEIL_B)
+  );
+  const gezeigtMulti = await flaechentext();
+
+  check("MultiPolygon: die gezeigte Flaeche ist die Summe seiner Teile",
+    gezeigtMulti === erwartetMulti,
+    `gezeigt ${gezeigtMulti}, erwartet ${erwartetMulti}`);
+  check("und nicht null",
+    gezeigtMulti !== (await alsFlaechentext(0)), gezeigtMulti);
+  check("und auch im MultiPolygon ist das Loch abgezogen",
+    gezeigtMulti !== (await alsFlaechentext(
+      rechteckFlaeche(TEIL_A) + rechteckFlaeche(TEIL_B))),
+    gezeigtMulti);
+
+  /* --- Gegenprobe ohne Loch: unveraendert ------------------------- */
+  const OHNE_LOCH = box(0, 0, 40, 40);
+
+  await validate(karte([perimeterMit([OHNE_LOCH])]));
+
+  check("Polygon ohne Loch: die gezeigte Flaeche ist der Ring selbst",
+    (await flaechentext()) === (await alsFlaechentext(rechteckFlaeche(OHNE_LOCH))),
+    await flaechentext());
+
+  /* --- der Ring eines Lochs wird geprueft ------------------------- */
+  /*
+   * Ein Loch ist bearbeitbar - enumerateEditableVertices() laeuft seit jeher
+   * ueber alle Ringe -, wurde aber von keiner Pruefung angesehen. Beide
+   * Meldungen nennen das Loch beim Namen; ohne das stuenden bei zwei
+   * fehlerhaften Loechern zwei gleichlautende Saetze untereinander.
+   */
+  const fehlerJetzt = () => page
+    .locator("#validationReport .validation-item.error")
+    .allTextContents();
+
+  const kaputteLoecher = karte([
+    perimeterMit([box(0, 0, 40, 40), [[5, 5], [7, 5], [5, 7]]]),
+    {
+      type: "Feature",
+      idx: 0,
+      properties: { name: "exclusion" },
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          box(10, 10, 30, 30),
+          [[15, 15], [25, 15], [25, 25], [15, 25]],
+        ],
+      },
+    },
+  ]);
+
+  const loecher = await validate(kaputteLoecher);
+
+  check("das entartete Loch des Perimeters wird gemeldet",
+    loecher.errors.some((text) =>
+      text.includes("Perimeter 1, Loch 1: weniger als 3 Eckpunkte plus Schließpunkt.")),
+    loecher.errors.join(" | "));
+  check("das offene Loch der Exclusion ebenfalls",
+    loecher.errors.some((text) =>
+      text.includes("Exclusion 0, Loch 1: Polygonring ist nicht geschlossen.")),
+    loecher.errors.join(" | "));
+  check("und der aeussere Ring beider bleibt unbeanstandet",
+    !loecher.errors.some((text) =>
+      text.includes("Perimeter 1: Polygonring ist nicht geschlossen.") ||
+      text.includes("Exclusion 0: Polygonring ist nicht geschlossen.")),
+    loecher.errors.join(" | "));
+
+  /* auf deutsch erzeugt, dann englisch gemessen */
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(300);
+
+  const loecherEn = await fehlerJetzt();
+
+  check("auf deutsch erzeugt, dann englisch: das Perimeterloch ist uebersetzt",
+    loecherEn.some((text) =>
+      text.includes("Perimeter 1, hole 1: fewer than 3 corner points plus closing point.")),
+    loecherEn.join(" | "));
+  check("auf deutsch erzeugt, dann englisch: das Exclusionloch ebenfalls",
+    loecherEn.some((text) =>
+      text.includes("Exclusion 0, hole 1: polygon ring is not closed.")),
+    loecherEn.join(" | "));
+
+  /* und die Gegenrichtung: auf englisch erzeugt, dann deutsch gemessen */
+  await validate(kaputteLoecher, { englisch: true });
+
+  const erzeugtEn = await fehlerJetzt();
+
+  check("auf englisch erzeugt: die beiden Loecher stehen englisch da",
+    erzeugtEn.some((text) => text.includes("hole 1: fewer than 3 corner points")) &&
+    erzeugtEn.some((text) => text.includes("hole 1: polygon ring is not closed")),
+    erzeugtEn.join(" | "));
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(300);
+
+  const zurueckDe = await fehlerJetzt();
+
+  check("auf englisch erzeugt, dann deutsch: beide stehen wieder deutsch da",
+    zurueckDe.some((text) =>
+      text.includes("Perimeter 1, Loch 1: weniger als 3 Eckpunkte plus Schließpunkt.")) &&
+    zurueckDe.some((text) =>
+      text.includes("Exclusion 0, Loch 1: Polygonring ist nicht geschlossen.")),
+    zurueckDe.join(" | "));
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
