@@ -4956,6 +4956,13 @@ blieb grün und sagte damit über nichts etwas. Erst der Aufruf in
 Mutation wird an der Stelle gesetzt, die der gemessene Fall wirklich
 durchläuft – der Funktionsname allein sagt das nicht.**
 
+**Nachtrag zur Aufteilung unten, im selben Durchgang fällig geworden:** mit
+der Entfernung des toten Markup-`title` ist `#deleteMultiSelectionBtn` aus der
+**Markup**-Spalte in die **JS**-Spalte gewechselt. Für 8b ändert das nichts –
+seine Erklärung wird weiter gebraucht und steht weiter nur in einem `title`,
+nur eben ausschließlich in dem, den `updateMultiSelectionUi()` setzt. Die
+Aufteilung darunter zählt ihn unverändert unter „gebraucht".
+
 **Daraus die Aufteilung, die 8b zu bauen hätte – und sie ist zweigeteilt, was
 vorher nicht klar war:**
 
