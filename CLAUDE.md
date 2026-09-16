@@ -7576,11 +7576,35 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   sagt, dass die Leiste Knöpfe mit Text trägt, und nicht, wohin die vierzehn
   gebrauchten Erklärungen gehören.
 
-  **Was die Entscheidung NICHT beantwortet**, unverändert aus der
-  Bestandsaufnahme des zehnten Durchgangs: die Zustände `mixed`, `drawing` und
-  `measuring`; welche Zeigerregel die Leiste bekommt (die 42-px-Stelle steht als
-  eigener offener Punkt weiter unten); die acht Symbole; und was aus
-  `#inspectorPoint` über 960 px wird, wenn seine Knöpfe umziehen.
+  **Was die Entscheidung NICHT beantwortet hat** – aus der Bestandsaufnahme des
+  zehnten Durchgangs, mit dem heutigen Stand dahinter:
+
+  | offene Frage | Stand |
+  |---|---|
+  | Zustand `mixed` | **beantwortet mit Schritt 3 des elften Durchgangs** – mitgenommen, weil die beiden Auswahlaktionen dort seit 7b gelten |
+  | Zustände `drawing` und `measuring` | **gegenstandslos, gemessen im zwanzigsten Durchgang** – siehe unten |
+  | die acht Symbole | **gebaut mit dem neunzehnten Durchgang** |
+  | Zeigerregel der Leiste | **offen** – die 42-px-Stelle steht als eigener Punkt weiter unten |
+  | was aus `#inspectorPoint` über 960 px wird | **offen** |
+
+  **Warum `drawing` und `measuring` gegenstandslos sind – dreifach gemessen,
+  nicht überlegt:**
+
+  1. **Das Starten eines Werkzeugs leert die Auswahl.** Vor dem Zeichnen ein
+     Punkt gewählt, danach null – `selectedVertex` ist `false`. Dasselbe beim
+     Messen.
+  2. **Während des Werkzeugs kann keine neue Auswahl entstehen.** Ein Klick auf
+     einen Punktmarker setzt stattdessen einen Zeichenpunkt (gezeichnete Punkte
+     0 → 1), die Auswahl bleibt null.
+  3. **Und selbst wenn sie entstünde, stünde die Leiste nicht:**
+     `INSPECTOR_BLOCKS` gibt ihren vier Gruppen nur die Auswahlzustände –
+     `selectionActions: single|multi|mixed|feature`, `inspectorSelection`
+     dieselben vier, `pointActions: single`, `featureActions: feature`.
+     `drawing` und `measuring` kommen in keiner der vier Listen vor.
+
+  **Es gibt damit gar keinen Zustand „Werkzeug läuft und etwas ist
+  ausgewählt".** Die Frage war eine über einen Fall, den das Programm nicht
+  herstellen kann; sie wird nicht entschieden, sondern ausgetragen.
 
   #### Wie EIN Markup den Ort wechselt – gemessen mit Schritt 2 des elften Durchgangs, Stand `804bf80`
 
