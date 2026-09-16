@@ -7196,9 +7196,43 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Wege denkbar – beim Leeren die Marke mitlöschen, oder in `setPointRoleText()`
   nicht über `setLocalizedText()` gehen –, und beide fassen eine Funktion an,
   die im ganzen Editor benutzt wird. **Ob und wie, entscheidet der
-  Projektinhaber.** Ob andere Aufrufer von `setLocalizedText()` denselben
-  Ablauf haben – Text leeren, ohne die Marke zu räumen –, ist **nicht
-  erhoben**.
+  Projektinhaber.**
+
+  **ERHOBEN mit dem zwanzigsten Durchgang: `setPointRoleText()` ist der
+  einzige Fall.** Die Frage stand hier als „nicht erhoben"; sie ist es jetzt.
+
+  Gemessen wurden alle **25** Aufrufe von `setLocalizedText()` – 16 einzeilig,
+  **9 über die Zeilengrenze umgebrochen**; keiner setzt statt einer Variablen
+  einen Ausdruck ein, die Zählung ist also vollständig. Für jede Funktion
+  wurde geprüft, ob dieselbe Variable dort auch geleert wird und ob davor die
+  Marke fällt:
+
+  | Funktion | Ziel | leert | räumt die Marke |
+  |---|---|---|---|
+  | `updateStockBlock()` | `kurz` | Zeile 5258 | **ja**, Zeile 5257 – mit erklärendem Kommentar |
+  | `setPointRoleText()` | `meta` | Zeile 12616 | **nein** – der bekannte Fall |
+
+  **Zwei weitere Stellen räumen die Marke, ohne dass diese Methode sie
+  bräuchte:** `discardTransientStatus()` räumt und schreibt danach den
+  Ruhetext, und `setEditStatusParts()` räumt am Behälter, obwohl
+  `setLocalizedText()` dort auf die einzelnen `<span>` geht und nicht auf ihn.
+  Beide sind vorbildlich gebaut.
+
+  **Zwei Fehler beim Messen, beide benannt, weil sie dieselbe Regel tragen:**
+
+  - **Der erste Entwurf suchte dateiweit statt je Funktion** und meldete
+    **drei** Treffer statt eines. `box` ist ein häufiger lokaler Name; die
+    Suche warf `updateScaleNotice()` (das `setLocalizedText()` gar nicht
+    benutzt, sondern `innerHTML` setzt) mit `setEditStatusParts()` zusammen.
+    Ein Variablenname ohne seinen Gültigkeitsbereich ist keine Fundstelle.
+  - **Der zweite Entwurf las zeilenweise** und hätte die neun umgebrochenen
+    Aufrufe nicht gesehen. **Das ist dieselbe Lücke wie bei `.title = ` und
+    beim Locator-Muster aus Schritt 11 des vierten Durchgangs – zum dritten
+    Mal in dieser Datei.** Hier fiel sie beim Zählen auf: 16 einzeilige
+    Treffer bei 25 Aufrufen gehen nicht auf.
+
+  **Kalibriert ist die Methode am bekannten Treffer** – sie findet
+  `setPointRoleText()`.
 
 - **Sichtbarkeit je Kartenslot – Eintrag, kein Auftrag; eingetragen mit
   Schritt 3 des achten Durchgangs.** Sind zwei Karten geladen, soll sich jede
