@@ -5092,6 +5092,62 @@ unterscheidet sich nur die verfügbare Höhe: 915 / 735 / 635 px, also **Reserve
 Alle vier herauszunehmen brächte 1280 × 800 von −58 auf +65 px – gerade über
 die Kante –, während zwei Drittel des Inhalts unangetastet blieben.
 
+#### ÜBERHOLT: die Zahlen von `b5594fb` gelten nicht mehr – nachgemessen im zwanzigsten Durchgang
+
+**Die Höhenrechnung des ganzen Etappe-9-Plans ruht auf Messwerten von
+`b5594fb`, und seither sind die acht Auswahlknöpfe in die Kontext-Knopfleiste
+gezogen (elfter Durchgang).** Nachgemessen am Stand `32fdbee`, derselbe
+Zustand („ganzes Feature", Exclusion mit vier Punkten, alle Faltblöcke zu):
+
+| Bestandteil | `b5594fb` | heute | Differenz |
+|---|---|---|---|
+| Kopfblock | 64 | 64 | – |
+| `#inspectorMulti` | 110 | 110 | – |
+| `#inspectorFeature` | **274** | **224** | **−50** – „Exclusion duplizieren" (40 px) ist in die Leiste gezogen, mit ihm eine Lücke |
+| `#inspectorSelection` | 37 | **0** | **−37** – der Block steht **über der Karte**, nicht mehr in der Spalte |
+| die fünf Faltblöcke | 104 | 104 | – |
+| Lücken und Polsterung | 104 | 94 | −10 – sieben Lücken statt acht |
+| **Inhalt** | **693** | **596** | **−97** |
+
+| Fenster | Spalte | Reserve `b5594fb` | Reserve heute |
+|---|---|---|---|
+| 1280 × 1000 | 859 | – | **+263** |
+| 1280 × 900 | 759 | +66 | **+163** |
+| 1280 × 800 | 659 | **−34** | **+63** |
+
+**Die tragende Begründung von 9a ist damit gegenstandslos.** Dort steht: „Bei
+1280 × 800 wird aus −34 px Reserve **+86 px**, das Höhenziel hält dort wieder."
+**Es hält schon** – ohne 9a, mit +63 px. Der Grund ist nicht, dass jemand 9a
+gebaut hätte, sondern dass die Kontext-Knopfleiste dem Inspektor 87 px
+abgenommen hat.
+
+**Was von 9a unverändert gilt, ist sein eigentlicher Inhalt: die Doppelung.**
+Nachgemessen, wörtlich:
+
+| Stelle | Text |
+|---|---|
+| Kopfblock | „4 Punkte ausgewählt" / „Exclusion #0 · vollständig" |
+| `#multiSummary` | „Alle 4 Punkte von Exclusion #0." |
+| `#featureTypeStat` / `#featurePointStat` | „Exclusion #0" / „4" |
+
+**„Exclusion #0" steht dreimal, „4 Punkte" dreimal** – genau wie beschrieben.
+Auch die beiden Hinweissätze à 35 px stehen weiter untereinander: „Einen
+markierten Punkt ziehen verschiebt die ganze Gruppe." und „Verschieben durch
+Ziehen an der Geometrie auf der Karte."
+
+**Der Gewinn wäre weiterhin 120 px** (110 px Block + 10 px Lücke) – nur ist er
+nicht mehr nötig, um das Höhenziel zu erreichen. **9a ist damit von einer
+Höhenfrage zu einer reinen Ordnungsfrage geworden**, und die Entscheidung
+„welche der drei Stellen die Angabe trägt" steht unverändert aus.
+
+**Nicht nachgemessen:** die Zahlen für 9b und 9c. `#inspectorValidation` und
+`#featureNavigationSection` messen zugeklappt unverändert 21 px; die 614 px
+der aufgeklappten Navigation und die 329 Zeichen des Prüfberichts sind **nicht**
+erneut erhoben worden.
+
+**Die folgenden Abschnitte tragen die alten Zahlen und bleiben als Messung
+ihres Standes stehen.**
+
 #### Befund und Plan, Stand `b5594fb` – gemessen mit Schritt 7 des dritten Durchgangs
 
 **Die Höhen von oben sind reproduziert, und zwar exakt.** Derselbe Zustand
@@ -5307,7 +5363,7 @@ nichts, und die Tests bestehen weiter, ohne noch etwas zu prüfen.
 
 | Teilschritt | Gewinn | Preis | Urteil |
 |---|---|---|---|
-| **9a** | **120 px**, bei 1280 × 800 von −34 auf +86 px | ein Block weniger im Zustand `feature`; Zusicherungen nur in einem Test | **zuerst bauen** – billigster Gewinn, kein Ortswechsel |
+| **9a** | **120 px**; die Reserve bei 1280 × 800 stieg von −34 auf +86 px – **überholt, sie liegt heute ohne 9a schon bei +63 px** | ein Block weniger im Zustand `feature`; Zusicherungen nur in einem Test | **zuerst bauen** – billigster Gewinn, kein Ortswechsel. Der Grund ist seit dem zwanzigsten Durchgang aber die **Doppelung**, nicht die Höhe |
 | **9b** | die Überdeckung fällt, der Bericht bekommt volle Breite, und neun Zusicherungen können endlich die Sichtbarkeit mitbelegen | neun Tests im selben Schritt, plus die Entscheidung „andocken statt schweben" | **danach** |
 | **9c** | 21 px, dazu Breite für die aufgeklappte Liste | derselbe Umzug noch einmal, plus der empfindliche Öffnungsschritt im Harness | **zuletzt, und nur wenn 9b sich bewährt hat** |
 
