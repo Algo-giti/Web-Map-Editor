@@ -27,7 +27,9 @@
 //
 //   leer                      Grundzustand ohne Karte
 //   geladen                   Karte mit allen fünf Feature-Typen
+//   tooltip                   Zeiger über einem Feature
 //   punkt+vergleich           ein Punkt ausgewählt und verschoben
+//   mehrfach-verschoben       zwei Punkte gemeinsam mit der Pfeiltaste bewegt
 //   reduzieren-schrumpfend    Reduzieren, die Fläche wird kleiner
 //   reduzieren-wachsend       Reduzieren, die Fläche wird größer
 //   begradigen                Begradigen angewendet
@@ -94,7 +96,6 @@ const FALSCHMELDUNGEN = [
   [/^Exclusion #\d+$/, "abgeleiteter Anzeigename, englisch gleich"],
   [/^Polygon$/, "Geometrietyp aus GeoJSON, englisch gleich"],
   [/^LineString$/, "Geometrietyp aus GeoJSON, englisch gleich"],
-  [/^Dockpoints$/, "CaSSAndRA-Bezeichner, englisch gleich"],
   [/^Search ?[Ww]ire:?$/, "Eigenname, englisch gleich"],
   [/^Features?$/, "englisch gleich"],
   [/^Lasso$/, "englisch gleich"],
@@ -313,6 +314,36 @@ try {
   await openAllFolds(page);
   await sammle("geladen");
 
+  /*
+   * TOOLTIP ueber einem Feature. Er ist der einzige Ort, an dem der rohe
+   * GeoJSON-Geometrietyp in der Oberflaeche steht ("Typ: LineString"), und er
+   * entsteht nur bei einem schwebenden Zeiger - kein anderer Zustand stellt
+   * ihn her. Gefehlt hat er bis zum zwanzigsten Durchgang; aufgefallen ist es,
+   * weil der FALSCHMELDUNGEN-Eintrag /^LineString$/ ploetzlich nichts mehr
+   * filterte und das Werkzeug ihn selbst als "ohne Treffer" meldete.
+   */
+  {
+    /* Ueber eine LINIE fahren, nicht ueber den Perimeter: nur dort steht
+       "Typ: LineString". page.hover() statt einer gerechneten Koordinate -
+       der Kasten einer Diagonalen ist gross, die Linie darin duenn. */
+    for (const klasse of ["searchwire", "dockpoints", "perimeter"]) {
+      const pfad = page.locator(`#geometryGroup path.${klasse}`).first();
+      if (!(await pfad.count())) continue;
+      try {
+        await pfad.hover({ timeout: 2000 });
+        await page.waitForTimeout(300);
+      } catch { continue; }
+      const sichtbar = await page.evaluate(() => {
+        const t = document.getElementById("tip");
+        return !!t && !t.hidden && getComputedStyle(t).display !== "none";
+      });
+      if (sichtbar) break;
+    }
+    await sammle("tooltip");
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(200);
+  }
+
   /* Punktzustand mit Vergleichsblock: auswaehlen und verschieben. */
   const perimeterMarken = page.locator('#vertexGroup circle[data-layer="perimeter"]');
   await perimeterMarken.nth(1).click();
@@ -348,6 +379,22 @@ try {
 
   await reduziere(2, "0,30", "reduzieren-schrumpfend");
   await reduziere(1, "0,60", "reduzieren-wachsend");
+
+  /*
+   * MEHRERE Punkte mit der Pfeiltaste verschoben. Nur hier entsteht
+   * "N Punkte · → East · 0,10 m"; der Zustand punkt+vergleich erzeugt die
+   * Einzahlfassung. Gefehlt hat er bis zum zwanzigsten Durchgang, und das
+   * Werkzeug hat es selbst gemeldet - sein FALSCHMELDUNGEN-Eintrag dafuer
+   * filterte nichts mehr.
+   */
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  await perimeterMarken.nth(0).click();
+  await perimeterMarken.nth(1).click({ modifiers: ["Control"] });
+  await page.waitForTimeout(250);
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(350);
+  await sammle("mehrfach-verschoben");
 
   /* Begradigen: zwei Punkte desselben Rings. */
   await page.keyboard.press("Escape");

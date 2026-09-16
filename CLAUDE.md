@@ -377,7 +377,7 @@ deutschem Text ohne englische Fassung. Aufruf von Hand:
 PLAYWRIGHT_CORE_PATH="$SCRATCH" node tools/scan-i18n.mjs
 ```
 
-Es hält die Oberfläche deutsch, spielt achtzehn Zustände durch, sammelt jeden
+Es hält die Oberfläche deutsch, spielt <!-- bestand: i18n-zustaende -->20 Zustände durch, sammelt jeden
 Textknoten unter `body *` – auch in ausgeblendeten Elementen – sowie `title`,
 `aria-label` und `placeholder`, schickt alles durch `translateGermanText()` und
 meldet, was unverändert zurückkommt.
@@ -390,6 +390,25 @@ Wörterbucheintrag wird per Mutation entfernt und muss als Treffer auftauchen,
 sonst ist nicht die Oberfläche sauber, sondern das Werkzeug kaputt. Die
 Falschmeldungen stehen als Musterliste **mit Begründung** im Werkzeug, und die
 Ausgabe trennt „neu" von „bekannt".
+
+**Ein vierter Melder ist die eigentliche Selbstprüfung: Einträge in
+`FALSCHMELDUNGEN` OHNE Treffer.** Er sagt „sie filtern nichts mehr – entweder
+ist der Text weg oder er hat inzwischen eine Übersetzung. Beim nächsten Mal
+prüfen." **Der zwanzigste Durchgang hat die drei geprüft, die dastanden, und
+alle drei hatten einen anderen Grund:**
+
+| Eintrag | Grund | erledigt durch |
+|---|---|---|
+| `/^LineString$/` | der Text steht **nur im Tooltip** über einem Feature, und diesen Zustand besuchte das Werkzeug nicht | neuer Zustand **`tooltip`** |
+| `/^\d+ Punkte · [←→↑↓] … m$/` | entsteht nur beim Verschieben **mehrerer** Punkte; besucht war nur die Einzahlfassung | neuer Zustand **`mehrfach-verschoben`** |
+| `/^Dockpoints$/` | der Text hat **eine Übersetzung** bekommen („Dock points") und kann nie mehr als Treffer erscheinen | Eintrag **entfernt** |
+
+**Zwei von drei waren also keine toten Einträge, sondern fehlende Zustände** –
+und damit Treffer, die niemand je zu sehen bekam. Genau das ist Regel (d):
+*eine Laufzeitsuche ist nur so vollständig wie die Zustände, die sie besucht
+hat*, und dieser Melder ist der Weg, auf dem das Werkzeug es selbst sagt.
+**Ein Eintrag ohne Treffer ist deshalb zuerst ein Verdacht auf einen
+fehlenden Zustand und erst danach auf einen überflüssigen Eintrag.**
 
 **Es ist weder im Läufer noch in `tools/check-all.mjs` eingehängt.** Damit der
 Läufer es nicht doch als Browsertest zählt – es bindet das Harness ein, und
@@ -5772,7 +5791,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Aussage, aber eine Lücke; ob sie gefüllt wird, ist Etappe 10.
 
   **Nachgemessen nach der Behebung:** `tools/scan-i18n.mjs` meldet über alle
-  achtzehn Zustände **NEU 0** bei 35 bekannten Falschmeldungen, und keiner der
+  zwanzig Zustände **NEU 0** bei 37 bekannten Falschmeldungen, und keiner der
   vier ausgetauschten Wörterbuchschlüssel ist als Rest zurückgeblieben – weder
   auf der deutschen noch auf der englischen Seite.
 

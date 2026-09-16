@@ -567,6 +567,23 @@ const MESSUNGEN = {
     messen: () =>
       toolsDateien().reduce((summe, d) => summe + zaehle(d.quelle, /position: \{ x:/g), 0),
   },
+  "i18n-zustaende": {
+    was:
+      "Zustaende, die tools/scan-i18n.mjs durchspielt - gezaehlt an den " +
+      "sammle()-Aufrufen, literale und ueber eine Variable gesetzte zusammen",
+    messen: () => {
+      const quelle = readFileSync(join(toolsDir, "scan-i18n.mjs"), "utf8");
+      const literale = new Set(
+        [...quelle.matchAll(/sammle\((["'])([^"']+)\1\)/g)].map((m) => m[2])
+      );
+      /* Der Reduzieren-Helfer ruft sammle(zustand) mit einer Variablen auf;
+         gezaehlt werden dort die Aufrufe des Helfers selbst. */
+      const ueberVariable = [...quelle.matchAll(/\breduziere\([^)]*,\s*(["'])([^"']+)\1\s*\)/g)]
+        .map((m) => m[2]);
+      for (const z of ueberVariable) literale.add(z);
+      return literale.size;
+    },
+  },
   "funktionen-ohne-aufrufer": {
     was:
       "globale Funktionen, die index.html nirgends aufruft, gezaehlt von " +
