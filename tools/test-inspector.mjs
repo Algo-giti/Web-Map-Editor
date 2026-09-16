@@ -2413,6 +2413,72 @@ try {
     (await text("multiSummary")) === "2 Punkte in Perimeter.",
     `${(await head()).titel} | ${await text("multiSummary")}`);
 
+  /* ---------------------------------------------------------------- */
+  console.log("Der Loeschknopf beugt Einzahl und Mehrzahl, in beiden Sprachen");
+
+  /*
+   * Drei Befunde in einem Abschnitt, alle drei im zwanzigsten Durchgang
+   * gemessen und behoben (CLAUDE.md, Abschnitt 7):
+   *
+   *   - der title im MARKUP war tot: updateMultiSelectionUi() setzt ihn schon
+   *     vor der ersten geladenen Karte, der Markup-Text stand zu keinem
+   *     Zeitpunkt da;
+   *   - deutsch wurde das Nomen gebeugt, das Adjektiv nicht ("1 ausgewaehlte
+   *     Punkt entfernen");
+   *   - englisch trug das Muster die Klammerform "point(s)", also eine
+   *     Umgehung statt einer Uebersetzung.
+   *
+   * Gemessen wird in BEIDEN Richtungen (Regel (e) in Abschnitt 4.2): in der
+   * einen Sprache erzeugt, umgeschaltet, dann gelesen - und umgekehrt. Der
+   * Wechsel laeuft ueber setLanguage(), damit zwischen Wechsel und Messung
+   * keine Handlung liegt, die den Titel ohnehin neu schriebe.
+   */
+  await load();
+
+  const loeschTitel = () => page.getAttribute("#deleteMultiSelectionBtn", "title");
+  const sprache = (wert) => page.evaluate((w) => setLanguage(w), wert);
+
+  /*
+   * Dass der tote title im MARKUP weg ist, sichert dieser Test NICHT zu, und
+   * das ist Absicht: document.documentElement.innerHTML liefert das laufende
+   * DOM, in dem updateMultiSelectionUi() den Titel laengst gesetzt hat - eine
+   * Zusicherung hier maesse die Laufzeit und nicht das Markup. Abgedeckt ist
+   * es in der statischen Stufe ueber die Bestandszahlen title-markup und
+   * title-fundstellen: ein wieder eingebauter Markup-title hebt beide, und
+   * check-bestandszahlen.mjs meldet es.
+   */
+  await marks.nth(0).click();
+  await page.waitForTimeout(250);
+  const einDe = await loeschTitel();
+  check("deutsch, ein Punkt: das Adjektiv ist mitgebeugt",
+    einDe === "Löschen: 1 ausgewählten Punkt entfernen. Mit Undo rückgängig.",
+    einDe);
+
+  await sprache("en");
+  await page.waitForTimeout(250);
+  const einEnNachWechsel = await loeschTitel();
+  check("auf deutsch erzeugt, dann englisch: Einzahl ohne Klammerform",
+    einEnNachWechsel === "Delete: remove 1 selected point. Undo is available.",
+    einEnNachWechsel);
+
+  await marks.nth(1).click({ modifiers: ["Control"] });
+  await page.waitForTimeout(250);
+  const zweiEn = await loeschTitel();
+  check("auf englisch erzeugt: die Mehrzahl steht englisch da",
+    zweiEn === "Delete: remove 2 selected points. Undo is available.", zweiEn);
+
+  await sprache("de");
+  await page.waitForTimeout(250);
+  const zweiDeNachWechsel = await loeschTitel();
+  check("auf englisch erzeugt, dann deutsch: die Mehrzahl ist deutsch",
+    zweiDeNachWechsel === "Löschen: 2 ausgewählte Punkte entfernen. Mit Undo rückgängig.",
+    zweiDeNachWechsel);
+
+  check("keine Klammerform in irgendeiner der vier Fassungen",
+    ![einDe, einEnNachWechsel, zweiEn, zweiDeNachWechsel]
+      .some((t) => t.includes("(s)")),
+    [einDe, einEnNachWechsel, zweiEn, zweiDeNachWechsel].join(" | "));
+
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
 } finally {

@@ -137,7 +137,7 @@ erklärt beides.
   Oberfläche. `tools/test-cassandra.mjs` prüft die ganze Liste jetzt
   automatisch darauf: für jedes Muster wird ein Beispieltext erzeugt und
   gesucht, ob ein früheres, allgemeineres ihn abfängt. 154 der
-  <!-- bestand: i18n-muster -->181 Muster sind so erfassbar; die übrigen 27 sind
+  <!-- bestand: i18n-muster -->182 Muster sind so erfassbar; die übrigen 27 sind
   lange Meldungen mit eindeutigem Präfix und wurden von Hand durchgesehen.
 
   **Nur die 181 trägt eine Markierung, die 154 und die 27 nicht.** Sie stammen
@@ -4827,7 +4827,7 @@ sortiert:**
 | „Deutsch / English" | wiederholt die Beschriftung |
 | „Keine Änderung zum Rückgängigmachen/Wiederholen" | Zustandsansage, kein Erklärtext |
 
-**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->40 Fundstellen –
+**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->39 Fundstellen –
 und ein genannter Wortlaut steht zur Laufzeit nirgends.** Beides fiel bei der
 Bestandsaufnahme zur Kontext-Knopfleiste an; es ist ein Beifang und wird hier
 richtiggestellt, nicht gelöscht.
@@ -4843,7 +4843,7 @@ deshalb durch:
 | `updateMultiSelectionUi()`, `snapToggle.title =` | den Ablehnungsgrund des Rasterfangs bei unbekanntem Maßstab |
 | `updateMultiSelectionUi()`, `straightenButton.title =` | `TRANSFORM_TOOL_HELP.straightenSelectionBtn` |
 
-**Es sind damit <!-- bestand: title-markup -->24 im Markup und <!-- bestand: title-js -->16 per JS.** Dass ausgerechnet das Muster über
+**Es sind damit <!-- bestand: title-markup -->23 im Markup und <!-- bestand: title-js -->16 per JS.** Dass ausgerechnet das Muster über
 Zeilengrenzen versagte, ist in dieser Datei schon einmal gemessen worden – bei
 der Locator-Suche aus Schritt 11 des vierten Durchgangs, wo der bekannte
 Treffer umgebrochen war und die einzeilige Fassung ihn nicht fand. **Es ist
@@ -4865,19 +4865,71 @@ zu **keinem** Zeitpunkt dieser Text:
 `updateMultiSelectionUi()` überschreibt ihn schon vor der ersten Karte. **Der
 Markup-Text ist damit tot** – dieselbe Klasse wie das verwaiste
 `I18N_PATTERNS`-Muster aus Schritt 1 des sechsten Durchgangs, nur an einem
-Attribut statt im Wörterbuch. Nicht entfernt: das wäre eine Codeänderung, und
-dieser Durchgang war reiner Befund.
+Attribut statt im Wörterbuch.
+
+**ERLEDIGT mit dem zwanzigsten Durchgang: er ist entfernt, mitsamt seinem
+Wörterbucheintrag.** Der Präzedenzfall stand daneben und trägt: das verwaiste
+Muster des sechsten Durchgangs wurde entfernt, nicht stehen gelassen. An
+seiner Stelle steht im Markup ein Kommentar, der sagt, warum dort kein
+`title` steht. **Abgedeckt ist das in der statischen Stufe**, über die
+Bestandszahlen `title-markup` und `title-fundstellen`: ein wieder eingebauter
+Markup-`title` hebt beide, und `tools/check-bestandszahlen.mjs` meldet es.
+
+**Ein Browsertest kann es nicht zusichern, und das ist der lehrreiche Teil.**
+`document.documentElement.innerHTML` liefert das **laufende** DOM, in dem
+`updateMultiSelectionUi()` den Titel längst gesetzt hat – eine Zusicherung
+dort mäße die Laufzeit und nicht das Markup. Der erste Entwurf der
+Zusicherung tat genau das und riss sofort. **Es ist dieselbe Regel wie „der
+Test prüft die Wirkung, nicht die Absicht", nur in der Gegenrichtung: hier
+war die Absicht das Gemeinte, und die Wirkung verdeckt sie.** Der Kommentar
+im Test sagt das an Ort und Stelle.
 
 **Drittens, im selben Text: die Einzahl ist nicht durchdekliniert.** Der
-Ausdruck lautet `` `Löschen: ${count} ausgewählte Punkt${count === 1 ? "" : "e"} entfernen.` `` –
-das Nomen wird gebeugt, das **Adjektiv nicht**. Sichtbar steht bei einem Punkt
+Ausdruck lautete `` `Löschen: ${count} ausgewählte Punkt${count === 1 ? "" : "e"} entfernen.` `` –
+das Nomen wurde gebeugt, das **Adjektiv nicht**. Sichtbar stand bei einem Punkt
 „1 **ausgewählte** Punkt entfernen." statt „1 ausgewählten Punkt entfernen.";
-die Mehrzahl „2 ausgewählte Punkte entfernen." ist richtig. Die Liste
-„Einzahl und Mehrzahl bei ‚Zahl + Nomen'" in Abschnitt 7 führt diese Stelle
+die Mehrzahl „2 ausgewählte Punkte entfernen." war richtig. Die Liste
+„Einzahl und Mehrzahl bei ‚Zahl + Nomen'" in Abschnitt 7 führte diese Stelle
 **nicht** – ihr Suchmuster sah `${…}` gefolgt von einem Wort an, und hier
 steht zwischen Zahl und Nomen ein Adjektiv. **Das ist die dritte Fassung
-derselben Lücke in diesem Abschnitt.** Ob der englische Text betroffen ist,
-wurde **nicht erhoben**.
+derselben Lücke in diesem Abschnitt.**
+
+**ERLEDIGT mit dem zwanzigsten Durchgang – und der englische Text WAR
+betroffen.** Die damals offene Frage ist erhoben: das Muster lieferte
+„Delete: remove 1 selected **point(s)**. Undo is available.", also die
+**Klammerform**. Die steht in der Liste „Einzahl und Mehrzahl" ausdrücklich
+als „bewusste Umgehung, kein Versehen" – sie war hier aber nicht als solche
+verzeichnet, sondern schlicht nicht angesehen worden.
+
+Heute stehen beide Sprachen einzeln, das speziellere Muster zuerst:
+
+| Auswahl | deutsch | englisch |
+|---|---|---|
+| 1 Punkt | „Löschen: 1 **ausgewählten** Punkt entfernen. Mit Undo rückgängig." | „Delete: remove 1 selected **point**. Undo is available." |
+| 2 Punkte | „Löschen: 2 ausgewählte Punkte entfernen. Mit Undo rückgängig." | „Delete: remove 2 selected **points**. Undo is available." |
+
+Die Einzahlfassung trägt keine veränderliche Zahl mehr und steht deshalb als
+festes Muster ohne `$1`; die Mehrzahl behält ihre Gruppe.
+
+**Zugesichert in beiden Richtungen** (`tools/test-inspector.mjs`, Abschnitt
+„Der Loeschknopf beugt Einzahl und Mehrzahl"): auf Deutsch erzeugt und nach
+`setLanguage("en")` gemessen, auf Englisch erzeugt und nach `setLanguage("de")`
+gemessen, dazu eine Zusicherung, dass **keine** der vier Fassungen die
+Klammerform trägt. Drei Mutationen belegen sie, je 0 Timeouts:
+
+| Mutation | gerissene Zusicherungen |
+|---|---|
+| Adjektivbeugung zurückgenommen | **2** – „deutsch, ein Punkt: das Adjektiv ist mitgebeugt", „auf deutsch erzeugt, dann englisch: Einzahl ohne Klammerform" |
+| Klammerform wieder eingeführt (ein Muster statt zweier) | **3**, darunter „keine Klammerform in irgendeiner der vier Fassungen" |
+| `updateMultiSelectionUi()` aus `updateSelectionPanel()` ausgehängt | **1** – „auf englisch erzeugt, dann deutsch: die Mehrzahl ist deutsch" |
+
+**Die dritte war beim ersten Anlauf wirkungslos**, und der Grund gehört dazu:
+mutiert wurde zunächst der Aufruf in `startFeatureDrawing()` – derselbe Name,
+andere Stelle, und der gemessene Fall läuft dort nicht hindurch. Der Test
+blieb grün und sagte damit über nichts etwas. Erst der Aufruf in
+`updateSelectionPanel()` ist der Weg, den ein Sprachwechsel nimmt. **Eine
+Mutation wird an der Stelle gesetzt, die der gemessene Fall wirklich
+durchläuft – der Funktionsname allein sagt das nicht.**
 
 **Daraus die Aufteilung, die 8b zu bauen hätte – und sie ist zweigeteilt, was
 vorher nicht klar war:**
@@ -5756,6 +5808,16 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | `N Punkte begradigt · …` | „1 Punkt begradigt · …" |
   | `Es gibt bereits eine Search Wire mit N Punkten.` | „… mit 1 Punkt." |
   | `Es gibt bereits einen Docking-Pfad mit N Punkten.` | „… mit 1 Punkt." |
+  | `Löschen: N ausgewählte Punkte entfernen.` (nachgetragen im **zwanzigsten** Durchgang) | „Löschen: 1 **ausgewählten** Punkt entfernen." |
+
+  **Der Nachtrag ist der Beleg dafür, dass ein Suchmuster enger sein kann als
+  sein Gegenstand.** Das Muster sah `${…}` gefolgt von einem **Wort** an; beim
+  Löschknopf steht zwischen Zahl und Nomen ein **Adjektiv**
+  (`${count} ausgewählte Punkt${…}`), und die Stelle fiel durch. Gefunden hat
+  sie die Bestandsaufnahme zur Kontext-Knopfleiste, drei Durchgänge später.
+  **Sie ist zugleich der einzige Fall der Liste, bei dem das Adjektiv gebeugt
+  werden muss** – wer das Muster erweitert, sucht `${…}` gefolgt von
+  beliebig vielen Wörtern vor dem Nomen.
 
   **Nicht umgestellt, mit Grund** – und der häufigste Grund ist, dass die
   Einzahl **gar nicht vorkommt**:
@@ -7767,20 +7829,28 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   | Datei | prüfend | nur herstellend |
   |---|---|---|
-  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**53** | 9 |
+  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**53** | 10 |
   | `tools/test-merge.mjs` | 5 | 5 |
   | `tools/test-map-switch.mjs` | 1 | 1 |
   | `tools/test-dockpath.mjs` | – | 2 |
   | `tools/test-menu.mjs` | – | 3 |
   | `tools/test-reduce.mjs` | – | 1 |
   | `tools/test-toolbar.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**59** | <!-- bestand: zusicherungen-herstellend -->**23** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**59** | <!-- bestand: zusicherungen-herstellend -->**24** |
 
-  **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und mit dem
-  neunzehnten fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
+  **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
+  zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
   Stand `ae029fe`; vier prüfende kamen aus dem Bau der Kontext-Knopfleiste
   dazu, drei weitere prüfende und eine herstellende aus den Symbolen des
-  neunzehnten Durchgangs. Sie stehen sämtlich in `tools/test-inspector.mjs`. Die Methode ist gegen `ae029fe`
+  neunzehnten Durchgangs, und eine herstellende aus dem Löschknopf-Abschnitt
+  des zwanzigsten. Sie stehen sämtlich in `tools/test-inspector.mjs`.
+
+  **Die letzte ist ein lehrreicher Grenzfall der Methode.** Der Abschnitt
+  prüft sehr wohl den Löschknopf – er liest seinen `title` in vier Fassungen –,
+  aber über den Helfer `loeschTitel()`; der Bezeichner steht damit im Vorlauf
+  und in keinem `check()`-Aufruf. Die Methode zählt ihn deshalb als
+  **herstellend**, und das ist richtig gemessen, nicht falsch: sie zählt, wo
+  der Bezeichner **steht**, nicht, was die Zusicherung meint. Die Methode ist gegen `ae029fe`
   kalibriert und liefert dort die damalige Tabelle Zeile für Zeile wieder –
   siehe Abschnitt 4.5.
 
