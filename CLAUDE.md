@@ -6912,6 +6912,50 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Etappe 8b – dieselbe Angabe steht im Inspektor unter „Mäher" und „Richtung",
   und auf dem Zielgerät erschien der Tooltip ohnehin nie.
 
+  **GESCHÄRFT mit dem zwanzigsten Durchgang – drei Messungen, damit die
+  Entscheidung nicht mehr geraten werden muss.**
+
+  **Erstens: der Zweig ist wirklich unerreichbar.** Gemessen im Browser mit
+  eingeschalteter Vorschau und einem ausgewählten Punkt: der Mäher trägt
+  `pointer-events: none`, und `elementFromPoint()` liefert an seiner Mitte den
+  Punktmarker (`circle.vertex`, `data-vertex-key="0:0:0"`). Der `<title>`
+  entsteht weiter und lautet „Perimeter · Punkt 1/4 · Mäher 0,65 × 0,35 m ·
+  0,0°".
+
+  **Zweitens: der Umfang ist 26 Zeilen** – `robot.addEventListener(
+  "pointerdown", …)` von `index.html:12365` bis `:12389`. Die übrigen 23 Zeilen
+  der Funktion bauen den `<title>` und werden gebraucht.
+
+  **Drittens, und das ist der eigentliche Befund: der tote Zweig ist eine
+  WORTGLEICHE Kopie der lebenden Kette am Punktmarker.** Dort, im
+  `pointerdown`-Handler an `circle` (`index.html:16229` ff.), steht dieselbe
+  Folge – Messpunkt, Zeichenpunkt, Flächenauswahl, Strg-Umschalten, Ziehen.
+  **Nachgemessen: 20 von 20 Zeilen ab `event.preventDefault()` sind Zeichen
+  für Zeichen identisch.**
+
+  **Damit ist er nicht nur toter Code, sondern eine Tatsache an zwei Orten** –
+  genau die Fehlerklasse, gegen die diese Datei durchgehend argumentiert. Wer
+  die lebende Kette ändert und die tote übersieht, hinterlässt zwei Fassungen
+  derselben Geste; dass die eine nicht läuft, merkt beim Lesen niemand.
+
+  **Viertens: das Entfernen lässt keine Funktion verwaisen.** Alle fünf
+  aufgerufenen Funktionen haben außerhalb des toten Zweiges weitere Aufrufer –
+  je zwei bis drei:
+
+  | Funktion | Aufrufstellen außer dem toten Zweig |
+  |---|---|
+  | `addMeasurementPoint()` | `:16234`, `:18744` |
+  | `addFeatureDrawPoint()` | `:16239`, `:18750`, `:18920` |
+  | `startAreaSelection()` | `:16244`, `:18756` |
+  | `toggleVertexSelection()` | `:16249`, `:17982` |
+  | `startSelectedVertexDrag()` | `:16142`, `:16253`, `:17609` |
+
+  **Ob er fällt, bleibt die Entscheidung des Projektinhabers** – die Hausregel
+  „UI-Element entfernen – Pflichtsuche" verlangt dafür einen eigenen Durchgang,
+  und der `<title>` derselben Funktion wird weiter gebraucht. Was diese Messung
+  liefert, ist der Umfang, die Unerreichbarkeit und die Gewissheit, dass nichts
+  daran hängt.
+
 - **Die Mähbahnen-Vorschau ist geplant, aber nicht gebaut.** Sie war für
   Ausgabe 049 vorgesehen und wurde herausgenommen, um den Release nicht
   aufzuhalten; sie kommt in einer späteren Ausgabe. In der Anwendung gibt es
