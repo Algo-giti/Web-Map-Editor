@@ -5680,12 +5680,60 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Overlays plus die ersten Worte des Satzes – Zeilennummern verschieben sich
   mit jeder Änderung und wären hier bereits beim Aufschreiben veraltet.
 
-  **Die Liste ist derzeit leer: die acht bekannten Sätze sind mit Etappe 7g
-  behoben**, deutsch und englisch im selben Commit. Der Eintrag bleibt
-  trotzdem stehen, denn der Grund für ihn ist nicht erledigt – das Overlay
-  beschreibt weiterhin Anordnung in Prosa, und jede weitere Etappe kann es
-  wieder falsch machen. **Beim Fortschreiten der Etappen hier ergänzen**,
-  statt am Ende alles neu zu lesen.
+  **Die acht bekannten Sätze sind mit Etappe 7g behoben**, deutsch und
+  englisch im selben Commit. Der Eintrag bleibt stehen, denn der Grund für ihn
+  ist nicht erledigt – das Overlay beschreibt weiterhin Anordnung in Prosa,
+  und jede weitere Etappe kann es wieder falsch machen. **Beim Fortschreiten
+  der Etappen hier ergänzen**, statt am Ende alles neu zu lesen.
+
+  **Und genau das ist eingetreten: der zwanzigste Durchgang fand drei neue
+  falsche Sätze.** Die Liste stand seit 7g als „derzeit leer" da, und in der
+  Zwischenzeit sind die acht Auswahlknöpfe in die Kontext-Knopfleiste gezogen
+  (elfter Durchgang) und das Verbinden hat mit 7d einen neuen Begriff bekommen.
+  **Alle drei sind im selben Durchgang behoben, deutsch und englisch:**
+
+  | Satz | war falsch, weil | steht jetzt da |
+  |---|---|---|
+  | „Karten verbinden:" | nannte „Start/Ende beider Perimeter festlegen" – die Vorstellung von vier Freiheitsgraden, die 7d widerlegt hat. Die Oberfläche sagt seitdem **Auftrennstelle** | „je Karte die Auftrennstelle wählen – zwei benachbarte Punkte des Perimeters" |
+  | „Exclusion löschen:" | „anschließend **im Inspektor** „Auswahl löschen" verwenden" – der Knopf steht ab 960 px über der Karte | der Ortsbezug ist gestrichen |
+  | „Punkte löschen:" | „entfernt „Auswahl löschen" **im Inspektor** die komplette Exclusion" | ebenso |
+  | „Werkzeuge:" | „stehen **im Inspektor** bei der Auswahl" | „stehen in der Auswahlleiste, die erscheint, sobald etwas ausgewählt ist" |
+
+  **Gemessen, nicht vermutet**: bei 1280 px liegen alle fünf geprüften Knöpfe
+  über der Karte, bei 959 px im Inspektor.
+
+  **Die Behebung nennt den ORT nicht mehr, sondern das Bedienelement.** Das
+  ist die Lehre aus dem Fall: die Leiste steht je nach Fensterbreite an zwei
+  verschiedenen Orten, und jeder feste Ort im Text wäre in einer der beiden
+  Breiten falsch. Diese Datei sagt es an anderer Stelle selbst – „ein Ort in
+  einem Text ist genau das, was veraltet".
+
+  **Der vierte Satz, „Punkte löschen:", ist der Beleg für eine Regel, die
+  schon hier steht.** Er war einer der acht von 7g – also ein Eintrag, an dem
+  schon einmal gearbeitet worden war. Gefunden hat ihn nicht die Durchsicht
+  der deutschen Sätze, sondern eine Suche nach **„in the inspector" im
+  englischen Bestand**: die deutsche Fassung sagt „im Inspektor", und beide
+  standen auf derselben Liste. **Wer eine Liste fortschreibt, sucht in beiden
+  Sprachen** – die englische Fassung ist kein Abbild, sie ist eine zweite
+  Fundstelle.
+
+  **Zwei weitere Sätze sind NICHT falsch, aber unvollständig geworden –
+  Befund, nicht behoben:**
+
+  | Satz | was fehlt |
+  |---|---|
+  | „Bedienung: auf kleinen Displays stehen Werkzeugleiste, Karte und Inspektor untereinander, und die Seite scrollt." | **gemessen: bei 744 px scrollt die Seite NICHT**, erst ab 743 px abwärts. Seit Etappe 8 ist 744 px das kleinste Zielgerät; der Satz beschreibt damit einen Zustand **außerhalb** des Zielbereichs, ohne das zu sagen. Was „kleine Displays" heißen soll, ist eine Entscheidung und gehört zu Etappe 10 |
+  | „Start / Ende: ausgewählten Polygonpunkt als neuen Start- oder Endpunkt setzen" | verschweigt, dass **beide Knöpfe dieselbe Drehung auslösen und die zweite die erste überschreibt** – der Befund, aus dem 7d entstanden ist. Die einzige Stelle, an der das steht, sind die beiden `title`-Attribute, und die gehören zu 8b |
+
+  **Drittens ein Befund ohne Falschaussage: der Zuklapp-Griff der
+  Auswahlleiste kommt im Overlay nicht vor.** Er ist mit dem dreizehnten
+  Durchgang dazugekommen. Das Overlay erwähnt ihn nicht – keine falsche
+  Aussage, aber eine Lücke; ob sie gefüllt wird, ist Etappe 10.
+
+  **Nachgemessen nach der Behebung:** `tools/scan-i18n.mjs` meldet über alle
+  achtzehn Zustände **NEU 0** bei 35 bekannten Falschmeldungen, und keiner der
+  vier ausgetauschten Wörterbuchschlüssel ist als Rest zurückgeblieben – weder
+  auf der deutschen noch auf der englischen Seite.
 
   **Was die Behebung an Lehre hinterlässt – der achte Satz.** Erfasst waren
   sieben; falsch waren acht. Der fehlende war „Punkte löschen: einzeln oder
