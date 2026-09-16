@@ -8757,10 +8757,59 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Auswahl gar nicht hat. Eine Umgehung, die den gemessenen Zustand verändert,
   ist schlechter als eine, die nur die Reihenfolge ändert.
 
-  **Die Lücke bleibt damit offen und ist dieselbe wie im elften Durchgang:**
-  bei **zwei** verdeckten Markern trüge die Sortierung nicht mehr, denn nach
-  dem ersten Klick steht die Leiste. Gemessen ist sie an einer Karte mit
-  einem verdeckten Marker; eine mit zweien ist nicht gefahren worden.
+  **Die Lücke bleibt offen – und sie ist mit dem zwanzigsten Durchgang
+  GEMESSEN statt vermutet.** Sie stand hier als „bei zwei verdeckten Markern
+  trüge die Sortierung nicht mehr … eine Karte mit zweien ist nicht gefahren
+  worden". Sie ist jetzt gefahren.
+
+  **Der Reproduktionsfall ist ein Perimeter mit mehreren Punkten an der
+  Oberkante**, bei 1280 × 900 px:
+
+  ```
+  [[0,0],[40,0],[40,40],[30,40],[20,40],[10,40],[5,40],[0,40],[0,0]]
+  ```
+
+  Er legt **zwei** Marker unter die Leiste (`0:0:6` bei 317/98 und `0:0:7` bei
+  234/98); die Leiste misst dort 172 × 330 px bei 180/60. Ein **dritter**
+  Fall, eine Treppe links oben
+  (`[[0,0],[40,0],[40,40],[6,40],[4,38],[2,36],[0,34]]`), legt sogar **vier**
+  darunter – getroffen werden dort `selectionActions`, `insertPointBeforeBtn`,
+  `insertPointAfterBtn` und `setStartPointBtn`.
+
+  **Gemessen mit der Umgehung aus `waehlePunkte()`** – nach Nähe zur linken
+  oberen Ecke sortiert, den nächsten zuerst:
+
+  | Schritt | was an der Stelle liegt, **vor** dem Klick | Ergebnis |
+  |---|---|---|
+  | 1. `0:0:7` | der Marker selbst – die Leiste ist bei **leerer** Auswahl unsichtbar | geklickt, Auswahl 1 |
+  | 2. `0:0:6` | `selectionActions` | **abgefangen**, „subtree intercepts pointer events", Auswahl bleibt 1 |
+
+  **Eins von zwei.** Die Umgehung trägt den ersten Marker und nur ihn; der
+  Grund ist genau der notierte – nach dem ersten Klick steht die Leiste.
+
+  **Nebenbefund, und er gehört zur vierten Antwort: das Zuklappen löst diesen
+  Fall.** Dieselbe Folge, aber nach dem ersten Klick zugeklappt: **zwei von
+  zwei**. Der Griff misst 38 × 38 px bei 180/60 und trifft auf dieser Karte
+  keinen Marker.
+
+  **Das widerspricht dem Urteil des dreizehnten Durchgangs nicht, es
+  präzisiert es.** Dort stand, das Zuklappen mache die Umgehung nicht
+  entbehrlich, weil der Ausgangszustand aufgeklappt ist und der erste Klick
+  die volle Leiste trifft. Gemessen trifft der **erste** Klick sie gar nicht –
+  bei leerer Auswahl ist die Leiste unsichtbar; erst ab dem **zweiten** steht
+  sie. Das Urteil bleibt trotzdem: eine Umgehung, die den gemessenen Zustand
+  verändert, ist schlechter als eine, die nur die Reihenfolge ändert, und ein
+  Test, der zwischendurch zuklappt, misst einen Zustand, den ein Nutzer bei
+  der ersten Auswahl nicht hat.
+
+  **Nicht gebaut, und nichts entschieden.** Welche der drei Antworten oben
+  gilt, ist unverändert offen; dieser Durchgang hat nur die Lücke belegt und
+  die vierte Antwort um eine Messung ergänzt.
+
+  **Was NICHT erhoben wurde:** ob die Verdeckung bei grobem Zeiger andere
+  Marker trifft (die Leiste ist dort gleich breit, der Griff mit 42 px aber
+  größer), und ob es Kartenformen gibt, bei denen schon der **erste** Marker
+  einer Auswahl unerreichbar ist.
 
 - **Die eigene Touch-Größe über der Karte ist 42 px, die Vorgabe 44 – offener
   Punkt, eingetragen mit dem elften Durchgang, ausdrücklich nicht gebaut.**
