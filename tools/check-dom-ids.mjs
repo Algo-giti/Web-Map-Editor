@@ -101,6 +101,46 @@ for (const name of functionNames) {
   seenFunctions.add(name);
 }
 
+/*
+ * Funktionen, die NIRGENDS aufgerufen werden.
+ *
+ * Die Klasse, gegen die dieses Skript gebaut ist, hat zwei Hälften: eine
+ * Referenz ohne Element (oben geprüft) und ein Element ohne Referenz - also
+ * Code, der nach dem Entfernen eines Bedienelements stehen bleibt. Genau so
+ * hat deleteSelectedExclusion() den in Ausgabe 043 entfernten Knopf um
+ * mehrere Ausgaben überlebt.
+ *
+ * WARNUNG, NICHT FEHLER: eine ungenutzte Funktion ist Ballast, kein Defekt,
+ * und sie kann absichtlich dastehen. Reissbar wird die Zahl über die
+ * markierte Bestandszahl "funktionen-ohne-aufrufer" in CLAUDE.md.
+ *
+ * Gezählt wird im Skriptblock OHNE Kommentare - eine Erwähnung in einem
+ * Kommentar ist keine Verwendung - und zusätzlich im Markup, wo ein
+ * onclick-Attribut eine Funktion aufrufen könnte. Nachgemessen: die Datei
+ * kennt weder window[...] noch eval() noch ein einziges Markup-Handler-
+ * Attribut, ein dynamischer Aufrufweg besteht also nicht.
+ */
+const scriptStart = html.indexOf("<script>");
+const scriptEnd = html.indexOf("</script>", scriptStart);
+const scriptBody = html.slice(scriptStart, scriptEnd);
+const markupOnly = html.slice(0, scriptStart) + html.slice(scriptEnd);
+const scriptWithoutComments = scriptBody
+  .replace(/\/\*[\s\S]*?\*\//g, " ")
+  .replace(/^\s*\/\/.*$/gm, " ");
+
+const unusedFunctions = [];
+for (const name of seenFunctions) {
+  const pattern = new RegExp(`\\b${name}\\b`, "g");
+  const inCode = (scriptWithoutComments.match(pattern) || []).length;
+  const inMarkup = (markupOnly.match(pattern) || []).length;
+  /* inCode === 1 ist die Deklaration selbst. */
+  if (inCode <= 1 && inMarkup === 0) {
+    const line = html.slice(0, html.indexOf(`function ${name}(`)).split("\n").length;
+    unusedFunctions.push({ name, line });
+  }
+}
+unusedFunctions.sort((a, b) => a.line - b.line);
+
 const missing = [];
 const seen = new Set();
 for (const match of getByIdCalls) {
@@ -146,6 +186,16 @@ if (composedIds.length > 0) {
   );
   for (const line of composedIds) console.error(`  - line ${line}`);
   process.exitCode = 1;
+}
+
+if (unusedFunctions.length > 0) {
+  console.log(
+    `check-dom-ids: WARNUNG - ${unusedFunctions.length} Funktion(en) werden in ` +
+      "index.html nirgends aufgerufen (Ballast, kein Defekt - deshalb kein Fehler):"
+  );
+  for (const f of unusedFunctions) {
+    console.log(`  - ${f.name}() (index.html:${f.line})`);
+  }
 }
 
 if (missing.length > 0) {

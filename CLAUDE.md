@@ -239,6 +239,11 @@ Führt nacheinander aus:
     entstanden so fünf Doppelungen, weil kopiert statt verschoben wurde.
     Betrachtet wird nur das Markup: eine Vorlage im Skript darf dieselbe `id`
     tragen wie das Markup, das sie ersetzt.
+  - **Eine Funktion ohne jeden Aufrufer wird gemeldet.** Die geprüfte Klasse
+    hat zwei Hälften – eine Referenz ohne Element und ein Element ohne
+    Referenz; seit dem zwanzigsten Durchgang ist auch die zweite abgedeckt.
+    **Warnung, kein Fehler**, reißbar über die Bestandszahl
+    `funktionen-ohne-aufrufer`. Details in Abschnitt 7.
   - **Ein Funktionsname am Zeilenanfang darf nur einmal vorkommen.** Eine
     zweite Deklaration überschreibt die erste lautlos. `isWholeFeatureSelected()`
     bekam beim Bau des Inspektors eine zweite Fassung mit anderer Signatur –
@@ -1519,6 +1524,7 @@ Dazu drei Regeln, jede mit ihrem Anlass:
 | `details-inspector-note` | 1 | davon `.inspector-note` |
 | `details-selection-actions` | 1 | davon `.selection-actions` |
 | `klicks-feste-koordinate` | 1 | `position: { x:` in `tools/` |
+| `funktionen-ohne-aufrufer` | 1 | globale Funktionen ohne Aufruf, **gemessen über `tools/check-dom-ids.mjs` selbst** |
 | `verwaiste-css-klassen` | 1 | Klassenselektoren ohne Verwendung, **gemessen über `tools/check-css-classes.mjs` selbst** |
 
 **Was der Prüfer außerdem meldet**, weil es ohne ihn stillschweigend
@@ -5666,12 +5672,47 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   lässt sich nicht von der Schreibweise lösen, auf die es zeigt – behebbar ist
   nur, ob jemand von der Lücke erfährt.
 
-- **`tools/check-dom-ids.mjs` prüft IDs und doppelte Funktionsnamen, aber
-  keine Variablennamen und keine verwaisten Funktionen.** Verwaister Code nach
-  dem Entfernen eines UI-Elements bleibt dadurch unentdeckt – genau so hatte
-  `deleteSelectedExclusion()` den in Ausgabe 043 entfernten Button um mehrere
-  Ausgaben überlebt. Die manuelle Volltextsuche aus Abschnitt 5 ("UI-Element
-  entfernen") bleibt deshalb Pflicht.
+- **`tools/check-dom-ids.mjs` prüft IDs, doppelte Funktionsnamen und – seit
+  dem zwanzigsten Durchgang – Funktionen ohne Aufrufer; Variablennamen prüft
+  es weiterhin nicht.** Verwaister Code nach dem Entfernen eines UI-Elements
+  blieb dadurch unentdeckt – genau so hatte `deleteSelectedExclusion()` den in
+  Ausgabe 043 entfernten Button um mehrere Ausgaben überlebt.
+
+  **Die Hälfte, die dazugekommen ist:** die geprüfte Klasse hat zwei Seiten –
+  eine Referenz ohne Element (das prüfte das Skript schon) und ein Element
+  ohne Referenz. Die zweite ist jetzt abgedeckt. Gezählt wird im Skriptblock
+  **ohne Kommentare** – eine Erwähnung in einem Kommentar ist keine
+  Verwendung – und zusätzlich im Markup. **Meldet als Warnung und endet mit
+  0**; reißbar ist die Zahl über die markierte Bestandszahl
+  `funktionen-ohne-aufrufer`.
+
+  **Heute sind es <!-- bestand: funktionen-ohne-aufrufer -->2, und beide sind
+  ein eigener Befund:**
+
+  | Funktion | von `index.html` aufgerufen | von `tools/` benutzt |
+  |---|---|---|
+  | `isAbsoluteWgs84Collection()` (`index.html:10449`) | **nein** | ja, 11 Verweise in `tools/test-cassandra.mjs` |
+  | `pointSegmentDistance()` (`index.html:14002`) | **nein** | ja, 3 Verweise in `tools/test-geometry.mjs` |
+
+  **Sie sind nicht tot, sondern verwaist: geprüft, aber von niemandem
+  benutzt.** Das ist die unangenehmere Lage – ein Test, der eine Funktion
+  zusichert, die die Anwendung nicht mehr aufruft, prüft nichts, was der
+  Nutzer je zu sehen bekommt, und er lässt sie zugleich lebendig aussehen.
+  **Ob sie fallen, ist eine Entscheidung**: mit ihnen fielen die Zusicherungen,
+  und `pointSegmentDistance()` ist eine reine Geometriefunktion, die ein
+  künftiges Werkzeug wieder brauchen könnte. **Nicht entfernt.**
+
+  **Die Methode ist sicher, und das ist gemessen:** `index.html` kennt weder
+  `window[...]` noch `globalThis[...]` noch `eval()` noch ein einziges
+  Markup-Handler-Attribut (die fünf Treffer auf `on[a-z]*="` sind Teile von
+  `content=` und `aria-controls=`). Ein dynamischer Aufrufweg, den eine
+  Textsuche übersähe, besteht nicht.
+
+  **Was weiterhin fehlt: Variablennamen.** Eine verwaiste `const` oder `let`
+  findet das Skript nicht, und für lokale Variablen wäre dafür ein echter
+  Parser nötig. Die manuelle Volltextsuche aus Abschnitt 5 („UI-Element
+  entfernen") bleibt deshalb Pflicht – nur für einen kleineren Rest als
+  vorher.
 - **Das Hilfe-Overlay beschreibt die Anordnung in Prosa und veraltet mit
   jeder Etappe des Oberflächenumbaus.** Es wird in Etappe 10 vollständig neu
   geschrieben, wenn die Anordnung feststeht – vorher wäre es zweimal Arbeit.

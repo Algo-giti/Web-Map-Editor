@@ -567,6 +567,23 @@ const MESSUNGEN = {
     messen: () =>
       toolsDateien().reduce((summe, d) => summe + zaehle(d.quelle, /position: \{ x:/g), 0),
   },
+  "funktionen-ohne-aufrufer": {
+    was:
+      "globale Funktionen, die index.html nirgends aufruft, gezaehlt von " +
+      "tools/check-dom-ids.mjs",
+    messen: () => {
+      /* Ueber das Pruefskript selbst, nicht ueber eine zweite Kopie seines
+         Suchmusters - dieselbe Entscheidung wie bei verwaiste-css-klassen. */
+      const ausgabe = execFileSync(
+        process.execPath,
+        [join(toolsDir, "check-dom-ids.mjs")],
+        { encoding: "utf8" }
+      );
+      const treffer = ausgabe.match(/WARNUNG - (\d+) Funktion\(en\) werden/);
+      if (!treffer) return 0;
+      return Number(treffer[1]);
+    },
+  },
   "verwaiste-css-klassen": {
     was:
       "Klassenselektoren im <style>-Block ohne jede Verwendung, gezaehlt von " +
