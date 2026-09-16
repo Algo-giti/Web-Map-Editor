@@ -3160,6 +3160,26 @@ Farbe, gleiche Stelle, zwei verschiedene Dinge.
   seinen Ergebnispfad die Klasse `.straighten-preview-line` des Begradigens.
   Zwei Werkzeuge, eine Farbe – dieselbe Regel, dieselbe Runde.
 
+  **NACHGEMESSEN mit dem zwanzigsten Durchgang – beide Befunde stehen, und
+  jetzt mit Zahlen.** Nichts geändert; die Entscheidung ist unverändert offen.
+
+  | gemessen | Wert |
+  |---|---|
+  | `#selectionGhostGroup` | trägt `class="selection-ghost"`, berechnete `opacity` **0,42** |
+  | Rechtwinklig-Vorschau, `stroke` | `rgba(180, 255, 160, 0.85)` – der in diesem Abschnitt genannte Wert, unverändert |
+  | eigene `opacity` der Vorschau-Elemente | **1** – sie erben also die 0,42 der Gruppe |
+  | **effektive Deckung des Grüns** | **0,85 × 0,42 = 0,357** |
+  | `renderReducePreview()` | setzt für den Ergebnispfad `class="straighten-preview-line"`; nur sein **Knoten** hat mit `reduce-preview-node` eine eigene Klasse |
+
+  **Die 0,357 sind die Zahl, um die es geht:** ein Grün, das zu gut einem
+  Drittel deckt, steht neben Ghosts, die mit `rgba(255,255,255,.16)` × 0,42
+  gezeichnet werden – der Unterschied, den der Nutzer sehen soll, liegt damit
+  in einem Bereich, in dem beide grau wirken.
+
+  **Die Klassenteilung ist ebenso unverändert:** von den drei Vorschauen haben
+  Begradigen und Rechtwinklig je eigene Klassen für Linie und Knoten,
+  Reduzieren teilt sich die **Linie** mit dem Begradigen.
+
 - **Strichbreiten und Leuchten:** MapmakerBT zeichnet etwa doppelt so kräftig
   (Perimeter 5, Exclusion 4, Dock 5, Search Wire 4, Punktrand 4 gegen unsere
   2,2 / 2,0 / 2,6 / 2,4 / 1,4) und legt auf jede Form ein
