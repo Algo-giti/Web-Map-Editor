@@ -7662,7 +7662,55 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   ausrechnet. Der Aufzeichner bleibt trotzdem nützlich – er nennt die
   Abstände, und die sagen, wie knapp die durchgekommenen Klicks waren.
 
-  **Nicht gebaut.** Der Eintrag ist ein Befund über die Methode, kein Auftrag.
+  **GEFAHREN mit dem zwanzigsten Durchgang – genau so, und die Lücke ist
+  geschlossen.** Das Harness wurde **vorübergehend** umhüllt: vor jedem
+  `locator.click()`, `mouse.click()` und `mouse.down()` wird das Rechteck von
+  `#selectionActions` gelesen und die Zielkoordinate dagegen gehalten. Danach
+  aus einer Sicherungskopie zurückgespielt, Prüfsumme vorher = nachher
+  (`1b8008d2…`); `index.html` war nie betroffen.
+
+  **Kalibriert am bekannten Treffer, und sie findet ihn.** Mit umgekehrter
+  Sortierung in `waehlePunkte()` – die Umgehung also ausgehebelt – meldet die
+  Messung genau einen Klick unter der Leiste:
+  `circle.vertex[data-vertex-key="0:0:3"]` auf **312/86**, Leiste 172 × 330 bei
+  180/60. Das ist Punkt für Punkt die Koordinate, die oben als bekannter Fall
+  steht. **Derselbe Lauf meldet sechsmal „intercepts pointer events"** – der
+  alte Aufzeichner hätte davon nichts gesehen, weil kein `pointerdown` ankam.
+
+  **Das Ergebnis über alle siebzehn Browsertests: 337 Klicks auf die Karte,
+  davon 0 unter der Leiste.** Der engste Abstand beträgt 97 px.
+
+  | Skript | Klicks auf die Karte | davon bei stehender Leiste | darunter | engster Abstand |
+  |---|---|---|---|---|
+  | `test-merge.mjs` | 85 | 44 | **0** | 143 px |
+  | `test-inspector.mjs` | 49 | 23 | **0** | 152 px |
+  | `test-shapes.mjs` | 40 | 0 | 0 | – |
+  | `test-i18n-dynamic.mjs` | 29 | 0 | 0 | – |
+  | `test-validation.mjs` | 23 | 0 | 0 | – |
+  | `test-reduce.mjs` | 20 | 10 | **0** | 763 px |
+  | `test-toolbar.mjs` | 20 | 0 | 0 | – |
+  | `test-dockpath.mjs` | 19 | 0 | 0 | – |
+  | `test-statusbar.mjs` | 19 | 6 | **0** | 97 px |
+  | `test-menu.mjs` | 12 | 3 | **0** | 97 px |
+  | `test-rectify.mjs` | 8 | 7 | **0** | 239 px |
+  | `test-straighten.mjs` | 3 | 2 | **0** | 239 px |
+  | `test-origin-conflict.mjs` | 3 | 0 | 0 | – |
+  | `test-placeholders.mjs` | 4 | 0 | 0 | – |
+  | `test-map-switch.mjs` | 2 | 2 | **0** | 239 px |
+  | `test-scale.mjs` | 1 | 0 | 0 | – |
+  | `smoke-test.mjs` | 0 | – | – | – |
+
+  **Klicks auf die Leiste selbst sind herausgefiltert**, und das war beim
+  ersten Anlauf der Fehler: ohne den Filter meldete die Messung 16 Treffer,
+  sämtlich Knöpfe **in** der Leiste (`#deleteMultiSelectionBtn`,
+  `#setStartPointBtn`, `#selectionActionsHandle` …). Sie liegen naturgemäß in
+  ihrem Rechteck und sagen nichts – genau wie es der zehnte Durchgang schon
+  notiert hatte. Gefiltert wird über `el.closest("#selectionActions")`.
+
+  **Die Zahlen sind NICHT mit denen des elften Durchgangs vergleichbar.** Dort
+  wurden `pointerdown`-Ereignisse gezählt, hier Klick-**Aufrufe**; ein Zug
+  erzeugt mehrere Ereignisse, aber einen Aufruf. Wer beide Tabellen
+  nebeneinander legt, vergleicht zwei verschiedene Größen.
 
   #### ERLEDIGT mit dem neunzehnten Durchgang: die acht Symbole sind da
 
