@@ -6181,6 +6181,43 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Nach dem Oberflächenumbau ansehen: entweder Löcher gar nicht erst editierbar
   machen, oder Prüfung und Flächenrechnung auf alle Ringe ausweiten. Beides ist
   eine Entscheidung, kein Nachtrag.
+
+  **GEMESSEN mit dem zwanzigsten Durchgang – der Fehler ist beziffert.**
+  Reproduktionsfall: eine Exclusion von 20 × 20 m mit einem Loch von 10 × 10 m,
+  echte Sperrfläche also **300 m²**.
+
+  | | Ergebnis |
+  |---|---|
+  | Punktmarker | **acht** – `1:0:0` … `1:0:3` für den Außenring, `1:1:0` … `1:1:3` für den Innenring. **Beide Ringe sind editierbar** |
+  | `polygonAreaMeters()` | **400 m²** statt 300 – **33 % zu hoch** |
+  | Prüfbericht | „Info: Exclusion 0: **400,00 m²**." – die falsche Zahl steht dem Nutzer da, und **kein einziger Befund erwähnt das Loch** |
+
+  **Vier Stellen lesen `coordinates[0]`** und sehen den Innenring damit nicht:
+  zweimal in `validateMapData()`, dazu `getUniqueOuterRing()` und
+  `polygonAreaMeters()`. `polygonAreaMeters()` steigt zusätzlich bei
+  `type !== "Polygon"` sofort aus – ein **MultiPolygon** liefert dort **0 m²**.
+
+  **Das ist die sicherheitsrelevante Hälfte des Punktes, jetzt mit einer
+  Zahl:** der Editor zeigt eine Sperrfläche, die um ein Drittel größer ist als
+  die, die der Mäher tatsächlich meiden soll – und er zeigt sie als Tatsache,
+  nicht als Schätzung.
+
+  **Nebenbefund, der zum Mähergeometrie-Paket gehört: die beiden Ringe laufen
+  GLEICHSINNIG.** Die vorzeichenbehaftete Shoelace-Fläche beträgt **+400** für
+  den Außenring und **+100** für das Loch; RFC 7946 verlangt für ein Loch die
+  Gegenrichtung. **Niemand meldet das** – es gibt heute keine Prüfung des
+  Umlaufsinns. Das ist Punkt 5 des Mähergeometrie-Pakets, hier zufällig
+  belegt, und zugleich der Beleg für dessen Punkt 4: **die Zahl je Ring ist
+  wirklich nur ein `Math.abs()` entfernt**, wie dort notiert.
+
+  **Nicht erhoben:** was die Flächenwarnung beim Reduzieren mit einem Loch
+  meldet, und ob `enumerateEditableVertices()` bei einem MultiPolygon mit Loch
+  dieselbe Zahl Marker liefert.
+
+  **Nichts geändert.** Die Entscheidung – Löcher sperren oder Prüfung und
+  Flächenrechnung auf alle Ringe ausweiten – steht unverändert aus, und sie
+  ist mit der Umlaufsinn-Frage aus dem Mähergeometrie-Paket **dieselbe**:
+  beide verlangen, dass `polygonAreaMeters()` je Ring rechnet.
 - **Der Prüfbericht speichert Rohwerte – ERLEDIGT mit Schritt 4 des vierten
   Durchgangs.** Der Eintrag bleibt stehen, weil er die Regel trägt.
 
