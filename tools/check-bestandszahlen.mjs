@@ -27,6 +27,7 @@
 //
 // Die Messmethoden sind in CLAUDE.md, Abschnitt 4.5, beschrieben.
 
+import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { runInNewContext } from "node:vm";
@@ -565,6 +566,24 @@ const MESSUNGEN = {
     was: "Klicks mit fester Koordinate in tools/, gefunden ueber \"position: { x:\"",
     messen: () =>
       toolsDateien().reduce((summe, d) => summe + zaehle(d.quelle, /position: \{ x:/g), 0),
+  },
+  "verwaiste-css-klassen": {
+    was:
+      "Klassenselektoren im <style>-Block ohne jede Verwendung, gezaehlt von " +
+      "tools/check-css-classes.mjs",
+    messen: () => {
+      // Gemessen wird ueber das Pruefskript selbst, nicht ueber eine zweite
+      // Kopie seines Suchmusters: zwei Rechenwege fuer dieselbe Zahl liefen
+      // genau dort auseinander, wo der Unterschied schwer zu sehen ist.
+      const ausgabe = execFileSync(
+        process.execPath,
+        [join(toolsDir, "check-css-classes.mjs")],
+        { encoding: "utf8" }
+      );
+      const treffer = ausgabe.match(/WARNUNG - (\d+) Klassenselektoren ohne/);
+      if (!treffer) return 0;
+      return Number(treffer[1]);
+    },
   },
 };
 

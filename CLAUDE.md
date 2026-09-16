@@ -270,6 +270,12 @@ Führt nacheinander aus:
   `package.json`. Ein privater Name ist von einem synthetischen syntaktisch
   nicht zu unterscheiden; die Prüfung kann deshalb nur den **Ort** erkennen,
   nicht den Namen.
+- **`tools/check-css-classes.mjs`** – sammelt die Klassenselektoren des
+  `<style>`-Blocks und hält sie gegen jede Stelle, an der im Rest der Datei
+  eine Klasse vergeben wird. **Meldet als Warnung und endet mit 0** – eine
+  verwaiste Regel ist Ballast, kein Defekt; reißbar wird die Zahl über die
+  markierte Bestandszahl `verwaiste-css-klassen`. Details und die benannte
+  Grenze (aus Variablen gebildete Klassen) stehen in Abschnitt 7.
 - **`tools/test-cassandra.mjs`** – Unit-Tests der CaSSAndRA-Kompatibilität:
   Typ-Bezeichner und deren Aliasse, Label-Vorrang bei der Anzeige,
   `cos(lat)`-Skalierung, verlustfreier Rundlauf relativ → absolut → relativ
@@ -1513,6 +1519,7 @@ Dazu drei Regeln, jede mit ihrem Anlass:
 | `details-inspector-note` | 1 | davon `.inspector-note` |
 | `details-selection-actions` | 1 | davon `.selection-actions` |
 | `klicks-feste-koordinate` | 1 | `position: { x:` in `tools/` |
+| `verwaiste-css-klassen` | 1 | Klassenselektoren ohne Verwendung, **gemessen über `tools/check-css-classes.mjs` selbst** |
 
 **Was der Prüfer außerdem meldet**, weil es ohne ihn stillschweigend
 durchginge: eine Marke, hinter der keine Zahl steht; eine Marke, die er nicht
@@ -5427,9 +5434,61 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 - **`tools/check-privacy.mjs` ist nur heuristisch** – erkennt keine privaten
   Daten unter untypischen Schlüsselnamen. Ersetzt keine manuelle
   Diff-Prüfung vor einem Release.
-- **Eine vierte statische Prüfung fehlt: verwaiste CSS-Regeln ohne Markup.**
-  Eintragen, nicht bauen – sie ist hier als offener Punkt vermerkt, damit sie
-  nicht ein viertes Mal von Hand gefunden werden muss.
+- **ERLEDIGT mit dem zwanzigsten Durchgang: die vierte statische Prüfung gibt
+  es.** `tools/check-css-classes.mjs` sammelt die Klassenselektoren des
+  `<style>`-Blocks und hält sie gegen jede Stelle, an der im Rest der Datei
+  eine Klasse vergeben wird – Markup, Vorlagen im Skript, `classList.*`,
+  `className` und `setAttribute("class", …)`. Sie läuft in
+  `tools/check-all.mjs` mit.
+
+  **Sie meldet als WARNUNG und endet mit 0** – so war der Punkt beschrieben,
+  und der Grund trägt: eine verwaiste Regel ist Ballast, kein Defekt. **Damit
+  die Zahl trotzdem reißen kann, steht sie als markierte Bestandszahl**
+  (`verwaiste-css-klassen`) und wird von `tools/check-bestandszahlen.mjs`
+  gegen diese Messung gehalten. Heute sind es
+  <!-- bestand: verwaiste-css-klassen -->18 Regeln. Eine neu verwaiste erhöht
+  die Zahl, eine entfernte senkt sie; beides meldet der Bestandsprüfer. **Der
+  Messbefehl ruft dafür das Prüfskript auf, statt sein Suchmuster ein zweites
+  Mal hinzuschreiben.**
+
+  **Die Kalibrierung hat zwei der drei genannten Treffer gefunden – und den
+  dritten als überholt entlarvt.** `.feature-nav-feature` und
+  `.map-selection-toolbar` stehen im Befund; `.section-accent-slate`
+  **existiert im CSS nicht mehr**, es ist mit Etappe 7e (`d055501`) zusammen
+  mit der Seitenleiste entfallen. Dasselbe gilt für `.map-info-window`, das
+  der Eintrag als „seit Etappe 4 verwaist" führte – es fiel mit Etappe 6 b3
+  (`52be247`). **Beide sind derselbe Fall, den diese Datei als Lehre führt:
+  repariert, aber nicht ausgetragen.** Die Prüfung hätte das früher gesagt.
+
+  **Die benannte Grenze, und sie ist nicht auflösbar: aus einer Variablen
+  gebildete Klassen sind für eine Textsuche unsichtbar.** `` `feature
+  ${layer}` `` erzeugt fünf Ebenenklassen, `` `validation-item ${item.type}` ``
+  vier Rangklassen, `` `other-map-overlay map-${slot.id.toLowerCase()}` `` zwei.
+  Bei ids löst das Haus dieselbe Frage mit einem **Verbot** (Abschnitt 6: „jede
+  `id` ist ein Zeichenketten-Literal"); für Klassen wäre das unsinnig – eine
+  Ebenenklasse aus dem Feature-Typ zu bilden ist genau richtig.
+
+  Die betroffenen Namen stehen deshalb in `AUS_VARIABLE`, **mit dem Ausdruck,
+  der sie erzeugt** – Machart wie die `FALSCHMELDUNGEN` in
+  `tools/scan-i18n.mjs`, und die Ausgabe trennt sie von den verwaisten.
+  **Exakte Namen, kein Präfixmuster:** `map-` als Präfix träfe auch
+  `.map-selection-toolbar` und `.map-selection-counter`, und die sind wirklich
+  verwaist – ein Präfixfilter hätte genau die beiden Treffer verschluckt, um
+  derentwillen die Prüfung gebaut ist.
+
+  **Die Liste prüft sich selbst.** Ein Eintrag, dessen Klasse inzwischen als
+  Literal dasteht oder gar nicht mehr existiert, wird als HINWEIS gemeldet –
+  derselbe Fall wie ein Messbefehl ohne Marke. Beim Bau hat das sofort
+  zugeschlagen: `.exclusion` und `.searchwire` entstehen aus demselben
+  Ausdruck wie die drei anderen Ebenenklassen, kommen aber zusätzlich als
+  Literal vor und brauchen deshalb keinen Eintrag.
+
+  **Was die Prüfung NICHT tut: sie entfernt nichts.** Die 18 Regeln stehen
+  unverändert da. Welche davon fallen, ist eine Codeänderung und damit eine
+  eigene Entscheidung; die Prüfung macht sie nur sichtbar.
+
+  **Der Befund, der zu ihr geführt hat – er bleibt stehen, weil die genannten
+  Fälle die Kalibrierung sind:**
 
   Der Befund ist gemessen, nicht vermutet: in Etappe 6 b1, b2 und b3 blieben
   **dreimal** Regeln stehen, deren einziges Markup gerade entfernt worden war –
