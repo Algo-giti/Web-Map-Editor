@@ -2310,11 +2310,45 @@ sucht, prüft zuerst, ob der Text beim Sprachwechsel überhaupt angefasst
 wird.** Ein Text, den niemand neu schreibt, sieht in beiden Sprachen richtig
 aus, solange man ihn nur ansieht.
 
-### Der Zustand „Beide" – eigene Etappe, nicht 7d
+### Der Zustand „Beide" – VERWORFEN mit dem einundzwanzigsten Durchgang
 
 **Beide Karten gleichzeitig aktiv – als DRITTER ZUSTAND, nicht als Schalter.**
-Eintrag, **kein Auftrag**; die fünf Punkte darunter sind zu **entscheiden**,
-bevor gebaut wird.
+So stand der Eintrag hier, mit fünf zu entscheidenden Punkten. **Entschieden
+ist: er wird nicht gebaut.** Der ganze Abschnitt bleibt stehen, weil die
+Gründe für die Entscheidung in ihm selbst stehen.
+
+**Die Entscheidung in drei Sätzen.** Was am Zustand „Beide" wirklich gewollt
+war – **beide Karten sehen** –, gibt es: die passive Karte wird gedämpft
+gezeichnet, und seit dem einundzwanzigsten Durchgang lässt sie sich einzeln
+ein- und ausblenden. Was „Beide" darüber hinaus brächte, ist allein
+**bearbeitbar**, und dafür gibt es keinen benannten Fall: das Verbinden, der
+einzige Anlass, aus dem der Eintrag entstand, braucht ihn nachweislich nicht
+(Grund 1 unten). Der Preis dagegen ist gemessen – nicht das Feld im
+Deskriptor, sondern **sechs Werkzeuge, die je eine neue, nicht ableitbare
+Antwort auf „gemischte Auswahl" brauchen**.
+
+**Die Probe aufs Exempel steht schon in diesem Abschnitt.** „Die kleine Lesart
+wird NICHT dazugenommen … entweder beides, oder der Eintrag heißt anders."
+Genau das ist geschehen: die Sichtbarkeit je Slot ist gebaut und heißt
+**anders** – zwei Schalter „Karte A anzeigen" / „Karte B anzeigen", die
+sagen, was sie tun, und nichts behaupten, was sie nicht können. Der Eintrag
+„Beide" hätte an derselben Stelle eine Bearbeitbarkeit versprochen, die er
+nicht hat.
+
+**Die fünf Punkte sind damit beantwortet, und zwar sämtlich durch
+Gegenstandslosigkeit** – mit einer Ausnahme, die ohnehin überholt war:
+
+| Frage | Stand |
+|---|---|
+| 1. Wohin geht ein neu gesetzter Punkt? | entfällt |
+| 2. Worauf wirken die Umformwerkzeuge bei gemischter Auswahl? | entfällt – und sie war der Grund: „heute nicht darstellbar", und darstellbar zu machen ist der Umbau |
+| 3. Was zeigt der Inspektor, besonders beim Bezugspunkt? | entfällt |
+| 4. Was zeigt die Statuszeile als Dateinamen? | **überholt** – das Dateinamenfeld ist mit Schritt 2 des sechsten Durchgangs aus der Statuszeile entfallen |
+| 5. Woran hängt heute, dass genau ein Slot aktiv ist? | die Fundstellenliste bleibt als Bestandsaufnahme stehen; angefasst wird keine davon |
+
+**Wer ihn später doch baut, ändert damit eine Entscheidung und kein
+Versäumnis** – und beantwortet vorher die Fragen 1 bis 3, die unverändert
+darunter stehen.
 
 **Der Eintrag stand ursprünglich unter 7d und ist mit 7d-1 herausgelöst
 worden.** Drei Gründe, und jeder trägt für sich:
@@ -8352,9 +8386,9 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   **Nebenbefund, gemessen: das Laden einer zweiten Karte schaltet die aktive
   Karte selbsttätig um.** Nach dem Laden über `#secondFileInput` steht
-  `activeMapId` auf „B". Das ist heutiges Verhalten und für den Punkt insofern
-  erheblich, als ein dritter Zustand „Beide" die Frage neu stellte, worauf nach
-  dem Laden geschaltet wird.
+  `activeMapId` auf „B". Das ist heutiges Verhalten; die Frage, worauf ein
+  dritter Zustand „Beide" nach dem Laden schaltete, stellt sich nicht mehr –
+  er ist mit dem einundzwanzigsten Durchgang verworfen.
 
 - **Kontext-Knopfleiste am Auswahlzustand – ENTSCHIEDEN mit dem elften
   Durchgang und GEBAUT mit dessen Schritt 3.** Eingetragen als Eintrag ohne
