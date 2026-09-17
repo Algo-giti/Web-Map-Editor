@@ -21,6 +21,16 @@
 <style>
   :root {
     color-scheme: dark;
+
+    /*
+     * Die Zielgroesse fuer einen Finger. Sie steht hier an genau EINER Stelle,
+     * weil sie sonst als Zahl in jeder Regel des `pointer: coarse`-Blocks
+     * stuende - und weil sie das bis zum einundzwanzigsten Durchgang tat:
+     * dort standen sechsmal 44 px und einmal 42 px fuer dieselbe Sache, und
+     * die 42 hatte niemand entschieden, sie war der Rest einer aelteren
+     * Groesse der Zoom-Leiste.
+     */
+    --touch-target:44px;
     --bg:#0a0f18;
     --bg2:#0c1320;
     --panel:#111927;
@@ -2983,11 +2993,11 @@
    * sie ist hier bewusst nicht gewaehlt.
    */
   @media (pointer: coarse) {
-    .menu-title { min-height:44px; padding:6px 12px; }
+    .menu-title { min-height:var(--touch-target); padding:6px 12px; }
 
-    .menu-item { min-height:44px; }
+    .menu-item { min-height:var(--touch-target); }
 
-    .toolbar button { min-height:44px; }
+    .toolbar button { min-height:var(--touch-target); }
 
     /*
      * Safari auf iOS/iPadOS zoomt beim Fokus in ein Feld, dessen Schrift 15 px
@@ -3009,7 +3019,7 @@
     }
 
     aside button {
-      min-height:44px;
+      min-height:var(--touch-target);
       display:flex;
       align-items:center;
       justify-content:center;
@@ -3021,14 +3031,31 @@
     }
 
     .toggle {
-      min-height:44px;
+      min-height:var(--touch-target);
       margin:4px 0;
     }
 
+    /*
+      * Ueber der Karte galten bis zum einundzwanzigsten Durchgang 42 px - eine
+      * zweite Zahl fuer dieselbe Sache, die niemand entschieden hatte. Sie
+      * folgt jetzt derselben Variablen wie Menue, Werkzeugleiste und
+      * Inspektor.
+      */
     .map-tool-button {
-      width:42px;
-      height:42px;
-      min-width:42px;
+      width:var(--touch-target);
+      height:var(--touch-target);
+      min-width:var(--touch-target);
+    }
+
+    /*
+     * Und die Knoepfe der Auswahlleiste ueber der Karte, die bis dahin von
+     * KEINER Zeigerregel erreicht wurden: `aside button` trifft sie nicht,
+     * solange sie ueber der Karte stehen, und damit bekam ein Tablet dort
+     * 34-px-Ziele - auf dem erklaerten Zielgeraet, waehrend dieselben Knoepfe
+     * unter der Schwelle im Inspektor 44 px hatten.
+     */
+    #viewer .selection-actions button {
+      min-height:var(--touch-target);
     }
 
     /*

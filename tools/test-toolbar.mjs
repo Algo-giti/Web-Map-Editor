@@ -641,26 +641,67 @@ try {
         spalten.karte > spalten.inspektor,
         `${spalten.karte} px Karte gegen ${spalten.inspektor} px Inspektor`);
 
+      /*
+       * Die Zielgroesse kommt aus dem BESTAND, nicht als Zahl aus dem Test:
+       * sie steht seit dem einundzwanzigsten Durchgang als eine Variable
+       * --touch-target an :root. Vorher stand die 44 sechsmal im CSS und
+       * dreimal hier.
+       */
+      const ziel = await seite.evaluate(() => parseFloat(
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--touch-target")));
+
+      /*
+       * Und die eine Zahl, die als Literal dastehen DARF: 44 px ist die
+       * Entscheidung aus Etappe 8a und keine Messung. Ohne diese Zusicherung
+       * folgte der ganze Rest einer Variablen, die jemand auf 10 px setzen
+       * koennte, ohne dass etwas meldet.
+       */
+      check(`${name}, ${breite} px: die Zielgroesse ist mindestens 44 px`,
+        ziel >= 44, String(ziel));
+
       const menue = await niedrigste(seite, ".menu-title");
       const inspektor = await niedrigste(seite, "aside button");
       const schrift = await seite.evaluate(() =>
         getComputedStyle(document.getElementById("pointEastInput")).fontSize);
 
+      /*
+       * Ueber der Karte galt bis zum einundzwanzigsten Durchgang gar keine
+       * oder eine ZWEITE Zielgroesse: die Zoom-Leiste bekam 42 px, die
+       * Knoepfe der Auswahlleiste ueberhaupt keine - `aside button` trifft
+       * sie dort nicht. Ein Tablet bekam damit 34-px-Ziele auf dem
+       * erklaerten Zielgeraet.
+       *
+       * Die Leiste braucht dafuer eine Auswahl; der erste Klick trifft den
+       * Marker sicher, weil sie bei leerer Auswahl unsichtbar ist.
+       */
+      await seite.locator("circle.vertex").first().click();
+      await seite.waitForTimeout(300);
+
+      const kartenknopf = await niedrigste(seite, ".map-tool-button");
+      const leistenknopf = await niedrigste(seite, "#selectionActions button");
+
       if (grob) {
-        check(`grob, ${breite} px: Menuetitel und Inspektorknopf sind >= 44 px`,
-          menue >= 44 && inspektor >= 44, `${menue} / ${inspektor}`);
+        check(`grob, ${breite} px: Menuetitel und Inspektorknopf tragen die Zielgroesse`,
+          menue >= ziel && inspektor >= ziel, `${menue} / ${inspektor}`);
         check(`grob, ${breite} px: das E/N-Feld traegt 16 px`,
           schrift === "16px", schrift);
+        check(`grob, ${breite} px: auch Zoom-Leiste und Auswahlleiste tragen sie`,
+          kartenknopf >= ziel && leistenknopf >= ziel,
+          `${kartenknopf} / ${leistenknopf}`);
       } else {
         /*
          * Und die Gegenrichtung: am Mausarbeitsplatz bleibt die Oberflaeche
          * dicht. Ohne diese Zusicherung bestuende die obige auch dann, wenn
-         * 44 px schlicht ueberall gaelten.
+         * die Zielgroesse schlicht ueberall gaelte.
          */
         check(`fein, ${breite} px: die Oberflaeche bleibt dicht`,
-          menue < 44 && inspektor < 44, `${menue} / ${inspektor}`);
+          menue < ziel && inspektor < ziel, `${menue} / ${inspektor}`);
         check(`fein, ${breite} px: das E/N-Feld traegt seine 12 px`,
           schrift === "12px", schrift);
+        check(`fein, ${breite} px: und die beiden Leisten ueber der Karte ebenfalls`,
+          kartenknopf < ziel && leistenknopf < ziel,
+          `${kartenknopf} / ${leistenknopf}`);
       }
     }
 

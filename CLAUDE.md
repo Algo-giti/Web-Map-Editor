@@ -5631,7 +5631,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | **1000 px** | **JS**, `TOOL_RAIL_NARROW_QUERY = "(max-width: 1000px)"` | die Werkzeugleiste klappt **erzwungen** ein |
   | **959 px** | `@media` | Statusfelder mit `data-optional` weichen (900 px bis Etappe 8a, 769 px im dritten Durchgang) |
   | **743 px** | `@media` | gestapeltes Layout: alles untereinander (bis Etappe 8a: 760 px) |
-  | – | `@media (pointer: coarse)` | 44-px-Zielgrößen und 16 px in Eingabefeldern, **ohne Breitenbezug** (seit Etappe 8a) |
+  | – | `@media (pointer: coarse)` | Zielgrößen aus `--touch-target` (44 px) und 16 px in Eingabefeldern, **ohne Breitenbezug** (seit Etappe 8a; seit dem einundzwanzigsten Durchgang auch über der Karte) |
 
   Eine Schwelle bei **980 px** gibt es nicht mehr – sie gehörte zur zweiten
   Rastervorlage der Seitenleiste und ist mit Etappe 7e entfallen. Wer in
@@ -8000,7 +8000,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | Zustand `mixed` | **beantwortet mit Schritt 3 des elften Durchgangs** – mitgenommen, weil die beiden Auswahlaktionen dort seit 7b gelten |
   | Zustände `drawing` und `measuring` | **gegenstandslos, gemessen im zwanzigsten Durchgang** – siehe unten |
   | die acht Symbole | **gebaut mit dem neunzehnten Durchgang** |
-  | Zeigerregel der Leiste | **offen** – die 42-px-Stelle steht als eigener Punkt weiter unten |
+  | Zeigerregel der Leiste | **beantwortet mit dem einundzwanzigsten Durchgang** – dieselbe wie alles andere: `--touch-target`, siehe den Punkt weiter unten |
   | was aus `#inspectorPoint` über 960 px wird | **offen** |
 
   **Warum `drawing` und `measuring` gegenstandslos sind – dreifach gemessen,
@@ -8877,7 +8877,8 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   feinem Zeiger dieselbe. Und die Klasse `.tool-button` nagelt die Schrift auf
   13 px fest, weshalb der Klon in beiden Zeigerarten gleich breit ausfällt.
 
-  **Die eigene Touch-Größe des Hauses über der Karte ist 42 px, nicht 44.**
+  **Die eigene Touch-Größe des Hauses über der Karte war 42 px, nicht 44 –
+  seit dem einundzwanzigsten Durchgang ist auch sie 44.**
   Gemessen an `#zoomInBtn`: 36 × 36 px bei feinem, **42 × 42 px** bei grobem
   Zeiger (`.map-tool-button`). Das ist die einzige Regel des Bestandes, die eine
   Ebene über der Karte überhaupt vergrößert.
@@ -9066,8 +9067,10 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     offen – `getInspectorState()` lässt ein laufendes Werkzeug jede Auswahl
     schlagen.
   - **Ob die Leiste eine eigene Zeigerregel bekäme.** Gemessen ist, dass der
-    Bestand ihr keine gibt; welche sie bekommen soll – 42 px wie die Zoom-Leiste,
-    44 px wie der Inspektor, oder eine dritte –, ist eine Entscheidung.
+    Bestand ihr keine gibt; welche sie bekommen soll – 42 px wie die
+    Zoom-Leiste, 44 px wie der Inspektor, oder eine dritte –, ist eine
+    Entscheidung. **Sie ist mit dem einundzwanzigsten Durchgang gefallen:
+    44 px, aus `--touch-target`, und die Zoom-Leiste ist mitgezogen.**
   - **Die Symbole.** Gemessen ist der Platz für ein Symbol von 18 px, weil der
     geklonte Knopf eines trägt. Welche acht Symbole das wären, ist nicht
     entworfen; für das Abrunden steht in dieser Datei ein Entwurf, für diese
@@ -9463,7 +9466,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | | |
   |---|---|
   | Ausgangszustand | **aufgeklappt** – `open` steht im Markup, und zurückgesetzt wird es nirgends |
-  | Griff | quadratisch, **36 px** fein und 42 px grob, ohne Beschriftung |
+  | Griff | quadratisch, **36 px** fein und (seit dem einundzwanzigsten Durchgang) 44 px grob, ohne Beschriftung |
   | woher die Größe kommt | die Klasse `.map-tool-button` aus dem Bestand; in der neuen Regel steht keine Zahl |
   | zugeklappt | die Leiste misst **38 × 38 px** statt 172,38 × 330 px |
   | unter 960 px | kein Griff, und aufgeklappt – siehe die benannte Lücke unten |
@@ -9688,13 +9691,15 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Zusicherung gebaut ist.
 
   **Was NICHT erhoben wurde:** ob die Verdeckung bei grobem Zeiger andere
-  Marker trifft (die Leiste ist dort gleich breit, der Griff mit 42 px aber
-  größer), und ob es Kartenformen gibt, bei denen schon der **erste** Marker
+  Marker trifft (die Leiste ist dort gleich breit, der Griff mit der
+  Zielgröße aber größer), und ob es Kartenformen gibt, bei denen schon der **erste** Marker
   einer Auswahl unerreichbar ist.
 
-- **Die eigene Touch-Größe über der Karte ist 42 px, die Vorgabe 44 – offener
-  Punkt, eingetragen mit dem elften Durchgang, ausdrücklich nicht gebaut.**
-  Gemessen im zehnten Durchgang (`f07a331`), nicht vermutet:
+- **Die Touch-Zielgröße ist 44 px, auch über der Karte – ENTSCHIEDEN mit dem
+  einundzwanzigsten Durchgang.** Der Eintrag bleibt stehen, weil die Messung,
+  die den Widerspruch gefunden hat, sonst verloren ginge.
+
+  **Der Befund, gemessen im zehnten Durchgang (`f07a331`), nicht vermutet:**
 
   | gemessen | fein | grob |
   |---|---|---|
@@ -9702,22 +9707,48 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | blanker `<button>` über der Karte | 16 px Schrift, `min-height:0px` | 16 px Schrift, `min-height:0px` |
   | blanker `<button>` im Inspektor | 16 px Schrift, `min-height:auto` | 16 px Schrift, **`min-height:44px`** |
 
-  **Der `@media (pointer: coarse)`-Block erreicht nichts über der Karte.** Seine
-  44 px hängen an `aside button`, seine 16 px an `aside input, aside select,
-  aside button`; eine Ebene über der Karte trifft keinen dieser Selektoren.
-  `.map-tool-button` ist die **einzige** Regel des Bestandes, die dort etwas
-  vergrößert – und sie vergrößert auf 42 px, nicht auf 44.
+  **Der `@media (pointer: coarse)`-Block erreichte nichts über der Karte.**
+  Seine 44 px hingen an `aside button`, seine 16 px an `aside input, aside
+  select, aside button`; eine Ebene über der Karte trifft keinen dieser
+  Selektoren. `.map-tool-button` war die **einzige** Regel des Bestandes, die
+  dort etwas vergrößerte – und sie vergrößerte auf 42 px, nicht auf 44.
 
-  **Damit stehen zwei Zahlen für dieselbe Sache nebeneinander**, und keine ist
-  falsch: 44 px ist die Vorgabe aus Etappe 8a, 42 px ist das, was die Karte
-  heute tut. Zu entscheiden ist, welche gilt – und die Frage stellt sich
-  spätestens, wenn die Kontext-Knopfleiste eine eigene Zeigerregel bekommt, denn
-  sie läge über der Karte und bekäme heute gar keine.
+  **Entschieden ist die 44, und der Grund ist nicht die Zahl, sondern ihre
+  Zahl.** 44 px ist die Entscheidung aus Etappe 8a, hergeleitet aus der
+  Plattformvorgabe; die 42 hatte niemand entschieden, sie war der Rest einer
+  älteren Größe der Zoom-Leiste. **Zwei Zahlen für dieselbe Sache sind genau
+  die Fehlerklasse, gegen die diese Datei durchgehend argumentiert** – und sie
+  standen hier sogar siebenfach da: sechsmal 44 px im `coarse`-Block, einmal
+  42 px.
 
-  **Nicht gebaut, und das ist eine Anweisung, kein Versäumnis:** der
-  Projektinhaber hat die Stelle im elften Durchgang ausdrücklich von der
-  Umsetzung ausgenommen. Wer sie anfasst, ändert die Größe eines
-  Bedienelements, das seit Etappe 3 so dasteht.
+  **Sie steht jetzt an genau einer Stelle:** `--touch-target:44px` an `:root`.
+  Der ganze `coarse`-Block liest die Variable, `.map-tool-button` eingeschlossen.
+
+  **Und die Lücke, die dabei aufgefallen ist, war die größere: die Knöpfe der
+  Auswahlleiste bekamen über der Karte GAR KEINE Zeigerregel.** `aside button`
+  trifft sie dort nicht, solange sie über der Karte stehen – ein Tablet bekam
+  damit **34-px-Ziele**, während dieselben Knöpfe unter der Schwelle im
+  Inspektor 44 px hatten. Das ist derselbe Fall, den Etappe 8a für das
+  Querformat behoben hat, nur eine Ebene weiter: eine Regel, die an der
+  falschen Achse hängt. Sie hängt jetzt an der Bedienart.
+
+  **Damit ist auch die offene Frage der Kontext-Knopfleiste beantwortet** –
+  „welche Zeigerregel bekommt die Leiste?": dieselbe wie alles andere.
+
+  **Zugesichert in `tools/test-toolbar.mjs`, je Breite und je Zeigerart.** Die
+  Zielgröße kommt aus der Variablen und nicht als Zahl aus dem Test; daneben
+  steht die **eine** Zahl, die als Literal dastehen darf – „die Zielgröße ist
+  mindestens 44 px". Sie ist die Entscheidung aus Etappe 8a und keine Messung,
+  und ohne sie folgte der ganze Rest einer Variablen, die jemand auf 10 px
+  setzen könnte, ohne dass etwas meldet. Die Gegenrichtung („am
+  Mausarbeitsplatz bleibt die Oberfläche dicht") gilt jetzt ebenfalls für
+  beide Leisten über der Karte.
+
+  **Zwei Mutationen, je 0 Timeouts:** die Regel für die Leistenknöpfe wieder
+  entfernt reißt **drei** benannte Zusicherungen – und zwar genau bei 1280,
+  1440 und 1920 px, denn unterhalb der Schwelle steht die Leiste im Inspektor
+  und wird von `aside button` mitversorgt; die Variable auf 40 px gesetzt
+  reißt **zehn**, in beiden Zeigerarten und in allen fünf Breiten.
 
 ---
 
