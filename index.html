@@ -12643,8 +12643,20 @@ function setPointRoleText(role) {
 
   meta.hidden = !show;
 
-  if (show) setLocalizedText(meta, role);
-  else meta.textContent = "";
+  if (show) {
+    setLocalizedText(meta, role);
+    return;
+  }
+
+  /*
+   * Die Marke muss mit dem Text weg. setLocalizedText() kehrt frueh zurueck,
+   * wenn data-i18n-de bereits denselben deutschen Text traegt - bliebe die
+   * Marke stehen, kaeme dieselbe Rolle beim naechsten Anwaehlen als LEERE
+   * Zeile zurueck: sichtbar, 6 px hoch, ohne Text. Derselbe Fall wie bei der
+   * Kurzform des Bestandsblocks.
+   */
+  delete meta.dataset.i18nDe;
+  meta.textContent = "";
 }
 
 

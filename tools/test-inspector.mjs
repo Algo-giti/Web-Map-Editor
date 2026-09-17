@@ -1246,6 +1246,39 @@ try {
     !(await visible("pointMeta")), await text("pointMeta"));
 
   /*
+   * Und dieselbe Rolle kommt wieder, wenn sie ein zweites Mal drankommt. Bis
+   * zur Behebung tat sie das nicht: setPointRoleText() leerte den Textknoten,
+   * liess aber data-i18n-de stehen, und setLocalizedText() kehrt bei
+   * gleichlautender Marke frueh zurueck - die Zeile stand dann SICHTBAR und
+   * LEER da.
+   *
+   * Die Bedingung ist genau: DIESELBE Rolle, mit einem Punkt OHNE Rolle
+   * dazwischen. Eine andere Rolle dazwischen heilt den Fall, weil sie die
+   * Marke ueberschreibt - eine Folge Start/Ende/Zwischen/Start saehe deshalb
+   * nichts.
+   */
+  for (const [nr, rolle] of [[0, "Startpunkt"], [3, "Endpunkt"]]) {
+    await marks.nth(nr).click();
+    await page.waitForTimeout(300);
+    await marks.nth(1).click();
+    await page.waitForTimeout(300);
+
+    check(`${rolle}: der Punkt ohne Rolle dazwischen zeigt keine Zeile`,
+      !(await visible("pointMeta")), await text("pointMeta"));
+
+    await marks.nth(nr).click();
+    await page.waitForTimeout(300);
+
+    check(`${rolle}: danach steht dieselbe Rolle wieder da`,
+      (await visible("pointMeta")) && (await text("pointMeta")) === rolle,
+      `"${await text("pointMeta")}"`);
+  }
+
+  /* Zurueck auf den Zwischenpunkt - die naechste Zusicherung misst dort. */
+  await marks.nth(1).click();
+  await page.waitForTimeout(300);
+
+  /*
    * Und die Gegenprobe, dass nichts verlorengegangen ist: Punktnummer und
    * Feature stehen weiterhin da - im Kopfblock.
    */

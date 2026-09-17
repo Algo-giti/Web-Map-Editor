@@ -7599,9 +7599,9 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     Richtung – **es ist trotzdem eine Entscheidung und keine Ableitung**, denn
     der Umlaufsinn ist anders als `idx` normativ festgelegt.
 
-- **`#pointMeta` steht beim zweiten Anwählen derselben Rolle leer da – Befund
-  des neunten Durchgangs, nicht behoben.** Ein Beifang der Bestandsaufnahme zur
-  Kontext-Knopfleiste: gesucht war, welche Elemente im Punktzustand erscheinen,
+- **`#pointMeta` stand beim zweiten Anwählen derselben Rolle leer da – Befund
+  des neunten Durchgangs, BEHOBEN mit dem einundzwanzigsten.** Ein Beifang der
+  Bestandsaufnahme zur Kontext-Knopfleiste: gesucht war, welche Elemente im Punktzustand erscheinen,
   gefunden wurde ein Element, das erscheint und nichts sagt.
 
   **Gemessen** im Browser, synthetischer Perimeter mit vier Punkten, deutsche
@@ -7650,17 +7650,37 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   je nach Klickfolge zwei verschiedene Zahlen** – die geführten 12 px gelten
   für den ersten Anwählvorgang nach dem Laden.
 
-  **Zusicherungen sehen es nicht.** `tools/test-inspector.mjs` prüft die drei
+  **Zusicherungen sahen es nicht.** `tools/test-inspector.mjs` prüfte die drei
   Fälle „der Startpunkt wird benannt", „der Endpunkt ebenfalls" und „ein
   gewöhnlicher Punkt bekommt keine Zeile" – alle drei beim **ersten** Anwählen
-  der jeweiligen Rolle. Die Folge, die den Fehler zeigt, wird dort nicht
+  der jeweiligen Rolle. Die Folge, die den Fehler zeigt, wurde dort nicht
   gefahren.
 
-  **Nicht behoben und nicht als Auftrag gemeint.** Es sind mindestens zwei
-  Wege denkbar – beim Leeren die Marke mitlöschen, oder in `setPointRoleText()`
-  nicht über `setLocalizedText()` gehen –, und beide fassen eine Funktion an,
-  die im ganzen Editor benutzt wird. **Ob und wie, entscheidet der
-  Projektinhaber.**
+  **Behoben ist er mit dem ersten der beiden erwogenen Wege: beim Leeren
+  fällt die Marke mit.** `setPointRoleText()` räumt `data-i18n-de`, bevor es
+  den Textknoten leert – dieselbe Zeile und dieselbe Begründung wie in
+  `updateStockBlock()`, wo sie seit Etappe 6 b3 steht und als einziger Fall im
+  Bestand vorbildlich gebaut war. Der zweite Weg, `setLocalizedText()` hier gar
+  nicht zu benutzen, ist verworfen: er nähme der Zeile die Übersetzung, die sie
+  braucht – „Startpunkt" und „Endpunkt" stehen beide im Wörterbuch.
+
+  **`setLocalizedText()` selbst bleibt unverändert.** Der frühe Rücksprung bei
+  gleichlautender Marke ist keine Schwäche, sondern der Grund, aus dem der
+  Übersetzungsbeobachter nicht bei jeder Statuszeile neu geweckt wird. Wer die
+  Funktion leert, räumt ihre Marke – das ist die Regel, und sie steht jetzt an
+  beiden Stellen im Kommentar.
+
+  **Zugesichert ist genau die Folge, die den Fehler zeigt.** Der Test fährt je
+  Rolle *Rolle → Punkt ohne Rolle → dieselbe Rolle* und prüft beide Schritte.
+  Eine **andere** Rolle dazwischen heilt den Fall, weil sie die Marke
+  überschreibt; der erste Entwurf der Zusicherung fuhr genau das
+  (Start/Ende/Zwischen/Start) und blieb unter der Mutation grün. Die Mutation
+  „`delete meta.dataset.i18nDe` wieder entfernt" reißt jetzt **zwei** benannte
+  Zusicherungen bei 0 Timeouts, beide mit dem Detail `""`.
+
+  **Damit ist auch die Messfrage erledigt:** die Reserve im Punktzustand ist
+  wieder von der Klickfolge unabhängig, und die geführten 12 px gelten nicht
+  mehr nur für den ersten Anwählvorgang nach dem Laden.
 
   **ERHOBEN mit dem zwanzigsten Durchgang: `setPointRoleText()` ist der
   einzige Fall.** Die Frage stand hier als „nicht erhoben"; sie ist es jetzt.
@@ -7674,7 +7694,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | Funktion | Ziel | leert | räumt die Marke |
   |---|---|---|---|
   | `updateStockBlock()` | `kurz` | Zeile 5258 | **ja**, Zeile 5257 – mit erklärendem Kommentar |
-  | `setPointRoleText()` | `meta` | Zeile 12616 | **nein** – der bekannte Fall |
+  | `setPointRoleText()` | `meta` | Zeile 12616 | **nein** – der bekannte Fall; seit dem einundzwanzigsten Durchgang **ja** |
 
   **Zwei weitere Stellen räumen die Marke, ohne dass diese Methode sie
   bräuchte:** `discardTransientStatus()` räumt und schreibt danach den
@@ -8589,7 +8609,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   | Datei | prüfend | nur herstellend |
   |---|---|---|
-  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**53** | 10 |
+  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**55** | 10 |
   | `tools/test-merge.mjs` | 5 | 5 |
   | `tools/test-map-switch.mjs` | 1 | 1 |
   | `tools/test-dockpath.mjs` | – | 2 |
@@ -8597,7 +8617,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | `tools/test-reduce.mjs` | – | 1 |
   | `tools/test-toolbar.mjs` | – | 1 |
   | `tools/test-validation.mjs` | 1 | 2 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**60** | <!-- bestand: zusicherungen-herstellend -->**26** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**62** | <!-- bestand: zusicherungen-herstellend -->**26** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -8607,7 +8627,8 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   des zwanzigsten. Sie stehen sämtlich in `tools/test-inspector.mjs`.
 
   **Seit dem einundzwanzigsten Durchgang steht eine achte Datei in der
-  Tabelle.** `tools/test-validation.mjs` misst dort die Flächenzeile des
+  Tabelle, und `tools/test-inspector.mjs` hat zwei prüfende dazubekommen** –
+  die beiden Zusicherungen zur wiederkehrenden Punktrolle. `tools/test-validation.mjs` misst dort die Flächenzeile des
   Inspektors an einem MultiPolygon und fasst damit `#featureAreaRow` und
   `#featureAreaStat` an. Das ist der erste Auswahlbezeichner außerhalb der
   sieben – die Aussage „der Auswahlzustand hängt praktisch an einer Datei"
@@ -8622,7 +8643,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   kalibriert und liefert dort die damalige Tabelle Zeile für Zeile wieder –
   siehe Abschnitt 4.5.
 
-  **Der Auswahlzustand hängt praktisch an einer Datei.** 53 der 60 prüfenden
+  **Der Auswahlzustand hängt praktisch an einer Datei.** 55 der 62 prüfenden
   Zusicherungen stehen in `tools/test-inspector.mjs`; die fünf in
   `tools/test-merge.mjs` prüfen die beiden Punktknöpfe und ihre
   Überschreibungsmeldung. Wer die Leiste baut, fasst diese eine Datei an –
