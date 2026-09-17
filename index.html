@@ -14006,18 +14006,6 @@ function closestPointOnSegment(point, from, to) {
 
 
 /**
- * Abstand eines Punktes zur STRECKE - nicht zur Geraden.
- * Der Unterschied zu perpendicularDistance() ist die Begrenzung auf das
- * Streckenstück; für Korridore ist genau das die richtige Größe.
- */
-function pointSegmentDistance(point, from, to) {
-  const nearest = closestPointOnSegment(point, from, to);
-
-  return Math.hypot(point[0] - nearest[0], point[1] - nearest[1]);
-}
-
-
-/**
  * Kleinster Abstand zweier Strecken und der Mittelpunkt der kürzesten
  * Verbindung.
  *

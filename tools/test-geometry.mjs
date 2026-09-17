@@ -36,7 +36,6 @@ const NAMES = [
   "segmentsProperlyIntersect",
   "pointInRing",
   "closestPointOnSegment",
-  "pointSegmentDistance",
   "segmentDistance",
   "sequenceBounds",
   "boundsOverlap",
@@ -393,17 +392,13 @@ check("Punkt in der Bucht liegt aussen", !app.pointInRing([5, 7], uShape));
 check("Punkt im Schenkel liegt innen", app.pointInRing([1, 7], uShape));
 
 /* -------------------------------------------------------------------- */
-console.log("Abstand Punkt/Strecke und Strecke/Strecke");
-
-check("Fusspunkt innerhalb der Strecke",
-  near(app.pointSegmentDistance([5, 3], [0, 0], [10, 0]), 3));
+console.log("Abstand Punkt/Gerade und Strecke/Strecke");
 
 /*
- * Der Unterschied zur Geraden: hinter dem Endpunkt zaehlt der Abstand zum
- * Endpunkt, nicht der senkrechte Abstand zur verlaengerten Geraden.
+ * Douglas-Peucker misst gegen die verlaengerte GERADE, nicht gegen das
+ * Streckenstueck: ein Punkt hinter dem Endpunkt behaelt deshalb seinen
+ * senkrechten Abstand.
  */
-check("hinter dem Endpunkt zaehlt der Endpunkt",
-  near(app.pointSegmentDistance([14, 3], [0, 0], [10, 0]), 5));
 check("die Gerade wuerde hier 3 liefern",
   near(app.perpendicularDistance([14, 3], [0, 0], [10, 0]), 3));
 

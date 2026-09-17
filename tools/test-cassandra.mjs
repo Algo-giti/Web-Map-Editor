@@ -62,7 +62,6 @@ const NAMES = [
   "segmentsProperlyIntersect",
   "pointInRing",
   "closestPointOnSegment",
-  "pointSegmentDistance",
   "segmentDistance",
   "sequenceBounds",
   "boundsOverlap",

@@ -5800,21 +5800,55 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   0**; reißbar ist die Zahl über die markierte Bestandszahl
   `funktionen-ohne-aufrufer`.
 
-  **Heute sind es <!-- bestand: funktionen-ohne-aufrufer -->2, und beide sind
-  ein eigener Befund:**
+  **Heute ist es <!-- bestand: funktionen-ohne-aufrufer -->1:**
 
   | Funktion | von `index.html` aufgerufen | von `tools/` benutzt |
   |---|---|---|
-  | `isAbsoluteWgs84Collection()` (`index.html:10449`) | **nein** | ja, 11 Verweise in `tools/test-cassandra.mjs` |
-  | `pointSegmentDistance()` (`index.html:14002`) | **nein** | ja, 3 Verweise in `tools/test-geometry.mjs` |
+  | `isAbsoluteWgs84Collection()` | **nein** | ja, acht Aufrufe in `tools/test-cassandra.mjs` |
 
-  **Sie sind nicht tot, sondern verwaist: geprüft, aber von niemandem
+  **Sie ist nicht tot, sondern verwaist: geprüft, aber von niemandem
   benutzt.** Das ist die unangenehmere Lage – ein Test, der eine Funktion
   zusichert, die die Anwendung nicht mehr aufruft, prüft nichts, was der
   Nutzer je zu sehen bekommt, und er lässt sie zugleich lebendig aussehen.
-  **Ob sie fallen, ist eine Entscheidung**: mit ihnen fielen die Zusicherungen,
-  und `pointSegmentDistance()` ist eine reine Geometriefunktion, die ein
-  künftiges Werkzeug wieder brauchen könnte. **Nicht entfernt.**
+
+  **Entschieden vom Projektinhaber: beide sollten fallen.
+  `pointSegmentDistance()` ist entfernt, `isAbsoluteWgs84Collection()` nicht** –
+  sie hat die Anhaltebedingung ausgelöst. Der Unterschied liegt nicht in der
+  Zahl der Aufrufe, sondern darin, **worüber** die Zusicherungen etwas sagen:
+
+  | | `pointSegmentDistance()` | `isAbsoluteWgs84Collection()` |
+  |---|---|---|
+  | Aufrufe in `tools/` | 2 in `tools/test-geometry.mjs` | 8 in `tools/test-cassandra.mjs` |
+  | Gegenstand | die **Arithmetik der Funktion selbst**: 3 bei einem Fußpunkt auf der Strecke, 5 hinter dem Endpunkt | vier davon eine **Eigenschaft der Anwendung** |
+  | Urteil | fällt mit der Funktion | **bleibt stehen** |
+
+  **Die vier, um die es geht, benutzen die Funktion als MESSMITTEL für etwas
+  anderes, nicht als Gegenstand:** „Karte liegt nach dem Import relativ vor"
+  belegt, dass `prepareImportedCollection()` eine absolute Karte wirklich
+  umrechnet; „relativer Export bleibt relativ" und „absoluter Export liefert
+  WGS84" belegen die beiden Ausgabemodi von `buildExportCollection()`; und
+  „Beispielkarte N liegt relativ vor" gilt einer echten Karte unter `test/`.
+  Sie ersatzlos fallen zu lassen nähme dem Import- und dem Exportpfad ihre
+  Zusicherung – und das ist etwas anderes, als eine Funktion mit ihrer eigenen
+  Rechenprobe zu entfernen.
+
+  **Umstellen ginge, und genau das ist die offene Frage.**
+  `classifyCoordinateScale(x).mode === "absolute"` ist wortgleich das, was der
+  Wrapper tut, und die Funktion dahinter ist ohnehin einzeln zugesichert. Vier
+  Zusicherungen umzuschreiben, die Anwendungsverhalten belegen, ist aber eine
+  Entscheidung und kein Nachtrag. **Zu entscheiden: umstellen und die Funktion
+  entfernen, oder sie als geprüften Wrapper stehen lassen.**
+
+  **Was mit `pointSegmentDistance()` gefallen ist:** die Funktion, ihre beiden
+  Zusicherungen und die Einträge in den `NAMES`-Listen von
+  `tools/test-geometry.mjs` und `tools/test-cassandra.mjs` – die zweite führte
+  sie, ohne sie je aufzurufen. **Kein lebender Rechenweg hing an ihr:**
+  `segmentDistance()` rechnet den Korridorabstand selbst über
+  `closestPointOnSegment()`, und die Befürchtung, „ein künftiges Werkzeug
+  könnte sie wieder brauchen", wäre in drei Zeilen wiederhergestellt. Stehen
+  geblieben ist die Nachbarzusicherung „die Gerade wuerde hier 3 liefern“ –
+  sie prüft `perpendicularDistance()`, und die ist über Douglas-Peucker
+  lebendig.
 
   **Die Methode ist sicher, und das ist gemessen:** `index.html` kennt weder
   `window[...]` noch `globalThis[...]` noch `eval()` noch ein einziges
