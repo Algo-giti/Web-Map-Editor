@@ -5800,27 +5800,25 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   0**; reißbar ist die Zahl über die markierte Bestandszahl
   `funktionen-ohne-aufrufer`.
 
-  **Heute ist es <!-- bestand: funktionen-ohne-aufrufer -->1:**
+  **Heute ist es <!-- bestand: funktionen-ohne-aufrufer -->0.**
 
-  | Funktion | von `index.html` aufgerufen | von `tools/` benutzt |
-  |---|---|---|
-  | `isAbsoluteWgs84Collection()` | **nein** | ja, acht Aufrufe in `tools/test-cassandra.mjs` |
-
-  **Sie ist nicht tot, sondern verwaist: geprüft, aber von niemandem
-  benutzt.** Das ist die unangenehmere Lage – ein Test, der eine Funktion
-  zusichert, die die Anwendung nicht mehr aufruft, prüft nichts, was der
-  Nutzer je zu sehen bekommt, und er lässt sie zugleich lebendig aussehen.
-
-  **Entschieden vom Projektinhaber: beide sollten fallen.
-  `pointSegmentDistance()` ist entfernt, `isAbsoluteWgs84Collection()` nicht** –
-  sie hat die Anhaltebedingung ausgelöst. Der Unterschied liegt nicht in der
-  Zahl der Aufrufe, sondern darin, **worüber** die Zusicherungen etwas sagen:
+  **Entschieden: beide sind gefallen** – `pointSegmentDistance()` mit dem
+  Commit davor, `isAbsoluteWgs84Collection()` mit diesem. Der Unterschied
+  zwischen beiden lag nie in der Zahl der Aufrufe, sondern darin, **worüber**
+  ihre Zusicherungen etwas sagen, und daraus folgten zwei verschiedene Wege:
 
   | | `pointSegmentDistance()` | `isAbsoluteWgs84Collection()` |
   |---|---|---|
-  | Aufrufe in `tools/` | 2 in `tools/test-geometry.mjs` | 8 in `tools/test-cassandra.mjs` |
+  | Aufrufe in `tools/` | 2 in `tools/test-geometry.mjs` | **9** in `tools/test-cassandra.mjs` |
   | Gegenstand | die **Arithmetik der Funktion selbst**: 3 bei einem Fußpunkt auf der Strecke, 5 hinter dem Endpunkt | vier davon eine **Eigenschaft der Anwendung** |
-  | Urteil | fällt mit der Funktion | **bleibt stehen** |
+  | Weg | Funktion **und** Zusicherungen entfernt | Funktion entfernt, **jede Zusicherung erhalten** |
+
+  **Richtigstellung: es sind neun Aufrufe, nicht acht.** Die Zahl stand hier
+  und in der Nachricht von `d5cc728` als „acht"; gezählt sind neun
+  (`tools/test-cassandra.mjs`, Zeilen 404, 406, 522, 524, 526, 619, 800, 804
+  und 855 im Stand jenes Commits). Der Commit ist veröffentlicht und wird
+  nicht umgeschrieben – dieser Absatz ist die Richtigstellung, wie bei
+  `3d6cd9f` und `dc4f5fc`.
 
   **Die vier, um die es geht, benutzen die Funktion als MESSMITTEL für etwas
   anderes, nicht als Gegenstand:** „Karte liegt nach dem Import relativ vor"
@@ -5832,12 +5830,21 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Zusicherung – und das ist etwas anderes, als eine Funktion mit ihrer eigenen
   Rechenprobe zu entfernen.
 
-  **Umstellen ginge, und genau das ist die offene Frage.**
-  `classifyCoordinateScale(x).mode === "absolute"` ist wortgleich das, was der
-  Wrapper tut, und die Funktion dahinter ist ohnehin einzeln zugesichert. Vier
-  Zusicherungen umzuschreiben, die Anwendungsverhalten belegen, ist aber eine
-  Entscheidung und kein Nachtrag. **Zu entscheiden: umstellen und die Funktion
-  entfernen, oder sie als geprüften Wrapper stehen lassen.**
+  **Umgestellt statt gestrichen, und das ist der ganze Unterschied.** Der
+  Wrapper war wortgleich `classifyCoordinateScale(x).mode === "absolute"`, und
+  `classifyCoordinateScale()` ist einzeln zugesichert. Der Test trägt die
+  Frage deshalb jetzt selbst: `istAbsolut()` steht dort neben dem seit jeher
+  vorhandenen `modeOf()`, und **kein einziger Zusicherungsname, kein Wortlaut
+  und kein Gegenstand hat sich geändert** – gemessen wird dieselbe Eigenschaft
+  über denselben Rechenweg, nur ohne einen Umweg in der Anwendung, den die
+  Anwendung nicht geht.
+
+  **Warum der Wrapper trotz seiner neun Zusicherungen nicht bleiben durfte:**
+  eine Funktion in `index.html`, die ausschließlich ein Test aufruft, ist
+  Anwendungscode ohne Anwendung. Sie sieht bei jeder Fehlersuche lebendig aus,
+  sie wird bei jedem Umbau mitgeschleppt, und sie verschiebt die Zusicherung
+  um eine Ebene: geprüft wird dann der Wrapper und nicht mehr das, was er
+  weiterreicht. Ein Testhelfer im Test sagt beides ehrlicher.
 
   **Was mit `pointSegmentDistance()` gefallen ist:** die Funktion, ihre beiden
   Zusicherungen und die Einträge in den `NAMES`-Listen von

@@ -98,7 +98,6 @@ const NAMES = [
   "originsMatch",
   "formatOrigin",
   "originConflict",
-  "isAbsoluteWgs84Collection",
   "convertCollectionCoordinates",
   "absoluteCollectionToRelative",
   "relativeCollectionToAbsolute",
@@ -344,6 +343,14 @@ function box(sizeMetres, divisor, offset = 0) {
 
 const modeOf = (map) => app.classifyCoordinateScale(map).mode;
 
+/*
+ * Die Frage "liegt die Karte in absolutem WGS84 vor?" ist genau eine
+ * Lesart von classifyCoordinateScale(). Der Betrag allein genuegt dafuer
+ * NICHT - eine Meterkarte hat ebenfalls grosse Werte; erst die Ausdehnung
+ * trennt beide, und genau das entscheidet die Klassifikation.
+ */
+const istAbsolut = (map) => modeOf(map) === "absolute";
+
 check("Sunray relativ, 200 m", modeOf(box(200, DEG)) === "sunray-relative",
   modeOf(box(200, DEG)));
 check("Sunray relativ, kleiner Garten 8 m",
@@ -399,11 +406,11 @@ check("leere Karte", app.classifyCoordinateScale({ type: "FeatureCollection", fe
 check("Schwellen sind geordnet",
   app.SCALE_RELATIVE_MAX_EXTENT < app.SCALE_METRIC_MIN_EXTENT);
 
-/* isAbsoluteWgs84Collection folgt jetzt derselben Klassifikation. */
+/* Die Absolut-Frage folgt derselben Klassifikation. */
 check("Meterkarte gilt nicht mehr als absolut",
-  app.isAbsoluteWgs84Collection(box(200, 1)) === false);
+  istAbsolut(box(200, 1)) === false);
 check("echte Gradkarte gilt weiterhin als absolut",
-  app.isAbsoluteWgs84Collection(box(200, DEG, 13.4)) === true);
+  istAbsolut(box(200, DEG, 13.4)) === true);
 
 console.log("Massstab in der Datei");
 
@@ -519,11 +526,11 @@ check("Meter-Rundlauf Ost", near(east, 100, 1e-6));
 check("Meter-Rundlauf Nord", near(north, 200, 1e-6));
 
 check("absolute Karte erkannt",
-  app.isAbsoluteWgs84Collection({ features: [feature("perimeter", [[13.4, 52.5]])] }));
+  istAbsolut({ features: [feature("perimeter", [[13.4, 52.5]])] }));
 check("relative Karte nicht als absolut erkannt",
-  !app.isAbsoluteWgs84Collection({ features: [feature("perimeter", [[-0.00017, -0.00007]])] }));
+  !istAbsolut({ features: [feature("perimeter", [[-0.00017, -0.00007]])] }));
 check("leere Karte ist nicht absolut",
-  !app.isAbsoluteWgs84Collection({ features: [] }));
+  !istAbsolut({ features: [] }));
 
 /* -------------------------------------------------------------------- */
 console.log("Rundlauf relativ -> absolut -> relativ");
@@ -616,7 +623,7 @@ const importedPoints = allPoints(absoluteImport);
 check("erster Punkt liegt im Ursprung",
   near(importedPoints[0][0], 0, 1e-12) && near(importedPoints[0][1], 0, 1e-12));
 check("Karte liegt nach dem Import relativ vor",
-  !app.isAbsoluteWgs84Collection(absoluteImport));
+  !istAbsolut(absoluteImport));
 
 /* -------------------------------------------------------------------- */
 console.log("Bezugspunkt-Konflikt");
@@ -797,11 +804,11 @@ check("Export laesst fremdes Feature unveraendert",
 check("Export schreibt Bezugspunkt",
   exportedRelative.referenceOrigin?.lat === 52.5);
 check("relativer Export bleibt relativ",
-  !app.isAbsoluteWgs84Collection(exportedRelative));
+  !istAbsolut(exportedRelative));
 
 const exportedAbsolute = app.buildExportCollection(true);
 check("absoluter Export liefert WGS84",
-  app.isAbsoluteWgs84Collection(exportedAbsolute));
+  istAbsolut(exportedAbsolute));
 check("absoluter Export normalisiert ebenfalls",
   exportedAbsolute.features[0].properties.name === "search wire");
 
@@ -852,7 +859,7 @@ for (const name of sampleMaps) {
   const sampleOrigin = { lat: 52.5, lon: 13.4 };
   const before = app.collectCoords(sample).map((point) => [...point]);
 
-  check(`Beispielkarte ${nr} liegt relativ vor`, !app.isAbsoluteWgs84Collection(sample));
+  check(`Beispielkarte ${nr} liegt relativ vor`, !istAbsolut(sample));
 
   app.relativeCollectionToAbsolute(sample, sampleOrigin, 111111);
   app.absoluteCollectionToRelative(sample, sampleOrigin);

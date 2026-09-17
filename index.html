@@ -10477,18 +10477,6 @@ function classifyCoordinateScale(featureCollection) {
 
 
 /**
- * Liegt die Karte in absolutem WGS84 vor?
- *
- * Dünner Wrapper um classifyCoordinateScale(). Der Betrag allein genügt für
- * diese Frage NICHT - eine Meterkarte hat ebenfalls große Werte. Erst die
- * Ausdehnung trennt beide.
- */
-function isAbsoluteWgs84Collection(featureCollection) {
-  return classifyCoordinateScale(featureCollection).mode === "absolute";
-}
-
-
-/**
  * Wandelt alle Koordinaten einer FeatureCollection an Ort und Stelle um.
  * convert erhält [x, y] und liefert das neue Zahlenpaar.
  */
