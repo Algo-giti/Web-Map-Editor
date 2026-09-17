@@ -1938,8 +1938,17 @@ der Nutzer eigens herstellen muss.
 **Die Regel betrifft NUR den Zeitpunkt der Vorschau.** Worauf die Werkzeuge
 wirken, entscheiden weiterhin `getReduceTarget()` und `getWholeFeatureTarget()`
 – mit einem einzelnen gewählten Punkt melden Statuszeile und Knopf also
-weiterhin das ganze Feature. Ob das so bleiben soll, ist eine eigene Frage und
-wurde mit 7f ausdrücklich nicht mitentschieden.
+weiterhin das ganze Feature.
+
+**Ob das so bleiben soll, war mit 7f ausdrücklich nicht mitentschieden;
+ENTSCHIEDEN ist es mit dem einundzwanzigsten Durchgang: es bleibt.** Der
+Rückfall ist das, was die Werkzeuge überhaupt erreichbar macht, ohne dass man
+erst jeden Punkt auswählt – und der Ärger, der ihn in Frage stellte, ist mit
+7f schon behoben: die **Vorschau** erscheint dort nicht mehr, ungefragt
+passiert also nichts. Ihn zu streichen hieße, den Knopf bei einem gewählten
+Punkt schlicht zu sperren; der Nutzer erführe dann erst nach dem Auswählen
+aller Punkte, was er hätte tun können – das Gegenteil der Hausregel, nach der
+die Umformwerkzeuge auch dann dastehen, wenn sie gerade nicht gehen.
 
 **Der Knopf „Ganzes Feature auswählen" hängt nicht mehr an
 `canMoveWholeFeature()`**, sondern an `descriptors.length > 0 &&
@@ -4615,7 +4624,7 @@ Durchgangs, kurzer Name) und deshalb seit Schritt 2 des sechsten Durchgangs
 nicht mehr der heutige Stand. Neu gemessen wurden sie nicht – die
 Entscheidung hängt nicht an ihnen.
 
-| **8d** – **ERLEDIGT** | Zusicherungen in `tools/test-toolbar.mjs`, bei **1920, 1440, 1280, 860 und 744 px** und je **fein und grob**: Zielgrößen ≥ 44 px bei grobem Zeiger, Schrift im E/N-Feld, drei Rasterspalten bis zur Grenze hinunter, und dass unterhalb von 744 px nichts abgewiesen wird | Vorgezogen vor 8b/8c, weil sie den Zustand festhalten, den 8a herstellt – und weil 8b und 8c beide eine noch offene Entscheidung brauchen |
+| **8d** – **ERLEDIGT** | Zusicherungen in `tools/test-toolbar.mjs`, bei **1920, 1440, 1280, 860 und 744 px** und je **fein und grob**: Zielgrößen ≥ 44 px bei grobem Zeiger, Schrift im E/N-Feld, drei Rasterspalten bis zur Grenze hinunter, und dass unterhalb von 744 px nichts abgewiesen wird | Vorgezogen vor 8b/8c, weil sie den Zustand festhalten, den 8a herstellt – und weil 8b und 8c damals beide noch eine Entscheidung brauchten |
 
 #### Der Dateiname unter Druck – gemessen mit Schritt 6 des fünften Durchgangs
 
@@ -4888,7 +4897,7 @@ frischer `localStorage`, ein Punkt ausgewählt. „Zielgrößen" ist je die
   `!important` aufgelöst: `aside .coord-input` (0,0,1,1) schlägt
   `.coord-input { font:inherit }` (0,0,1,0).
 - **Befund 3 – `data-optional` weicht unverändert bei 900 px.** Das ist
-  Teilschritt 8c und ist **nicht mitentschieden**, siehe dort.
+  Teilschritt 8c und war dort **getrennt zu entscheiden**; er ist es, siehe dort.
 
 ### Die Kartenbreite im Tablet-Feld – gemessen mit Schritt 5 des dritten Durchgangs
 
@@ -5535,9 +5544,11 @@ Ein Kartenfenster steht bei `left:12px; bottom:12px`, ist
 Spalte von 300 px, also **38 % der Kartenbreite** – und an genau der Kante, an
 der `selectWholeFeature()` einpasst.
 
-**Der Vorschlag: andocken statt schweben, und zwar an den unteren Rand der
-Karte über die volle Breite.** Von den drei Antworten oben ist es die einzige,
-die ohne neue Kopplung auskommt:
+**Der Vorschlag lautete: andocken statt schweben, und zwar an den unteren Rand
+der Karte über die volle Breite** – von den drei Antworten oben die einzige,
+die ohne neue Kopplung auskommt. **Mit der Verwerfung von 9b ist er
+gegenstandslos**; er steht hier, weil seine Abwägung beim nächsten Fenster
+über der Karte wieder gebraucht wird:
 
 | Antwort | Urteil |
 |---|---|
