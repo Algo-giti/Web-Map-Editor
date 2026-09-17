@@ -9126,10 +9126,11 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `tools/test-inspector.mjs` liest die Leistenschwelle seinerseits aus
   `SELECTION_BAR_WIDE_QUERY`; die Zahl steht in keinem Test als Literal.
 
-- **Die Leiste verdeckt Punktmarker – Befund aus dem Bau, elfter Durchgang;
-  nicht behoben, weil die Antwort eine Entscheidung ist.** Das ist die
-  Nebenwirkung, die beim Messen der zehnten Runde nicht sichtbar war und beim
-  Bauen sofort zuschlug.
+- **Die Leiste verdeckt Punktmarker – ENTSCHIEDEN mit dem einundzwanzigsten
+  Durchgang: sie bleibt, wo sie ist, und der Griff ist die Antwort.** Der
+  Eintrag bleibt vollständig stehen, weil die Messungen, auf denen die
+  Entscheidung ruht, sonst verloren gingen. Er war die Nebenwirkung, die beim
+  Messen der zehnten Runde nicht sichtbar war und beim Bauen sofort zuschlug.
 
   **Der Befund, gemessen bei 1280 × 720 mit dem Perimeter aus
   `tools/test-merge.mjs`:** die Leiste steht im Punktzustand auf
@@ -9170,19 +9171,53 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Griff für den Einzelfall. Was sie **nicht** leistet, steht beim Bau-Eintrag
   weiter unten: die Verdeckung schrumpft auf 38 × 38 px, sie verschwindet
   nicht, und weil der Ausgangszustand aufgeklappt ist, trifft der erste Klick
-  einer Auswahl unverändert auf die volle Leiste. **Die drei Antworten unten
-  bleiben deshalb offen.**
+  einer Auswahl unverändert auf die volle Leiste. **Genau das ist mit der
+  Entscheidung unten hingenommen** – und der Grund, warum es beim ersten Klick
+  nicht stört, ist gemessen: bei **leerer** Auswahl ist die Leiste unsichtbar,
+  der erste Klick trifft sie also gar nicht.
 
-  **Drei denkbare Antworten, keine davon entschieden:**
+  **Die drei Antworten und ihr Urteil:**
 
-  | Antwort | was sie kostet |
-  |---|---|
-  | so lassen, wie bei der Zoom-Leiste | der Nutzer muss die Karte verschieben oder zoomen, um an einen verdeckten Punkt zu kommen – bei der Zoom-Leiste ist das eine Ecke von 120 × 36 px, hier ein Viertel der Kartenbreite |
-  | das Einpassen (`fit`) lässt links einen Rand frei, solange die Leiste stehen kann | die Kartenansicht hinge am Zustand der Leiste – dieselbe Kopplung, die bei 9b als Preis benannt ist |
-  | die Leiste woandershin | die Entscheidung sagt „links über der Karte"; jeder andere Ort ist eine neue Entscheidung, und verdecken würde sie dort auch etwas |
+  | Antwort | was sie kostet | Urteil |
+  |---|---|---|
+  | **so lassen, wie bei der Zoom-Leiste** | der Nutzer muss zuklappen, verschieben oder zoomen, um an einen verdeckten Punkt zu kommen | **gewählt** |
+  | das Einpassen (`fit`) lässt links einen Rand frei | die Kartenansicht hinge am Zustand der Leiste – dieselbe Kopplung, die bei 9b als Preis benannt ist; als zustandsfreie Variante (immer ein fester Rand ab 960 px) kostet sie die Kartenfläche **dauerhaft**, auch wenn nichts ausgewählt ist | verworfen |
+  | die Leiste woandershin | im zwölften Durchgang für den unteren Rand gemessen: dort verdecken alle **drei** Kartenfenster sie vollständig statt zu einem Viertel, und die Markerverdeckung wird nicht kleiner, sondern auf mancher Karte größer | verworfen |
 
-  **Nicht entschieden und nicht gebaut.** Der Befund steht hier, damit er nicht
-  beim nächsten Testfehlschlag als Rätsel wiederkehrt.
+  **Der Grund für die Wahl ist der Vergleich mit der Zoom-Leiste, und er
+  trägt.** Beide sind Ebenen über der Karte, beide verdecken, was unter ihnen
+  liegt; die Auswahlleiste ist größer, hat dafür aber etwas, das die
+  Zoom-Leiste nicht hat – **einen Griff, mit dem der Nutzer sie wegnimmt**.
+  Die beiden Alternativen zahlen dafür mit einer Kopplung bzw. mit dauerhaft
+  weniger Karte, und beide sind gemessen schlechter als der Ist-Zustand.
+
+  **Was die Entscheidung verlangt hat: der Griff muss auch MEHRERE verdeckte
+  Marker tragen.** Das war die benannte Lücke – „bei zwei verdeckten Markern
+  trüge die Umgehung nicht mehr" –, und sie ist jetzt zugesichert statt
+  gemessen. `tools/test-inspector.mjs` lädt dafür einen Perimeter mit mehreren
+  Punkten auf der oberen Kante, sichert als **Vorbedingung** zu, dass wirklich
+  mehr als einer unter der Leiste liegt, und misst danach: zugeklappt liegt
+  **keiner** mehr darunter, und einer der vorher verdeckten lässt sich wirklich
+  anklicken. Die Mutation „zugeklappt behält die Leiste ihre Fläche" reißt
+  **vier** benannte Zusicherungen bei 0 Timeouts.
+
+  **Die Umgehung in `waehlePunkte()` bleibt, und das ist Teil der
+  Entscheidung.** Sie ist keine Notlösung für einen ungeklärten Zustand mehr,
+  sondern die Anpassung eines Tests an ein Verhalten, das so gewollt ist: wer
+  Marker in der linken oberen Ecke anklicken will, klickt den äußersten
+  zuerst. Der Nutzer hat dafür den Griff; ein Test, der zwischendurch
+  zuklappte, misst einen Zustand, den ein Nutzer bei der ersten Auswahl nicht
+  hat.
+
+  **Ebenfalls Teil der Entscheidung: der Zuklappwunsch überlebt einen
+  Breitenwechsel über 960 px nicht.** Das steht als benannte Lücke beim
+  Bau-Eintrag weiter unten und bleibt dort – ihn zu merken hieße, einen
+  zweiten Zustandshalter neben dem `open`-Attribut einzuführen, und genau
+  dagegen ist `<details>` gewählt worden.
+
+  **Und der Griff steht jetzt im Hilfe-Overlay.** Er half nur dem, der ihn
+  fand; seit dem einundzwanzigsten Durchgang nennt ihn der Satz über die
+  Werkzeuge, mitsamt dem Anlass – „verdeckt die Auswahlleiste einen Punkt".
 
   #### ANGEHALTEN mit Schritt 1 des zwölften Durchgangs: der untere Rand löst es nicht
 
@@ -9601,8 +9636,9 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Auswahl gar nicht hat. Eine Umgehung, die den gemessenen Zustand verändert,
   ist schlechter als eine, die nur die Reihenfolge ändert.
 
-  **Die Lücke bleibt offen – und sie ist mit dem zwanzigsten Durchgang
-  GEMESSEN statt vermutet.** Sie stand hier als „bei zwei verdeckten Markern
+  **Die Lücke ist mit dem einundzwanzigsten Durchgang GESCHLOSSEN** – sie ist
+  keine Messung mehr, sondern eine Zusicherung; siehe „Die Leiste verdeckt
+  Punktmarker" weiter unten. Der Weg dorthin stand zuvor als Messung da: Sie stand hier als „bei zwei verdeckten Markern
   trüge die Sortierung nicht mehr … eine Karte mit zweien ist nicht gefahren
   worden". Sie ist jetzt gefahren.
 
@@ -9646,9 +9682,10 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Test, der zwischendurch zuklappt, misst einen Zustand, den ein Nutzer bei
   der ersten Auswahl nicht hat.
 
-  **Nicht gebaut, und nichts entschieden.** Welche der drei Antworten oben
-  gilt, ist unverändert offen; dieser Durchgang hat nur die Lücke belegt und
-  die vierte Antwort um eine Messung ergänzt.
+  **Entschieden ist es mit dem einundzwanzigsten Durchgang:** die erste der
+  drei Antworten gilt, und der Griff trägt jetzt zugesichert auch mehrere
+  verdeckte Marker. Die Messung hier bleibt als der Fall stehen, an dem die
+  Zusicherung gebaut ist.
 
   **Was NICHT erhoben wurde:** ob die Verdeckung bei grobem Zeiger andere
   Marker trifft (die Leiste ist dort gleich breit, der Griff mit 42 px aber

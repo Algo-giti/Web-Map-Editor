@@ -66,7 +66,7 @@ try {
 
   await page.setViewportSize({ width: 1600, height: 900 });
 
-  const load = async (extra = []) => {
+  const load = async (extra = [], perimeter = PERIMETER) => {
     await page.goto(indexUrl(), { waitUntil: "load" });
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: "load" });
@@ -74,7 +74,7 @@ try {
       name: "inspector.geojson",
       mimeType: "application/geo+json",
       buffer: Buffer.from(JSON.stringify({
-        type: "FeatureCollection", features: [PERIMETER, ...extra],
+        type: "FeatureCollection", features: [perimeter, ...extra],
       })),
     });
     await page.waitForTimeout(450);
@@ -175,6 +175,24 @@ try {
     }
     return null;
   });
+
+  /*
+   * Alle verdeckten Marker, nicht nur der erste. Die Umgehung in
+   * tools/test-merge.mjs - den der Ecke naechsten Marker zuerst klicken -
+   * traegt genau EINEN; bei zweien haelt sie nicht mehr. Dass der Griff auch
+   * dann noch hilft, ist der Grund, aus dem die Leiste bleiben darf, wo sie
+   * ist.
+   */
+  const alleVerdeckten = () => page.evaluate(() =>
+    [...document.querySelectorAll("circle.vertex")]
+      .map((m) => {
+        const r = m.getBoundingClientRect();
+        const treffer = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return treffer === m
+          ? null
+          : { key: m.dataset.vertexKey, deckel: treffer ? (treffer.id || treffer.tagName) : "nichts" };
+      })
+      .filter(Boolean));
 
   /** Trifft man diesen Marker? Dieselbe Messung, nur fuer einen bekannten. */
   const markerGetroffen = (key) => page.evaluate((k) => {
@@ -1115,6 +1133,82 @@ try {
 
     check("und der Griff ist dort nicht gezeichnet",
       griffUnten === 0, String(griffUnten));
+  }
+
+  /* ---------------------------------------------------------------- */
+  console.log("Der Griff traegt auch MEHRERE verdeckte Marker");
+
+  /*
+   * Die Umgehung in tools/test-merge.mjs - den der linken oberen Ecke
+   * naechsten Marker zuerst klicken, solange die Leiste noch nicht dasteht -
+   * traegt genau EINEN verdeckten Marker: ab dem zweiten Klick steht sie.
+   * Gemessen an einer Kante mit mehreren Punkten liegen zwei darunter, und
+   * genau das ist der Fall, fuer den der Griff die Antwort ist.
+   *
+   * Hier entscheidet sich, ob die Leiste bleiben darf, wo sie ist: die beiden
+   * Alternativen - den Kartenausschnitt an den Zustand der Leiste koppeln
+   * oder sie an den unteren Rand ruecken - sind gemessen schlechter (siehe
+   * CLAUDE.md, Abschnitt 7).
+   */
+  {
+    const VIELE_PUNKTE = {
+      type: "Feature",
+      properties: { name: "perimeter" },
+      geometry: { type: "Polygon", coordinates: [[
+        [0, 0], [40, 0], [40, 40], [30, 40], [20, 40],
+        [10, 40], [5, 40], [0, 40], [0, 0],
+      ]] },
+    };
+
+    await page.setViewportSize({ width: await schwelle(), height: 900 });
+    await page.waitForTimeout(250);
+    await load([], VIELE_PUNKTE);
+    await marks.nth(0).click();
+    await page.waitForTimeout(300);
+
+    const offenVerdeckt = await alleVerdeckten();
+
+    check("die Vorbedingung: mehr als ein Marker liegt unter der Leiste",
+      offenVerdeckt.length >= 2, JSON.stringify(offenVerdeckt));
+
+    if (offenVerdeckt.length >= 2 &&
+        await klickeGriff("zwei Verdeckte: der Griff ist aufgeklappt getroffen")) {
+      const zuVerdeckt = await alleVerdeckten();
+
+      check("zugeklappt liegt KEIN Marker mehr unter der Leiste",
+        zuVerdeckt.length === 0, JSON.stringify(zuVerdeckt));
+
+      /*
+       * Und die Wirkung, nicht nur die Trefferpruefung: einer der vorher
+       * verdeckten laesst sich wirklich anklicken und wird dadurch
+       * ausgewaehlt.
+       */
+      const ziel = offenVerdeckt[1].key;
+      const frei = await markerGetroffen(ziel);
+
+      /*
+       * Waechter vor dem Klick: ein noch verdeckter Marker liefert sonst
+       * einen stummen Timeout statt einer benannten Zusicherung - dieselbe
+       * Regel wie bei klickeGriff() und klickeFreienKnopf().
+       */
+      check("der zweite vorher verdeckte Marker ist jetzt getroffen",
+        frei.ok, `${ziel}: ${JSON.stringify(frei)}`);
+
+      if (frei.ok) {
+        await page.locator(`circle.vertex[data-vertex-key="${ziel}"]`).click();
+        await page.waitForTimeout(300);
+
+        const gewaehlt = await page.evaluate(() =>
+          getEffectiveSelectedVertices().length);
+
+        check("und er laesst sich wirklich anklicken",
+          gewaehlt === 1, `${ziel}: ${gewaehlt} ausgewaehlt`);
+      }
+    }
+
+    await page.setViewportSize({ width: ueberSchwelle, height: 900 });
+    await page.waitForTimeout(250);
+    await load();
   }
 
   await page.setViewportSize({ width: 1600, height: 900 });
