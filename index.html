@@ -5374,7 +5374,9 @@ function updateInspectorBlocks(state) {
    * Der Gedankenstrich bleibt für den anderen Fall reserviert: der Wert
    * existiert, ist aber gerade nicht zu ermitteln.
    */
-  const hasArea = feature?.geometry?.type === "Polygon";
+  const hasArea =
+    feature?.geometry?.type === "Polygon" ||
+    feature?.geometry?.type === "MultiPolygon";
   const area = hasArea ? polygonAreaMeters(feature) : 0;
   const areaRow = document.getElementById("featureAreaRow");
 
@@ -7130,6 +7132,25 @@ function validateMapData(featureCollection = data) {
  * demselben Label wuerden sonst auf gut Glueck angesprungen - lieber kein
  * Sprung als der falsche.
  */
+/**
+ * Die Stelle des n-ten Features eines Typs, 1-basiert; null, wenn es so viele
+ * nicht gibt. Beide Aufrufer in findValidationTarget() brauchen dieselbe
+ * Zaehlung, nur mit verschiedenem Anfang - zwei Schleifen waeren zwei Orte
+ * fuer dieselbe Rechnung.
+ */
+function nthOfType(features, type, nth) {
+  let seen = 0;
+
+  for (let index = 0; index < features.length; index += 1) {
+    if (getFeatureType(features[index]) !== type) continue;
+    seen += 1;
+    if (seen === nth) return index;
+  }
+
+  return null;
+}
+
+
 function findValidationTarget(message) {
   const features = data.features || [];
 
@@ -7140,17 +7161,28 @@ function findValidationTarget(message) {
     if (features[index]) return index;
   }
 
-  const perimeter = /^Perimeter (\d+)[:\s]/.exec(message);
+  /*
+   * Die Trennzeichenklasse enthaelt das Komma, weil ein Lochbefund
+   * "Perimeter 1, Loch 1: ..." lautet. Ohne es war er kein Sprungziel.
+   */
+  const perimeter = /^Perimeter (\d+)[,:\s]/.exec(message);
 
   if (perimeter) {
-    const nth = Number(perimeter[1]);
-    let seen = 0;
+    const treffer = nthOfType(features, "perimeter", Number(perimeter[1]));
+    if (treffer !== null) return treffer;
+  }
 
-    for (let index = 0; index < features.length; index += 1) {
-      if (getFeatureType(features[index]) !== "perimeter") continue;
-      seen += 1;
-      if (seen === nth) return index;
-    }
+  /*
+   * Exclusions zaehlt die Pruefung ab 0 und nach ihrer STELLE unter den
+   * Exclusions - nicht nach idx, der Luecken haben darf. Ueber den
+   * Anzeigenamen war der Befund nie zu finden: describeFeature() liefert
+   * "Exclusion #0", die Meldung sagt "Exclusion 0".
+   */
+  const exclusion = /^Exclusion (\d+)[,:\s]/.exec(message);
+
+  if (exclusion) {
+    const treffer = nthOfType(features, "exclusion", Number(exclusion[1]) + 1);
+    if (treffer !== null) return treffer;
   }
 
   const counts = new Map();
@@ -20502,6 +20534,14 @@ const I18N_PATTERNS = [
     "Exclusion $1, hole $2: too few polygon points."],
   [/^Exclusion (\d+), Loch (\d+): Polygonring ist nicht geschlossen\.$/,
     "Exclusion $1, hole $2: polygon ring is not closed."],
+  [/^Perimeter (\d+): Geometrietyp ist nicht Polygon\.$/,
+    "Perimeter $1: geometry type is not Polygon."],
+  [/^Perimeter (\d+): weniger als 3 Eckpunkte plus Schließpunkt\.$/,
+    "Perimeter $1: fewer than 3 corner points plus closing point."],
+  [/^Perimeter (\d+): Polygonring ist nicht geschlossen\.$/,
+    "Perimeter $1: polygon ring is not closed."],
+  [/^Perimeter (\d+): Fläche ist 0 oder ungültig\.$/,
+    "Perimeter $1: area is 0 or invalid."],
   [/^Exclusion (\d+): zu wenige Polygonpunkte\.$/, "Exclusion $1: too few polygon points."],
   [/^Exclusion (\d+): Polygonring ist nicht geschlossen\.$/, "Exclusion $1: polygon ring is not closed."],
   [/^Exclusion (\d+): Fläche ist 0 oder ungültig\.$/, "Exclusion $1: area is 0 or invalid."],

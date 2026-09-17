@@ -136,13 +136,13 @@ erklärt beides.
   Fehler" ein „1 errors" – an der sichtbarsten Stelle der englischen
   Oberfläche. `tools/test-cassandra.mjs` prüft die ganze Liste jetzt
   automatisch darauf: für jedes Muster wird ein Beispieltext erzeugt und
-  gesucht, ob ein früheres, allgemeineres ihn abfängt. 159 der
-  <!-- bestand: i18n-muster -->186 Muster sind so erfassbar; die übrigen 27 sind
+  gesucht, ob ein früheres, allgemeineres ihn abfängt. 163 der
+  <!-- bestand: i18n-muster -->190 Muster sind so erfassbar; die übrigen 27 sind
   lange Meldungen mit eindeutigem Präfix und wurden von Hand durchgesehen.
 
-  **Nur die 186 trägt eine Markierung, die 159 und die 27 nicht.** Sie stammen
+  **Nur die 190 trägt eine Markierung, die 163 und die 27 nicht.** Sie stammen
   aus der Analyse in `tools/test-cassandra.mjs`, das sie bei jedem Lauf selbst
-  ausgibt („159 von 186 Mustern automatisch geprueft"); sie im Bestandsprüfer
+  ausgibt („163 von 190 Mustern automatisch geprueft"); sie im Bestandsprüfer
   ein zweites Mal zu rechnen hieße, dieselbe Analyse an zwei Orten zu führen.
 
   **Zusammengesetzte Texte** kann ein `I18N_PATTERNS`-Muster nicht übersetzen:
@@ -2929,10 +2929,19 @@ Klick-Handler, damit sie mit der Tastatur erreichbar sind.
 Die Zuordnung entsteht in `findValidationTarget()` **aus dem Text**, und das ist
 eine Abwägung: die Prüfung hat <!-- bestand: pruefstellen -->49 Fundstellen, die alle Zeichenketten liefern,
 und jede um eine Feature-Nummer zu erweitern hieße, die durchgerechnete
-Geometrieprüfung für eine Anzeigefrage anzufassen. Erkannt werden die drei
-Schreibweisen, die tatsächlich vorkommen: „Feature 7: …", „Perimeter 2: …" und
-der Anzeigename aus `describeFeature()`. **Ein Anzeigename zählt nur, wenn er
-eindeutig ist** – lieber kein Sprung als der falsche.
+Geometrieprüfung für eine Anzeigefrage anzufassen. Erkannt werden die vier
+Schreibweisen, die tatsächlich vorkommen: „Feature 7: …", „Perimeter 2: …",
+„Exclusion 0: …" und der Anzeigename aus `describeFeature()`. **Ein
+Anzeigename zählt nur, wenn er eindeutig ist** – lieber kein Sprung als der
+falsche.
+
+**Das Trennzeichen hinter der Nummer ist `[,:\s]` und nicht `[:\s]`.** Ein
+Lochbefund heißt „Perimeter 2, Loch 1: …", und mit dem engeren Muster fiel er
+durch – bei zwei Perimetern auch durch den Anzeigenamen, weil der dann
+mehrdeutig ist. Und die **Exclusion** braucht einen eigenen Zweig: die Prüfung
+schreibt „Exclusion 0", `describeFeature()` liefert „Exclusion #0", der
+Namensweg trifft also nie. Gezählt wird dabei die **Stelle** unter den
+Exclusions und nicht `idx`, der Lücken haben darf.
 
 **Das Markup wird NICHT bei jedem Auswahlwechsel neu erzeugt.** Die
 Eingabefelder ziehen aus der Seitenleiste in den Inspektor um – verschoben,
@@ -6239,9 +6248,9 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   ist am Quelltext belegt (er greift ausschließlich auf `features` zu), aber
   nicht gegen eine laufende Instanz geprüft.
 - **ERLEDIGT: Löcher werden abgezogen.** Der Eintrag bleibt vollständig
-  stehen, weil er die Messung trägt, auf der die Entscheidung ruht – und weil
-  eine der vier genannten Stellen **nicht** umgestellt ist und weiter
-  aussteht; sie steht am Ende dieses Eintrags.
+  stehen, weil er die Messung trägt, auf der die Entscheidung ruht. Die vierte
+  der vier genannten Stellen ist **entschieden stehengeblieben**, und die drei
+  Nebenbefunde sind abgearbeitet – beides am Ende dieses Eintrags.
 
   **Entschieden vom Projektinhaber: Löcher werden abgezogen, die Prüfung sieht
   alle Ringe.** Umgesetzt ist das an **drei** der vier Stellen:
@@ -6336,12 +6345,13 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   bei einem MultiPolygon mit Loch dieselbe Zahl Marker liefert. Beides bleibt
   offen.
 
-  #### Die vierte Stelle ist NICHT umgestellt – `getUniqueOuterRing()`
+  #### Die vierte Stelle bleibt, wie sie ist – ENTSCHIEDEN
 
-  **Angehalten und gemeldet, nicht entschieden.** Der Auftrag lautete „alle
-  vier Stellen"; drei davon waren dieselbe Frage, die vierte ist eine andere.
+  **Entschieden: `getUniqueOuterRing()` wird nicht umgestellt.** Der Auftrag
+  von damals lautete „alle vier Stellen"; drei davon waren dieselbe Frage, die
+  vierte ist eine andere – und ihre Antwort ist „nichts tun", nicht „später".
 
-  `getUniqueOuterRing()` liest `coordinates[0]` – aber das ist dort **kein
+  `getUniqueOuterRing()` liest `coordinates[0]` – das ist dort **kein
   Versäumnis, sondern ihr Zweck**: sie heißt so, ihr Kommentar sagt es, und
   ihre beiden Aufrufer brauchen genau das.
 
@@ -6350,50 +6360,86 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | `getPerimeterEndpoints()` | Start- und Endpunkt des Perimeters beim Verbinden | den **äußeren** Ring – die aufzutrennende Kante liegt dort und nirgends sonst |
   | `collectGeometryFindings()`, Helfer `worldRing` | Exclusion außerhalb des Perimeters, Überlappung, Selbstüberschneidung, enge Korridore | heute **einen** Ring je Feature; das ganze Eintragsmodell (`entry.ring`, `perimeterRings`, `exclusionRings`) ist darauf gebaut |
 
-  **Sie auf alle Ringe umzustellen wäre keine Flächenrechnung, sondern eine
-  neue Prüfregel** – und sie berührt Zusicherungen, die etwas anderes meinen
-  als eine Fläche: die Korridorbefunde in `tools/test-validation.mjs` (darunter
-  die Sanduhr mit „Enge Stellen innerhalb von Feature 0") und die
-  Auftrennstellen-Zusicherungen in `tools/test-merge.mjs`. **Damit ist die
-  Anhaltebedingung des Auftrags eingetreten**, und zwar in ihrem zweiten Zweig:
-  *„Wenn sie etwas anderes meint – anhalten und melden."*
+  **Der Grund für die Entscheidung ist der Gegenstand, nicht der Aufwand.**
+  Die Flächenrechnung beantwortet „wie groß ist diese Fläche" – dort ist ein
+  Loch zwingend abzuziehen, sonst steht eine falsche Zahl da.
+  `collectGeometryFindings()` beantwortet etwas anderes, nämlich „wo liegen
+  Hindernisse zueinander", und dafür ist die Antwort **nicht** ableitbar,
+  sondern zu erfinden:
 
-  **Was dabei zu entscheiden wäre, wenn die Stelle angefasst wird:**
+  - **Die Kante eines Lochs ist kein Hindernis derselben Art.** Die Innenseite
+    eines Lochs im Perimeter ist nicht mähbar, die Innenseite eines Lochs in
+    einer Exclusion sehr wohl – `pointIsMowable(point, perimeterRings,
+    exclusionRings)` kennt diesen Unterschied nicht und müsste ihn lernen.
+    Ohne das meldete die Korridorprüfung an jedem Loch Engstellen, die der
+    Mäher nie befährt, oder übersähe genau die, die er befährt.
+  - **„Exclusion liegt außerhalb des Perimeters" hätte bei einem gelochten
+    Perimeter keine eindeutige Bedeutung mehr** – innerhalb des äußeren Rings
+    und zugleich innerhalb eines Lochs ist beides zugleich.
+  - **Die Selbstüberschneidung meldet heute je Feature mit behälterlokalen
+    Segmentnummern.** Je Ring zu melden hieße, jede dieser Meldungen neu zu
+    fassen.
 
-  - Ist die Kante eines Lochs ein Hindernis für die Korridorprüfung? Die
-    Innenseite eines Lochs ist **mähbar**, die Außenseite einer Exclusion nicht
-    – `pointIsMowable(point, perimeterRings, exclusionRings)` kennt diesen
-    Unterschied heute nicht und müsste ihn lernen.
-  - Was heißt „Exclusion liegt außerhalb des Perimeters", wenn der Perimeter
-    ein Loch hat?
-  - Meldet die Selbstüberschneidung je Ring oder je Feature? Der heutige
-    Meldungstext nennt Segmentnummern, die behälterlokal wären.
+  **Und der Anlass fehlt: CaSSAndRA kann ein Loch weder erzeugen noch
+  erhalten** (`mapdata.py` baut Exclusions aus `coordinates[0]`, der Export
+  schreibt genau einen Ring). Ein gelochtes Polygon kommt nur aus einer
+  handgeschriebenen oder fremden Datei; dass seine Fläche stimmt und seine
+  Ringe geprüft werden, ist die Zusicherung, die der Nutzer braucht – eine
+  Korridorprüfung über Lochkanten wäre eine erfundene Regel ohne Fall.
 
-  Nichts davon ist eine Ableitung. **Nicht gebaut, nicht entschieden.**
+  **Wer sie später doch umstellt, ändert damit eine Entscheidung und nicht ein
+  Versäumnis**, und er beantwortet vorher die drei Fragen oben.
 
-  **Nebenbefund derselben Umstellung, nicht behoben:** ein MultiPolygon hat
-  jetzt eine Fläche, aber der Inspektor zeigt sie nicht – die Zeile hängt an
-  `hasArea = feature?.geometry?.type === "Polygon"` in `updateSelectionPanel()`.
-  Und `validateMapData()` lehnt ein MultiPolygon weiter mit „Geometrietyp ist
-  nicht Polygon." ab. Sichtbar ist die Summe deshalb allein an der
-  **Perimeterfläche** der Abmessungen (`#areaStat`), und genau dort misst der
-  Test sie. Ob die beiden anderen Stellen nachziehen, ist eine eigene
-  Entscheidung.
+  #### Die drei Nebenbefunde – zwei behoben, einer entschieden
 
-  **Zweiter Nebenbefund, nicht behoben:** `findValidationTarget()` erkennt
-  „Perimeter 2: …" über `/^Perimeter (\d+)[:\s]/` und trifft damit die
-  Lochfassung „Perimeter 1, Loch 1: …" **nicht** – ein Lochbefund ist kein
-  Sprungziel. Für die Exclusion galt das schon vorher, denn `describeFeature()`
-  liefert „Exclusion #0" und nicht „Exclusion 0".
+  **Erster Nebenbefund, BEHOBEN: der Inspektor zeigt jetzt auch die Fläche
+  eines MultiPolygons.** Sie hing an
+  `hasArea = feature?.geometry?.type === "Polygon"` in
+  `updateSelectionPanel()`. Damit wurde ein Wert, den es gibt und der seit der
+  Lochumstellung berechenbar ist, wie einer behandelt, den es für diesen Typ
+  **nicht** gibt – genau die Verwechslung, die die Hausregel „Weglassen oder
+  Gedankenstrich" in Abschnitt 5 verbietet. `tools/test-validation.mjs` misst
+  die Zeile an einer MultiPolygon-Exclusion aus zwei Teilen mit einem Loch:
+  sie steht sichtbar da und nennt die Summe der Teile minus Loch. Die Mutation
+  „wieder nur Polygon" reißt beide Zusicherungen bei 0 Timeouts.
 
-  **Dritter Nebenbefund, älter als dieser Punkt:** die Ringmeldungen des
-  **Perimeters** haben überhaupt keine englische Fassung – weder
-  „Perimeter 1: Polygonring ist nicht geschlossen." noch
-  „Perimeter 1: weniger als 3 Eckpunkte plus Schließpunkt." noch
-  „Perimeter 1: Fläche ist 0 oder ungültig." stehen in `I18N_PATTERNS`, während
-  ihre drei Exclusion-Geschwister es tun. Die vier **neuen** Lochmeldungen sind
-  übersetzt, wie es §5 verlangt; die drei alten bleiben unberührt, weil sie
-  nicht Gegenstand dieses Punktes sind.
+  **`validateMapData()` lehnt ein MultiPolygon weiterhin ab, und das ist
+  entschieden, kein Rest.** Die Meldung „Geometrietyp ist nicht Polygon." ist
+  wahr und nützlich: CaSSAndRA liest ein MultiPolygon nicht, eine solche Karte
+  überlebt den Rundlauf nicht. Der Editor zeigt sie, macht sie bearbeitbar und
+  nennt ihre Fläche richtig – und die Kartenprüfung sagt dazu, dass die Datei
+  so nicht auf den Roboter kommt. Das ist kein Widerspruch, sondern die
+  Arbeitsteilung zwischen Anzeige und Prüfung.
+
+  **Zweiter Nebenbefund, BEHOBEN: Lochbefunde und Exclusionbefunde sind
+  Sprungziele.** `findValidationTarget()` trennte die Feature-Nummer mit
+  `[:\s]` ab – hinter der Zahl steht bei einem Loch aber ein **Komma**. Die
+  Zeichenklasse heißt jetzt `[,:\s]`, und daneben steht eine Exclusion-Zweig:
+  über den Anzeigenamen war ein Exclusionbefund **nie** zu finden, denn
+  `describeFeature()` liefert „Exclusion #0", die Meldung sagt „Exclusion 0".
+  Gezählt wird dabei die **Stelle** unter den Exclusions und nicht `idx`, der
+  Lücken haben darf. Beide Zweige teilen sich `nthOfType()` statt zweier
+  gleicher Schleifen.
+
+  **Richtigstellung dazu, gemessen: der frühere Satz „ein Lochbefund ist kein
+  Sprungziel" war zu allgemein.** Bei **einem** Perimeter fing ihn der
+  Anzeigename auf – „Perimeter" kommt dann genau einmal vor, und der
+  Namensweg von `findValidationTarget()` trifft. Erst bei **zwei** Perimetern
+  ist der Name mehrdeutig und der Befund fällt durch. Die Zusicherung misst
+  deshalb an zwei Perimetern und sichert diese Vorbedingung selbst zu; die
+  Mutation „Zeichenklasse zurückgedreht, Exclusion-Zweig entfernt" reißt fünf
+  benannte Zusicherungen bei 0 Timeouts. Für die **Exclusion** war der Satz
+  richtig, und zwar auch ohne Loch.
+
+  **Dritter Nebenbefund, BEHOBEN: die Ringmeldungen des Perimeters haben eine
+  englische Fassung.** Vier standen ohne – „Geometrietyp ist nicht Polygon.",
+  „weniger als 3 Eckpunkte plus Schließpunkt.", „Polygonring ist nicht
+  geschlossen." und „Fläche ist 0 oder ungültig." –, während ihre
+  Exclusion-Geschwister seit jeher übersetzt sind. Zugesichert in **beiden**
+  Richtungen an einer Karte mit vier absichtlich kaputten Perimetern, je einer
+  pro Meldung; die Mutation „die vier Muster entfernt" reißt sechs benannte
+  Zusicherungen bei 0 Timeouts. `i18n-muster` 186 → 190.
+
 - **Der Prüfbericht speichert Rohwerte – ERLEDIGT mit Schritt 4 des vierten
   Durchgangs.** Der Eintrag bleibt stehen, weil er die Regel trägt.
 
@@ -8550,7 +8596,8 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | `tools/test-menu.mjs` | – | 3 |
   | `tools/test-reduce.mjs` | – | 1 |
   | `tools/test-toolbar.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**59** | <!-- bestand: zusicherungen-herstellend -->**24** |
+  | `tools/test-validation.mjs` | 1 | 2 |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**60** | <!-- bestand: zusicherungen-herstellend -->**26** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -8558,6 +8605,13 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   dazu, drei weitere prüfende und eine herstellende aus den Symbolen des
   neunzehnten Durchgangs, und eine herstellende aus dem Löschknopf-Abschnitt
   des zwanzigsten. Sie stehen sämtlich in `tools/test-inspector.mjs`.
+
+  **Seit dem einundzwanzigsten Durchgang steht eine achte Datei in der
+  Tabelle.** `tools/test-validation.mjs` misst dort die Flächenzeile des
+  Inspektors an einem MultiPolygon und fasst damit `#featureAreaRow` und
+  `#featureAreaStat` an. Das ist der erste Auswahlbezeichner außerhalb der
+  sieben – die Aussage „der Auswahlzustand hängt praktisch an einer Datei"
+  darunter gilt unverändert.
 
   **Die letzte ist ein lehrreicher Grenzfall der Methode.** Der Abschnitt
   prüft sehr wohl den Löschknopf – er liest seinen `title` in vier Fassungen –,
@@ -8568,11 +8622,11 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   kalibriert und liefert dort die damalige Tabelle Zeile für Zeile wieder –
   siehe Abschnitt 4.5.
 
-  **Der Auswahlzustand hängt praktisch an einer Datei.** 53 der 59 prüfenden
+  **Der Auswahlzustand hängt praktisch an einer Datei.** 53 der 60 prüfenden
   Zusicherungen stehen in `tools/test-inspector.mjs`; die fünf in
   `tools/test-merge.mjs` prüfen die beiden Punktknöpfe und ihre
   Überschreibungsmeldung. Wer die Leiste baut, fasst diese eine Datei an –
-  und muss die 22 herstellenden im Blick behalten, denn sie klicken
+  und muss die 26 herstellenden im Blick behalten, denn sie klicken
   `#clearMultiSelectionBtn` und `#deleteMultiSelectionBtn` als **Geste**, nicht
   als Gegenstand. Verschwindet ein solcher Knopf aus dem Inspektor, reißt dort
   keine Zusicherung über ihn, sondern eine ganz andere weiter unten – genau die

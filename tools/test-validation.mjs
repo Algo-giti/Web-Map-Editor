@@ -783,6 +783,210 @@ try {
       text.includes("Exclusion 0, Loch 1: Polygonring ist nicht geschlossen.")),
     zurueckDe.join(" | "));
 
+  /* --- ein Lochbefund ist ein Sprungziel ------------------------- */
+  /*
+   * findValidationTarget() erkannte "^Perimeter (\d+)[:\s]" - und hinter der
+   * Zahl steht bei einem Loch ein KOMMA. Bei EINEM Perimeter fing der
+   * Anzeigename den Fall noch auf ("Perimeter" kommt genau einmal vor); bei
+   * ZWEIEN ist der Name mehrdeutig, und der Befund war kein Sprungziel mehr.
+   * Gemessen wird deshalb an zwei Perimetern.
+   *
+   * Die Exclusion war nie eines, auch ohne Loch und auch bei nur einer: ueber
+   * den Anzeigenamen sucht die Funktion "Exclusion #0", die Meldung sagt
+   * "Exclusion 0".
+   */
+  const befund = (needle) => page.evaluate((text) => {
+    const treffer = [...document.querySelectorAll("#validationReport .validation-item")]
+      .find((el) => el.textContent.includes(text));
+
+    if (!treffer) return { gefunden: false };
+
+    return {
+      gefunden: true,
+      knopf: treffer.tagName === "BUTTON",
+      ziel: treffer.dataset.validationTarget ?? null,
+    };
+  }, needle);
+
+  const kaputtesLoch = [[55, 5], [57, 5], [55, 7]];
+
+  await validate(karte([
+    perimeterMit([box(0, 0, 40, 40)]),
+    perimeterMit([box(50, 0, 90, 40), kaputtesLoch]),
+    {
+      type: "Feature",
+      idx: 0,
+      properties: { name: "exclusion" },
+      geometry: {
+        type: "Polygon",
+        coordinates: [box(10, 10, 30, 30), [[15, 15], [25, 15], [25, 25], [15, 25]]],
+      },
+    },
+  ]));
+
+  /* Die Vorbedingung selbst zugesichert: mit nur einem Perimeter traege der
+     Anzeigename den Fall, und die Messung sagte ueber das Muster nichts. */
+  check("die Karte hat wirklich zwei Perimeter",
+    (await page.evaluate(() =>
+      (data.features || []).filter((f) => getFeatureType(f) === "perimeter").length)) === 2);
+
+  const perimeterLoch = await befund("Perimeter 2, Loch 1:");
+  const exclusionLoch = await befund("Exclusion 0, Loch 1:");
+
+  check("das Loch des zweiten Perimeters ist ein anspringbarer Knopf",
+    perimeterLoch.knopf === true, JSON.stringify(perimeterLoch));
+  check("und es zeigt auf den zweiten Perimeter",
+    perimeterLoch.ziel === "1", JSON.stringify(perimeterLoch));
+  check("das Exclusionloch ist ebenfalls ein Knopf",
+    exclusionLoch.knopf === true, JSON.stringify(exclusionLoch));
+  check("und es zeigt auf die Exclusion",
+    exclusionLoch.ziel === "2", JSON.stringify(exclusionLoch));
+
+  /*
+   * Die Wirkung, nicht das Attribut: der Klick waehlt das Feature wirklich
+   * aus. Ein data-validation-target am Knopf bewiese nur die Absicht.
+   */
+  const gewaehlteFeatures = () => page.evaluate(() =>
+    [...new Set(getEffectiveSelectedVertices().map((d) => d.featureIndex))]);
+
+  check("vor dem Klick ist nichts ausgewaehlt",
+    (await gewaehlteFeatures()).length === 0);
+
+  await page.locator("#validationReport .validation-item", {
+    hasText: "Exclusion 0, Loch 1:",
+  }).first().click();
+  await page.waitForTimeout(300);
+
+  check("der Klick auf den Lochbefund waehlt die Exclusion aus",
+    JSON.stringify(await gewaehlteFeatures()) === "[2]",
+    JSON.stringify(await gewaehlteFeatures()));
+
+  /* --- die Flaechenzeile des Inspektors kennt MultiPolygon -------- */
+  /*
+   * polygonAreaMeters() summiert seit der Lochumstellung auch MultiPolygone -
+   * der Inspektor zeigte die Zeile trotzdem nicht, weil sie an
+   * geometry.type === "Polygon" hing. Damit wurde ein Wert, den es gibt und
+   * der berechenbar ist, wie ein Wert behandelt, den es fuer diesen Typ nicht
+   * gibt: genau die Verwechslung, die die Hausregel "Weglassen oder
+   * Gedankenstrich" verbietet.
+   */
+  const MP_A = box(5, 5, 15, 15);
+  const MP_A_LOCH = box(8, 8, 12, 12);
+  const MP_B = box(20, 20, 26, 26);
+
+  await validate(karte([
+    perimeterMit([box(0, 0, 40, 40)]),
+    {
+      type: "Feature",
+      idx: 0,
+      properties: { name: "exclusion" },
+      geometry: { type: "MultiPolygon", coordinates: [[MP_A, MP_A_LOCH], [MP_B]] },
+    },
+  ]));
+
+  await openAllFolds(page);
+  await page
+    .locator('[data-action="select-whole-feature"][data-feature-index="1"]')
+    .first()
+    .click();
+  await page.waitForTimeout(300);
+  await openAllFolds(page);
+
+  const zeileSichtbar = await page.evaluate(() => {
+    const zeile = document.getElementById("featureAreaRow");
+
+    return Boolean(zeile) && !zeile.hidden &&
+      getComputedStyle(zeile).display !== "none";
+  });
+
+  check("MultiPolygon: die Flaechenzeile des Inspektors steht da",
+    zeileSichtbar === true);
+
+  const erwartetInspektor = await page.evaluate(
+    (wert) => `${formatMeters(wert, 1)} m²`,
+    rechteckFlaeche(MP_A) - rechteckFlaeche(MP_A_LOCH) + rechteckFlaeche(MP_B)
+  );
+  const gezeigtInspektor = await page.locator("#featureAreaStat").textContent();
+
+  check("und sie nennt die Summe der Teile, Loch abgezogen",
+    gezeigtInspektor === erwartetInspektor,
+    `gezeigt ${gezeigtInspektor}, erwartet ${erwartetInspektor}`);
+  check("und sie steht sichtbar da",
+    await elementGetroffen(page, "#featureAreaStat"));
+
+  /* --- die Perimetermeldungen haben eine englische Fassung -------- */
+  /*
+   * Die drei Ringmeldungen des Perimeters und sein Flaechenfehler standen im
+   * Englischen deutsch da, waehrend ihre drei Exclusion-Geschwister seit
+   * jeher uebersetzt sind.
+   */
+  const kaputtePerimeter = karte([
+    /* 1: vier Punkte, aber der Ring schliesst nicht */
+    perimeterMit([[[0, 0], [40, 0], [40, 40], [0, 40]]]),
+    /* 2: zu wenige Punkte */
+    perimeterMit([[[0, 50], [10, 50], [0, 60]]]),
+    /* 3: gar kein Polygon */
+    {
+      type: "Feature",
+      properties: { name: "perimeter" },
+      geometry: { type: "LineString", coordinates: [[0, 70], [10, 70]] },
+    },
+    /* 4: geschlossen, aber kollinear - Flaeche 0 */
+    perimeterMit([[[0, 80], [10, 80], [20, 80], [0, 80]]]),
+  ]);
+
+  const vierDe = await validate(kaputtePerimeter);
+
+  const DEUTSCH = [
+    "Perimeter 1: Polygonring ist nicht geschlossen.",
+    "Perimeter 2: weniger als 3 Eckpunkte plus Schließpunkt.",
+    "Perimeter 3: Geometrietyp ist nicht Polygon.",
+    "Perimeter 4: Fläche ist 0 oder ungültig.",
+  ];
+  const ENGLISCH = [
+    "Perimeter 1: polygon ring is not closed.",
+    "Perimeter 2: fewer than 3 corner points plus closing point.",
+    "Perimeter 3: geometry type is not Polygon.",
+    "Perimeter 4: area is 0 or invalid.",
+  ];
+
+  DEUTSCH.forEach((text, index) => {
+    check(`deutsch: Perimeterbefund ${index + 1} steht da`,
+      vierDe.errors.some((zeile) => zeile.includes(text)),
+      vierDe.errors.join(" | "));
+  });
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(300);
+
+  const vierEn = await fehlerJetzt();
+
+  ENGLISCH.forEach((text, index) => {
+    check(`auf deutsch erzeugt, dann englisch: Perimeterbefund ${index + 1} ist uebersetzt`,
+      vierEn.some((zeile) => zeile.includes(text)), vierEn.join(" | "));
+  });
+  check("und kein Perimeterbefund steht noch deutsch da",
+    !DEUTSCH.some((text) => vierEn.some((zeile) => zeile.includes(text))),
+    vierEn.join(" | "));
+
+  /* und die Gegenrichtung */
+  await validate(kaputtePerimeter, { englisch: true });
+
+  const vierErzeugtEn = await fehlerJetzt();
+
+  check("auf englisch erzeugt: alle vier stehen englisch da",
+    ENGLISCH.every((text) => vierErzeugtEn.some((zeile) => zeile.includes(text))),
+    vierErzeugtEn.join(" | "));
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(300);
+
+  const vierZurueckDe = await fehlerJetzt();
+
+  check("auf englisch erzeugt, dann deutsch: alle vier stehen wieder deutsch da",
+    DEUTSCH.every((text) => vierZurueckDe.some((zeile) => zeile.includes(text))),
+    vierZurueckDe.join(" | "));
+
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
 } finally {
