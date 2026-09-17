@@ -4976,7 +4976,29 @@ sortiert:**
 | „Deutsch / English" | wiederholt die Beschriftung |
 | „Keine Änderung zum Rückgängigmachen/Wiederholen" | Zustandsansage, kein Erklärtext |
 
-**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->39 Fundstellen –
+**NACHGESEHEN mit dem einundzwanzigsten Durchgang: von den vier
+„entbehrlichen" war genau EINER wirklich entbehrlich.** Die übrigen drei
+waren falsch einsortiert, und die Einordnung ist hier richtiggestellt:
+
+| Tooltip | Urteil heute |
+|---|---|
+| „Deutsch / English" | **wirklich entbehrlich, entfernt.** Er wiederholte die beiden Wörter, die sichtbar links und rechts daneben stehen, und der Schalter trägt sein eigenes `aria-label` |
+| „Karte A und B zu einem Perimeter verbinden" | **Erklärung, bleibt.** Er sagt nicht „Karten verbinden" noch einmal, sondern **wozu**: zu *einem* Perimeter. Das steht sonst nirgends im Menü |
+| „Rasterweite einstellen und am Raster einrasten" | **Erklärung, bleibt.** „und am Raster einrasten" ist die zweite Wirkung des Fensters und steht nicht in seiner Überschrift |
+| „Keine Änderung zum Rückgängigmachen/Wiederholen" | **gebraucht, bleibt.** Er ist der einzige Text, der sagt, **warum** ein gesperrter Knopf gesperrt ist – ohne ihn stünde dort gar nichts |
+
+**Und zwei JS-Zuweisungen sind aus derselben Liste gefallen.**
+`toggle.title = label` an Werkzeugleiste und Inspektor „wiederholt die
+Beschriftung" – nur gibt es dort **keine sichtbare Beschriftung**: beide
+Umschalter sind reine Symbolknöpfe, und der `title` ist ihr Name. Sie gehören
+damit in die Gruppe „Namen von Symbolknöpfen", die ausdrücklich **nicht** zu
+8b gehört.
+
+**Die Zahl der gebrauchten Erklärungen steigt dadurch von 14 auf 16** – und
+das ist der Punkt dieser Nachschau: die Liste war nicht zu lang, sondern zu
+kurz.
+
+**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->38 Fundstellen –
 und ein genannter Wortlaut steht zur Laufzeit nirgends.** Beides fiel bei der
 Bestandsaufnahme zur Kontext-Knopfleiste an; es ist ein Beifang und wird hier
 richtiggestellt, nicht gelöscht.
@@ -4992,7 +5014,7 @@ deshalb durch:
 | `updateMultiSelectionUi()`, `snapToggle.title =` | den Ablehnungsgrund des Rasterfangs bei unbekanntem Maßstab |
 | `updateMultiSelectionUi()`, `straightenButton.title =` | `TRANSFORM_TOOL_HELP.straightenSelectionBtn` |
 
-**Es sind damit <!-- bestand: title-markup -->23 im Markup und <!-- bestand: title-js -->16 per JS.** Dass ausgerechnet das Muster über
+**Es sind damit <!-- bestand: title-markup -->22 im Markup und <!-- bestand: title-js -->16 per JS.** Dass ausgerechnet das Muster über
 Zeilengrenzen versagte, ist in dieser Datei schon einmal gemessen worden – bei
 der Locator-Suche aus Schritt 11 des vierten Durchgangs, wo der bekannte
 Treffer umgebrochen war und die einzeilige Fassung ihn nicht fand. **Es ist
@@ -5156,11 +5178,11 @@ Kandidat.
 
 **Diese dritte Frage ist mit dem elften Durchgang entschieden** (Abschnitt 7):
 die Leiste kommt, senkrecht links über der Karte, ab 960 px, mit Symbol und
-Text. **8b bleibt trotzdem offen, und zwar unverändert** – entschieden ist,
-dass die Leiste Knöpfe mit Beschriftung trägt, nicht, wohin die vierzehn
-gebrauchten Erklärungen gehören. Die Wartebedingung „erst nach dieser
-Entscheidung" ist damit erfüllt, die beiden Fragen an den Projektinhaber
-stehen unverändert.
+Text. **Sie ersetzt Weg 3 nicht** – ein Knopf mit Beschriftung trägt seinen
+**Namen**, nicht seine Erklärung, und „der Tooltip erklärt, er benennt nicht"
+gilt unverändert. Die Wartebedingung „erst nach dieser Entscheidung" war damit
+erfüllt; **entschieden ist 8b mit dem einundzwanzigsten Durchgang** – Weg 3,
+mit Etappe 10.
 
 **5. Der Schalter „vollständige Fassung" existiert nicht.** Nachgesehen: es
 gibt sechs `localStorage`-Schlüssel – `referenceOrigin`, `toolRailCollapsed`,
@@ -8412,12 +8434,10 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   dreifach dastehende Angabe auf eine zu bringen: eine Etappe, die Doppelungen
   entfernt, neben einem Schritt, der acht neue einführt.
 
-  **Was die Entscheidung für Etappe 8b heißt.** Knöpfe mit eigener Beschriftung
-  tragen ihre Erklärung am Knopf; Weg 3 („ins Hilfe-Overlay") ist damit nicht
-  mehr der alleinige Kandidat. Das war schon mit dem achten Durchgang vermerkt
-  und ist jetzt eingelöst – **8b bleibt trotzdem offen**, denn die Entscheidung
-  sagt, dass die Leiste Knöpfe mit Text trägt, und nicht, wohin die vierzehn
-  gebrauchten Erklärungen gehören.
+  **Was die Entscheidung für Etappe 8b heißt.** Knöpfe mit eigener
+  Beschriftung tragen ihren **Namen** am Knopf – nicht ihre Erklärung. 8b ist
+  deshalb mit dem einundzwanzigsten Durchgang eigenständig entschieden
+  worden: Weg 3, die Erklärungen kommen mit Etappe 10 ins Hilfe-Overlay.
 
   **Was die Entscheidung NICHT beantwortet hat** – aus der Bestandsaufnahme des
   zehnten Durchgangs, mit dem heutigen Stand dahinter:

@@ -3393,7 +3393,15 @@
     <div class="language-switch" role="group" aria-label="Sprache / Language">
       <span class="language-label language-label-de">Deutsch</span>
 
-      <label class="language-toggle" title="Deutsch / English">
+      <!--
+        KEIN `title` hier. Er lautete „Deutsch / English" und wiederholte damit
+        genau die beiden Woerter, die sichtbar links und rechts daneben stehen;
+        der Schalter selbst traegt sein `aria-label`. Von den vier Tooltips,
+        die die Bestandsaufnahme zu Etappe 8b als entbehrlich gefuehrt hat, war
+        er der einzige, der es wirklich war - die uebrigen drei sind dort
+        richtiggestellt.
+      -->
+      <label class="language-toggle">
         <input id="languageToggle" type="checkbox"
                aria-label="Auf Englisch umschalten">
         <span class="language-toggle-track" aria-hidden="true">
