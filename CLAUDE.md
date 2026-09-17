@@ -5643,26 +5643,47 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   **Wer ihn später doch aufteilt, tut es zusammen mit der Strukturfrage
   weiter unten** – nicht als eigenen Schritt. Beide beantworten dieselbe
   Frage, nur in verschiedener Größe.
-- **Die 1000-px-Schwelle steht als einzige Layout-Schwelle in JS, alle
-  anderen in CSS.** Die Zahlen, damit die eine nicht wieder für eine der
-  anderen gehalten wird:
+- **Wo eine Layout-Schwelle steht, entscheidet ihre Wirkung – ENTSCHIEDEN mit
+  dem einundzwanzigsten Durchgang.** Der Eintrag hieß vorher „die 1000-px-
+  Schwelle steht als einzige in JS, alle anderen in CSS" und war schon beim
+  Aufschreiben überholt: seit dem elften Durchgang stehen **zwei** in JS.
+
+  **Die Regel: eine Schwelle, die nur das AUSSEHEN ändert, steht als
+  Medienregel im CSS; eine, die ein ELEMENT umhängt oder einen Zustand
+  erzwingt, steht als benannte Konstante in JS.** Dafür gibt es zwei Gründe,
+  und beide sind im Bestand belegt:
+
+  - **Wo ein Knoten hängt, kann CSS nicht entscheiden.** Die Auswahlleiste
+    wechselt an ihrer Schwelle den Elternteil, und der erzwungene Zustand der
+    Werkzeugleiste läuft über dieselbe Klasse wie der Handschalter – beides
+    ist Verhalten, kein Aussehen.
+  - **Ein Test kann beide Orte lesen, aber nur einen benennen.**
+    `schwelleAusCss()` sucht die Medienregel über den Selektor in ihrem Rumpf;
+    eine JS-Konstante liest er über ihren **Namen**. Der Name ist die
+    eindeutigere Quelle – und er ist der Grund, aus dem die Schwelle der
+    Auswahlleiste nicht mit der aus 8c verwechselt werden kann, obwohl beide
+    960 nennen.
 
   | Schwelle | Ort | Wirkung |
   |---|---|---|
-  | 1100 px | `@media` | die Werkzeugleiste zeigt Text |
-  | **1000 px** | **JS**, `TOOL_RAIL_NARROW_QUERY = "(max-width: 1000px)"` | die Werkzeugleiste klappt **erzwungen** ein |
+  | 1100 px | `@media` | die Werkzeugleiste zeigt Text – reines Aussehen |
+  | **1000 px** | **JS**, `TOOL_RAIL_NARROW_QUERY` | die Werkzeugleiste klappt **erzwungen** ein – derselbe Zustand wie der Handschalter |
+  | **960 px** | **JS**, `SELECTION_BAR_WIDE_QUERY` | die Auswahlleiste steht über der Karte statt im Inspektor – sie wechselt den **Elternteil** |
   | **959 px** | `@media` | Statusfelder mit `data-optional` weichen (900 px bis Etappe 8a, 769 px im dritten Durchgang) |
   | **743 px** | `@media` | gestapeltes Layout: alles untereinander (bis Etappe 8a: 760 px) |
   | – | `@media (pointer: coarse)` | Zielgrößen aus `--touch-target` (44 px) und 16 px in Eingabefeldern, **ohne Breitenbezug** (seit Etappe 8a; seit dem einundzwanzigsten Durchgang auch über der Karte) |
 
+  **Die beiden 960 sind zwei Schwellen, nicht eine** – die eine beantwortet,
+  ab wann die Statuszeile Felder weichen lässt, die andere, ab wann eine Ebene
+  über der Karte vertretbar ist. Dass sie dieselbe Zahl nennen, ist ein
+  Zusammentreffen; wer eine ändert, ändert die andere nicht mit. Der eigene
+  Eintrag dazu steht weiter unten.
+
   Eine Schwelle bei **980 px** gibt es nicht mehr – sie gehörte zur zweiten
   Rastervorlage der Seitenleiste und ist mit Etappe 7e entfallen. Wer in
-  Kommentaren oder Zusicherungen „unter 980 px" liest, meint die 1000er aus JS;
-  in `tools/test-toolbar.mjs` stand genau das und ist mit 7g richtiggestellt. Das ist heute richtig so - der erzwungene
-  Zustand läuft über dieselbe Klasse wie der Handschalter, nicht über eine
-  Medienregel, und genau das steht oben als Entscheidung. Es bleibt aber die
-  eine Stelle, an der eine Layout-Schwelle nicht dort steht, wo die anderen
-  stehen. Nur vermerkt, nichts geändert.
+  Kommentaren oder Zusicherungen „unter 980 px" liest, meint die 1000er aus
+  JS; in `tools/test-toolbar.mjs` stand genau das und ist mit 7g
+  richtiggestellt.
 
 - **`tools/check-privacy.mjs` ist nur heuristisch** – erkennt keine privaten
   Daten unter untypischen Schlüsselnamen. Ersetzt keine manuelle
