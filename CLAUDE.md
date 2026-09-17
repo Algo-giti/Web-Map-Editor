@@ -38,7 +38,7 @@ Abschnitt 5 (Domänenregeln) und `DISCLAIMER.md`.
 ## 2. Architektur
 
 Das gesamte Projekt ist **eine einzige Datei**: [`index.html`](index.html)
-(rund <!-- bestand: zeilen-index-html +-500 -->21 000 Zeilen: HTML, `<style>`-CSS, ein einziger inline
+(rund <!-- bestand: zeilen-index-html +-500 -->21 500 Zeilen: HTML, `<style>`-CSS, ein einziger inline
 `<script>`-Block). Es gibt bewusst **keine** weiteren Build-Artefakte, kein
 `package.json` für die App selbst, keine externen `<script src>`/`<link>`-
 Referenzen und keine `fetch()`/`XMLHttpRequest`-Aufrufe – die Datei ist
@@ -465,7 +465,7 @@ nächsten Mal wie eine Zusicherung. Der Helfer stand seit Etappe 6 b2 im Harness
 Nachricht ihn als Bündelung „der bisher acht Mal kopierten Faltgeste"
 beschrieb – **aufgerufen hat ihn danach kein einziger Test**, alle acht Kopien
 blieben stehen. Damit erreichte die Reparatur der Navigationskarten zunächst
-niemanden. Seit Etappe 7 f rufen <!-- bestand: openallfolds-aufrufer -->**14 Skripte** den Helfer auf, und
+niemanden. Seit Etappe 7 f rufen <!-- bestand: openallfolds-aufrufer -->**15 Skripte** den Helfer auf, und
 `setAttribute("open", …)` steht im ganzen `tools/`-Verzeichnis an genau einer
 Stelle. **Keine neunte Kopie anlegen** – auch nicht unter anderem Namen; drei
 der acht hießen `expand()` statt `expandSidebar()` oder standen inline.
@@ -1142,7 +1142,7 @@ Menüeintrag trotzdem anklickte – gemessen an „Karte B" ohne geladene Datei 
 und Playwright dann dreißig Sekunden auf eine Freigabe wartete, die nicht
 kommt. Es ist derselbe Fall, für den es `klickeFreienKnopf()` gibt, nur eine
 Ebene höher; offen blieb er, weil die Behebung einen gemeinsamen Helfer
-ändert, den <!-- bestand: openallfolds-aufrufer -->14 Skripte benutzen.
+ändert, den <!-- bestand: openallfolds-aufrufer -->15 Skripte benutzen.
 
 Aus `menueBefehl(page, menue, eintrag)` ist deshalb die Fabrik
 `createMenueBefehl(page, check)` geworden, gebaut wie `createKlicker()`: sie
@@ -1155,7 +1155,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->46 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->47 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -1271,11 +1271,33 @@ Datei** auf `.json`/`.geojson` mit `FeatureCollection` als **Fehler**; ein Beisp
 einzigen automatisierten Schutzschicht gegen eingecheckte Kartendaten. Die
 Ausnahme wäre die eigentliche Entscheidung, nicht der Ordner.
 
-**Daran hängt eine offene Frage, kein Auftrag: ein neuer Nutzer hat nichts zum
-Hineinladen.** Er kann den Editor öffnen und sieht „Keine Karte geladen"; die
-READMEs beschreiben das Format, liefern aber keine Datei. Ob und wie das
-gelöst wird – eine Karte, die der Editor auf Wunsch selbst erzeugt, wäre der
-Weg, der ohne Datei im Repository auskommt –, ist offen.
+**Die daran hängende Frage ist mit dem einundzwanzigsten Durchgang
+entschieden und gebaut: der Editor ERZEUGT eine Beispielkarte.** Sie steht im
+Menü „Datei" als „Beispielkarte erzeugen" und läuft über denselben Weg wie
+eine geöffnete Datei – Historie, Bezugspunktprüfung und Erfolgsmeldung gelten
+unverändert, und es gibt keinen zweiten Ladepfad, der auseinanderlaufen
+könnte.
+
+**Erzeugt statt mitgeliefert löst beides**, was oben gegeneinander steht: ein
+neuer Nutzer hat etwas zum Hineinladen, und im Repository liegt weiterhin
+keine Kartendatei – also braucht `tools/check-privacy.mjs` keine Ausnahme.
+
+**Die Hülle kommt aus `EMPTY_FEATURE_COLLECTION` und wird nicht noch einmal
+hingeschrieben.** Das ist kein Schönheitsgriff: der Privatsphärenprüfer zählt
+`FeatureCollection`-Literale und verlangt genau **eines** – ein zweites wäre
+der Verdacht auf eine eingebettete Karte. Beim ersten Anlauf schlug er
+prompt an, und das ist der Beleg dafür, dass er die Klasse trifft, um
+derentwillen es ihn gibt.
+
+**Die Karte trägt alle vier unterstützten Typen** – Perimeter, Exclusion,
+Search Wire und Docking-Pfad – und ist 30 × 20 m groß. Die Größe ist kein
+Zufall: eine Ausdehnung von 30 liegt weit über der Schwelle, unter der eine
+Zahlenreihe auch Grad sein könnte, und der Maßstab ist damit eindeutig.
+Zugesichert in `tools/test-menu.mjs` sind die Wirkung (vier Typen, gezeichnete
+Marker, bekannter Maßstab) und die Gegenprobe, dass die **eigene
+Kartenprüfung** an ihr keinen Fehler findet. Zwei Mutationen, je 0 Timeouts:
+ein fehlender Typ reißt drei benannte Zusicherungen, die auf 1 % geschrumpfte
+Karte reißt „und ihr Massstab ist eindeutig".
 
 ### 4.3 Was NICHT automatisiert getestet werden kann
 
@@ -1526,7 +1548,7 @@ deshalb steht die Regel oben so scharf da.
 
 ```
    ...die Prüfung hat <!-- bestand: pruefstellen -->49 Fundstellen...
-   ...rund <!-- bestand: zeilen-index-html +-500 -->21 000 Zeilen...
+   ...rund <!-- bestand: zeilen-index-html +-500 -->21 500 Zeilen...
 ```
 
 **Das Beispiel trägt die echten Namen, und das ist eine Zusicherung, keine
@@ -5728,7 +5750,7 @@ dokumentiert, aber im Code konsistent sichtbar):
   Schlüssel in einem Objektliteral (`I18N_EN`).
 
   In `index.html` ist das **wahrscheinlich, nicht unwahrscheinlich**: rund
-  <!-- bestand: zeilen-index-html +-500 -->21 000 Zeilen und rund
+  <!-- bestand: zeilen-index-html +-500 -->21 500 Zeilen und rund
   <!-- bestand: globale-funktionen +-20 -->380 globale Funktionen liegen in einem einzigen
   Gültigkeitsbereich, ohne Module, ohne Namensräume. Wer eine Hilfsfunktion
   schreibt, sieht die 9 000 Zeilen weiter unten nicht, und naheliegende Namen

@@ -3199,6 +3199,19 @@
             <span class="menu-item-text">Karte B schließen</span>
           </button>
 
+          <!--
+            BEISPIELKARTE. Sie wird ERZEUGT, nicht geladen: im Repository liegt
+            keine Kartendatei, und es soll keine liegen - eine eingecheckte
+            Beispielkarte verlangte eine Ausnahme in der einzigen
+            automatisierten Schutzschicht gegen Kartendaten
+            (tools/check-privacy.mjs meldet jede getrackte Datei mit
+            FeatureCollection als Fehler).
+          -->
+          <button id="loadSampleBtn" class="menu-item" type="button" role="menuitem"
+                  tabindex="-1">
+            <span class="menu-item-text">Beispielkarte erzeugen</span>
+          </button>
+
           <div class="menu-separator" role="separator"></div>
 
           <button id="exportBtn" class="menu-item" type="button" role="menuitem" tabindex="-1">
@@ -18913,6 +18926,90 @@ function reportImportedFrame(mapId, fileName, frame, note = "") {
 }
 
 
+/**
+ * Baut eine synthetische Beispielkarte.
+ *
+ * Ein neuer Nutzer hatte bis zum einundzwanzigsten Durchgang nichts zum
+ * Hineinladen: der Editor startet mit „Keine Karte geladen", die READMEs
+ * beschreiben das Format, aber eine Datei gibt es nicht - und soll es nicht
+ * geben, denn ein Beispielordner verlangte eine Ausnahme in
+ * `tools/check-privacy.mjs`.
+ *
+ * Erzeugt statt mitgeliefert loest beides: die Karte entsteht zur Laufzeit,
+ * liegt nirgends im Repository und kann deshalb auch keine privaten Daten
+ * enthalten.
+ *
+ * Alle vier unterstuetzten Typen kommen vor, damit die Karte zeigt, was der
+ * Editor kann - und die Masse sind so gewaehlt, dass der Massstab eindeutig
+ * ist: eine Ausdehnung von 30 liegt weit ueber der Schwelle, unter der eine
+ * Zahlenreihe auch Grad sein koennte.
+ */
+function buildSampleCollection() {
+  /*
+   * Die Huelle kommt aus EMPTY_FEATURE_COLLECTION und wird NICHT noch einmal
+   * hingeschrieben. Das ist kein Schoenheitsgriff: `tools/check-privacy.mjs`
+   * zaehlt FeatureCollection-Literale und verlangt genau EINES - ein zweites
+   * waere der Verdacht auf eine eingebettete Karte. Eine Ausnahme im einzigen
+   * automatisierten Schutz gegen Kartendaten waere ein hoher Preis fuer eine
+   * Beispielkarte; die Huelle wiederzuverwenden kostet nichts.
+   */
+  const collection = structuredClone(EMPTY_FEATURE_COLLECTION);
+
+  collection.features = [
+      {
+        type:"Feature",
+        properties:{name:"perimeter"},
+        geometry:{
+          type:"Polygon",
+          coordinates:[[[0, 0], [30, 0], [30, 20], [0, 20], [0, 0]]]
+        }
+      },
+      {
+        type:"Feature",
+        idx:0,
+        properties:{name:"exclusion", label:"Beet"},
+        geometry:{
+          type:"Polygon",
+          coordinates:[[[6, 6], [12, 6], [12, 12], [6, 12], [6, 6]]]
+        }
+      },
+      {
+        type:"Feature",
+        properties:{name:"search wire"},
+        geometry:{
+          type:"LineString",
+          coordinates:[[2, 18], [15, 18], [28, 18]]
+        }
+      },
+      {
+        type:"Feature",
+        properties:{name:"dockpoints"},
+        geometry:{
+          type:"LineString",
+          coordinates:[[15, 8], [15, 4], [15, 0]]
+        }
+      }
+  ];
+
+  return collection;
+}
+
+
+/** Erzeugt die Beispielkarte und laedt sie wie eine geoeffnete Datei. */
+async function loadSampleMap() {
+  const inhalt = JSON.stringify(buildSampleCollection());
+
+  /*
+   * Ueber denselben Weg wie eine echte Datei - dadurch gelten Historie,
+   * Bezugspunktpruefung und Erfolgsmeldung unveraendert, und es gibt keinen
+   * zweiten Ladepfad, der auseinanderlaufen koennte.
+   */
+  await loadGeoJsonFile(
+    new File([inhalt], "beispielkarte.geojson", {type:"application/geo+json"})
+  );
+}
+
+
 /** Lädt eine Datei in den aktuell aktiven Slot. */
 async function loadGeoJsonFile(file) {
   const {collection, frame} = await parseGeoJsonFile(file, "A");
@@ -20135,6 +20232,15 @@ const bindeSichtbarkeit = (knopf, id) => {
 bindeSichtbarkeit(document.getElementById("showMapAButton"), "A");
 bindeSichtbarkeit(document.getElementById("showMapBButton"), "B");
 
+document.getElementById("loadSampleBtn").addEventListener("click", async () => {
+  try {
+    await loadSampleMap();
+  } catch (error) {
+    setEditStatus(`Beispielkarte konnte nicht erzeugt werden: ${error.message}`,
+      "error");
+  }
+});
+
 document.getElementById("removeMapBBtn").addEventListener(
   "click",
   removeSecondMap
@@ -20518,6 +20624,7 @@ const I18N_EN = new Map(Object.entries({
   "Typ:":"Type:",
   "Index:":"Index:",
   "Zeichnung abgebrochen.":"Drawing cancelled.",
+  "Beispielkarte erzeugen":"Create example map",
   "Karte A anzeigen":"Show map A",
   "Karte B anzeigen":"Show map B",
   "Search Wire verlängern: neue Punkte am bestehenden Ende anklicken.":"Extend Search Wire: click new points at the existing end.",

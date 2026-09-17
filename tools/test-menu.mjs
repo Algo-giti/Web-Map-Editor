@@ -29,6 +29,7 @@ import {
   freieKartenstelle,
   indexUrl,
   launchBrowser,
+  openAllFolds,
 } from "./browser-harness.mjs";
 
 const TOOL = "test-menu";
@@ -150,6 +151,70 @@ try {
 
   await page.keyboard.press("Escape");
   await page.waitForTimeout(150);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Beispielkarte erzeugen");
+
+  /*
+   * Ein neuer Nutzer hatte bis zum einundzwanzigsten Durchgang nichts zum
+   * Hineinladen. Die Beispielkarte wird ERZEUGT und nicht mitgeliefert: im
+   * Repository liegt keine Kartendatei, und eine eingecheckte verlangte eine
+   * Ausnahme in tools/check-privacy.mjs.
+   *
+   * Gemessen wird die WIRKUNG - was nach dem Befehl auf der Karte steht -,
+   * nicht die Funktion, die sie baut.
+   */
+  /*
+   * Die Beispielkarte ERSETZT die geladene Karte A - sie laeuft ueber
+   * denselben Weg wie eine geoeffnete Datei. Die Vorbedingung ist deshalb
+   * nicht "nichts geladen", sondern "etwas ANDERES geladen": nur so zeigt der
+   * Vergleich danach, dass wirklich die Beispielkarte dasteht.
+   */
+  const vorDerProbe = await page.evaluate(() => (data.features || []).length);
+
+  check("vor dem Befehl steht eine andere Karte da",
+    vorDerProbe > 0 && vorDerProbe !== 4, String(vorDerProbe));
+
+  await menueBefehl("Datei", "Beispielkarte erzeugen");
+  await page.waitForTimeout(500);
+
+  const beispiel = await page.evaluate(() => {
+    const typen = (data.features || []).map((f) => f.properties?.name);
+
+    return {
+      anzahl: typen.length,
+      typen,
+      marker: document.querySelectorAll("#vertexGroup circle.vertex").length,
+      massstab: hasKnownScale(),
+    };
+  });
+
+  check("danach stehen alle vier unterstuetzten Typen da",
+    beispiel.anzahl === 4 &&
+    ["perimeter", "exclusion", "search wire", "dockpoints"]
+      .every((t) => beispiel.typen.includes(t)),
+    JSON.stringify(beispiel));
+  check("die Karte ist wirklich gezeichnet und bearbeitbar",
+    beispiel.marker > 0, String(beispiel.marker));
+  check("und ihr Massstab ist eindeutig",
+    beispiel.massstab === true, String(beispiel.massstab));
+
+  /*
+   * Und die Gegenprobe zur Kartenpruefung: eine Beispielkarte, die der Editor
+   * selbst erzeugt, darf seine eigene Pruefung nicht verletzen.
+   */
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(400);
+  await openAllFolds(page);
+
+  const befund = await page.evaluate(() => ({
+    fehler: document.querySelectorAll(
+      "#validationReport .validation-item.error").length,
+    kurz: document.getElementById("validationSummary").textContent.trim(),
+  }));
+
+  check("die Kartenpruefung findet an ihr keinen Fehler",
+    befund.fehler === 0, JSON.stringify(befund));
 
   /* ---------------------------------------------------------------- */
   console.log("Kurzüberblick öffnet und Escape schließt");
