@@ -447,12 +447,39 @@ try {
 
   const ganz = await head();
 
-  check("alle Punkte: der Feature-Block kommt dazu",
+  /*
+   * Im Zustand "ganzes Feature" steht der Gruppenblock NICHT mehr daneben.
+   * Er sagte dort Wort fuer Wort, was der Kopfblock ohnehin sagt, und sein
+   * Ziehhinweis stand als zweiter neben dem des Feature-Blocks: "Exclusion
+   * #0" dreimal, "4 Punkte" dreimal. Das ist Etappe 9a.
+   */
+  check("alle Punkte: der Feature-Block steht da, der Gruppenblock nicht",
     (await sichtbareBloecke()).join(",") ===
-      "inspectorMulti,inspectorFeature,inspectorSelection",
+      "inspectorFeature,inspectorSelection",
     (await sichtbareBloecke()).join(","));
   check("der Kopf sagt, dass es vollständig ist",
     ganz.unter === "Perimeter · vollständig", ganz.unter);
+
+  /*
+   * Und die WIRKUNG der Entdoppelung: von den beiden Hinweissaetzen zum
+   * Verschieben steht nur noch einer da. Beide erklaerten dasselbe, kosteten
+   * je 35 px und standen im Zustand "ganzes Feature" untereinander.
+   */
+  const hinweise = await page.evaluate(() => {
+    const sichtbar = [...document.querySelectorAll(".inspector-block")]
+      .filter((el) => getComputedStyle(el).display !== "none")
+      .map((el) => el.textContent)
+      .join(" ");
+
+    return {
+      gruppe: sichtbar.includes("verschiebt die ganze Gruppe"),
+      feature: sichtbar.includes("Verschieben durch Ziehen an der Geometrie"),
+    };
+  });
+
+  check("nur noch ein Hinweis zum Verschieben, und zwar der des Features",
+    hinweise.feature === true && hinweise.gruppe === false,
+    JSON.stringify(hinweise));
   check("die Punktzahl steht im Block",
     (await text("featurePointStat")) === "4", await text("featurePointStat"));
   check("und der Typ", (await text("featureTypeStat")) === "Perimeter",

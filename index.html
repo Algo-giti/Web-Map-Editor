@@ -4975,7 +4975,17 @@ function updateMapCursor() {
 const INSPECTOR_BLOCKS = [
   {id:"inspectorEmpty", states:["empty"]},
   {id:"inspectorPoint", states:["single"]},
-  {id:"inspectorMulti", states:["multi", "feature"]},
+  /*
+   * `inspectorMulti` gilt NUR noch fuer `multi` - mehrere Punkte eines
+   * Features, aber nicht alle. Im Zustand `feature` sagte er Wort fuer Wort,
+   * was der Kopfblock ohnehin sagt ("Alle 4 Punkte von Exclusion #0." gegen
+   * "4 Punkte ausgewaehlt" / "Exclusion #0 · vollstaendig"), und sein
+   * Ziehhinweis stand als zweiter neben dem von `inspectorFeature`.
+   *
+   * Im Zustand `multi` sagt derselbe Satz etwas anderes als der Kopfblock,
+   * und der Ziehhinweis steht dort allein - deshalb bleibt der Block.
+   */
+  {id:"inspectorMulti", states:["multi"]},
   {id:"inspectorMixed", states:["mixed"]},
   {id:"inspectorFeature", states:["feature"]},
   {id:"inspectorDraw", states:["drawing"]},

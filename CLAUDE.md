@@ -5182,9 +5182,14 @@ Zielgrößen für den Finger lösen sich von der Breite; und die Erklärungen fi
 einen Ort, den ein Finger erreicht. **Was Etappe 8 nicht ist:** eine
 Handyfassung, ein Fassungsschalter, oder eine Sperre unterhalb von 744 px.
 
-### Etappe 9 – der Inspektor wird entdoppelt, dann zieht der Prüfbericht um
+### Etappe 9 – der Inspektor ist entdoppelt; der Prüfbericht bleibt, wo er ist
 
-**Eintrag, kein Auftrag; der Plan folgt, wenn 7d durch ist.** 7a2 ist mit der
+**ENTSCHIEDEN und zum Teil GEBAUT mit dem einundzwanzigsten Durchgang: 9a ist
+umgesetzt, 9b und 9c sind verworfen.** Der ganze Abschnitt bleibt stehen,
+weil die Messungen, auf denen beides ruht, sonst verloren gingen.
+
+Der Eintrag entstand als **Eintrag, kein Auftrag; der Plan folgt, wenn 7d
+durch ist.** 7a2 ist mit der
 Merge-Diagnose erledigt, siehe „Verbinden und Singletons“ in Abschnitt 5.
 Ausgelöst durch die Beobachtung, der Inspektor trage zu viel, und den
 Vorschlag, Bestand, Koordinatenbezug, Kartenprüfung und Feature-Navigation aus
@@ -5336,8 +5341,9 @@ Aufgeschlüsselt, damit beim Planen nicht neu gemessen werden muss:
 | `#inspectorMulti` (110) | Überschrift 15 · „Alle 4 Punkte von Exclusion #0." 40 · Hinweis 35 |
 | `#inspectorSelection` (37) | die beiden Knöpfe nebeneinander |
 
-**Der Vorschlag, Stand `b5594fb`: `#inspectorMulti` entfällt, `#inspectorFeature`
-bleibt, der Kopfblock bleibt.** Gewählt ist nicht die kürzeste Stelle, sondern
+**GEBAUT mit dem einundzwanzigsten Durchgang, unverändert nach diesem
+Vorschlag: `#inspectorMulti` entfällt im Zustand `feature`,
+`#inspectorFeature` bleibt, der Kopfblock bleibt.** Gewählt ist nicht die kürzeste Stelle, sondern
 die, an der man die Angabe sucht:
 
 | Stelle | was sie heute sagt | Vorschlag |
@@ -5373,10 +5379,13 @@ Scrollen". `#inspectorFeature`, `#featureTypeStat`, `#featurePointStat`,
 unverändert. **Kein anderer Test greift auf diese ids zu** – nachgesehen über
 alle siebzehn.
 
-**Beim Planen zu entscheiden, nicht jetzt: welche der drei Stellen die Angabe
-trägt – und warum.** Nicht „die kürzeste gewinnt", sondern **die, an der man
-sie sucht**. Das ist eine Frage über die Lesegewohnheit, nicht über Pixel; wer
-sie mit einer Höhenrechnung beantwortet, hat sie nicht beantwortet.
+**Entschieden ist damit auch, welche der drei Stellen die Angabe trägt – und
+warum.** Nicht „die kürzeste gewinnt", sondern **die, an der man sie sucht**:
+der Kopfblock beantwortet „was habe ich gerade in der Hand?" und steht bei
+jedem Klick an derselben Stelle, `#inspectorFeature` trägt die Kennzahlen, die
+es sonst nirgends gibt. Das war eine Frage über die Lesegewohnheit, nicht über
+Pixel – und genau deshalb hat die entfallene Höhenrechnung die Entscheidung
+nicht umgeworfen.
 
 **Derselbe Befund ist in Etappe 5 schon einmal gelöst worden:** `#pointMeta`
 wiederholte Punktnummer, Feature und Geometrietyp – also genau das, was der
@@ -5402,7 +5411,7 @@ auf unsichtbaren Inhalt" nicht wegdefiniert, sondern eingelöst.
 Dazu kommt: ein Bericht mit dutzenden Zeilen gehört ohnehin nicht in eine
 320-px-Spalte.
 
-**VORHER zu entscheiden – die Überdeckung.** Ein Prüfbefund ist ein
+**Die Überdeckung – der Grund, aus dem 9b verworfen ist.** Ein Prüfbefund ist ein
 `<button>`, der über `selectWholeFeature()` **auf die Karte springt**. Liegt
 das Fenster über der Karte, kann das angesprungene Feature darunter landen.
 Die Kartenfenster sitzen heute unten links (`left:12px; bottom:12px`,
@@ -5474,8 +5483,8 @@ wählt ein Feature auf der Karte aus, das Fenster steht also bei **jeder**
 Benutzung möglicherweise vor dem Ergebnis. Bei der Prüfung ist der Sprung die
 Ausnahme, hier ist er der Zweck.
 
-**Der Vorschlag, Stand `b5594fb`: 9c wird erst nach 9b entschieden, und der
-Grund ist eine Zahl.** Zugeklappt kostet die Navigation **21 px** – 3 % des
+**VERWORFEN mit 9b.** Der Vorschlag lautete: 9c wird erst nach 9b entschieden,
+und der Grund ist eine Zahl. Zugeklappt kostet die Navigation **21 px** – 3 % des
 Inhalts. Der Umzug bringt also fast nichts an Höhe; sein einziger Gewinn wäre
 die Breite im aufgeklappten Zustand (614 px hoch, 320 px breit). **Solange 9a
 und 9b nicht gebaut sind, ist 9c ein Umzug ohne Anlass.**
@@ -5493,17 +5502,51 @@ Durchlauf. **Der Öffnungsschritt im Harness ist der empfindliche Teil:** ein
 Selektor, der nach dem Umzug nichts mehr trifft, wirft nicht – er tut nur
 nichts, und die Tests bestehen weiter, ohne noch etwas zu prüfen.
 
-#### Reihenfolge und Gesamturteil
+#### Reihenfolge und Gesamturteil – entschieden
 
 | Teilschritt | Gewinn | Preis | Urteil |
 |---|---|---|---|
-| **9a** | **120 px**; die Reserve bei 1280 × 800 stieg von −34 auf +86 px – **überholt, sie liegt heute ohne 9a schon bei +63 px** | ein Block weniger im Zustand `feature`; Zusicherungen nur in einem Test | **zuerst bauen** – billigster Gewinn, kein Ortswechsel. Der Grund ist seit dem zwanzigsten Durchgang aber die **Doppelung**, nicht die Höhe |
-| **9b** | die Überdeckung fällt, der Bericht bekommt volle Breite, und neun Zusicherungen können endlich die Sichtbarkeit mitbelegen | neun Tests im selben Schritt, plus die Entscheidung „andocken statt schweben" | **danach** |
-| **9c** | 21 px, dazu Breite für die aufgeklappte Liste | derselbe Umzug noch einmal, plus der empfindliche Öffnungsschritt im Harness | **zuletzt, und nur wenn 9b sich bewährt hat** |
+| **9a** | die Doppelung fällt: „Exclusion #0" stand dreimal, „4 Punkte" dreimal, und zwei Hinweissätze erklärten beide dasselbe Verschieben | ein Block weniger im Zustand `feature`; Zusicherungen nur in einem Test | **GEBAUT** |
+| **9b** | der Bericht bekäme die volle Breite | neun Tests im selben Schritt, die Entscheidung „andocken statt schweben", und ein Überdeckungsproblem, das der Faltblock **nicht hat** | **VERWORFEN** |
+| **9c** | 21 px, dazu Breite für die aufgeklappte Liste | derselbe Umzug noch einmal, plus der empfindliche Öffnungsschritt im Harness | **VERWORFEN** |
 
-**Gebaut ist nichts.** Schritt 7 des dritten Durchgangs war ausdrücklich Befund
-und Plan; die drei Entscheidungen – welcher Block entfällt, andocken oder
-schweben, ob 9c überhaupt kommt – liegen beim Projektinhaber.
+**9a ist gebaut, und der Grund dafür ist die Doppelung, nicht die Höhe.** Die
+Höhenrechnung, die den Teilschritt ursprünglich trug, ist mit dem zwanzigsten
+Durchgang gegenstandslos geworden: die Reserve bei 1280 × 800 liegt seit dem
+Umzug der acht Auswahlknöpfe ohnehin bei +63 px statt −34 px. Geblieben ist
+der eigentliche Befund – **derselbe Sachverhalt an drei Stellen** –, und der
+wiegt für sich.
+
+**Umgesetzt ist der Vorschlag von `b5594fb` unverändert:** `inspectorMulti`
+verliert den Zustand `feature`, der Kopfblock und `inspectorFeature` bleiben.
+`INSPECTOR_BLOCKS` ist die einzige angefasste Stelle. Zugesichert ist neben
+der Blockliste die **Wirkung**: von den beiden Hinweissätzen zum Verschieben
+steht nur noch einer da. Die Mutation „Gruppenblock wieder im Zustand
+`feature`" reißt beide benannten Zusicherungen bei 0 Timeouts.
+
+**9b ist verworfen, und der Grund ist, dass sein stärkstes Argument entfallen
+ist.** Es lautete: neun Zusicherungen lesen den Bericht durch ein
+geschlossenes `<details>` hindurch und belegen damit nur „der Text steht im
+DOM". Das ist mit dem einundzwanzigsten Durchgang **an Ort und Stelle**
+eingelöst – beide betroffenen Dateien tragen jetzt eine Trefferprüfung neben
+ihren Inhaltsmessungen. Übrig bleibt die Breite, und die ist eine
+Bequemlichkeit; ihr Preis wäre ein **selbstgemachtes** Problem, das der
+Faltblock nicht hat: ein Fenster über der Karte verdeckt das Feature, das ein
+Klick auf einen Befund gerade anspringt. Der Abschnitt darüber nennt die drei
+Auswege und ihre Kosten; keiner davon ist billiger als der heutige Zustand.
+
+**Damit ist auch „andocken oder schweben" entschieden – die Frage stellt sich
+nicht mehr.**
+
+**9c ist mit 9b verworfen.** Es war ausdrücklich „zuletzt, und nur wenn 9b
+sich bewährt hat", und sein eigener Gewinn ist mit 21 px – 3 % des Inhalts –
+schon im Plan als „ein Umzug ohne Anlass" beschrieben. Die Überdeckung träfe
+die Feature-Navigation zudem **härter** als den Prüfbericht: dort ist der
+Sprung auf die Karte nicht die Ausnahme, sondern der Zweck.
+
+**Was das für Etappe 10 heißt:** die Anordnung steht damit fest. Das
+Hilfe-Overlay kann geschrieben werden, ohne dass der Prüfbericht ihm
+davonzieht.
 
 #### Was NICHT gemacht wird, mit Begründung
 
@@ -5525,12 +5568,13 @@ schweben, ob 9c überhaupt kommt – liegen beim Projektinhaber.
 
 #### Planung
 
-**Das Hilfe-Overlay wird Etappe 10.** Das folgt genau dem Grund, aus dem es
+**Das Hilfe-Overlay wird Etappe 10.** Das folgte genau dem Grund, aus dem es
 zurückgestellt wurde: geschrieben wird, **wenn die Anordnung feststeht**. Zöge
-der Prüfbericht nach der Neufassung in ein Fenster, wäre das Overlay zweimal zu
-schreiben – der Aufwand, den die Zurückstellung vermeiden sollte. **Die
-Fehlerliste bleibt bis dahin offen und nimmt auf, was dieser Umbau falsch
-macht.**
+der Prüfbericht nach der Neufassung in ein Fenster, wäre das Overlay zweimal
+zu schreiben – der Aufwand, den die Zurückstellung vermeiden sollte. **Seit 9b
+verworfen ist, zieht er nicht mehr um; die Bedingung ist damit erfüllt.** Die
+Fehlerliste bleibt bis dahin offen und nimmt auf, was ein weiterer Umbau
+falsch macht.
 
 ---
 
