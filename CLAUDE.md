@@ -1321,7 +1321,7 @@ gemockt oder manuell geprüft werden:
   Rückmeldung bitten oder es explizit als ungetestet kennzeichnen.
 - **GitHub Pages Deployment selbst:** kein Zugriff auf das echte gehostete
   Deployment; `python3 -m http.server` ist die beste lokale Näherung.
-- **Alt+Buchstabe auf macOS – VERMUTUNG, kein Befund.** Auf macOS erzeugt die
+- **STEHENDE GRENZE: Alt+Buchstabe auf macOS – VERMUTUNG, kein Befund.** Auf macOS erzeugt die
   Wahltaste ein Sonderzeichen (Alt+D → „∂"), und `event.key` trägt dann
   dieses Zeichen statt des Buchstabens. Der Vergleich in `runMenuShortcut()`
   ginge damit ins Leere, und die Menükürzel funktionierten dort nicht.
@@ -5816,7 +5816,22 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
 ---
 
-## 7. Bekannte offene Punkte
+## 7. Entschiedenes, Erledigtes und bekannte Grenzen
+
+**In diesem Abschnitt steht seit dem einundzwanzigsten Durchgang kein offener
+Punkt und keine offene Entscheidung mehr.** Er hieß bis dahin „Bekannte offene
+Punkte"; was übrig ist, sind drei Arten von Einträgen, und jeder sagt
+ausdrücklich, welche er ist:
+
+| Art | was sie bedeutet |
+|---|---|
+| **ERLEDIGT** | gebaut und zugesichert. Der Eintrag bleibt stehen, weil er den Befund und die Messung trägt, auf denen die Arbeit ruht – nicht, weil noch etwas zu tun wäre |
+| **ENTSCHIEDEN** | die Frage ist beantwortet. Manches davon ist zugleich gebaut, manches ist festgelegte, aber noch nicht gebaute Arbeit (das Mähergeometrie-Paket, die Mähbahnen-Vorschau, die Erklärungen aus 8b). **Wer eine dieser Entscheidungen umdreht, ändert eine Entscheidung und behebt kein Versäumnis** |
+| **STEHENDE GRENZE** | etwas, das so bleibt, weil es nicht besser geht – eine Heuristik, die keine Garantie sein kann, eine Prüfung ohne Hardware, ein Suchmuster, das eine Schreibweise *ist*. Sie sind hingenommen und keine Aufgabe |
+
+**Was hier NEU eingetragen wird, ist wieder ein offener Punkt** – und dann
+gehört das Wort „offen" ausdrücklich in seine erste Zeile, damit der nächste
+Durchgang ihn von den dreien oben unterscheiden kann.
 
 - **Abschnitt `2A` steht physisch vor Abschnitt `2`, und nach `12` folgt
   `18` – ENTSCHIEDEN: es bleibt so.** Ein Umnummerieren fasste jeden
@@ -5886,9 +5901,15 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   JS; in `tools/test-toolbar.mjs` stand genau das und ist mit 7g
   richtiggestellt.
 
-- **`tools/check-privacy.mjs` ist nur heuristisch** – erkennt keine privaten
-  Daten unter untypischen Schlüsselnamen. Ersetzt keine manuelle
-  Diff-Prüfung vor einem Release.
+- **STEHENDE GRENZE: `tools/check-privacy.mjs` ist nur heuristisch** – es
+  erkennt keine privaten Daten unter untypischen Schlüsselnamen und ersetzt
+  keine manuelle Diff-Prüfung vor einem Release. **Das ist keine offene
+  Aufgabe, sondern die Natur der Sache:** ein privater Name ist von einem
+  synthetischen syntaktisch nicht zu unterscheiden, und dieselbe Einsicht
+  steht in Abschnitt 4.1 schon einmal – die Prüfung kann nur den **Ort**
+  erkennen, nicht den Namen. Was sie leisten kann, leistet sie scharf; das hat
+  der einundzwanzigste Durchgang beim Bau der Beispielkarte unfreiwillig
+  belegt, als sie sofort anschlug.
 - **ERLEDIGT mit dem zwanzigsten Durchgang: die vierte statische Prüfung gibt
   es.** `tools/check-css-classes.mjs` sammelt die Klassenselektoren des
   `<style>`-Blocks und hält sie gegen jede Stelle, an der im Rest der Datei
@@ -6043,9 +6064,9 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   textsuchende Prüfung baut, prüft als Erstes, was sie auf sich selbst und auf
   ihre eigene Dokumentation antwortet.
 
-- **Vier Stellen des Bestandsprüfers bauten auf eine Verabredung statt auf
-  eine prüfbare Bedingung – drei sind behoben, die vierte ist entschieden
-  hingenommen.** Der Eintrag bleibt stehen, damit niemand sie ein zweites Mal
+- **ERLEDIGT bis auf eine STEHENDE GRENZE: vier Stellen des Bestandsprüfers
+  bauten auf eine Verabredung statt auf eine prüfbare Bedingung – drei sind
+  behoben, die vierte ist hingenommen.** Der Eintrag bleibt stehen, damit niemand sie ein zweites Mal
   sucht. Alle vier sind gemessen, nicht vermutet.
 
   | Stelle | was sie voraussetzt | Stand |
@@ -6089,9 +6110,9 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   nur, ob jemand von der Lücke erfährt. **Das ist damit der einzige Rest, und
   er ist als Grenze der Methode hingenommen, nicht als offene Aufgabe.**
 
-- **`tools/check-dom-ids.mjs` prüft IDs, doppelte Funktionsnamen und – seit
-  dem zwanzigsten Durchgang – Funktionen ohne Aufrufer; Variablennamen prüft
-  es weiterhin nicht.** Verwaister Code nach dem Entfernen eines UI-Elements
+- **ERLEDIGT, mit einer STEHENDEN GRENZE: `tools/check-dom-ids.mjs` prüft
+  IDs, doppelte Funktionsnamen und – seit dem zwanzigsten Durchgang –
+  Funktionen ohne Aufrufer; Variablennamen prüft es weiterhin nicht.** Verwaister Code nach dem Entfernen eines UI-Elements
   blieb dadurch unentdeckt – genau so hatte `deleteSelectedExclusion()` den in
   Ausgabe 043 entfernten Button um mehrere Ausgaben überlebt.
 
@@ -6180,11 +6201,11 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `content=` und `aria-controls=`). Ein dynamischer Aufrufweg, den eine
   Textsuche übersähe, besteht nicht.
 
-  **Was weiterhin fehlt: Variablennamen.** Eine verwaiste `const` oder `let`
-  findet das Skript nicht, und für lokale Variablen wäre dafür ein echter
-  Parser nötig. Die manuelle Volltextsuche aus Abschnitt 5 („UI-Element
-  entfernen") bleibt deshalb Pflicht – nur für einen kleineren Rest als
-  vorher.
+  **STEHENDE GRENZE: Variablennamen prüft es nicht.** Eine verwaiste `const`
+  oder `let` findet das Skript nicht, und für lokale Variablen wäre dafür ein
+  echter Parser nötig – das ist der Punkt, an dem eine Textsuche endet. Die
+  manuelle Volltextsuche aus Abschnitt 5 („UI-Element entfernen") bleibt
+  deshalb Pflicht, nur für einen kleineren Rest als vorher.
 - **Das Hilfe-Overlay beschreibt die Anordnung in Prosa und veraltet mit
   jeder Etappe des Oberflächenumbaus – STEHENDE REGEL, kein offener Punkt.**
   Die Liste der falschen Sätze ist mit dem einundzwanzigsten Durchgang
@@ -6370,8 +6391,9 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   verwaister Wörterbucheintrag ist kein Fehler, nur Ballast, der beim nächsten
   Lesen wie eine gültige Übersetzung aussieht.
 
-- **Einzahl und Mehrzahl bei „Zahl + Nomen" – umgestellt mit Schritt 5 des
-  vierten Durchgangs; die zweifelhaften Fälle stehen hier.**
+- **ERLEDIGT: Einzahl und Mehrzahl bei „Zahl + Nomen" – umgestellt mit
+  Schritt 5 des vierten Durchgangs, abgeschlossen mit dem einundzwanzigsten;
+  die geprüften Fälle stehen hier.**
 
   **Der Anlass:** „Kartenprüfung: 1 Warnungen." / „Map validation: 1 warnings."
   war in beiden Sprachen falsch. **Das Suchmuster** war `${…}` gefolgt von
@@ -6663,18 +6685,23 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   der Fehlermeldung steht dann der **alte abgeleitete** Text; den Eintrag der
   Koordinatenmeldung entfernt reißt zwei, darunter „englisch: sie ist
   uebersetzt statt verworfen" mit dem Ruhetext als Detail.
-- **`CHANGELOG.md` (deutsch) beginnt erst bei Ausgabe 047.** Die Historie der
-  Ausgaben 001–046 existiert nur in `CHANGELOG_EN.md`. Neue Einträge ab
-  jetzt bitte in beiden Dateien pflegen.
-- **Falls ein Ordner `test/` existiert, enthält er echte private
-  Nutzerkarten.** Er ist über `.gitignore` ausgeschlossen und darf niemals
+- **ENTSCHIEDEN: `CHANGELOG.md` (deutsch) beginnt erst bei Ausgabe 047, und
+  das bleibt so.** Die Historie der Ausgaben 001–046 existiert nur in
+  `CHANGELOG_EN.md`; sie nachträglich zu übersetzen hieße, 46 Einträge aus
+  dem Gedächtnis zu belegen. Die Entscheidung steht in Abschnitt 8 als Punkt 1.
+  **Neue Einträge ab Ausgabe 047 gehören in beide Dateien** – das ist die
+  Regel, nicht die Lücke.
+- **STEHENDE REGEL: falls ein Ordner `test/` existiert, enthält er echte
+  private Nutzerkarten.** Er ist über `.gitignore` ausgeschlossen und darf niemals
   committet werden; `check-privacy.mjs` warnt zusätzlich, falls doch einmal
   eine Kartendatei von git getrackt wird. Der Ordner ist **nicht** Teil eines
   frischen Checkouts – `tools/test-cassandra.mjs` überspringt den
   entsprechenden Testfall dann stillschweigend, das ist kein Fehler.
-- Die CaSSAndRA-Anbindung ist gegen den Quellcode und eine reale Beispielkarte
-  verifiziert, aber **nicht gegen eine echte CaSSAndRA-Instanz oder Firmware**
-  getestet. Insbesondere ein Export mit gesetztem `lat0`/`lon0` wurde noch nie
+- **STEHENDE GRENZE: die CaSSAndRA-Anbindung ist gegen den Quellcode und eine
+  reale Beispielkarte verifiziert, aber nicht gegen eine echte
+  CaSSAndRA-Instanz oder Firmware getestet.** Dafür fehlt die Hardware; es ist
+  derselbe Fall wie in Abschnitt 4.3 und keine Aufgabe, sondern eine Angabe
+  zur Reichweite dessen, was die Prüfungen belegen. Insbesondere ein Export mit gesetztem `lat0`/`lon0` wurde noch nie
   von CaSSAndRA eingelesen. Dasselbe gilt für die beiden Nicht-Standard-Felder
   `referenceOrigin` und `coordinateScale`: dass CaSSAndRAs Import sie ignoriert,
   ist am Quelltext belegt (er greift ausschließlich auf `features` zu), aber
@@ -7337,7 +7364,8 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Komma. Das ist der ursprüngliche, weiter oben beschriebene Punkt und wird
   getrennt behandelt.
 
-- **Die Messungen zu 7d-4, gemessen am 11.09.2026, Stand `ec6f1f5`.** Sie
+- **MESSUNG, kein offener Punkt: die Zahlen zu 7d-4, gemessen am 11.09.2026,
+  Stand `ec6f1f5`.** Sie
   stehen hier, weil sie mehrere Entscheidungen von 7d-4a getragen haben und
   sonst beim nächsten Mal neu gemacht werden müssten.
 
@@ -7796,14 +7824,15 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   sind unverändert, weil keine Funktion und keine Regel entfallen ist, sondern
   der Rumpf eines Ereignisbehandlers.
 
-- **Die Mähbahnen-Vorschau ist geplant, aber nicht gebaut.** Sie war für
+- **ENTSCHIEDEN und noch nicht gebaut: die Mähbahnen-Vorschau.** Sie war für
   Ausgabe 049 vorgesehen und wurde herausgenommen, um den Release nicht
   aufzuhalten; sie kommt in einer späteren Ausgabe. In der Anwendung gibt es
   dazu bisher nichts – weder Schalter noch Platzhalter.
-- **Ein relativer Export schreibt weiterhin den aktiven `referenceOrigin` in
-  die Datei.** Das ist korrekt, solange kein Konflikt besteht – und ein
-  Konflikt sperrt den Export inzwischen vollständig. Bleibt als Merkposten,
-  falls die Sperre je gelockert wird.
+- **MERKPOSTEN, kein offener Punkt: ein relativer Export schreibt weiterhin
+  den aktiven `referenceOrigin` in die Datei.** Das ist korrekt, solange kein
+  Konflikt besteht – und ein Konflikt sperrt den Export inzwischen
+  vollständig. Der Eintrag steht hier für den Fall, dass die Sperre je
+  gelockert wird; solange sie gilt, ist nichts zu tun.
 
 - **Dateigröße und Struktur von `index.html` – ENTSCHIEDEN mit dem
   einundzwanzigsten Durchgang: die Datei bleibt eine, und es gibt keine
@@ -8000,7 +8029,8 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Ereignisbindungen) auf die Abschnitte, und ob die 3 045 CSS-Zeilen ihrerseits
   thematisch streuen.
 
-- **Nach dem UI-Umbau: fünf zusammenhängende Punkte um die Mähergeometrie.**
+- **ENTSCHIEDEN und noch nicht gebaut: fünf zusammenhängende Punkte um die
+  Mähergeometrie, nach dem UI-Umbau.**
   **Alle Entscheidungen des Pakets sind mit dem einundzwanzigsten Durchgang
   getroffen; gebaut ist nichts, und gebaut wird nach Etappe 10.** Damit ist es
   derselbe Stand wie die Mähbahnen-Vorschau: eine vollständig festgelegte,
