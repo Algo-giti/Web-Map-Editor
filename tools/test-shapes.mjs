@@ -400,6 +400,7 @@ try {
     document.querySelector(".draw-preview-polygon").getAttribute("d")
       .replace(/[MLZ]/g, "").trim().split(/\s+/).map(Number));
 
+
   await finishShape();
 
   const erzeugt = await page.evaluate(() => {
@@ -489,6 +490,70 @@ try {
 
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Die Zeichenvorschau traegt keine Auswahlfarbe");
+
+  /*
+   * Die Hausregel "keine Farbe traegt zwei Bedeutungen", an der Stelle
+   * gemessen, an der sie bis zum einundzwanzigsten Durchgang gebrochen war:
+   * die Zeichenvorschau borgte sich fuer ihre gesetzten Punkte das
+   * Auswahlgelb und fuer den Zeiger das Cyan der Auswahlgruppe. Sie traegt
+   * jetzt durchgehend den Entwurfston.
+   *
+   * Hergestellt wird der Zustand mit der EXCLUSION und zwei gesetzten
+   * Punkten: nur dort gibt es Umriss, gesetzten Punkt und Zeiger
+   * gleichzeitig. Bei einer Kreisvorschau fehlt der gesetzte Punkt - eine
+   * Messung dort liefe ins Leere und bestuende genau deshalb immer; der erste
+   * Entwurf dieser Zusicherung tat das und blieb unter der Mutation gruen.
+   */
+  await reload();
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(200);
+  await clickMap(6, 6);
+  await clickMap(14, 6);
+  await page.waitForTimeout(300);
+
+  const toene = await page.evaluate(() => {
+    const alsRgb = (farbe) => {
+      const probe = document.createElement("span");
+      probe.style.color = farbe;
+      document.body.appendChild(probe);
+      const rgb = getComputedStyle(probe).color;
+      probe.remove();
+      return rgb;
+    };
+    const variable = (name) => alsRgb(getComputedStyle(document.documentElement)
+      .getPropertyValue(name).trim());
+    const gemalt = (sel, eigenschaft) => {
+      const el = document.querySelector(sel);
+      return el ? getComputedStyle(el)[eigenschaft] : null;
+    };
+
+    return {
+      entwurf: variable("--map-draft"),
+      auswahl: variable("--map-selection"),
+      gruppe: variable("--map-selection-group"),
+      umriss: gemalt(".draw-preview-polygon, .draw-preview-line", "stroke"),
+      punkt: gemalt(".draw-preview-point", "fill"),
+      zeiger: gemalt(".draw-preview-pointer", "stroke"),
+    };
+  });
+
+  /* Die Vorbedingung selbst zugesichert: ohne die drei Elemente misst der
+     Rest nichts, und die Zusicherung darunter koennte nicht reissen. */
+  check("Umriss, gesetzter Punkt und Zeiger sind alle drei da",
+    !!toene.umriss && !!toene.punkt && !!toene.zeiger, JSON.stringify(toene));
+  check("alle drei tragen den Entwurfston",
+    toene.umriss === toene.entwurf && toene.punkt === toene.entwurf &&
+    toene.zeiger === toene.entwurf, JSON.stringify(toene));
+  check("und keines traegt eine der beiden Auswahlfarben",
+    ![toene.umriss, toene.punkt, toene.zeiger]
+      .some((f) => f === toene.auswahl || f === toene.gruppe),
+    JSON.stringify(toene));
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
 
   /* ---------------------------------------------------------------- */
   console.log("Kontur schließen: erster Punkt und Doppelklick");

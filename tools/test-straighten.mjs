@@ -154,10 +154,10 @@ try {
   console.log("Vorschau erscheint ohne vorhandene Vergleichszustände");
 
   check("Vorschaulinie ist gezeichnet",
-    (await page.locator("#selectionGhostGroup .straighten-preview-line").count()) === 1);
+    (await page.locator("#toolPreviewGroup .straighten-preview-line").count()) === 1);
   check("betroffene Punkte sind hervorgehoben",
-    (await page.locator("#selectionGhostGroup .straighten-preview-node").count()) === 3,
-    String(await page.locator("#selectionGhostGroup .straighten-preview-node").count()));
+    (await page.locator("#toolPreviewGroup .straighten-preview-node").count()) === 3,
+    String(await page.locator("#toolPreviewGroup .straighten-preview-node").count()));
 
   /* ---------------------------------------------------------------- */
   console.log("Begradigen");

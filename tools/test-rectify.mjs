@@ -172,11 +172,11 @@ try {
     (await page.locator("#vertexGroup circle.selected").count()) === 1,
     String(await page.locator("#vertexGroup circle.selected").count()));
   check("bei einem Punkt gibt es noch keine Vorschaulinie",
-    (await page.locator("#selectionGhostGroup .rectify-preview-line").count()) === 0,
-    String(await page.locator("#selectionGhostGroup .rectify-preview-line").count()));
+    (await page.locator("#toolPreviewGroup .rectify-preview-line").count()) === 0,
+    String(await page.locator("#toolPreviewGroup .rectify-preview-line").count()));
   check("und keine markierten Punkte",
-    (await page.locator("#selectionGhostGroup .rectify-preview-node").count()) === 0,
-    String(await page.locator("#selectionGhostGroup .rectify-preview-node").count()));
+    (await page.locator("#toolPreviewGroup .rectify-preview-node").count()) === 0,
+    String(await page.locator("#toolPreviewGroup .rectify-preview-node").count()));
 
   /*
    * Ganzes Feature waehlen - der Knopf steht in der Feature-Navigation.
@@ -199,10 +199,40 @@ try {
       .count()));
 
   check("Vorschaulinie ist gezeichnet",
-    (await page.locator("#selectionGhostGroup .rectify-preview-line").count()) >= 1);
+    (await page.locator("#toolPreviewGroup .rectify-preview-line").count()) >= 1);
   check("bewegte Punkte sind markiert",
-    (await page.locator("#selectionGhostGroup .rectify-preview-node").count()) >= 1,
-    String(await page.locator("#selectionGhostGroup .rectify-preview-node").count()));
+    (await page.locator("#toolPreviewGroup .rectify-preview-node").count()) >= 1,
+    String(await page.locator("#toolPreviewGroup .rectify-preview-node").count()));
+
+  /*
+   * Die Vorschau liegt in einer EIGENEN Gruppe und erbt nicht mehr die
+   * Daempfung der Ghosts. Bis zum einundzwanzigsten Durchgang hing sie in
+   * #selectionGhostGroup mit `opacity:.42`; das blassgruene Rechtwinklig-Gruen
+   * kam damit auf eine effektive Deckung von 0,85 x 0,42 = 0,357 und war von
+   * einem Ghost nicht mehr zu unterscheiden - obwohl das eine die Zukunft
+   * zeigt und das andere die Vergangenheit.
+   *
+   * Gemessen wird die WIRKUNG: die berechnete Deckung der Gruppe, in der die
+   * Linie wirklich haengt, und dass die Ghost-Gruppe ihre eigene behaelt.
+   */
+  const deckung = await page.evaluate(() => {
+    const linie = document.querySelector(".rectify-preview-line");
+    const gruppe = linie?.closest("g");
+
+    return {
+      gruppe: gruppe?.id ?? null,
+      vorschau: gruppe ? getComputedStyle(gruppe).opacity : null,
+      ghost: getComputedStyle(
+        document.getElementById("selectionGhostGroup")).opacity,
+    };
+  });
+
+  check("die Vorschau haengt in der eigenen Gruppe",
+    deckung.gruppe === "toolPreviewGroup", JSON.stringify(deckung));
+  check("und diese Gruppe daempft nicht",
+    Number(deckung.vorschau) === 1, JSON.stringify(deckung));
+  check("waehrend die Ghost-Gruppe ihre Daempfung behaelt",
+    Number(deckung.ghost) < 1, JSON.stringify(deckung));
 
   const pointsBefore = await marks.count();
 

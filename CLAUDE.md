@@ -3102,7 +3102,8 @@ Rand eines Startpunktes ist auch eine Farbe, nur nicht die gemeinte.
 | `--map-selection` | `#ffd166` | **Auswahl**, und nur das |
 | `--map-selection-group` | `#61d8ff` | weitere Punkte derselben Auswahl |
 | `--map-ghost` | `#b9cce1` | Stand seit dem letzten Speichern |
-| `--map-origin` | `#95a7bf` | Ursprungskreuz – fester Bezug, kein Zustand |
+| `--map-origin` | `#95a7bf` | Ursprungskreuz **und Messwerkzeug** – Hilfsmittel, kein Kartenobjekt |
+| `--map-draft` | `#ffb36b` | **in Arbeit** – Zeichenvorschau und Merge-Brücken: entsteht gerade, gibt es noch nicht |
 
 ### Angleichung an MapmakerBT
 
@@ -3146,6 +3147,13 @@ Glühen eines ganz ausgewählten Features.
 | Vergleichslinie | gelb | **Ghost-Familie** `--map-ghost` |
 | Auswahlring, Feature-Glühen, Mäher | gelb | gelb – *eine* Bedeutung |
 
+**Mit dem einundzwanzigsten Durchgang sind drei weitere Gelb- und
+Cyan-Stellen dazugekommen und gelöst** – der zweite Messpunkt, die
+Zeichenvorschau und die Merge-Brücken; sie standen als „Farbrunde 2" offen und
+tragen jetzt `--map-draft` bzw. `--map-origin`. Gelb heißt seitdem
+ausschließlich „Auswahl", Cyan ausschließlich „weitere Punkte derselben
+Auswahl".
+
 **Auswahlring und Mäher dürfen dieselbe Farbe tragen, weil sie nie
 gleichzeitig erscheinen.** Ist die Mähervorschau an, zeichnet der Marker des
 ausgewählten Punktes **keinen Auswahlring** (`mowerOnPoint` in
@@ -3182,61 +3190,105 @@ Die reale Überlagerung war eine andere und ist jetzt weg: ein **ausgewählter
 Dock-Punkt** setzte den gelben Mäher exakt auf die gelbe Dock-Linie – gleiche
 Farbe, gleiche Stelle, zwei verschiedene Dinge.
 
-### Offen, Farbrunde 2
+### Farbrunde 2 – erledigt mit dem einundzwanzigsten Durchgang
 
-- **Die Gruppe „gerade in Arbeit" borgt sich weiterhin die Auswahlfarben.**
-  Betroffen sind der zweite Messpunkt, die Zeichenvorschau und die
-  Merge-Vorschau (gelb) sowie Messlinie und Vorschau-Zeiger (cyan). Das
-  verstößt gegen die Regel oben. Sie stehen deshalb bewusst weiter als feste
-  Hex-Werte im CSS, mit einem Kommentar an der Stelle – eine Variable würde die
-  Frage für beantwortet ausgeben. **Vorschlag:** ein eigener Ton für „in
-  Arbeit", oder die Vorschau nimmt die Farbe des Typs an, der gerade entsteht,
-  und das „in Arbeit" trägt allein die Strichelung. Beides ist eine
-  Entscheidung, keine Ableitung.
-- **Die Werkzeugvorschauen liegen in der Ghost-Gruppe und erben deren
-  Deckung.** `renderStraightenPreview()`, `renderReducePreview()` und
-  `renderRectifyPreview()` hängen ihre Elemente in `selectionGhostGroup`, und
-  die trägt `opacity:.42`. Die Rechtwinklig-Vorschau ist deshalb nominell
-  blassgrün (`rgba(180,255,160,.85)`), sichtbar aber grau – nicht mehr zu
-  unterscheiden von den Vorher-Ghosts. Das ist ein Verstoß gegen die Regel
-  oben, und zwar ein sinnentstellender: die Ghosts zeigen die **Vergangenheit**
-  („so lag der Punkt beim letzten Speichern"), die Vorschauen einen
-  **Vorschlag für die Zukunft**.
+**Alle drei Befunde sind behoben, der vierte ist entschieden verworfen.** Die
+Messungen bleiben stehen, weil die Entscheidungen auf ihnen ruhen.
 
-  In der Gruppe liegen sie nur wegen der Z-Ordnung – sie sollen hinter der
-  aktiven Geometrie stehen; der Kommentar an `renderStraightenPreview()` sagt
-  das selbst. **Vorschlag:** eine eigene Gruppe an derselben Z-Position mit
-  eigener Deckung. Dann ist Grün wieder grün.
+#### Die Gruppe „gerade in Arbeit" hat einen eigenen Namen: `--map-draft`
 
-  Nebenbei aufgefallen und dazugehörig: `renderReducePreview()` benutzt für
-  seinen Ergebnispfad die Klasse `.straighten-preview-line` des Begradigens.
-  Zwei Werkzeuge, eine Farbe – dieselbe Regel, dieselbe Runde.
+**Der Befund war:** der zweite Messpunkt, die Zeichenvorschau und die
+Merge-Vorschau borgten sich das Auswahlgelb, Messlinie und Vorschau-Zeiger das
+Cyan der Auswahlgruppe. Damit trugen beide Auswahlfarben eine zweite
+Bedeutung.
 
-  **NACHGEMESSEN mit dem zwanzigsten Durchgang – beide Befunde stehen, und
-  jetzt mit Zahlen.** Nichts geändert; die Entscheidung ist unverändert offen.
+**Der eigene Ton war schon da, nur ohne Namen.** Die Zeichenvorschau zeichnete
+seit jeher mit `#ffb36b` – einem Orange, das in der Farbtabelle nicht steht
+und sonst nirgends vorkommt. Es heißt jetzt `--map-draft` und bedeutet: **das
+entsteht gerade und gibt es noch nicht.** Die Merge-Brücken tragen es
+ebenfalls; erfunden wurde damit keine Farbe, nur eine benannt.
+
+**Die frühere Ausnahme für die Search Wire ist entfallen.** Ihre Vorschau war
+violett, also in der Typfarbe – eine zweite Regel neben dem Entwurfston. Sie
+ist gestrichen: **die Vorschau sagt „das entsteht gerade", welcher Typ
+entsteht, sagen Werkzeugleiste und Statuszeile.** Eine Vorschau in der
+Typfarbe wäre von einem fertigen Feature nur noch an der Strichelung zu
+unterscheiden – und die trägt in dieser Datei bereits eine andere Bedeutung.
+
+**Das Messen trägt den neutralen Ton des Ursprungskreuzes.** Beim Messen
+entsteht nichts: es ist ein **Hilfsmittel und kein Kartenobjekt**, genau wie
+das Kreuz, und `--map-origin` bedeutet seitdem beides – eine Bedeutung, zwei
+Träger, kein zweiter Sinn. Den **zweiten** Messpunkt unterscheidet seitdem die
+Form und nicht die Farbe: gefüllt gegen hohl. Dasselbe beim Zeichnen, wo der
+noch nicht gesetzte Zeiger hohl ist und der gesetzte Punkt gefüllt.
+
+**Zugesichert in `tools/test-shapes.mjs`**, an der Exclusion mit zwei
+gesetzten Punkten – nur dort gibt es Umriss, gesetzten Punkt und Zeiger
+gleichzeitig. Verglichen werden **berechnete** Farbwerte, nicht Quelltexte;
+ein Vergleich der Zeichenketten ginge auch auf, wenn die Variable gar nicht
+existiert. Zwei Mutationen, je 0 Timeouts: der Vorschaupunkt wieder im
+Auswahlgelb reißt zwei benannte Zusicherungen, der Zeiger wieder im Cyan
+ebenfalls zwei.
+
+**Und ein Lehrstück am eigenen Entwurf:** die erste Fassung dieser Zusicherung
+maß an der **Kreisvorschau** – und dort gibt es gar keinen gesetzten Punkt.
+`querySelector()` lieferte `null`, `null !== auswahl` war wahr, und die
+Zusicherung bestand unter der Mutation. Sie sichert deshalb jetzt zuerst zu,
+dass alle drei Elemente überhaupt da sind.
+
+#### Die Werkzeugvorschauen haben eine eigene Gruppe
+
+**Der Befund war:** `renderStraightenPreview()`, `renderReducePreview()` und
+`renderRectifyPreview()` hängten ihre Elemente in `selectionGhostGroup`, und
+die trägt `opacity:.42`. Die Rechtwinklig-Vorschau war damit nominell
+blassgrün (`rgba(180,255,160,.85)`), effektiv aber **0,85 × 0,42 = 0,357** –
+nicht mehr zu unterscheiden von den Vorher-Ghosts. Sinnentstellend, denn die
+Ghosts zeigen die **Vergangenheit** und die Vorschauen einen **Vorschlag für
+die Zukunft**.
+
+**In der Gruppe lagen sie nur wegen der Z-Ordnung.** Es gibt jetzt
+`#toolPreviewGroup` an derselben Z-Position – unmittelbar über den Ghosts und
+weiterhin vor der aktiven Geometrie –, ohne eigene Dämpfung. Beide Gruppen
+werden gemeinsam angehängt, damit ihre Reihenfolge nicht an drei
+Ausstiegspunkten einzeln stimmen muss.
+
+**`renderReducePreview()` hat eine eigene Linienklasse bekommen.** Es benutzte
+für seinen Ergebnispfad `.straighten-preview-line` – zwei Werkzeuge, eine
+Farbe, und bei einer Zweipunktauswahl beide gleichzeitig sichtbar.
+`.reduce-preview-line` trägt jetzt das Rot seiner Knoten, damit Linie und
+Knoten desselben Werkzeugs zusammengehören.
+
+**Zugesichert als Wirkung**, nicht am Klassennamen: `tools/test-rectify.mjs`
+misst, in welcher Gruppe die Linie wirklich hängt und welche Deckung diese
+Gruppe berechnet hat – und dass die Ghost-Gruppe ihre eigene behält.
+`tools/test-reduce.mjs` sichert zu, dass die Linie des Begradigens dabei
+**nicht** dasteht. Zwei Mutationen, je 0 Timeouts: die Vorschaugruppe wieder
+gedämpft reißt eine, das Reduzieren wieder mit der fremden Klasse reißt zwei.
+
+**Die Messung des zwanzigsten Durchgangs, auf der das ruht:**
 
   | gemessen | Wert |
   |---|---|
   | `#selectionGhostGroup` | trägt `class="selection-ghost"`, berechnete `opacity` **0,42** |
-  | Rechtwinklig-Vorschau, `stroke` | `rgba(180, 255, 160, 0.85)` – der in diesem Abschnitt genannte Wert, unverändert |
-  | eigene `opacity` der Vorschau-Elemente | **1** – sie erben also die 0,42 der Gruppe |
+  | Rechtwinklig-Vorschau, `stroke` | `rgba(180, 255, 160, 0.85)` |
+  | eigene `opacity` der Vorschau-Elemente | **1** – sie erbten also die 0,42 der Gruppe |
   | **effektive Deckung des Grüns** | **0,85 × 0,42 = 0,357** |
-  | `renderReducePreview()` | setzt für den Ergebnispfad `class="straighten-preview-line"`; nur sein **Knoten** hat mit `reduce-preview-node` eine eigene Klasse |
 
-  **Die 0,357 sind die Zahl, um die es geht:** ein Grün, das zu gut einem
-  Drittel deckt, steht neben Ghosts, die mit `rgba(255,255,255,.16)` × 0,42
-  gezeichnet werden – der Unterschied, den der Nutzer sehen soll, liegt damit
-  in einem Bereich, in dem beide grau wirken.
+#### Strichbreiten und Leuchten – ENTSCHIEDEN: nicht übernehmen
 
-  **Die Klassenteilung ist ebenso unverändert:** von den drei Vorschauen haben
-  Begradigen und Rechtwinklig je eigene Klassen für Linie und Knoten,
-  Reduzieren teilt sich die **Linie** mit dem Begradigen.
+MapmakerBT zeichnet etwa doppelt so kräftig (Perimeter 5, Exclusion 4, Dock 5,
+Search Wire 4, Punktrand 4 gegen unsere 2,2 / 2,0 / 2,6 / 2,4 / 1,4) und legt
+auf jede Form ein `filter: drop-shadow(...)` in ihrer eigenen Farbe.
 
-- **Strichbreiten und Leuchten:** MapmakerBT zeichnet etwa doppelt so kräftig
-  (Perimeter 5, Exclusion 4, Dock 5, Search Wire 4, Punktrand 4 gegen unsere
-  2,2 / 2,0 / 2,6 / 2,4 / 1,4) und legt auf jede Form ein
-  `filter: drop-shadow(...)` in ihrer eigenen Farbe. Zurückgestellt: das ist
-  eine Frage des Erscheinungsbildes, keine der Bedeutung.
+**Verworfen, nicht länger zurückgestellt**, und zwar aus zwei Gründen, die
+beide in dieser Datei stehen: erstens ist es dieselbe Art von Angleichung wie
+die Strichelung, und dort gilt schon **„nicht übernehmen, was anders ist, nur
+weil es anders ist"**. Zweitens kostet es Bedeutung: doppelte Strichbreiten
+rücken die gestrichelten Entwürfe und die Ghost-Familie optisch aneinander,
+und ein `drop-shadow` je Form ist auf einer großzügigen realen Karte (1000
+Perimeterpunkte, 20 Exclusions à 60 Punkte) eine Rechnung, die bei jedem Zoom
+neu anfällt – dieselbe Karte, für die `GEOMETRY_CHECK_PAIR_BUDGET` gemessen
+wurde.
 
 **Der Zeitpunkt der Vorschauen gehört NICHT mehr in diese Runde.** Er ist
 Verhalten, nicht Farbe, und er betrifft alle drei Werkzeuge statt eines – er

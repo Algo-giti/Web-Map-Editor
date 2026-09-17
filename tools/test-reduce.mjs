@@ -188,11 +188,11 @@ try {
     (await page.locator("#vertexGroup circle.selected").count()) === 1,
     String(await page.locator("#vertexGroup circle.selected").count()));
   check("bei einem Punkt gibt es noch keine Vorschaulinie",
-    (await page.locator("#selectionGhostGroup .straighten-preview-line").count()) === 0,
-    String(await page.locator("#selectionGhostGroup .straighten-preview-line").count()));
+    (await page.locator("#toolPreviewGroup .reduce-preview-line").count()) === 0,
+    String(await page.locator("#toolPreviewGroup .reduce-preview-line").count()));
   check("und keine wegfallenden Punkte",
-    (await page.locator("#selectionGhostGroup .reduce-preview-node").count()) === 0,
-    String(await page.locator("#selectionGhostGroup .reduce-preview-node").count()));
+    (await page.locator("#toolPreviewGroup .reduce-preview-node").count()) === 0,
+    String(await page.locator("#toolPreviewGroup .reduce-preview-node").count()));
 
   /* Search Wire ist Feature 2; der Perimeter hat seit 7f ebenfalls einen Knopf. */
   await openAllFolds(page);
@@ -207,10 +207,19 @@ try {
       "#vertexGroup circle.selected, #vertexGroup circle.multi-selected").count()));
 
   check("Vorschaulinie ist gezeichnet",
-    (await page.locator("#selectionGhostGroup .straighten-preview-line").count()) >= 1);
+    (await page.locator("#toolPreviewGroup .reduce-preview-line").count()) >= 1);
+  /*
+   * Und sie traegt eine EIGENE Klasse. Bis zum einundzwanzigsten Durchgang
+   * borgte sich das Reduzieren die Linienklasse des Begradigens - zwei
+   * Werkzeuge, eine Farbe, und bei einer Zweipunktauswahl beide gleichzeitig
+   * sichtbar.
+   */
+  check("und sie ist nicht die Linie des Begradigens",
+    (await page.locator("#toolPreviewGroup .straighten-preview-line").count()) === 0,
+    String(await page.locator("#toolPreviewGroup .straighten-preview-line").count()));
   check("wegfallende Punkte sind markiert",
-    (await page.locator("#selectionGhostGroup .reduce-preview-node").count()) >= 1,
-    String(await page.locator("#selectionGhostGroup .reduce-preview-node").count()));
+    (await page.locator("#toolPreviewGroup .reduce-preview-node").count()) >= 1,
+    String(await page.locator("#toolPreviewGroup .reduce-preview-node").count()));
 
   await applyButton.click();
   await page.waitForTimeout(350);

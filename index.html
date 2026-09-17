@@ -87,6 +87,16 @@
 
     /* Fester Bezugspunkt der Karte, kein Zustand. */
     --map-origin:#95a7bf;
+
+    /*
+     * Der Entwurfston: alles, was gerade ENTSTEHT und noch nicht existiert -
+     * Zeichenvorschau, Merge-Bruecken. Er stand seit jeher als fester Wert
+     * #ffb36b in der Zeichenvorschau, nur ohne Namen und nicht ueberall; die
+     * uebrigen Stellen borgten sich das Auswahlgelb und das Cyan der
+     * Auswahlgruppe und gaben beiden Farben damit eine zweite Bedeutung.
+     */
+    --map-draft:#ffb36b;
+    --map-draft-dark:#3a2200;
   }
   * { box-sizing:border-box; }
   /*
@@ -918,33 +928,35 @@
     pointer-events:none;
   }
 
+  /*
+   * MESSEN traegt den neutralen Ton des Ursprungskreuzes. Es entsteht dabei
+   * nichts - das Werkzeug ist ein Hilfsmittel und kein Kartenobjekt, genau
+   * wie das Kreuz. Vorher waren Linie und erster Punkt cyan und der zweite
+   * gelb; damit trugen die beiden Auswahlfarben eine zweite Bedeutung.
+   *
+   * Den ZWEITEN Punkt unterscheidet seitdem die Form und nicht die Farbe:
+   * gefuellt gegen hohl. Eine zweite Farbe waere eine zweite Bedeutung fuer
+   * denselben Sachverhalt "Messpunkt".
+   */
   .measurement-line {
     fill:none;
-    stroke:#61d8ff;
+    stroke:var(--map-origin);
     stroke-width:2;
     stroke-dasharray:8 5;
     vector-effect:non-scaling-stroke;
   }
 
   .measurement-point {
-    fill:#61d8ff;
-    stroke:#082333;
+    fill:var(--map-origin);
+    stroke:#0b1220;
     stroke-width:1.5;
     vector-effect:non-scaling-stroke;
   }
 
-  /*
-   * OFFEN, Farbrunde 2: die Gruppe "gerade in Arbeit" - zweiter Messpunkt,
-   * Zeichenvorschau und Merge-Vorschau - borgt sich weiterhin die
-   * Auswahlfarben Gelb und Cyan. Das verstößt gegen die Regel "keine Farbe
-   * trägt zwei Bedeutungen"; die Farbe dafür ist eine Entscheidung, keine
-   * Ableitung, und steht als offener Punkt in CLAUDE.md. Deshalb hier
-   * bewusst noch feste Werte statt einer Variablen, die die Frage für
-   * beantwortet ausgäbe.
-   */
   .measurement-point.second {
-    fill:#ffd166;
-    stroke:#3a2600;
+    fill:none;
+    stroke:var(--map-origin);
+    stroke-width:2.4;
   }
 
   #drawCircleBtn.active,
@@ -964,9 +976,17 @@
     pointer-events:none;
   }
 
+  /*
+   * Die Zeichenvorschau traegt den Entwurfston - und zwar in JEDEM Modus.
+   * Die frueher hier stehende Ausnahme fuer die Search Wire ist entfallen:
+   * die Vorschau sagt "das entsteht gerade", welcher Typ entsteht, sagen
+   * Werkzeugleiste und Statuszeile. Eine Vorschau in der Typfarbe waere von
+   * einem fertigen Feature nur noch an der Strichelung zu unterscheiden -
+   * und die traegt in dieser Datei bereits eine andere Bedeutung.
+   */
   .draw-preview-line {
     fill:none;
-    stroke:#ffb36b;
+    stroke:var(--map-draft);
     stroke-width:2;
     stroke-dasharray:7 5;
     vector-effect:non-scaling-stroke;
@@ -976,7 +996,7 @@
 
   .draw-preview-polygon {
     fill:rgba(255,157,102,.10);
-    stroke:#ffb36b;
+    stroke:var(--map-draft);
     stroke-width:2;
     stroke-dasharray:7 5;
     vector-effect:non-scaling-stroke;
@@ -985,31 +1005,22 @@
   }
 
   .draw-preview-point {
-    fill:#ffd166;
-    stroke:#3a2600;
+    fill:var(--map-draft);
+    stroke:var(--map-draft-dark);
     stroke-width:1.4;
     vector-effect:non-scaling-stroke;
   }
 
+  /*
+   * Der Zeiger ist der Punkt, der noch nicht gesetzt ist. Er unterscheidet
+   * sich vom gesetzten durch die FORM - hohl gegen gefuellt -, nicht durch
+   * eine zweite Farbe.
+   */
   .draw-preview-pointer {
-    fill:#61d8ff;
-    stroke:#082333;
-    stroke-width:1.4;
+    fill:none;
+    stroke:var(--map-draft);
+    stroke-width:2;
     vector-effect:non-scaling-stroke;
-  }
-
-  .draw-preview.searchwire .draw-preview-line {
-    stroke:#ba8cff;
-  }
-
-  .draw-preview.searchwire .draw-preview-point {
-    fill:#ba8cff;
-    stroke:#261839;
-  }
-
-  .draw-preview.searchwire .draw-preview-pointer {
-    fill:#e0c8ff;
-    stroke:#261839;
   }
 
   .selection-tool-buttons {
@@ -1142,8 +1153,27 @@
     vector-effect:non-scaling-stroke;
   }
 
+  /*
+   * Die Werkzeugvorschauen liegen in einer eigenen Gruppe und erben nicht mehr
+   * die `opacity:.42` der Ghosts - sie zeigen einen Vorschlag fuer die Zukunft
+   * und nicht die Vergangenheit.
+   */
+  .tool-preview {
+    pointer-events:none;
+  }
+
   .straighten-preview-line {
     fill:none; stroke:rgba(120,200,255,.85); stroke-width:1.6px;
+    stroke-dasharray:6 4; vector-effect:non-scaling-stroke;
+  }
+  /*
+   * Das Reduzieren borgte sich bis zum einundzwanzigsten Durchgang die
+   * Linienklasse des Begradigens - zwei Werkzeuge, eine Farbe. Es hat jetzt
+   * eine eigene, im Rot seiner Knoten, damit Linie und Knoten desselben
+   * Werkzeugs zusammengehoeren.
+   */
+  .reduce-preview-line {
+    fill:none; stroke:rgba(255,140,140,.85); stroke-width:1.6px;
     stroke-dasharray:6 4; vector-effect:non-scaling-stroke;
   }
   .reduce-preview-node {
@@ -2446,9 +2476,14 @@
    * Vorschau der zwei neuen Brückenkanten beim Zusammenführen:
    * A-Ende -> B-Start und B-Ende -> A-Start.
    */
+  /*
+   * Die beiden Bruecken entstehen gerade und gibt es noch nicht - also der
+   * Entwurfston. Gelb war hier das Auswahlgelb und damit dessen zweite
+   * Bedeutung.
+   */
   .merge-preview-line {
     fill:none;
-    stroke:#ffd166;
+    stroke:var(--map-draft);
     stroke-width:2.4;
     vector-effect:non-scaling-stroke;
     stroke-dasharray:9 6;
@@ -2456,8 +2491,8 @@
   }
 
   .merge-preview-node {
-    fill:#ffd166;
-    stroke:#241a00;
+    fill:var(--map-draft);
+    stroke:var(--map-draft-dark);
     stroke-width:1.5;
     vector-effect:non-scaling-stroke;
     pointer-events:none;
@@ -4671,6 +4706,17 @@ const slotVisibility = { A: true, B: true };
 let gridGroup = null;
 let otherMapGroup = null;
 let selectionGhostGroup = null;
+/*
+ * Die Vorschauen der Umformwerkzeuge liegen in einer EIGENEN Gruppe, nicht in
+ * der Ghost-Gruppe. Dort lagen sie bis zum einundzwanzigsten Durchgang nur
+ * wegen der Z-Ordnung - und erbten deren `opacity:.42`: das blassgruene
+ * Rechtwinklig-Grün kam damit auf eine effektive Deckung von 0,357 und war von
+ * den Ghosts nicht mehr zu unterscheiden. Die beiden sagen aber Verschiedenes:
+ * der Ghost zeigt die VERGANGENHEIT, die Vorschau einen Vorschlag fuer die
+ * ZUKUNFT. Die eigene Gruppe steht an derselben Z-Position und traegt keine
+ * eigene Deckung.
+ */
+let toolPreviewGroup = null;
 let geometryGroup = null;
 let vertexGroup = null;
 let mowerGroup = null;
@@ -8663,7 +8709,7 @@ function renderFeatureDrawPreview() {
     document.createElementNS("http://www.w3.org/2000/svg", "g");
   featureDrawGroup.setAttribute(
     "class",
-    `draw-preview${featureDrawState.mode === "searchwire" ? " searchwire" : ""}`
+    "draw-preview"
   );
   svg.appendChild(featureDrawGroup);
 
@@ -12028,8 +12074,8 @@ function renderReducePreview(worldUnitsPerPixel) {
           `${index ? "L" : "M"} ${east} ${-north}`)
         .join(" ")
     );
-    path.setAttribute("class", "straighten-preview-line");
-    selectionGhostGroup.appendChild(path);
+    path.setAttribute("class", "reduce-preview-line");
+    toolPreviewGroup.appendChild(path);
   }
 
   for (const pointIndex of analysis.removed) {
@@ -12044,7 +12090,7 @@ function renderReducePreview(worldUnitsPerPixel) {
     node.setAttribute("cy", -north);
     node.setAttribute("r", worldUnitsPerPixel * 4.5);
     node.setAttribute("class", "reduce-preview-node");
-    selectionGhostGroup.appendChild(node);
+    toolPreviewGroup.appendChild(node);
   }
 }
 
@@ -12075,7 +12121,7 @@ function renderRectifyPreview(worldUnitsPerPixel) {
         .join(" ")
     );
     path.setAttribute("class", "rectify-preview-line");
-    selectionGhostGroup.appendChild(path);
+    toolPreviewGroup.appendChild(path);
   }
 
   /* Nur die Punkte markieren, die sich tatsächlich bewegen. */
@@ -12089,7 +12135,7 @@ function renderRectifyPreview(worldUnitsPerPixel) {
     node.setAttribute("cy", -north);
     node.setAttribute("r", worldUnitsPerPixel * 4.5);
     node.setAttribute("class", "rectify-preview-node");
-    selectionGhostGroup.appendChild(node);
+    toolPreviewGroup.appendChild(node);
   });
 }
 
@@ -12104,7 +12150,7 @@ function renderStraightenPreview(worldUnitsPerPixel) {
     `M ${target.from[0]} ${-target.from[1]} L ${target.to[0]} ${-target.to[1]}`
   );
   line.setAttribute("class", "straighten-preview-line");
-  selectionGhostGroup.appendChild(line);
+  toolPreviewGroup.appendChild(line);
 
   for (const pointIndex of target.indices) {
     const coordinate =
@@ -12120,7 +12166,7 @@ function renderStraightenPreview(worldUnitsPerPixel) {
     node.setAttribute("cy", -north);
     node.setAttribute("r", worldUnitsPerPixel * 4.5);
     node.setAttribute("class", "straighten-preview-node");
-    selectionGhostGroup.appendChild(node);
+    toolPreviewGroup.appendChild(node);
   }
 }
 
@@ -12176,14 +12222,27 @@ function baselineStillMoved(baseline) {
  */
 function renderSelectionGhost() {
   if (selectionGhostGroup) selectionGhostGroup.remove();
+  if (toolPreviewGroup) toolPreviewGroup.remove();
 
   selectionGhostGroup =
     document.createElementNS("http://www.w3.org/2000/svg", "g");
   selectionGhostGroup.id = "selectionGhostGroup";
   selectionGhostGroup.setAttribute("class", "selection-ghost");
 
-  if (!getActiveSlot()?.data) {
+  toolPreviewGroup =
+    document.createElementNS("http://www.w3.org/2000/svg", "g");
+  toolPreviewGroup.id = "toolPreviewGroup";
+  toolPreviewGroup.setAttribute("class", "tool-preview");
+
+  /* Beide Gruppen wandern gemeinsam ins SVG - Ghosts zuerst, die Vorschau
+     unmittelbar darueber und beide vor der aktiven Geometrie. */
+  const haengeAn = () => {
     svg.appendChild(selectionGhostGroup);
+    svg.appendChild(toolPreviewGroup);
+  };
+
+  if (!getActiveSlot()?.data) {
+    haengeAn();
     return;
   }
 
@@ -12219,7 +12278,7 @@ function renderSelectionGhost() {
    * trotzdem angehängt - sie kann bereits die Begradigungs-Vorschau enthalten.
    */
   if (!baselines.length) {
-    svg.appendChild(selectionGhostGroup);
+    haengeAn();
     return;
   }
 
@@ -12383,7 +12442,7 @@ function renderSelectionGhost() {
     }
   }
 
-  svg.appendChild(selectionGhostGroup);
+  haengeAn();
 }
 
 
