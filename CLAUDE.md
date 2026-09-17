@@ -1588,7 +1588,10 @@ Dazu drei Regeln, jede mit ihrem Anlass:
 
 **Was der Prüfer außerdem meldet**, weil es ohne ihn stillschweigend
 durchginge: eine Marke, hinter der keine Zahl steht; eine Marke, die er nicht
-kennt; und einen Messbefehl, zu dem keine Marke mehr existiert. Die letzte ist
+kennt; einen Messbefehl, zu dem keine Marke mehr existiert; und **einen Namen
+seiner beiden Handlisten, den es in `index.html` nicht mehr gibt** – sonst
+fiele er still aus der Zählung, und der Prüfer meldete anschließend eine
+Abweichung an der falschen Stelle. Die letzte ist
 der Fall „jemand hat die Zahl aus dem Text genommen" – ohne die Meldung bliebe
 ein Messbefehl zurück, der nichts mehr prüft.
 
@@ -5799,18 +5802,17 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   textsuchende Prüfung baut, prüft als Erstes, was sie auf sich selbst und auf
   ihre eigene Dokumentation antwortet.
 
-- **Zwei Stellen des Bestandsprüfers bauen auf eine Verabredung statt auf eine
-  prüfbare Bedingung – zwei weitere sind mit dem achtzehnten Durchgang behoben.**
-  Der Eintrag stand zunächst mit vier Stellen hier; die beiden billigen sind
-  erledigt, und sie sind unten als solche gekennzeichnet, damit niemand sie ein
-  zweites Mal sucht. Alle vier sind gemessen, nicht vermutet.
+- **Vier Stellen des Bestandsprüfers bauten auf eine Verabredung statt auf
+  eine prüfbare Bedingung – drei sind behoben, die vierte ist entschieden
+  hingenommen.** Der Eintrag bleibt stehen, damit niemand sie ein zweites Mal
+  sucht. Alle vier sind gemessen, nicht vermutet.
 
   | Stelle | was sie voraussetzt | Stand |
   |---|---|---|
   | `EIGENE_DATEI` war ein Literal | der Prüfer heißt weiterhin `check-bestandszahlen.mjs` | **ERLEDIGT** – der Name kommt aus `import.meta.url`. Vorher zählte er sich unter anderem Namen wieder selbst mit (`zusicherungen-herstellend` 22 → 23, `openallfolds-aufrufer` 14 → 15, `menuebefehl-aufrufe` 43 → 45), heute bleiben alle drei gleich |
   | Markennamen sind kleingeschrieben | niemand schreibt `<!-- bestand: Pruefstellen -->` | **ERLEDIGT** – was der Form nahekommt und nicht passt, wird namentlich rot, mit Fundstelle und Grund |
-  | `AUSWAHLBEZEICHNER`, `STATUSFUNKTIONEN` | wer einen Bezeichner umbenennt, zieht die Liste mit | **bleibt** – Entscheidung des Projektinhabers: die Behebung wäre ein eigener Messbefehl gegen `index.html` und damit ein eigener Durchgang |
-  | die Suchmuster | die Schreibweise bleibt, wie sie ist – etwa `position: { x:` mit Leerzeichen | **bleibt, und ist nicht auflösbar**: ein Suchmuster *ist* eine Schreibweise |
+  | `AUSWAHLBEZEICHNER`, `STATUSFUNKTIONEN` | wer einen Bezeichner umbenennt, zieht die Liste mit | **ERLEDIGT** – der Prüfer hält jeden Namen beider Listen gegen `index.html` und meldet ihn namentlich, wenn er dort nicht mehr als `id` bzw. als Deklaration steht |
+  | die Suchmuster | die Schreibweise bleibt, wie sie ist – etwa `position: { x:` mit Leerzeichen | **entschieden hingenommen, und nicht auflösbar**: ein Suchmuster *ist* eine Schreibweise |
 
   **Richtigstellung zur dritten Zeile.** Hier stand, ein fehlender Name falle
   „still aus der Zählung". Das trifft es nicht: die Zahl ändert sich, und der
@@ -5821,9 +5823,30 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Schweigen**: eine irreführende Meldung führt zu einer Reparatur, die den
   Fehler festschreibt.
 
+  **Behoben ist sie mit dem einundzwanzigsten Durchgang, und zwar so, wie die
+  Richtigstellung es verlangt: die Listen bleiben Handlisten, aber sie melden
+  sich.** Abgeleitet werden sie ausdrücklich nicht – eine abgeleitete Liste
+  lieferte nach jeder Umstrukturierung des Markups eine andere Menge, und die
+  Zahl wäre über die Zeit nicht mehr vergleichbar; genau das steht seit dem
+  neunten Durchgang als Grund am Kommentar von `AUSWAHLBEZEICHNER`. Geprüft
+  wird stattdessen die **Existenz** jedes Namens: steht er in `index.html`
+  nicht mehr als `id` bzw. als Funktionsdeklaration, wird er namentlich rot,
+  mit dem Hinweis, welche Zahlen dadurch zu niedrig werden.
+
+  **Das ist die Trennlinie, um die es geht: „die Liste ist vollständig" ist
+  nicht maschinell entscheidbar, „jeder Name der Liste existiert noch" sehr
+  wohl.** Die Prüfung nimmt sich genau das zweite vor und behauptet nicht das
+  erste.
+
+  **Kalibriert an zwei künstlichen Umbenennungen** – `multiSummary` →
+  `multiSummaryX` im Markup und `setRectifyStatus` → `setRectifyStatusX` im
+  Skript: beide werden gemeldet, danach aus der Sicherungskopie
+  zurückgespielt.
+
   Die vierte steht hier, damit niemand sie für die dritte hält. Ein Suchmuster
   lässt sich nicht von der Schreibweise lösen, auf die es zeigt – behebbar ist
-  nur, ob jemand von der Lücke erfährt.
+  nur, ob jemand von der Lücke erfährt. **Das ist damit der einzige Rest, und
+  er ist als Grenze der Methode hingenommen, nicht als offene Aufgabe.**
 
 - **`tools/check-dom-ids.mjs` prüft IDs, doppelte Funktionsnamen und – seit
   dem zwanzigsten Durchgang – Funktionen ohne Aufrufer; Variablennamen prüft

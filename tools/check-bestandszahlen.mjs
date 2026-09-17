@@ -830,6 +830,59 @@ function leseMarkierungen() {
 const { gefunden, ohneZahl, formaehnlich, inBeispielen } = leseMarkierungen();
 let fehler = 0;
 
+/* ===================================================================== */
+/* Die beiden Handlisten pruefen sich gegen index.html                    */
+/* ===================================================================== */
+
+/**
+ * AUSWAHLBEZEICHNER und STATUSFUNKTIONEN sind Handlisten, und sie bleiben es:
+ * eine abgeleitete Liste lieferte nach jeder Umstrukturierung des Markups
+ * eine andere Menge, und die Zahl waere ueber die Zeit nicht mehr
+ * vergleichbar (siehe den Kommentar an AUSWAHLBEZEICHNER).
+ *
+ * Was sie bis zum einundzwanzigsten Durchgang NICHT hatten, war eine
+ * Bedingung, die reissen kann: wird einer der Namen umbenannt, fiel er still
+ * aus der Zaehlung, und der Pruefer meldete anschliessend eine Abweichung an
+ * der falschen Stelle - "dort steht 62, gemessen 61". Wer das liest, traegt
+ * 61 ein und schreibt damit einen Messfehler fest. **Eine irrefuehrende
+ * Meldung ist schlimmer als Schweigen.**
+ *
+ * Geprueft wird deshalb die EXISTENZ jedes Namens im Bestand - nicht, dass
+ * die Liste vollstaendig ist. Das eine ist maschinell entscheidbar, das
+ * andere nicht.
+ */
+function pruefeHandlisten() {
+  const quelle = leseHtml();
+  const meldungen = [];
+
+  for (const id of AUSWAHLBEZEICHNER) {
+    if (!quelle.includes(`id="${id}"`)) {
+      meldungen.push(
+        `Auswahlbezeichner "${id}" kommt in index.html nicht mehr als id vor - ` +
+          "umbenannt oder entfernt? Solange er hier steht, faellt er still aus " +
+          "den Zahlen zusicherungen-pruefend/-herstellend/-inspector."
+      );
+    }
+  }
+
+  for (const name of STATUSFUNKTIONEN) {
+    if (!new RegExp(`^function ${name}\\s*\\(`, "m").test(quelle)) {
+      meldungen.push(
+        `Statusfunktion "${name}" ist in index.html nicht mehr deklariert - ` +
+          "umbenannt oder entfernt? Solange sie hier steht, faellt sie still " +
+          "aus der Zahl statustexte-ohne-englisch."
+      );
+    }
+  }
+
+  return meldungen;
+}
+
+for (const meldung of pruefeHandlisten()) {
+  console.error(`  ROT  ${meldung}`);
+  fehler += 1;
+}
+
 for (const fast of formaehnlich) {
   console.error(
     `  ROT  CLAUDE.md:${fast.zeile} - "${fast.wortlaut}" sieht wie eine Markierung ` +
