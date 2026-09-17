@@ -8332,7 +8332,25 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | Zustände `drawing` und `measuring` | **gegenstandslos, gemessen im zwanzigsten Durchgang** – siehe unten |
   | die acht Symbole | **gebaut mit dem neunzehnten Durchgang** |
   | Zeigerregel der Leiste | **beantwortet mit dem einundzwanzigsten Durchgang** – dieselbe wie alles andere: `--touch-target`, siehe den Punkt weiter unten |
-  | was aus `#inspectorPoint` über 960 px wird | **offen** |
+  | was aus `#inspectorPoint` über 960 px wird | **ENTSCHIEDEN mit dem einundzwanzigsten Durchgang: nichts – er bleibt, wie er ist** |
+
+  **Warum `#inspectorPoint` bleibt, wie er ist.** Über der Schwelle sind ihm
+  die fünf Punktknöpfe abhandengekommen; stehen geblieben sind die E/N-Felder,
+  die Punktrolle, der Vergleichsblock und die Fahrtrichtung. **Das ist keine
+  Restmenge, sondern genau eine Hälfte einer Trennung, die das Haus ohnehin
+  führt:** der Block sagt, **was ausgewählt ist**, die Leiste, **was man damit
+  tun kann**. Dieselbe Trennung liegt zwischen „Bestand" und den
+  Zeichenknöpfen, und zwischen den Kennzahlen des Feature-Blocks und
+  „Exclusion duplizieren".
+
+  **Die naheliegende Alternative – den Block über der Schwelle ganz auflösen
+  und auch die E/N-Felder in die Leiste ziehen – ist verworfen, und zwar
+  gemessen.** Ein Eingabefeld in einer Ebene über der Karte müsste dort
+  Fokus, Tastaturweg und Escape-Verhalten neu regeln (Escape schließt heute
+  Fenster, bevor es Eingaben verwirft), und die Leiste wüchse um zwei Felder
+  in einem Bereich, in dem sie ohnehin schon Marker verdeckt. Der Block kostet
+  im Inspektor dagegen nichts, was dort knapp wäre: die verbindliche Reserve
+  bei 900 px liegt seit dem Umzug der acht Knöpfe bei +63 px statt −34 px.
 
   **Warum `drawing` und `measuring` gegenstandslos sind – dreifach gemessen,
   nicht überlegt:**
