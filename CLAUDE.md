@@ -5908,10 +5908,14 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   entfernen") bleibt deshalb Pflicht – nur für einen kleineren Rest als
   vorher.
 - **Das Hilfe-Overlay beschreibt die Anordnung in Prosa und veraltet mit
-  jeder Etappe des Oberflächenumbaus.** Es wird in Etappe 10 vollständig neu
-  geschrieben, wenn die Anordnung feststeht – vorher wäre es zweimal Arbeit.
-  Bis dahin steht hier die Liste der Sätze, die **jetzt schon falsch** sind,
-  damit dort keine Neulektüre nötig ist. Die Fundstelle ist der Abschnitt des
+  jeder Etappe des Oberflächenumbaus – STEHENDE REGEL, kein offener Punkt.**
+  Die Liste der falschen Sätze ist mit dem einundzwanzigsten Durchgang
+  **leer**; was hier bleibt, ist die Arbeitsanweisung, sie beim nächsten
+  Umbau wieder zu füllen, statt am Ende alles neu zu lesen.
+
+  **Es wird in Etappe 10 vollständig neu geschrieben, wenn die Anordnung
+  feststeht** – vorher wäre es zweimal Arbeit. Bis dahin steht hier, welche
+  Sätze falsch waren und warum, damit dort keine Neulektüre nötig ist. Die Fundstelle ist der Abschnitt des
   Overlays plus die ersten Worte des Satzes – Zeilennummern verschieben sich
   mit jeder Änderung und wären hier bereits beim Aufschreiben veraltet.
 
@@ -5952,18 +5956,39 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Sprachen** – die englische Fassung ist kein Abbild, sie ist eine zweite
   Fundstelle.
 
-  **Zwei weitere Sätze sind NICHT falsch, aber unvollständig geworden –
-  Befund, nicht behoben:**
+  **Zwei Sätze waren NICHT falsch, aber unvollständig geworden – BEHOBEN mit
+  dem einundzwanzigsten Durchgang, zusammen mit einem dritten Befund und der
+  ganzen Abteilung „Mobil / Android":**
 
-  | Satz | was fehlt |
-  |---|---|
-  | „Bedienung: auf kleinen Displays stehen Werkzeugleiste, Karte und Inspektor untereinander, und die Seite scrollt." | **gemessen: bei 744 px scrollt die Seite NICHT**, erst ab 743 px abwärts. Seit Etappe 8 ist 744 px das kleinste Zielgerät; der Satz beschreibt damit einen Zustand **außerhalb** des Zielbereichs, ohne das zu sagen. Was „kleine Displays" heißen soll, ist eine Entscheidung und gehört zu Etappe 10 |
-  | „Start / Ende: ausgewählten Polygonpunkt als neuen Start- oder Endpunkt setzen" | verschweigt, dass **beide Knöpfe dieselbe Drehung auslösen und die zweite die erste überschreibt** – der Befund, aus dem 7d entstanden ist. Die einzige Stelle, an der das steht, sind die beiden `title`-Attribute, und die gehören zu 8b |
+  | Satz | was fehlte | was jetzt dasteht |
+  |---|---|---|
+  | „Bedienung: auf kleinen Displays stehen Werkzeugleiste, Karte und Inspektor untereinander, und die Seite scrollt." | gemessen scrollt die Seite bei 744 px **nicht**, erst darunter. Seit Etappe 8 ist 744 px das kleinste Zielgerät; der Satz beschrieb einen Zustand **außerhalb** des Zielbereichs, ohne das zu sagen | „Zielgeräte sind Desktop und Tablet. Auf einem Bildschirm, der **schmaler ist als ein Tablet im Hochformat**, stehen Werkzeugleiste, Karte und Inspektor untereinander, und die Seite scrollt." |
+  | „Start / Ende: ausgewählten Polygonpunkt als neuen Start- oder Endpunkt setzen" | verschwieg, dass **beide Knöpfe dieselbe Drehung auslösen und die zweite die erste ersetzt** – der Befund, aus dem 7d entstanden ist | der Satz nennt es, und dazu, dass der Editor die Ersetzung meldet |
+  | die Abteilungsüberschrift „Mobil / Android" und ihr zweiter Absatz | beschrieben ein Zielgerät, das es seit Etappe 8 nicht mehr gibt, und begründeten die größeren Ziele mit **Android** statt mit der Bedienart | „Tablet & Touch"; der Absatz spricht von der Bedienung mit dem Finger, **unabhängig von der Breite** – genau das, was 8a hergestellt hat |
 
-  **Drittens ein Befund ohne Falschaussage: der Zuklapp-Griff der
-  Auswahlleiste kommt im Overlay nicht vor.** Er ist mit dem dreizehnten
-  Durchgang dazugekommen. Das Overlay erwähnt ihn nicht – keine falsche
-  Aussage, aber eine Lücke; ob sie gefüllt wird, ist Etappe 10.
+  **Die Zahl 744 steht dabei absichtlich NICHT im Hilfetext.** Ein Schwellwert
+  in Prosa ist dieselbe Falle wie ein Ort in Prosa: er veraltet, sobald jemand
+  die Medienregel anfasst, und niemand liest ihn dabei mit. „Schmaler als ein
+  Tablet im Hochformat" beschreibt denselben Sachverhalt und bleibt richtig,
+  solange die Entscheidung aus Etappe 8 gilt.
+
+  **Drittens, ein Befund ohne Falschaussage – ebenfalls behoben: der
+  Zuklapp-Griff der Auswahlleiste kam im Overlay nicht vor.** Er ist mit dem
+  dreizehnten Durchgang dazugekommen, und er ist genau dann wichtig, wenn die
+  Leiste einen Punkt verdeckt – der offene Punkt weiter unten. Der Satz über
+  die Werkzeuge nennt ihn jetzt, mit diesem Anlass.
+
+  **Zugesichert sind alle drei in `tools/test-menu.mjs`, in beiden
+  Richtungen.** Das ist neu: das Overlay hatte bis dahin überhaupt keine
+  inhaltliche Zusicherung – geprüft wurde nur, dass es aufgeht und „Kurzüberblick"
+  enthält. Zwei Mutationen belegen sie, je 0 Timeouts: die beiden Sätze im
+  deutschen Markup zurückgenommen reißt drei benannte Zusicherungen, ein
+  verändertes Wort in der englischen Fassung reißt eine.
+
+  **Ein Hilfesatz besteht aus ZWEI Textknoten, und beide brauchen einen
+  Eintrag** – die `<strong>`-Beschriftung und der Rumpf. Das steht schon
+  weiter unten als Lehre aus 7g („Fließtexte statt Beschriftungen"); hier ist
+  es zum ersten Mal zugleich zugesichert.
 
   **Nachgemessen nach der Behebung:** `tools/scan-i18n.mjs` meldet über alle
   zwanzig Zustände **NEU 0** bei 37 bekannten Falschmeldungen, und keiner der

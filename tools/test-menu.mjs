@@ -163,6 +163,53 @@ try {
   check("und trägt seinen Inhalt",
     (await page.locator("#helpOverlay").textContent()).includes("Kurzüberblick"));
 
+  /*
+   * Das Overlay beschreibt die Anordnung in Prosa und veraltet damit mit jeder
+   * Etappe - die Liste der einmal falschen Saetze steht in CLAUDE.md,
+   * Abschnitt 7. Zugesichert sind hier die drei, die der einundzwanzigste
+   * Durchgang richtiggestellt hat, in BEIDEN Richtungen: ein Hilfesatz besteht
+   * aus zwei Textknoten (Beschriftung und Rumpf), und beide brauchen einen
+   * eigenen Woerterbucheintrag.
+   */
+  const hilfetext = () => page.locator("#helpOverlay").textContent();
+
+  const hilfeDe = await hilfetext();
+
+  check("deutsch: die Ueberschrift nennt Tablet und Touch statt Mobil/Android",
+    hilfeDe.includes("Tablet & Touch") && !hilfeDe.includes("Mobil / Android"),
+    hilfeDe.slice(0, 200));
+  check("deutsch: die Zielgeraete stehen da, nicht mehr die kleinen Displays",
+    hilfeDe.includes("Zielgeräte sind Desktop und Tablet.") &&
+    !hilfeDe.includes("auf kleinen Displays"), hilfeDe.slice(0, 200));
+  check("deutsch: Start/Ende nennt die Ueberschreibung",
+    hilfeDe.includes("die zweite Geste ersetzt deshalb die erste"),
+    hilfeDe.slice(0, 200));
+  check("deutsch: die Auswahlleiste nennt ihren Zuklappgriff",
+    hilfeDe.includes("über den Griff an ihrem Kopf zuklappen"),
+    hilfeDe.slice(0, 200));
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(400);
+
+  const hilfeEn = await hilfetext();
+
+  check("englisch: dieselben drei Saetze sind uebersetzt",
+    hilfeEn.includes("the target devices are desktop and tablet.") &&
+    hilfeEn.includes("a second gesture therefore replaces the first") &&
+    hilfeEn.includes("it can be collapsed using the handle at its head"),
+    hilfeEn.slice(0, 200));
+  check("englisch: und kein deutscher Rest bleibt stehen",
+    !hilfeEn.includes("Zielgeräte sind Desktop und Tablet.") &&
+    !hilfeEn.includes("die zweite Geste ersetzt deshalb die erste") &&
+    !hilfeEn.includes("über den Griff an ihrem Kopf zuklappen"),
+    hilfeEn.slice(0, 200));
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+
+  check("und zurueckgeschaltet steht wieder derselbe deutsche Text da",
+    (await hilfetext()) === hilfeDe);
+
   await page.keyboard.press("Escape");
   await page.waitForTimeout(250);
 
