@@ -4536,7 +4536,7 @@
  * (z. B. "6. PUNKTEDITOR").
  *
  *  1. Konfiguration und Anwendungszustand
- * 2A. Undo/Redo und Vergleichszustand
+ * 2A. Auswahlmodell, Undo/Redo, Werkzeuge und Kartenprüfung
  *  2. Karten-Slots und Koordinaten-Hilfsfunktionen
  *  3. Koordinaten- und Sunray-Hilfsfunktionen
  *  4. Kartenansicht / Zoom / Pan
@@ -4554,8 +4554,11 @@
  *
  * - Abschnitt 2A steht physisch VOR Abschnitt 2. Undo/Redo wurde einmal aus
  *   der Nummernfolge herausgelöst und vorgezogen, ohne den Rest neu zu
- *   nummerieren. Der Abschnitt enthält inzwischen mehr als Undo/Redo, unter
- *   anderem Messwerkzeug, Kartenprüfung und das Auswahlmodell.
+ *   nummerieren. Er ist mit Abstand der größte Abschnitt des Scripts und
+ *   enthält längst mehr als Undo/Redo - Auswahlmodell, Zeichenwerkzeuge,
+ *   Messwerkzeug und Kartenprüfung. Sein Titel sagt das seit dem
+ *   einundzwanzigsten Durchgang; umnummeriert wird deswegen nicht, denn
+ *   gesucht wird hier nach Titeln und Funktionsnamen, nicht nach Nummern.
  * - Nach 12 folgt 18. Die Sprachumschaltung kam in Ausgabe 037 als eigener
  *   Block hinzu und bekam eine freie Nummer; die Abschnitte 13 bis 17 hat es
  *   nie gegeben.
@@ -4799,7 +4802,7 @@ let activeMapId = "A";
 
 
 /* ==========================================================================
-   2A. UNDO / REDO UND VERGLEICHSZUSTAND
+   2A. AUSWAHLMODELL, UNDO / REDO, WERKZEUGE UND KARTENPRÜFUNG
    ========================================================================== */
 
 /** Tiefe Kopie eines Kartenslots für die Historie. */

@@ -59,7 +59,8 @@ demselben Grund nennt diese Datei durchgehend Bezeichner statt Zeilen:
 nachfolgenden Zeilennummern verschiebt.
 
 Zwei Eigenheiten der Nummerierung sind bekannt und beabsichtigt stehen
-gelassen: Abschnitt `2A` (Undo/Redo, Messen, Kartenprüfung, Auswahlmodell)
+gelassen: Abschnitt `2A` („Auswahlmodell, Undo/Redo, Werkzeuge und
+Kartenprüfung")
 steht physisch vor Abschnitt `2`, und nach `12` folgt `18`. Der Scriptkopf
 erklärt beides.
 
@@ -5617,13 +5618,31 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 ## 7. Bekannte offene Punkte
 
 - **Abschnitt `2A` steht physisch vor Abschnitt `2`, und nach `12` folgt
-  `18`.** Rein kosmetisch; ein Umnummerieren würde jeden Abschnitt anfassen,
-  ohne etwas zu verbessern. Der Scriptkopf erklärt beides – deshalb dort
-  nachsehen und nicht nach Abschnittsnummern raten.
-- **Abschnitt `2A` enthält deutlich mehr als Undo/Redo** – unter anderem
-  Messwerkzeug, Kartenprüfung, Feature-Erstellung und das komplette
-  Auswahlmodell. Der Titel führt in die Irre; eine Aufteilung wäre sinnvoll,
-  ist aber ein großer Diff ohne Funktionsgewinn.
+  `18` – ENTSCHIEDEN: es bleibt so.** Ein Umnummerieren fasste jeden
+  Abschnittsheader, den Scriptkopf und jede Nennung in dieser Datei an, und
+  gefunden würde danach nichts schneller: **gesucht wird hier nach Titeln und
+  Funktionsnamen, nicht nach Nummern** – so steht es in Abschnitt 2, und
+  genau deshalb nennt diese Datei durchgehend Bezeichner. Eine Nummer, die
+  niemand zum Suchen benutzt, ist keine Unordnung, die sich zu beseitigen
+  lohnt. Der Scriptkopf erklärt beide Eigenheiten.
+- **Abschnitt `2A` enthält deutlich mehr als Undo/Redo – BEHOBEN, aber
+  anders als hier erwartet: der TITEL ist nachgezogen, nicht der Inhalt
+  aufgeteilt.** Er heißt seit dem einundzwanzigsten Durchgang
+  „Auswahlmodell, Undo/Redo, Werkzeuge und Kartenprüfung", im Scriptkopf wie
+  am Header.
+
+  **Der Befund war: der Titel führt in die Irre.** Das ist ein Problem des
+  Titels, und ein Titel ist in einer Datei, in der über den Titel gesucht
+  wird, genau das richtige Werkzeug. Die naheliegende Antwort – den Abschnitt
+  aufteilen – hätte 4 805 Zeilen und 115 Funktionen verschoben und damit
+  jeden Merge, jede Fehlersuche und jede Zeilenangabe in fremden Notizen
+  entwertet, **ohne eine einzige Funktion zu verändern**. Die Messung des
+  zwanzigsten Durchgangs steht weiter unten; sie ist der Grund, den Titel
+  überhaupt anzufassen, und zugleich der Grund, den Inhalt nicht anzufassen.
+
+  **Wer ihn später doch aufteilt, tut es zusammen mit der Strukturfrage
+  weiter unten** – nicht als eigenen Schritt. Beide beantworten dieselbe
+  Frage, nur in verschiedener Größe.
 - **Die 1000-px-Schwelle steht als einzige Layout-Schwelle in JS, alle
   anderen in CSS.** Die Zahlen, damit die eine nicht wieder für eine der
   anderen gehalten wird:
@@ -7528,12 +7547,42 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Konflikt sperrt den Export inzwischen vollständig. Bleibt als Merkposten,
   falls die Sperre je gelockert wird.
 
-- **Nach dem Umbau zu entscheiden: Dateigröße und Struktur von `index.html`.**
-  Offene Frage, **kein Auftrag** – und ausdrücklich **nicht während Etappe 7
-  anzufassen**: die Datei umzustrukturieren hieße, jede Fundstelle in dieser
-  Datei gleichzeitig zu verschieben, und CLAUDE.md nennt durchgehend
-  Bezeichner statt Zeilennummern genau deshalb, weil Bezeichner beim Umbau
-  stabil bleiben sollen.
+- **Dateigröße und Struktur von `index.html` – ENTSCHIEDEN mit dem
+  einundzwanzigsten Durchgang: die Datei bleibt eine, und es gibt keine
+  Namensräume.** Der Eintrag bleibt vollständig stehen, weil die Messung, auf
+  der die Entscheidung ruht, sonst verloren ginge – und weil die drei Fragen
+  unten die Reihenfolge festhalten, in der sie beantwortet wurden.
+
+  **Die Entscheidung in drei Sätzen.** Geteilt wird nicht: jeder Weg dorthin
+  kostet entweder die Autarkie der Datei oder führt ein Erzeugnis neben seiner
+  Quelle ein, und beides ist teurer als der Zustand, den es beheben soll.
+  Namensräume kommen nicht: sie beseitigen genau **eine** der drei Folgen der
+  großen Datei – die stille Doppelvergabe –, und gegen die gibt es seit dem
+  zwanzigsten Durchgang eine Prüfung, die nicht vergessen werden kann.
+  Geblieben ist damit die Streuung eines Themas über die Datei, und dagegen
+  hilft der Scriptkopf, nicht die Sprache.
+
+  **Warum die Prüfung die bessere Antwort ist als der Namensraum:** ein
+  Namensraum schützt nur den, der ihn trifft. Wer eine Hilfsfunktion schreibt,
+  ohne zu wissen, dass es den Namensraum gibt, legt sie wieder global an – und
+  niemand meldet es. `tools/check-dom-ids.mjs` meldet dagegen **jede** doppelte
+  Deklaration am Zeilenanfang, unabhängig davon, was der Schreiber wusste. Das
+  ist dieselbe Wahl wie überall sonst in diesem Projekt: eine Bedingung, die
+  reißt, schlägt eine Verabredung, an die man sich halten soll.
+
+  **Was die Entscheidung NICHT behauptet:** dass 16 589 Zeilen Skript in einem
+  Gültigkeitsbereich angenehm sind. Sie sind es nicht, und die Streuungstabelle
+  unten sagt, wie schlecht es im Einzelnen steht – 56 Auswahlfunktionen über
+  fünf Abschnitte. Sie behauptet, dass jede heute verfügbare Abhilfe teurer
+  ist als der Zustand. **Ändert sich diese Randbedingung – etwa weil
+  `file://` als Zielumgebung entfällt –, ist das eine neue Entscheidung und
+  kein Nachtrag.**
+
+  **Der Eintrag stand hier ursprünglich als offene Frage, kein Auftrag** – und
+  ausdrücklich **nicht während Etappe 7 anzufassen**: die Datei
+  umzustrukturieren hieße, jede Fundstelle in dieser Datei gleichzeitig zu
+  verschieben, und CLAUDE.md nennt durchgehend Bezeichner statt Zeilennummern
+  genau deshalb, weil Bezeichner beim Umbau stabil bleiben sollen.
 
   **Der Befund, der die Frage aufwirft:** über 380 globale Funktionen liegen in
   einem einzigen Gültigkeitsbereich (Abschnitt 6). Etappe 6 hat pro Teilschritt
@@ -7567,15 +7616,17 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
      `c4e629c`; sie tragen deshalb **keine** Bestandsmarke, wie jede andere
      Messtabelle dieser Datei. Die einzige mitwandernde Zahl dazu ist
      `globale-funktionen` an ihrer Fundstelle in Abschnitt 6.
-  2. **Dann: lösen Namensräume das Problem oder verschieben sie es nur?** Und
-     vor allem: **was lösen sie ausdrücklich nicht?** Ein Objekt, das dreißig
-     Funktionen bündelt, beseitigt die stille Doppelvergabe innerhalb seines
-     Namens – aber weder die Streuung eines Themas über die Datei noch die
-     Länge noch die Frage, ob jemand beim Schreiben den Namensraum trifft.
-     Anmerkung zur Ehrlichkeit: **die „geplanten Namensräume" stehen bisher
-     nirgends im Repository**, weder hier noch in `AGENTS.md`. Sie sind eine
-     Absicht, kein aufgeschriebener Entwurf.
-  3. **Erst danach: ob überhaupt geteilt wird.** Ein Zusammenbau aus mehreren
+  2. **Dann: lösen Namensräume das Problem oder verschieben sie es nur?
+     ENTSCHIEDEN: sie verschieben es, und sie kommen nicht.** Ein Objekt, das
+     dreißig Funktionen bündelt, beseitigt die stille Doppelvergabe innerhalb
+     seines Namens – aber weder die Streuung eines Themas über die Datei noch
+     die Länge noch die Frage, ob jemand beim Schreiben den Namensraum trifft.
+     Und die eine Folge, die sie beseitigen, ist bereits abgedeckt: die
+     Prüfung auf doppelte Deklarationen meldet sie, ohne dass jemand von einer
+     Verabredung wissen muss. Anmerkung zur Ehrlichkeit, die stehen bleibt:
+     **die „geplanten Namensräume" standen nie irgendwo im Repository**, weder
+     hier noch in `AGENTS.md` – sie waren eine Absicht, kein Entwurf.
+  3. **Erst danach: ob überhaupt geteilt wird. ENTSCHIEDEN: nein.** Ein Zusammenbau aus mehreren
      Quelldateien mit eingechecktem Erzeugnis wäre technisch möglich, erzeugt
      aber **zwei Wahrheiten**: Quelle und Erzeugnis laufen still auseinander,
      sobald jemand am Erzeugnis editiert – und am Erzeugnis wird editiert
@@ -7628,7 +7679,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | Abschnitt | ab Zeile | Zeilen | Funktionen |
   |---|---|---|---|
   | 1. Konfiguration und Anwendungszustand | 4 543 | 232 | 0 |
-  | **2A. Undo / Redo und Vergleichszustand** | 4 775 | **4 805** | **115** |
+  | **2A. Undo / Redo und Vergleichszustand** (heute „Auswahlmodell, Undo/Redo, Werkzeuge und Kartenprüfung") | 4 775 | **4 805** | **115** |
   | 2. Karten-Slots und Koordinaten-Hilfsfunktionen | 9 580 | 315 | 10 |
   | 3. Koordinaten- und Sunray-Hilfsfunktionen | 9 895 | 1 206 | 50 |
   | 4. Kartenansicht / Zoom / Pan | 11 101 | 257 | 9 |
@@ -7647,7 +7698,8 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   teilen sich den Rest.
 
   **Das ist der Punkt „Abschnitt 2A enthält deutlich mehr als Undo/Redo" aus
-  diesem Abschnitt, jetzt mit Zahlen.** Er ist nicht ein Abschnitt unter
+  diesem Abschnitt, jetzt mit Zahlen – und der Grund, aus dem sein TITEL mit
+  dem einundzwanzigsten Durchgang nachgezogen wurde.** Er ist nicht ein Abschnitt unter
   vierzehn, sondern der größte, und er ist mehr als doppelt so groß wie der
   drittgrößte.
 
@@ -7683,9 +7735,8 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   `tools/check-dom-ids.mjs` seine Funktionsnamenprüfung trägt: wer in
   Abschnitt 6 eine Auswahlhilfe schreibt, sieht die 28 in 2A nicht.
 
-  **Was diese Messung NICHT beantwortet, und das ist Punkt 2 und 3 oben:** ob
-  Namensräume das lösen, und ob überhaupt geteilt wird. Sie liefert nur die
-  Zahlen, ohne die beides geraten wäre. **Nicht entschieden, nicht gebaut.**
+  **Diese Messung hat Punkt 2 und 3 oben entschieden** – ohne sie wäre beides
+  geraten gewesen. Gebaut ist nichts, und genau das ist das Ergebnis.
 
   **Nicht erhoben:** die Verteilung der Nicht-Funktionen (Konstanten,
   Ereignisbindungen) auf die Abschnitte, und ob die 3 045 CSS-Zeilen ihrerseits
