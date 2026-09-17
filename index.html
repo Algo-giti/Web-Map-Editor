@@ -12373,20 +12373,21 @@ function renderSelectedMower() {
 
 
 /**
- * Die komplette Fahrzeugkontur dient als Drag-Handle für denselben GeoJSON-
- * Punkt. Snap-to-Grid funktioniert dadurch unverändert.
+ * Der Mäher ist REINE ANZEIGE und trägt kein Bedienverhalten.
+ *
+ * Er hat einmal als Drag-Handle für denselben GeoJSON-Punkt gedient. Seit er
+ * `pointer-events:none` trägt, erreicht ihn kein Zeigerereignis mehr -
+ * gegriffen wird der Marker darunter, der deshalb stehen bleibt. Die
+ * zugehörige Zeigerbehandlung stand danach eine Zeit lang als toter Zweig
+ * hier und ist entfernt; sie war Zeile für Zeile dieselbe Folge wie die
+ * lebende Kette am Punktmarker in `renderGeometry()` - also dieselbe Tatsache
+ * an zwei Orten, von denen eine nicht lief.
+ *
+ * Was bleibt, ist der `<title>`: er beschreibt die Vorschau für die
+ * Vorlesehilfe. Auf Hover erscheint er nicht mehr; dieselbe Angabe steht im
+ * Inspektor unter "Mäher" und "Richtung".
  */
 function bindMowerEvents(robot, descriptor) {
-  /*
-   * ACHTUNG: die Zeigerbehandlung unten LÄUFT NICHT MEHR. Der Mäher trägt
-   * seit Schritt 3 `pointer-events:none` und ist reine Anzeige; gegriffen
-   * wird der Marker darunter. Der `<title>` entsteht weiter, er beschreibt
-   * die Vorschau für die Vorlesehilfe - auf Hover erscheint er nicht mehr,
-   * dieselbe Angabe steht im Inspektor unter "Mäher" und "Richtung".
-   *
-   * Der tote Zweig ist ABSICHTLICH stehen geblieben und als offener Punkt
-   * gemeldet, statt ihn im selben Schritt zu entfernen.
-   */
   const orientation = getVertexOrientation(descriptor);
 
   const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
@@ -12397,33 +12398,6 @@ function bindMowerEvents(robot, descriptor) {
         ? formatNumber(orientation.angleDeg, 1, 1) + "°"
         : "Richtung unbekannt"}`;
   robot.appendChild(title);
-
-  robot.addEventListener("pointerdown", event => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (measurementState.active) {
-      addMeasurementPoint(event);
-      return;
-    }
-
-    if (featureDrawState) {
-      addFeatureDrawPoint(event);
-      return;
-    }
-
-    if (selectionTool !== "pointer") {
-      startAreaSelection(event);
-      return;
-    }
-
-    if (event.ctrlKey) {
-      toggleVertexSelection(descriptor);
-      return;
-    }
-
-    startSelectedVertexDrag(event, descriptor);
-  });
 }
 
 

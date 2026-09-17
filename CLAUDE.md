@@ -3134,10 +3134,9 @@ wird trotz Mäher gezeichnet" eine.
 **Der Preis, und er ist gemeldet, nicht versteckt:** der `<title>` der
 Mähervorschau erscheint auf Hover nicht mehr. Dieselbe Angabe steht im
 Inspektor unter „Mäher" und „Richtung"; der Titel bleibt für die Vorlesehilfe
-im DOM. Und die Zeigerbehandlung in `bindMowerEvents()` **läuft nicht mehr** –
-sie ist absichtlich stehen geblieben und mit einem Kommentar versehen, statt im
-selben Schritt entfernt zu werden. **Ob sie fällt, ist eine Entscheidung**; sie
-steht als offener Punkt in Abschnitt 7.
+im DOM. Und die Zeigerbehandlung in `bindMowerEvents()` lief seitdem nicht
+mehr; sie blieb zunächst absichtlich stehen und ist **inzwischen entfernt** –
+die Messung dazu steht in Abschnitt 7.
 
 Die reale Überlagerung war eine andere und ist jetzt weg: ein **ausgewählter
 Dock-Punkt** setzte den gelben Mäher exakt auf die gelbe Dock-Linie – gleiche
@@ -7070,64 +7069,103 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   sucht, findet ihn nicht und läuft in einen Playwright-Timeout. Vorher die
   Auswahl aufheben – dann stehen wieder alle Marker da.
 
-- **Die Zeigerbehandlung in `bindMowerEvents()` läuft nicht mehr – zu
-  entscheiden, ob sie fällt.** Seit Schritt 3 des dritten Durchgangs trägt der
-  Mäher `pointer-events:none`; `pointerdown` erreicht ihn nie mehr. Der Zweig
+- **ERLEDIGT: die Zeigerbehandlung in `bindMowerEvents()` ist entfernt.** Entschieden vom Projektinhaber. Der
+  Eintrag bleibt stehen, weil die Messungen, auf denen die Entscheidung ruht,
+  sonst verloren gingen – und weil der Beleg vor dem Entfernen die eigentliche
+  Arbeit war.
+
+  **Der Ausgangsbefund:** seit Schritt 3 des dritten Durchgangs trägt der
+  Mäher `pointer-events:none`; `pointerdown` erreichte ihn nie mehr. Der Zweig
   darin (Messpunkt setzen, Zeichenpunkt setzen, Flächenauswahl starten,
-  Strg-Umschalten, Ziehen) ist damit toter Code. Er ist **absichtlich stehen
-  geblieben und mit einem Kommentar versehen**, statt im selben Schritt
-  entfernt zu werden: das Entfernen ist eine eigene Entscheidung, und die
-  Hausregel „UI-Element entfernen – Pflichtsuche" verlangt dafür einen eigenen
-  Durchgang. Der `<title>` derselben Funktion wird weiter gebraucht.
+  Strg-Umschalten, Ziehen) war damit toter Code. Er blieb zunächst
+  **absichtlich stehen und mit einem Kommentar versehen**, statt im selben
+  Schritt entfernt zu werden: das Entfernen ist eine eigene Entscheidung, und
+  die Hausregel „UI-Element entfernen – Pflichtsuche" verlangt dafür einen
+  eigenen Durchgang. Der `<title>` derselben Funktion wird weiter gebraucht und
+  ist geblieben.
 
   **Dazu gehört, was dabei verloren geht:** der `<title>` der Mähervorschau
   erscheint auf Hover nicht mehr. Das ist kein neuer Fall, sondern einer für
   Etappe 8b – dieselbe Angabe steht im Inspektor unter „Mäher" und „Richtung",
   und auf dem Zielgerät erschien der Tooltip ohnehin nie.
 
-  **GESCHÄRFT mit dem zwanzigsten Durchgang – drei Messungen, damit die
-  Entscheidung nicht mehr geraten werden muss.**
+  **Die drei Messungen des zwanzigsten Durchgangs, die den Befund schärften:**
 
-  **Erstens: der Zweig ist wirklich unerreichbar.** Gemessen im Browser mit
+  **Erstens: der Zweig ist unerreichbar.** Gemessen im Browser mit
   eingeschalteter Vorschau und einem ausgewählten Punkt: der Mäher trägt
   `pointer-events: none`, und `elementFromPoint()` liefert an seiner Mitte den
   Punktmarker (`circle.vertex`, `data-vertex-key="0:0:0"`). Der `<title>`
   entsteht weiter und lautet „Perimeter · Punkt 1/4 · Mäher 0,65 × 0,35 m ·
   0,0°".
 
-  **Zweitens: der Umfang ist 26 Zeilen** – `robot.addEventListener(
-  "pointerdown", …)` von `index.html:12365` bis `:12389`. Die übrigen 23 Zeilen
-  der Funktion bauen den `<title>` und werden gebraucht.
+  **Zweitens: der Umfang war 26 Zeilen** – der `robot.addEventListener(
+  "pointerdown", …)` samt seinem Rumpf. Die übrigen 23 Zeilen der Funktion
+  bauen den `<title>`.
 
-  **Drittens, und das ist der eigentliche Befund: der tote Zweig ist eine
+  **Drittens, und das ist der eigentliche Befund: der tote Zweig war eine
   WORTGLEICHE Kopie der lebenden Kette am Punktmarker.** Dort, im
-  `pointerdown`-Handler an `circle` (`index.html:16229` ff.), steht dieselbe
+  `pointerdown`-Handler an `circle` in `renderGeometry()`, steht dieselbe
   Folge – Messpunkt, Zeichenpunkt, Flächenauswahl, Strg-Umschalten, Ziehen.
-  **Nachgemessen: 20 von 20 Zeilen ab `event.preventDefault()` sind Zeichen
+  **Nachgemessen: 20 von 20 Zeilen ab `event.preventDefault()` waren Zeichen
   für Zeichen identisch.**
 
-  **Damit ist er nicht nur toter Code, sondern eine Tatsache an zwei Orten** –
+  **Damit war er nicht nur toter Code, sondern eine Tatsache an zwei Orten** –
   genau die Fehlerklasse, gegen die diese Datei durchgehend argumentiert. Wer
   die lebende Kette ändert und die tote übersieht, hinterlässt zwei Fassungen
   derselben Geste; dass die eine nicht läuft, merkt beim Lesen niemand.
 
-  **Viertens: das Entfernen lässt keine Funktion verwaisen.** Alle fünf
-  aufgerufenen Funktionen haben außerhalb des toten Zweiges weitere Aufrufer –
-  je zwei bis drei:
+  #### Der Beleg VOR dem Entfernen – eine Marke, die nirgends erscheinen durfte
 
-  | Funktion | Aufrufstellen außer dem toten Zweig |
+  **Die Unerreichbarkeit wurde nicht aus dem Befund übernommen, sondern noch
+  einmal gemessen.** Das ist der Unterschied zwischen „es steht geschrieben"
+  und „es ist belegt", und diese Datei verlangt ihn an jeder anderen Stelle
+  auch.
+
+  **Das Verfahren:** in einer Arbeitskopie schreibt der tote Zweig als erste
+  Handlung eine unverwechselbare Marke – in die sichtbare Statuszeile
+  (`setEditStatus`), in den Seitentitel und auf die Konsole. Das Harness wurde
+  **vorübergehend** ausgerüstet, jede Konsolenmeldung mit dieser Marke nach
+  stdout durchzureichen; danach aus einer Sicherungskopie außerhalb des
+  Repositories zurückgespielt, Prüfsumme vorher = nachher für `index.html`
+  (`f96ce35d…`) **und** für `tools/browser-harness.mjs` (`1b8008d2…`).
+
+  **Kalibriert wird gegen einen Fall, in dem das Instrument etwas finden
+  MUSS** – ohne ihn sagte sein Schweigen nichts. Zwei Kalibrierungen:
+
+  | Kalibrierung | Ergebnis |
   |---|---|
-  | `addMeasurementPoint()` | `:16234`, `:18744` |
-  | `addFeatureDrawPoint()` | `:16239`, `:18750`, `:18920` |
-  | `startAreaSelection()` | `:16244`, `:18756` |
-  | `toggleVertexSelection()` | `:16249`, `:17982` |
-  | `startSelectedVertexDrag()` | `:16142`, `:16253`, `:17609` |
+  | synthetisches `pointerdown` **direkt am Element**, an der Trefferprüfung vorbei | die Marke erscheint: Seitentitel „MPROBE-TOTERZWEIG", Statuszeile „MPROBE-TOTERZWEIG erreicht", Konsolenmeldung durchgereicht |
+  | eine zweite Marke bei **jedem Aufruf** von `bindMowerEvents()` | erscheint im Lauf **24 Mal** in sechs Skripten – `test-i18n-dynamic`, `test-inspector`, `test-menu`, `test-merge`, `test-reduce`, `test-statusbar` |
 
-  **Ob er fällt, bleibt die Entscheidung des Projektinhabers** – die Hausregel
-  „UI-Element entfernen – Pflichtsuche" verlangt dafür einen eigenen Durchgang,
-  und der `<title>` derselben Funktion wird weiter gebraucht. Was diese Messung
-  liefert, ist der Umfang, die Unerreichbarkeit und die Gewissheit, dass nichts
-  daran hängt.
+  **Die zweite Kalibrierung ist die wichtigere.** Ohne sie bliebe offen, ob der
+  Zweig nur deshalb schweigt, weil die Mähervorschau im ganzen Lauf gar nicht
+  gezeichnet wird – dann sagte die Messung über die Erreichbarkeit nichts. Sie
+  wird gezeichnet, und der Horcher hängt daran.
+
+  **Das Ergebnis: über alle 17 Browsertests erscheint die Marke des toten
+  Zweiges NULL Mal.** Alle 17 Tests blieben dabei grün – die Marke hätte,
+  wäre sie gefallen, zusätzlich die Statuszeile überschrieben und in
+  `smoke-test.mjs` einen Konsolenfehler erzeugt.
+
+  **Entfernen lässt keine Funktion verwaisen, und auch das ist gemessen statt
+  übernommen:** `tools/check-dom-ids.mjs` und `tools/check-css-classes.mjs`
+  liefern vor und nach dem Entfernen **dieselben** Zahlen – 385 eindeutige
+  globale Funktionsnamen, dieselben zwei Funktionen ohne Aufrufer
+  (`isAbsoluteWgs84Collection()`, `pointSegmentDistance()`), 217
+  Klassenselektoren gegen 205 vergebene Namen, dieselben 18 verwaisten Regeln.
+  **Kein Bezeichner und keine CSS-Regel ist durch das Entfernen verwaist**; es
+  war deshalb nichts mitzuentfernen und nichts als Befund einzutragen.
+
+  Die fünf aufgerufenen Funktionen haben sämtlich weitere Aufrufer – je zwei
+  bis drei: `addMeasurementPoint()`, `addFeatureDrawPoint()`,
+  `startAreaSelection()`, `toggleVertexSelection()` und
+  `startSelectedVertexDrag()`.
+
+  **Keine Bestandszahl hat sich bewegt.** `zeilen-index-html` trägt eine
+  Toleranz von 500 und bleibt bei „rund 21 000" (gemessen 21 150 statt 21 176);
+  `globale-funktionen`, `funktionen-ohne-aufrufer` und `verwaiste-css-klassen`
+  sind unverändert, weil keine Funktion und keine Regel entfallen ist, sondern
+  der Rumpf eines Ereignisbehandlers.
 
 - **Die Mähbahnen-Vorschau ist geplant, aber nicht gebaut.** Sie war für
   Ausgabe 049 vorgesehen und wurde herausgenommen, um den Release nicht
