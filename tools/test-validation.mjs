@@ -135,6 +135,30 @@ try {
 
   const clean = await validate(mapWith([box(10, 10, 20, 20)]));
 
+  /*
+   * Zuerst die andere Haelfte jeder Zusicherung ueber den Bericht: dass es
+   * ihn wirklich zu SEHEN gibt. textContent() und count() tragen durch ein
+   * geschlossenes <details> hindurch - gemessen 329 Zeichen und drei Treffer
+   * bei zugeklapptem Pruefblock. Jede Messung unten liest den Bericht nach
+   * demselben openAllFolds() in validate(); ohne diese eine Zusicherung
+   * belegten sie alle nur "der Text steht im DOM".
+   */
+  /*
+   * Erst in den Blick rollen, dann messen: die Inspektorspalte traegt
+   * overflow-y:auto, und der Pruefblock liegt bei 720 px Fensterhoehe
+   * unterhalb des sichtbaren Bereichs - elementFromPoint() liefert dort
+   * "nichts", und zwar zu Recht. Ein Nutzer rollt genauso.
+   *
+   * dy bleibt klein: der Messpunkt muss INNERHALB des Elements liegen. Mit
+   * dem Vorgabewert 20 trifft man bei einer 19 px hohen Zeile den Elternteil.
+   */
+  await page.locator("#validationReport").scrollIntoViewIfNeeded();
+
+  const berichtGetroffen = await elementGetroffen(page, "#validationReport", { dy: 5 });
+
+  check("der Pruefbericht steht wirklich sichtbar da, nicht nur im DOM",
+    berichtGetroffen.ok === true, berichtGetroffen.grund);
+
   check("keine Fehler", clean.errors.length === 0, clean.errors.join(" | "));
   check("kein Befund zum Perimeter",
     !hasWarning(clean, "Perimeter") || !hasWarning(clean, "außerhalb"),
@@ -667,8 +691,12 @@ try {
    * antwortet, was der Browser an dieser Stelle zeichnet - ein abschneidender
    * Vorfahr sitzt eine Ebene hoeher und bliebe sonst unsichtbar.
    */
+  await page.locator("#areaStat").scrollIntoViewIfNeeded();
+
+  const flaecheGetroffen = await elementGetroffen(page, "#areaStat", { dy: 5 });
+
   check("und sie steht sichtbar da",
-    await elementGetroffen(page, "#areaStat"));
+    flaecheGetroffen.ok === true, flaecheGetroffen.grund);
 
   /* --- MultiPolygon: die Summe, nicht 0 --------------------------- */
   const TEIL_A = box(0, 0, 8, 8);
@@ -911,8 +939,12 @@ try {
   check("und sie nennt die Summe der Teile, Loch abgezogen",
     gezeigtInspektor === erwartetInspektor,
     `gezeigt ${gezeigtInspektor}, erwartet ${erwartetInspektor}`);
+  await page.locator("#featureAreaStat").scrollIntoViewIfNeeded();
+
+  const inspektorGetroffen = await elementGetroffen(page, "#featureAreaStat", { dy: 5 });
+
   check("und sie steht sichtbar da",
-    await elementGetroffen(page, "#featureAreaStat"));
+    inspektorGetroffen.ok === true, inspektorGetroffen.grund);
 
   /* --- die Perimetermeldungen haben eine englische Fassung -------- */
   /*

@@ -58,6 +58,21 @@ const app = new Function(`${source}\nreturn {${NAMES.join(",")}};`)();
 let failures = 0;
 
 function check(label, condition, detail = "") {
+  /*
+   * Eine Zusicherung, die keinen Wahrheitswert prueft, kann nicht reissen -
+   * ein Objekt oder eine Zahl ist immer wahr. Dieselbe Bedingung steht in
+   * tools/browser-harness.mjs; sie ist an drei Stellen noetig, weil die
+   * statische Stufe das Harness nicht einbinden darf.
+   */
+  if (typeof condition !== "boolean") {
+    failures++;
+    console.error(
+      `  FAIL ${label} - Bedingung ist kein Wahrheitswert, sondern ` +
+      `${typeof condition}; diese Zusicherung koennte nicht reissen`
+    );
+    return;
+  }
+
   if (condition) return;
   failures++;
   console.error(`  FAIL ${label}${detail ? ` - ${detail}` : ""}`);

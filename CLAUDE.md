@@ -740,6 +740,33 @@ und danach entsteht die Form wirklich. Eine reine Verneinung ohne Auslöser – 
 `!pointInRing(...)` in `test-geometry.mjs` – ist davon nicht betroffen: dort
 gibt es keinen Auslöser, dessen Verarbeitung ausbleiben könnte.
 
+#### Eine Bedingung, die kein Wahrheitswert ist, ist keine Zusicherung
+
+**`check()` bekommt einen Wahrheitswert, nichts anderes.** Ein Objekt, eine
+Zahl, eine nichtleere Zeichenkette sind immer wahr – eine solche Zusicherung
+besteht, egal was der Bestand tut. Das ist dieselbe Klasse wie „eine
+Zusicherung über ein Ausbleiben beweist nichts", nur eine Ebene tiefer: dort
+prüft sie das Falsche, hier prüft sie gar nichts.
+
+**Der Anlass:** `elementGetroffen()` liefert `{ok, grund}`. Drei Aufrufstellen
+gaben das Objekt unverändert an `check()` weiter, eine davon einen ganzen
+Durchgang lang („und sie steht sichtbar da" an `#areaStat`). Gegen `.ok`
+geprüft fielen alle drei sofort um – und zwar aus echten Gründen, nicht aus
+Formgründen.
+
+**Alle drei Prüffunktionen des Projekts melden den Fall als FAIL** –
+`createChecker()` in `tools/browser-harness.mjs` sowie die eigenen in
+`tools/test-geometry.mjs` und `tools/test-cassandra.mjs`. Die Bedingung steht
+an drei Orten, weil die statische Stufe das Harness nicht einbinden darf;
+gemessen war der Bestand danach sauber, und der Wächter ist je Welt an einem
+künstlichen Fall kalibriert.
+
+**Praktisch heißt das: ein Helfer, der mehr als „ja/nein" liefert, wird an der
+Aufrufstelle ausgepackt** – `const treffer = await elementGetroffen(…)`, dann
+`check(…, treffer.ok, treffer.grund)`. Der Grund gehört dabei als Detail
+daneben; ohne ihn steht im Fehlerfall nur „FAIL" und niemand weiß, was der
+Browser an dieser Stelle stattdessen gezeichnet hat.
+
 #### Eine neue Zusicherung wird durch Mutation gegengeprüft
 
 **Ein Test, der beim ersten Lauf grün ist, hat noch nichts belegt.** Er belegt
@@ -5368,8 +5395,11 @@ jedem Umzug: „Wege statt Bezeichner".
 **Der Gewinn dabei ist der eigentliche Grund für 9b:** dieselben neun
 Zusicherungen können danach `elementGetroffen()` benutzen und damit beides
 belegen – *der Inhalt stimmt* und *der Weg dorthin existiert*. Der offene Punkt
-„Zusicherungen auf unsichtbaren Inhalt" in Abschnitt 7 ist damit eingelöst und
-nicht wegdefiniert.
+„Zusicherungen auf unsichtbaren Inhalt" in Abschnitt 7 wäre damit eingelöst –
+**er ist es inzwischen ohne 9b**, an Ort und Stelle: beide betroffenen Dateien
+tragen seit dem einundzwanzigsten Durchgang eine Trefferprüfung neben ihren
+Inhaltsmessungen. Der Gewinn hier bleibt trotzdem richtig beschrieben; er ist
+nur kein Grund mehr für den Umzug, sondern eine Zugabe.
 
 **Der Faltblock hatte dieses Problem nicht, weil er außerhalb der Karte liegt.**
 Das gehört ausdrücklich dazu: der Umzug **erzeugt** ein Problem, das die
@@ -6479,27 +6509,64 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   brach mit „pruefErgebnis is not defined" ab, weil die drei neuen Bezeichner
   in der `NAMES`-Liste von `tools/test-cassandra.mjs` fehlten.
 
-- **Zusicherungen auf unsichtbaren Inhalt – offene Frage, kein Auftrag.**
-  `test-validation.mjs` und `test-scale.mjs` sichern den Inhalt von Elementen
-  zu, die `isVisible() === false` melden: `textContent()` und `.count()` tragen
-  durch ein geschlossenes `<details>` hindurch. Gemessen bei zugeklapptem
-  `#inspectorValidation`: **329 Zeichen Text, drei `.validation-item`-Treffer,
-  `isVisible()` falsch.** Die Zusicherung belegt damit „der Text steht im DOM",
-  nicht „der Nutzer kann ihn lesen".
+- **Zusicherungen auf unsichtbaren Inhalt – ERLEDIGT mit dem
+  einundzwanzigsten Durchgang, und zwar eingelöst statt wegdefiniert.** Der
+  Eintrag bleibt stehen, weil der Weg dorthin zwei Regeln getragen hat.
 
-  **Vertretbar ist das**, weil die Kurzform in der Kopfzeile des Faltblocks und
-  in der Statuszeile steht und das Nicht-Aufklappen eine bewusste Regel ist –
-  die vollständige Zusicherung hätte aber zwei Teile: *der Inhalt stimmt*, und
-  *der Weg dorthin existiert*.
+  **Der Befund war:** `test-validation.mjs` und `test-scale.mjs` sicherten den
+  Inhalt von Elementen zu, die `isVisible() === false` melden – `textContent()`
+  und `.count()` tragen durch ein geschlossenes `<details>` hindurch. Gemessen
+  bei zugeklapptem `#inspectorValidation`: **329 Zeichen Text, drei
+  `.validation-item`-Treffer, `isVisible()` falsch.** Die Zusicherung belegte
+  damit „der Text steht im DOM", nicht „der Nutzer kann ihn lesen".
 
-  Die Fundstellen, damit sie beim Entscheiden nicht neu gesucht werden:
+  **Eingelöst ist es nicht durch den Umzug aus 9b, sondern an Ort und
+  Stelle:** beide Dateien tragen jetzt neben ihren Inhaltsmessungen **eine**
+  Zusicherung, dass der Bericht wirklich getroffen wird. Sie genügt für die
+  ganze Datei, weil jede Messung den Bericht nach demselben `openAllFolds()`
+  liest; sie je Lesestelle zu wiederholen hieße, dieselbe Tatsache vielfach zu
+  behaupten. Die Mutation „`openAllFolds()` schließt `#inspectorValidation`
+  wieder" reißt sie in **beiden** Dateien, mit dem Detail `originLatInput` –
+  dem Element, das der Browser an dieser Stelle stattdessen zeichnet.
 
-  | Skript | Stelle | Zugriff |
-  |---|---|---|
-  | `test-validation.mjs` | `#validationReport` im Prüfblock | `textContent()` |
-  | `test-validation.mjs` | `#validationReport .validation-item.warning` / `.error` / `.info` | `.count()` |
-  | `test-validation.mjs` | `#validationReport` im englischen Durchlauf | `textContent()` |
-  | `test-scale.mjs` | `#validationReport` nach „Karte prüfen" | `textContent()` |
+  **Damit ist 9b von dieser Begründung entlastet.** Der Umzug des Prüfberichts
+  in ein Fenster bleibt aus seinen eigenen Gründen sinnvoll – Breite, und ein
+  Bericht aus dutzenden Zeilen gehört nicht in eine 320-px-Spalte –, aber er
+  ist nicht mehr nötig, damit die Zusicherungen beide Hälften belegen.
+
+  **Erste Regel aus dem Weg dorthin: `elementGetroffen()` liefert ein OBJEKT,
+  und ein Objekt ist immer wahr.** Drei Aufrufstellen gaben es unverändert an
+  `check()` weiter – zwei davon frisch aus diesem Durchgang, eine seit
+  `ada339b` im Bestand („und sie steht sichtbar da" an `#areaStat`). Alle drei
+  konnten **nicht reißen**. Gegen `.ok` geprüft fielen sie sofort um, und zwar
+  aus zwei verschiedenen echten Gründen, siehe die zweite Regel.
+
+  **Zweite Regel: eine Trefferprüfung braucht einen Messpunkt INNERHALB des
+  Elements – und das Element im Blick.** `#areaStat` ist ein 19 px hohes
+  `<strong>`; der Vorgabeabstand `dy = 20` zeigt an seiner Oberkante plus
+  20 px also auf den Elternteil, gemessen `grund: "stat"`. Und `#validationReport`
+  liegt bei 720 px Fensterhöhe unterhalb des sichtbaren Bereichs der
+  rollenden Inspektorspalte – `elementFromPoint()` liefert dort `nichts`, und
+  zwar zu Recht. Beide Stellen rollen das Element deshalb erst in den Blick
+  (`scrollIntoViewIfNeeded()`, was ein Nutzer genauso tut) und messen mit
+  `dy: 5`.
+
+  **Und der systemische Schluss daraus: `check()` nimmt keine Bedingung mehr
+  an, die kein Wahrheitswert ist.** Alle drei Prüffunktionen des Projekts –
+  `createChecker()` im Harness sowie die eigenen in `tools/test-geometry.mjs`
+  und `tools/test-cassandra.mjs` – melden eine solche Zusicherung als **FAIL**
+  mit dem Grund „Bedingung ist kein Wahrheitswert, sondern object; diese
+  Zusicherung koennte nicht reissen". Die Bedingung steht an drei Orten, weil
+  die statische Stufe das Harness nicht einbinden darf; sie ist die einzige
+  Doppelung, die diese Datei dafür in Kauf nimmt.
+
+  **Gemessen, nicht angenommen:** über alle siebzehn Browsertests und beide
+  statischen Tests meldet der Wächter danach **null** Fundstellen – die drei
+  bekannten sind die einzigen, die es gab. **Kalibriert** ist er an zwei
+  künstlichen Fällen, je einer pro Welt: ein `check("…", 1)` in
+  `tools/test-geometry.mjs` und die zurückgedrehte Objektfassung in
+  `tools/test-scale.mjs`; beide werden gemeldet, danach aus der
+  Sicherungskopie zurückgespielt.
 
 - **Dezimaltrennzeichen – ERLEDIGT mit „Schritt 2: ein Zahlenformat für alle
   vier Orte" (11.09.2026).** Der Eintrag bleibt stehen, weil der Befund die
@@ -8616,8 +8683,8 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | `tools/test-menu.mjs` | – | 3 |
   | `tools/test-reduce.mjs` | – | 1 |
   | `tools/test-toolbar.mjs` | – | 1 |
-  | `tools/test-validation.mjs` | 1 | 2 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**62** | <!-- bestand: zusicherungen-herstellend -->**26** |
+  | `tools/test-validation.mjs` | – | 3 |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**61** | <!-- bestand: zusicherungen-herstellend -->**27** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -8643,11 +8710,11 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   kalibriert und liefert dort die damalige Tabelle Zeile für Zeile wieder –
   siehe Abschnitt 4.5.
 
-  **Der Auswahlzustand hängt praktisch an einer Datei.** 55 der 62 prüfenden
+  **Der Auswahlzustand hängt praktisch an einer Datei.** 55 der 61 prüfenden
   Zusicherungen stehen in `tools/test-inspector.mjs`; die fünf in
   `tools/test-merge.mjs` prüfen die beiden Punktknöpfe und ihre
   Überschreibungsmeldung. Wer die Leiste baut, fasst diese eine Datei an –
-  und muss die 26 herstellenden im Blick behalten, denn sie klicken
+  und muss die 27 herstellenden im Blick behalten, denn sie klicken
   `#clearMultiSelectionBtn` und `#deleteMultiSelectionBtn` als **Geste**, nicht
   als Gegenstand. Verschwindet ein solcher Knopf aus dem Inspektor, reißt dort
   keine Zusicherung über ihn, sondern eine ganz andere weiter unten – genau die

@@ -482,6 +482,23 @@ export function createChecker(toolName) {
 
   return {
     check(label, condition, detail = "") {
+      /*
+       * Eine Zusicherung, die keinen Wahrheitswert prueft, kann nicht
+       * reissen. Genau so bestand "und sie steht sichtbar da" ueber einen
+       * ganzen Durchgang: elementGetroffen() liefert {ok, grund}, und ein
+       * Objekt ist immer wahr. Das ist keine Formfrage - es ist dieselbe
+       * Klasse wie "eine Zusicherung ueber ein Ausbleiben beweist nichts",
+       * nur eine Ebene tiefer.
+       */
+      if (typeof condition !== "boolean") {
+        failures++;
+        console.error(
+          `  FAIL ${label} - Bedingung ist kein Wahrheitswert, sondern ` +
+          `${typeof condition}; diese Zusicherung koennte nicht reissen`
+        );
+        return;
+      }
+
       if (condition) {
         console.log(`  ok   ${label}`);
         return;

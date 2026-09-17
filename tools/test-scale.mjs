@@ -17,6 +17,7 @@
 import {
   createChecker,
   createMenueBefehl,
+  elementGetroffen,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -157,7 +158,20 @@ try {
   /* Die Kartenprüfung darf keine Fläche behaupten. */
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(300);
+  await openAllFolds(page);
   const report = await page.locator("#validationReport").textContent();
+
+  /*
+   * Die andere Haelfte: textContent() traegt durch ein geschlossenes
+   * <details> hindurch. Ohne diese Zusicherung belegten die drei darunter
+   * nur, dass der Text im DOM steht - nicht, dass ihn jemand liest.
+   */
+  await page.locator("#validationReport").scrollIntoViewIfNeeded();
+
+  const berichtGetroffen = await elementGetroffen(page, "#validationReport", { dy: 5 });
+
+  check("der Pruefbericht steht wirklich sichtbar da, nicht nur im DOM",
+    berichtGetroffen.ok === true, berichtGetroffen.grund);
 
   check("keine erfundene Flächenangabe",
     !/Perimeterfläche: [\d.]+ m²/.test(report), report.slice(0, 200));
