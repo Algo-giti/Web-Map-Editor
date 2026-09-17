@@ -39,6 +39,10 @@
 //   zeichnen                  Exclusion, ein Punkt gesetzt
 //   zeichnen-abgebrochen      dieselbe Zeichnung verworfen
 //   kreis                     Kreiswerkzeug gestartet
+//   searchwire-verlaengern    vorhandene Search Wire, ein neuer Punkt gesetzt
+//   dockpfad-verlaengern      vorhandener Docking-Pfad, ein neuer Punkt gesetzt
+//   searchwire-neu            Karte ohne Search Wire, eine neue begonnen
+//   dockpfad-neu              dieselbe Karte, Docking-Pfad begonnen
 //   verbinden-ungesetzt       Verbinden-Fenster ohne Auftrennstelle
 //   auftrennstelle-gesetzt    dasselbe Fenster mit gesetzter Stelle
 //   verbunden                 Karten verbunden, Karte B trug namenlose Linien
@@ -463,6 +467,29 @@ try {
   await page.locator("#cancelDrawBtn").click();
   await page.waitForTimeout(400);
 
+  /*
+   * VERLAENGERN. Der Zeichenstatus der offenen Linien stand bis zum
+   * einundzwanzigsten Durchgang vollstaendig deutsch da, und dieses Werkzeug
+   * hat ihn nicht gefunden: es besuchte den Zustand nie. Genau der Fall, den
+   * Regel (d) beschreibt - eine Laufzeitsuche ist nur so vollstaendig wie die
+   * Zustaende, die sie herstellt.
+   */
+  await page.locator("#extendSearchWireBtn").click();
+  await page.waitForTimeout(250);
+  await page.locator("#svg").click({ position: { x: 420, y: 260 } });
+  await page.waitForTimeout(300);
+  await sammle("searchwire-verlaengern");
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(400);
+
+  await page.locator("#extendDockBtn").click();
+  await page.waitForTimeout(250);
+  await page.locator("#svg").click({ position: { x: 440, y: 280 } });
+  await page.waitForTimeout(300);
+  await sammle("dockpfad-verlaengern");
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(400);
+
   /* Verbinden-Fenster, ohne und mit Auftrennstelle. */
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
@@ -527,6 +554,34 @@ try {
 
   await laden("#fileInput", "kaputt.geojson", "{ das ist kein JSON");
   await sammle("ladefehler");
+
+  /*
+   * NEU ANGELEGT statt verlaengert. Dafuer braucht es eine Karte OHNE Search
+   * Wire und ohne Docking-Pfad - mit ihnen sind beide Zeichenknoepfe
+   * gesperrt, und der Zustand ist nicht herstellbar. Deshalb steht er hier am
+   * Ende: die Karte ersetzt die vorige, und danach folgt nichts mehr.
+   */
+  await laden("#fileInput", "nur-perimeter.geojson", {
+    type: "FeatureCollection",
+    features: [KARTE_A.features[0]],
+  });
+  await openAllFolds(page);
+
+  await page.locator("#drawSearchWireBtn").click();
+  await page.waitForTimeout(250);
+  await page.locator("#svg").click({ position: { x: 300, y: 300 } });
+  await page.waitForTimeout(300);
+  await sammle("searchwire-neu");
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(400);
+
+  await page.locator("#createDockBtn").click();
+  await page.waitForTimeout(250);
+  await page.locator("#svg").click({ position: { x: 320, y: 320 } });
+  await page.waitForTimeout(300);
+  await sammle("dockpfad-neu");
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(400);
 } finally {
   const liste = [...treffer.values()].sort((a, b) => a.t.localeCompare(b.t, "de"));
   const bekannt = liste.filter((t) => falschmeldung(t.t));

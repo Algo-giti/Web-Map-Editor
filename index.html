@@ -7869,7 +7869,8 @@ function updateFeatureDrawUi() {
     if (featureDrawState.appendToExisting) {
       status.innerHTML =
         `<strong>Search Wire verlängern:</strong> ${basePointCount} vorhandene + ` +
-        `${newPointCount} neue Punkte. ` +
+        `${newPointCount} neue${newPointCount === 1 ? "r" : ""} ` +
+        `Punkt${newPointCount === 1 ? "" : "e"}. ` +
         (newPointCount
           ? `Mit „Zeichnung abschließen“ oder Enter übernehmen.`
           : `Mindestens einen neuen Punkt setzen.`);
@@ -7884,7 +7885,7 @@ function updateFeatureDrawUi() {
   }
 
   status.innerHTML =
-    `<strong>Docking-Pfad:</strong> ${pointCount} Punkt(e) gesetzt. ` +
+    `<strong>Docking-Pfad:</strong> ${pointCount} Punkt${pointCount === 1 ? "" : "e"} gesetzt. ` +
     (pointCount < 2
       ? `Mindestens 2 Punkte erforderlich.`
       : `Mit „Zeichnung abschließen“ oder Enter übernehmen.`);
@@ -15229,7 +15230,7 @@ function applyRectify() {
 
   if (introduced.length) {
     setRectifyStatus(
-      `Abgebrochen: die Kartenprüfung meldet danach ${introduced.length} neue(n) Fehler.`,
+      `Abgebrochen: die Kartenprüfung meldet danach ${introduced.length} neue${introduced.length === 1 ? "n" : ""} Fehler.`,
       "error"
     );
     setEditStatus(introduced[0], "error");
@@ -15484,7 +15485,7 @@ function applyReduction() {
 
   if (introduced.length) {
     setReduceStatus(
-      `Reduzieren abgebrochen: die Kartenprüfung meldet danach ${introduced.length} neue(n) Fehler.`,
+      `Reduzieren abgebrochen: die Kartenprüfung meldet danach ${introduced.length} neue${introduced.length === 1 ? "n" : ""} Fehler.`,
       "error"
     );
     setEditStatus(introduced[0], "error");
@@ -20360,6 +20361,10 @@ const I18N_EN = new Map(Object.entries({
   "Typ:":"Type:",
   "Index:":"Index:",
   "Zeichnung abgebrochen.":"Drawing cancelled.",
+  "Search Wire verlängern: neue Punkte am bestehenden Ende anklicken.":"Extend Search Wire: click new points at the existing end.",
+  "Search Wire zeichnen: mindestens zwei Punkte anklicken.":"Draw Search Wire: click at least two points.",
+  "Search Wire verlängern:":"Extend Search Wire:",
+  "Docking-Pfad verlängern:":"Extend docking path:",
   /* Einundzwanzigster Durchgang: die Statusmeldungen, die bis dahin keine
      englische Fassung hatten - siehe CLAUDE.md, Abschnitt 7. Es sind
      ueberwiegend Fehlermeldungen seltener Faelle; sie laufen saemtlich
@@ -20698,7 +20703,16 @@ const I18N_PATTERNS = [
   [/^(\d+) Punkt(?:e)? gelöscht · mit Zurück rückgängig\.$/, "$1 point(s) deleted · use Undo to restore."],
   [/^(\d+) Exclusion(?:s)? vollständig gelöscht · mit Zurück rückgängig\.$/, "$1 exclusion(s) completely deleted · use Undo to restore."],
   [/^(\d+) Exclusion(?:s)? und (\d+) Punkt(?:e)? gelöscht · mit Zurück rückgängig\.$/, "$1 exclusion(s) and $2 point(s) deleted · use Undo to restore."],
-  [/^(\d+) Punkt(?:e)? ausgewählt\.$/, "$1 point(s) selected."],
+  /*
+   * Einzahl und Mehrzahl einzeln, das speziellere Muster zuerst. Die frueher
+   * hier stehende Klammerform "point(s)" war eine Umgehung: der DEUTSCHE
+   * Quelltext beugt an dieser Stelle sehr wohl ("1 Punkt ausgewaehlt." gegen
+   * "2 Punkte ausgewaehlt."), und was das Original unterscheidet, kann die
+   * Uebersetzung auch unterscheiden. Dieselbe Richtigstellung wie beim
+   * Loeschknopf im zwanzigsten Durchgang.
+   */
+  [/^1 Punkt ausgewählt\.$/, "1 point selected."],
+  [/^(\d+) Punkte ausgewählt\.$/, "$1 points selected."],
   [/^Auswahl aufgehoben\.$/, "Selection cleared."],
   [/^Keine gültigen Punkte zum Löschen ausgewählt\.$/, "No valid points selected for deletion."],
   [/^Die Auswahl würde ein Polygon auf weniger als 3 unterschiedliche Eckpunkte reduzieren\.$/, "The selection would reduce a polygon to fewer than 3 distinct vertices."],
@@ -20711,10 +20725,46 @@ const I18N_PATTERNS = [
   [/^Docking-Pfad (\d+): (\d+) Punkte\. Docking-Pfade bestehen üblicherweise aus 3 Punkten \(Anfahrt, Ausrichtung, Endpunkt\)\.$/,
     "Docking path $1: $2 points. Docking paths usually consist of 3 points (approach, alignment, end point)."],
   [/^Docking-Pfad mit (\d+) Punkten erstellt\.$/, "Docking path created with $1 points."],
-  [/^<strong>Docking-Pfad:<\/strong> (\d+) Punkt\(e\) gesetzt\. Mindestens 2 Punkte erforderlich\.$/,
-    "<strong>Docking path:</strong> $1 point(s) set. At least 2 points required."],
-  [/^<strong>Docking-Pfad:<\/strong> (\d+) Punkt\(e\) gesetzt\. Mit „Zeichnung abschließen“ oder Enter übernehmen\.$/,
-    "<strong>Docking path:</strong> $1 point(s) set. Confirm with “Finish drawing” or Enter."],
+  /*
+   * Der Zeichenstatus der offenen Linien - Search Wire und Docking-Pfad.
+   *
+   * Hier standen bis zum einundzwanzigsten Durchgang ZWEI Muster, die das
+   * `<strong>`-Markup mitschrieben und nur das Docking trafen; die Search
+   * Wire hatte gar keines, und beide trugen die Klammerform „Punkt(e)".
+   * Gemessen war der ganze Zeichenstatus der offenen Linien im Englischen
+   * deutsch - `tools/scan-i18n.mjs` hatte diese Zustaende nie besucht.
+   *
+   * Die Muster gelten jetzt dem SATZ und nicht der Zeile: derselbe Satz steht
+   * hinter beiden Beschriftungen, und die Beschriftung selbst ist ein eigener
+   * Textknoten mit eigenem Eintrag. Einzahl und Mehrzahl stehen einzeln, das
+   * speziellere zuerst.
+   */
+  [/^1 Punkt gesetzt\. Mindestens 2 Punkte erforderlich\.$/,
+    "1 point placed. At least 2 points required."],
+  [/^(\d+) Punkte gesetzt\. Mindestens 2 Punkte erforderlich\.$/,
+    "$1 points placed. At least 2 points required."],
+  [/^(\d+) Punkte gesetzt\. Mit „Zeichnung abschließen“ oder Enter übernehmen\.$/,
+    "$1 points placed. Confirm with \u201CFinish drawing\u201D or Enter."],
+  [/^(\d+) vorhandene \+ 1 neuer Punkt\. Mit „Zeichnung abschließen“ oder Enter übernehmen\.$/,
+    "$1 existing + 1 new point. Confirm with \u201CFinish drawing\u201D or Enter."],
+  [/^(\d+) vorhandene \+ (\d+) neue Punkte\. Mit „Zeichnung abschließen“ oder Enter übernehmen\.$/,
+    "$1 existing + $2 new points. Confirm with \u201CFinish drawing\u201D or Enter."],
+  [/^(\d+) vorhandene \+ (\d+) neue Punkte\. Mindestens einen neuen Punkt setzen\.$/,
+    "$1 existing + $2 new points. Place at least one new point."],
+
+  /*
+   * Einzahl und Mehrzahl der Fehlerzahl, die eine Umformung abbricht. Auch
+   * hier stand vorher eine Klammerform - „neue(n)" im DEUTSCHEN Quelltext und
+   * „error(s)" im englischen Muster.
+   */
+  [/^Abgebrochen: die Kartenprüfung meldet danach 1 neuen Fehler\.$/,
+    "Aborted: map validation then reports 1 new error."],
+  [/^Abgebrochen: die Kartenprüfung meldet danach (\d+) neue Fehler\.$/,
+    "Aborted: map validation then reports $1 new errors."],
+  [/^Reduzieren abgebrochen: die Kartenprüfung meldet danach 1 neuen Fehler\.$/,
+    "Reduction cancelled: map validation would then report 1 new error."],
+  [/^Reduzieren abgebrochen: die Kartenprüfung meldet danach (\d+) neue Fehler\.$/,
+    "Reduction cancelled: map validation would then report $1 new errors."],
 
   /* Bezugspunkt-Konflikte: enthalten Zahlen und gehören deshalb hierher. */
   [/^Bezugspunkt-Konflikt: Die Datei nennt (.+?), aktiv bleibt (.+?) \(Abstand ([\d.,]+) m\)\. Der aktive Bezugspunkt wurde beibehalten\.$/,
@@ -20771,10 +20821,6 @@ const I18N_PATTERNS = [
     "$1 edges aligned to right angles, largest shift $2 m · use Undo to restore."],
   [/^(\d+) Kanten rechtwinklig ausgerichtet, größte Verschiebung ([\d.,]+) Einheiten · mit Zurück rückgängig\.$/,
     "$1 edges aligned to right angles, largest shift $2 units · use Undo to restore."],
-  [/^Abgebrochen: die Kartenprüfung meldet danach (\d+) neue\(n\) Fehler\.$/,
-    "Aborted: map validation then reports $1 new error(s)."],
-  [/^Reduzieren abgebrochen: die Kartenprüfung meldet danach (\d+) neue\(n\) Fehler\.$/,
-    "Reduction cancelled: map validation would then report $1 new error(s)."],
   [/^Fläche geschrumpft: ([\d.,]+) → ([\d.,]+) m² \(−([\d.,]+) m², ([\d.,]+) %\)\.$/,
     "Area shrank: $1 → $2 m² (−$3 m², $4 %)."],
   [/^Fläche gewachsen: ([\d.,]+) → ([\d.,]+) m² \(\+([\d.,]+) m², ([\d.,]+) %\)\.$/,

@@ -136,13 +136,13 @@ erklärt beides.
   Fehler" ein „1 errors" – an der sichtbarsten Stelle der englischen
   Oberfläche. `tools/test-cassandra.mjs` prüft die ganze Liste jetzt
   automatisch darauf: für jedes Muster wird ein Beispieltext erzeugt und
-  gesucht, ob ein früheres, allgemeineres ihn abfängt. 163 der
-  <!-- bestand: i18n-muster -->190 Muster sind so erfassbar; die übrigen 27 sind
+  gesucht, ob ein früheres, allgemeineres ihn abfängt. 171 der
+  <!-- bestand: i18n-muster -->197 Muster sind so erfassbar; die übrigen 26 sind
   lange Meldungen mit eindeutigem Präfix und wurden von Hand durchgesehen.
 
-  **Nur die 190 trägt eine Markierung, die 163 und die 27 nicht.** Sie stammen
+  **Nur die 197 trägt eine Markierung, die 171 und die 26 nicht.** Sie stammen
   aus der Analyse in `tools/test-cassandra.mjs`, das sie bei jedem Lauf selbst
-  ausgibt („163 von 190 Mustern automatisch geprueft"); sie im Bestandsprüfer
+  ausgibt („171 von 197 Mustern automatisch geprueft"); sie im Bestandsprüfer
   ein zweites Mal zu rechnen hieße, dieselbe Analyse an zwei Orten zu führen.
 
   **Zusammengesetzte Texte** kann ein `I18N_PATTERNS`-Muster nicht übersetzen:
@@ -377,7 +377,7 @@ deutschem Text ohne englische Fassung. Aufruf von Hand:
 PLAYWRIGHT_CORE_PATH="$SCRATCH" node tools/scan-i18n.mjs
 ```
 
-Es hält die Oberfläche deutsch, spielt <!-- bestand: i18n-zustaende -->20 Zustände durch, sammelt jeden
+Es hält die Oberfläche deutsch, spielt <!-- bestand: i18n-zustaende -->24 Zustände durch, sammelt jeden
 Textknoten unter `body *` – auch in ausgeblendeten Elementen – sowie `title`,
 `aria-label` und `placeholder`, schickt alles durch `translateGermanText()` und
 meldet, was unverändert zurückkommt.
@@ -6161,9 +6161,10 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | „Docking-Pfad mit N Punkten erstellt." | die Mindestpunktzahl ist 2 |
   | „N Punkte aus M Features.", „N Punkte in X." | der Zustand `mixed` bzw. `multi` verlangt mehrere |
   | „N Features dieses Typs" | nur bei `> 1` |
-  | „Alle N Punkte von X.", „N Punkte ausgewählt", „X vollständig ausgewählt · N Punkte.", „Typ · N Punkte" | ein Feature hat üblicherweise mehrere Punkte; die Einzahl käme nur bei einer **fehlerhaften** Linie mit einem einzigen Punkt vor. **Randfall, nicht gemessen** |
-  | „N vorhandene + M neue Punkte." | beide Zahlen teilen sich ein Nomen am Satzende; die Einzahl verlangte einen anderen Satzbau, nicht nur eine Endung |
-  | „N Punkt(e) gesetzt.", „N neue(n) Fehler" (zweimal) | tragen bereits eine Klammerform – eine bewusste Umgehung, kein Versehen |
+  | „Alle N Punkte von X.", „N Punkte ausgewählt", „Typ · N Punkte" | **GEMESSEN mit dem einundzwanzigsten Durchgang: unerreichbar.** `getInspectorState()` prüft `selection.length === 1` **vor** `feature`/`multi` – ein Feature mit einem einzigen Punkt liefert deshalb den Zustand `single`, und der Kopfblock sagt dort „Punkt 1 von 1" statt „1 Punkte ausgewählt" |
+  | „X vollständig ausgewählt · N Punkte." | **beugt bereits** – `selectWholeFeature()` schreibt `Punkt${n === 1 ? "" : "e"}`, und beide Fassungen haben eine englische; nachgemessen an der laufenden Übersetzungsmechanik |
+  | „N vorhandene + M neue Punkte." | **ERLEDIGT mit dem einundzwanzigsten Durchgang.** Der Satz lautete bei M = 1 „1 neue Punkte" – falsches Deutsch, nicht bloß ungebeugt. Heute steht dort „1 neuer Punkt", und beide Fassungen haben ein eigenes Muster |
+  | „N Punkt(e) gesetzt.", „N neue(n) Fehler" (zweimal) | **ERLEDIGT mit dem einundzwanzigsten Durchgang** – siehe den Abschnitt „Die Klammerformen" darunter |
   | „(N entfallen)" | Partizip; „1 entfallen" ist nicht falsch |
   | „N von M Punkten entfernt." | `M >= 3`; „1 von 5 Punkten" ist richtig |
   | „Aus Karte B wurden N Linien …", „… mit N Punkten" | **ERLEDIGT mit Schritt 3 des fünften Durchgangs** – die Meldung hat jetzt eine englische Fassung, und beide Zahlen unterscheiden Einzahl und Mehrzahl in beiden Sprachen. Siehe den eigenen Abschnitt darunter |
@@ -6171,6 +6172,60 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   **Falschmeldungen des Musters:** „N von 2 Punkten", „Punkt N von M",
   „N von M Punkten entfernt" – dort steht hinter der Zahl das Wort „von",
   kein Nomen.
+
+  #### Die Klammerformen sind aufgelöst – und hinter ihnen lag mehr
+
+  **Die drei Klammerformen standen hier als „bewusste Umgehung, kein
+  Versehen". Das war die falsche Einordnung**, und die Richtigstellung ist
+  dieselbe wie beim Löschknopf im zwanzigsten Durchgang: **was das deutsche
+  Original unterscheidet, kann die Übersetzung auch unterscheiden** – und wo
+  das Original selbst klammert, klammert es ohne Not.
+
+  | Stelle | vorher | heute |
+  |---|---|---|
+  | Zeichenstatus des Docking-Pfades | deutsch „1 Punkt(e) gesetzt.", englisch „1 point(s) set." | „1 Punkt gesetzt." / „1 point placed." – der **Zwilling zwei Zeilen darüber**, die Search Wire, beugte seit jeher richtig |
+  | Abbruch von Rechtwinklig | deutsch „1 neue(n) Fehler.", englisch „1 new error(s)." | „1 neuen Fehler." / „1 new error." |
+  | Abbruch von Reduzieren | dieselbe Form | ebenso |
+
+  **Der eigentliche Fund lag dahinter: der ganze Zeichenstatus der offenen
+  Linien hatte keine englische Fassung.** Für den Docking-Pfad gab es **zwei**
+  Muster, die das `<strong>`-Markup mitschrieben und deshalb nur ihn trafen;
+  für die Search Wire gab es **keines** – weder neu gezeichnet noch verlängert
+  –, und auch die beiden Beschriftungen „Search Wire verlängern:" und
+  „Docking-Pfad verlängern:" standen ohne. Gemessen: im Englischen stand der
+  komplette Zeichenstatz deutsch da.
+
+  **Die Muster gelten jetzt dem SATZ und nicht der Zeile.** Hinter beiden
+  Beschriftungen steht derselbe Satz; die Beschriftung selbst ist ein eigener
+  Textknoten mit eigenem Eintrag. Damit sind aus zwei markupführenden Mustern
+  sechs satzführende geworden, die **beide** offenen Linien bedienen – und ein
+  künftiger dritter Linientyp bekäme sie geschenkt.
+
+  **Gefunden hat es keine Zusicherung, sondern `tools/scan-i18n.mjs` – nachdem
+  es um vier Zustände erweitert wurde.** Das ist Regel (d) zum wiederholten
+  Mal: *eine Laufzeitsuche ist nur so vollständig wie die Zustände, die sie
+  besucht hat.* Neu sind `searchwire-verlaengern`, `dockpfad-verlaengern`,
+  `searchwire-neu` und `dockpfad-neu`; die beiden letzten brauchen eine Karte
+  **ohne** Search Wire und ohne Docking-Pfad, weil die Zeichenknöpfe sonst
+  gesperrt sind, und stehen deshalb am Ende des Laufs. Sie förderten sofort
+  zwei weitere unübersetzte Texte zutage – die Starthinweise „Search Wire
+  zeichnen: …" und „Search Wire verlängern: …".
+
+  **Sieben Klicks mit fester Koordinate sind dabei dazugekommen**
+  (`klicks-feste-koordinate` 5 → 12), und sie sind kein Rückschritt: sie
+  **setzen Zeichenpunkte**, und die Stelle ist der Zweck – eine gesuchte freie
+  Stelle wäre bei einer Zeichnung das Falsche. Die Auswahlleiste steht ihnen
+  auch nicht im Weg, denn das Starten eines Zeichenwerkzeugs leert die Auswahl.
+
+  **Zugesichert in `tools/test-i18n-dynamic.mjs`, in beiden Richtungen:** die
+  Search Wire in der Einzahl auf Deutsch erzeugt und englisch gemessen, in der
+  Mehrzahl auf Englisch erzeugt und deutsch gemessen, dazu der Docking-Pfad
+  ausdrücklich gegen die Klammerform. Zwei Mutationen, je 0 Timeouts: das
+  Einzahlmuster entfernt reißt drei benannte Zusicherungen, die Klammerform im
+  deutschen Quelltext wieder eingesetzt reißt zwei.
+
+  **Nachgemessen:** `tools/scan-i18n.mjs` meldet über alle **24** Zustände
+  **NEU 0** bei 38 bekannten Falschmeldungen; `i18n-muster` 190 → 197.
 
 - **Die Erfolgsmeldung des Verbindens – ERLEDIGT mit Schritt 3 des fünften
   Durchgangs.** Der Eintrag bleibt stehen, weil er zwei Regeln trägt.
@@ -9080,10 +9135,16 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   **Vollständig erhoben sind die Klicks mit fester Koordinate** – zum Zeitpunkt
   der Erhebung acht im ganzen Verzeichnis, gefunden über `position: { x:` .
-  **Heute sind es <!-- bestand: klicks-feste-koordinate -->5**: Schritt 5 des
+  **Heute sind es <!-- bestand: klicks-feste-koordinate -->12**: Schritt 5 des
   elften Durchgangs hat die drei Klicks auf die leere Karte durch
-  `freieKartenstelle()` ersetzt. Die Tabelle nennt den Stand der Erhebung und
-  markiert, was seitdem entfallen ist:
+  `freieKartenstelle()` ersetzt, der einundzwanzigste hat sieben hinzugefügt –
+  vier in `tools/scan-i18n.mjs` und drei in `tools/test-i18n-dynamic.mjs`.
+  **Sie sind kein Rückschritt: sie setzen Zeichenpunkte, und die Stelle ist
+  der Zweck** – eine gesuchte freie Stelle wäre bei einer Zeichnung das
+  Falsche. Die Leiste steht ihnen
+  auch nicht im Weg, denn das Starten eines Zeichenwerkzeugs leert die
+  Auswahl, und ohne Auswahl ist sie unsichtbar. Die Tabelle nennt den Stand
+  der Erhebung und markiert, was seitdem entfallen ist:
 
   | Fundstelle | Koordinate | liegt im Leistenrechteck |
   |---|---|---|

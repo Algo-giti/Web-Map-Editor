@@ -383,6 +383,88 @@ try {
   await page.waitForTimeout(300);
 
   /*
+   * Der Zeichenstatus der OFFENEN LINIEN. Er stand bis zum einundzwanzigsten
+   * Durchgang vollstaendig deutsch da - die Search Wire hatte gar kein
+   * Muster, der Docking-Pfad zwei, die das <strong>-Markup mitschrieben und
+   * die Klammerform "Punkt(e)" trugen. Gefunden hat es keine Zusicherung,
+   * sondern die Erweiterung von tools/scan-i18n.mjs um diese Zustaende.
+   */
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(300);
+
+  await page.locator("#drawSearchWireBtn").click();
+  await page.waitForTimeout(250);
+  await page.locator("#svg").click({ position: { x: 420, y: 260 } });
+  await page.waitForTimeout(300);
+
+  const wireEinsDe = await drawStatus();
+
+  check("deutsch: die Search Wire zaehlt den ersten Punkt in der Einzahl",
+    wireEinsDe.includes("1 Punkt gesetzt.") &&
+    wireEinsDe.includes("Mindestens 2 Punkte erforderlich."), wireEinsDe);
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(400);
+
+  const wireEinsEn = await drawStatus();
+
+  check("auf deutsch erzeugt, dann englisch: derselbe Satz ist uebersetzt",
+    wireEinsEn.includes("1 point placed.") &&
+    wireEinsEn.includes("At least 2 points required."), wireEinsEn);
+  check("und kein deutscher Rest bleibt stehen",
+    !/Punkt gesetzt|erforderlich/.test(wireEinsEn), wireEinsEn);
+
+  /* Der zweite Punkt wechselt den Nachsatz - und die Zahl in die Mehrzahl. */
+  await page.locator("#svg").click({ position: { x: 440, y: 300 } });
+  await page.waitForTimeout(300);
+
+  const wireZweiEn = await drawStatus();
+
+  check("auf englisch erzeugt: die Mehrzahl und der andere Nachsatz",
+    wireZweiEn.includes("2 points placed.") &&
+    wireZweiEn.includes("Finish drawing"), wireZweiEn);
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+
+  const wireZweiDe = await drawStatus();
+
+  check("auf englisch erzeugt, dann deutsch: dort steht wieder der deutsche Satz",
+    wireZweiDe.includes("2 Punkte gesetzt.") &&
+    wireZweiDe.includes("Zeichnung abschließen"), wireZweiDe);
+
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(300);
+
+  /*
+   * Und der Docking-Pfad, an dem die Klammerform im DEUTSCHEN Quelltext
+   * stand: "1 Punkt(e) gesetzt." Sein Zwilling zwei Zeilen darueber - die
+   * Search Wire - beugte seit jeher richtig.
+   */
+  await page.locator("#createDockBtn").click();
+  await page.waitForTimeout(250);
+  await page.locator("#svg").click({ position: { x: 460, y: 320 } });
+  await page.waitForTimeout(300);
+
+  const dockDe = await drawStatus();
+
+  check("deutsch: der Docking-Pfad beugt die Einzahl statt sie einzuklammern",
+    dockDe.includes("1 Punkt gesetzt.") && !dockDe.includes("Punkt(e)"), dockDe);
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(400);
+
+  const dockEn = await drawStatus();
+
+  check("englisch: derselbe Satz, ohne Klammerform",
+    dockEn.includes("1 point placed.") && !dockEn.includes("point(s)"), dockEn);
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(300);
+
+  /*
    * "Perimeter vollstaendig ausgewaehlt · 4 Punkte." Der Anzeigename bleibt im
    * Muster als $1 stehen und wird nicht uebersetzt - bei "Perimeter" ist das
    * richtig, denn er lautet englisch gleich.
