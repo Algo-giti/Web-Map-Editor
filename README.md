@@ -50,6 +50,8 @@ GeoJSON- oder fremder RTK-Formate wird nicht zugesichert.
 - GeoJSON / JSON lokal im Browser öffnen
 - Karte A und optional Karte B gleichzeitig laden
 - aktive Karte bearbeiten, zweite Karte als Referenz anzeigen
+- jede der beiden Karten einzeln ein- und ausblenden
+- Beispielkarte erzeugen, wenn noch keine eigene Karte vorliegt
 - Kartenansicht einpassen, zoomen und verschieben
 - lokales metrisches Raster mit frei einstellbarer Schrittweite
 - optionales Snap-to-Grid
@@ -360,6 +362,8 @@ third-party RTK formats is not guaranteed.
 - open GeoJSON / JSON files locally in the browser
 - load Map A and optionally Map B at the same time
 - edit the active map while displaying the other map as a reference
+- show or hide each of the two maps individually
+- create an example map when no map of your own is at hand
 - fit, zoom, and pan the map view
 - local metric grid with configurable spacing
 - optional snap-to-grid
