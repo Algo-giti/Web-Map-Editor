@@ -2459,17 +2459,20 @@ ist global und beschreibt die physische RTK-Basis; der Konflikt wird aus
 aktiven Slot an. Im Zustand „beide" gäbe es zwei Slots und damit zwei mögliche
 Befunde – **derselbe Fall, den `getMergeOriginIssue()` heute schon über beide
 Slots durchläuft und der das Verbinden sperrt.** Naheliegend ist deshalb, für
-„beide" dieselbe Funktion zu benutzen statt einer neuen. Zu entscheiden bleibt,
-**ob ein Widerspruch den Zustand „beide" ebenso sperrt wie das Verbinden**:
+„beide" dieselbe Funktion zu benutzen statt einer neuen. Zu entscheiden wäre
+gewesen, **ob ein Widerspruch den Zustand „beide" ebenso sperrt wie das
+Verbinden** – mit der Verwerfung des Zustands entfällt die Frage:
 zwei Karten mit wirklich verschiedenen Basen gleichzeitig zu bearbeiten hieße,
 sie in einem Rahmen zu zeigen, in dem eine von beiden falsch liegt – und zwar
 **still**, denn die Geometrie sieht plausibel aus.
 
-**4. Was zeigt die Statuszeile als Dateinamen?** Heute baut
+**4. Was zeigt die Statuszeile als Dateinamen? ÜBERHOLT – das Feld gibt es
+nicht mehr** (Schritt 2 des sechsten Durchgangs). Der Absatz beschreibt den
+Stand von damals. Heute baut
 `updateMapSlotUi()` den Text als `Karte ${activeMapId} · ${currentFilename}`
 plus `*` bei ungespeicherten Änderungen; `currentFilename` ist eine globale
 Variable, die `activateMap()` aus dem aktiven Slot setzt. Für „beide" gibt es
-keinen einen Namen. Zu entscheiden: beide Namen nebeneinander (das Feld ist
+keinen einen Namen. Zu entscheiden gewesen wäre: beide Namen nebeneinander (das Feld ist
 eine **Kurzform** und wird ab 1000 px ohnehin gekappt – siehe die Regel „wird
 eine länger als eine Zeile, ist es keine Kurzform mehr"), nur der Name der
 Zielkarte aus Punkt 1, oder ein eigener Text wie „Karte A + B". Die
@@ -4159,12 +4162,13 @@ Prüfergebnis sind auf **jedem** Tablet im Hochformat weg, und bei 860 px auch
 auf einem kleinen Desktopfenster. Regelkonform, weil beides im Inspektor
 nachschlagbar ist – aber es ist der Normalfall des Zielgeräts.
 
-**Der Plan – Vorschlag, kein Auftrag; die Reihenfolge ist die Abhängigkeit:**
+**Der Plan – alle drei Teilschritte sind erledigt bzw. entschieden; die
+Reihenfolge war die Abhängigkeit:**
 
 | Teilschritt | Inhalt | warum in dieser Reihenfolge |
 |---|---|---|
 | **8a** – **ERLEDIGT** | Den einen `@media(max-width:760px)`-Block in **zwei** geteilt: einen Breitenblock bei **743 px** (Stapeln, waagerechte Leiste, Seiten-Scrolling, Kartenhöhe, verkleinerte Marke) und einen Block an der **Bedienart** (`pointer: coarse`) mit den 44-px-Zielgrößen und der 16-px-Schrift. Die Spezifität von `.coord-input` ist mitgezogen, Befund 2 ist damit weg. | Ohne die Trennung bekommt ein Tablet im Querformat weiter Desktop-Zielgrößen. Alles Weitere hängt an dieser Trennung |
-| **8b** | „Erklärung ohne Hover" – siehe den Abschnitt unten | Setzt 8a nicht voraus, ist aber der größere Brocken und sollte nicht mit einer Layout-Umstellung im selben Commit liegen |
+| **8b** – **ENTSCHIEDEN** | „Erklärung ohne Hover" – die sechzehn gebrauchten Erklärungen kommen mit Etappe 10 ins Hilfe-Overlay; siehe den Abschnitt unten | Setzt 8a nicht voraus, ist aber der größere Brocken und sollte nicht mit einer Layout-Umstellung im selben Commit liegen |
 | **8c** – **ERLEDIGT** | Die Schwelle der `data-optional`-Felder steht bei 960 px, gebaut mit Schritt 3 des vierten Durchgangs. Sie ist eine **Entscheidung** und folgt nicht dem gemessenen Bedarf; die einzige Bedingung ist, dass sie nie unter ihm liegt. Regel und Messung stehen im Abschnitt unten | Erst sinnvoll, wenn 8a die Grenze festgelegt hat |
 
 ### 8c – ERLEDIGT mit Schritt 3 des vierten Durchgangs: die Schwelle ist 960 px
@@ -5177,18 +5181,40 @@ vorher nicht klar war:**
 3. **Entbehrlich** (4 Texte): wiederholen eine danebenstehende Beschriftung.
    Sie können ersatzlos entfallen, unabhängig von jeder Entscheidung.
 
-**WAS WEITERHIN OFFEN IST, und es ist die eigentliche Frage: wohin mit den
-vierzehn?** Die naheliegenden drei Wege und was sie kosten:
+**WOHIN MIT DEN SECHZEHN – ENTSCHIEDEN mit dem einundzwanzigsten Durchgang:
+Weg 3, die Erklärungen kommen ins Hilfe-Overlay, und zwar MIT Etappe 10.**
+Die drei Wege und was sie kosten:
 
-| Weg | Preis |
-|---|---|
-| je ein sichtbares Feld unter dem Knopf, wie `.tool-reason` | der Inspektor trägt schon zu viel (Etappe 9), und 14 Felder sind kein Zusatz, sondern eine zweite Oberfläche |
-| ein „Was tut das?"-Zustand, der die Erklärungen an Ort und Stelle einblendet | ein neuer Modus, den es im Editor nicht gibt |
-| die Erklärungen ins Hilfe-Overlay, das ohnehin neu geschrieben wird (Etappe 10) | dort stehen sie **nicht am Bedienelement** – der Nutzer muss sie suchen, statt sie zu finden |
+| Weg | Preis | Urteil |
+|---|---|---|
+| je ein sichtbares Feld unter dem Knopf, wie `.tool-reason` | gerechnet rund 490 px gegen 12 px Reserve – sechzehn Felder sind kein Zusatz, sondern eine zweite Oberfläche | **verworfen** |
+| ein „Was tut das?"-Zustand, der die Erklärungen an Ort und Stelle einblendet | ein neuer Modus, den es im Editor nicht gibt | **verworfen** |
+| die Erklärungen ins Hilfe-Overlay (Etappe 10) | dort stehen sie **nicht am Bedienelement** – der Nutzer muss sie suchen, statt sie zu finden | **gewählt** |
 
-**Keiner der drei ist entschieden.** Diese Aufnahme liefert, was §7 zuerst
-verlangt hat – *welche Erklärungen überhaupt gebraucht werden* –, und hält
-genau dort an. **Gebaut wird nichts, bevor der Ort entschieden ist.**
+**Weg 2 ist verworfen, ohne dass sein Entwurf je vorlag – und das ist kein
+Versäumnis, sondern die Entscheidung.** Er war „nicht entscheidbar", weil
+offen blieb, ob die Erklärungen im Layout stehen oder als Ebene darüber. Ein
+Modus, den man erst entwerfen muss, um ihn beurteilen zu können, ist teurer
+als der gewählte Weg – und er wäre der **vierte** Zustand neben Zeichnen,
+Messen und Auswahl, der die Karte beansprucht.
+
+**Weg 3 erfüllt alle fünf Kriterien, und sein einziger Einwand ist mit
+Etappe 9 entfallen.** Der Einwand lautete: das Overlay wird ohnehin neu
+geschrieben, sobald die Anordnung feststeht, und die Anordnung stand nicht
+fest. **Sie steht jetzt** – 9b und 9c sind verworfen, der Prüfbericht und die
+Feature-Navigation bleiben, wo sie sind. Das Overlay wird damit **einmal**
+geschrieben, und die sechzehn Erklärungen gehören in denselben Durchgang.
+
+**Der Preis von Weg 3 bleibt benannt und wird in Kauf genommen:** eine
+Erklärung im Overlay steht nicht am Bedienelement. Dagegen steht, dass sie auf
+dem Zielgerät überhaupt erst lesbar wird – heute erscheint keine einzige. Der
+**Ablehnungsgrund** bleibt davon unberührt: er steht seit den Etappen 3 und 5
+sichtbar am Knopf, und die Trennung „Grund am Knopf, Erklärung im Overlay" ist
+genau Kriterium (e).
+
+**Damit sind auch die beiden Fragen an den Projektinhaber beantwortet:** Weg 2
+wird nicht als Ebene gebaut, weil er gar nicht gebaut wird, und Weg 3 kommt
+**mit** Etappe 10, nicht davor.
 
 #### ANGEHALTEN mit Schritt 6 des dritten Durchgangs – die Wege gegen fünf Kriterien
 
@@ -5223,9 +5249,10 @@ zweimal geändert (8a und 8c), und Etappe 9 wird sie erneut ändern. Die
 Erklärungen jetzt ins Overlay zu schreiben hieße, es zweimal zu schreiben –
 genau der Aufwand, den die Zurückstellung vermeiden soll.
 
-**Zwei Fragen liegen damit beim Projektinhaber:** ob Weg 2 als Ebene über dem
-Inspektor gemeint ist (dann erfüllen zwei Wege alle Kriterien und es ist zu
-wählen), und ob Weg 3 vor Etappe 10 gebaut werden soll oder mit ihr.
+**Die beiden Fragen, die damals beim Projektinhaber lagen** – ob Weg 2 als
+Ebene über dem Inspektor gemeint ist, und ob Weg 3 vor Etappe 10 gebaut werden
+soll oder mit ihr –, **sind mit dem einundzwanzigsten Durchgang beantwortet**;
+siehe oben.
 
 **Dazu kam seit dem achten Durchgang eine dritte, und sie lag davor:** die
 **Kontext-Knopfleiste am Auswahlzustand**. Knöpfe mit eigener Beschriftung
@@ -7579,7 +7606,9 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   **Behoben mit Schritt 6 (7d-4c).** Die Zuordnung ist zugunsten von 7d-4
   entschieden – es war derselbe Gegenstand, und die Marke wurde ohnehin
-  angefasst. **Der 8b-Anteil bleibt offen:** die beiden `title`-Attribute von
+  angefasst. **Der 8b-Anteil ist mit dem einundzwanzigsten Durchgang
+  entschieden** – er kommt mit Etappe 10 ins Hilfe-Overlay: die beiden
+  `title`-Attribute von
   `#setStartPointBtn` und `#setEndPointBtn` erklären weiterhin als einzige,
   dass die zwei Knöpfe dieselbe Drehung auslösen, und auf einem Tablet
   erscheint kein `title`. Die **Meldung** gibt es jetzt, die **Erklärung
@@ -7837,7 +7866,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Browserverhalten abgeleitet** – wer den Weg ernsthaft erwägt, probiert ihn
   vorher aus.
 
-  **Zu entscheiden ist in dieser Reihenfolge, und die Reihenfolge ist der
+  **Entschieden wurde in dieser Reihenfolge, und die Reihenfolge ist der
   eigentliche Inhalt dieses Eintrags:**
 
   1. **Zuerst messen – ERLEDIGT mit dem zwanzigsten Durchgang.** Die Zahlen
@@ -8003,7 +8032,8 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     Tooltip in `bindMowerEvents()` und die Größenzeile in
     `updateMowerOrientationInfo()`, die beide „L × B" ausgeben.
   - **Was mit `mowerLengthInput` / `mowerWidthInput` geschieht – ersetzt,
-    abgeleitet oder daneben – ist zu entscheiden.** Zur Entscheidung gehört
+    abgeleitet oder daneben – ist entschieden, siehe die Tabelle unter diesem
+    Absatz.** Zur Entscheidung gehört
     dieser Befund: **die Breite ist nicht nur Darstellung.** `mowerWidth` ist
     die Schwelle der Korridorprüfung und geht als `mowerWidth²` in
     `reduceAreaAbsoluteThreshold()` ein; die Oberfläche sagt das inzwischen
@@ -8434,7 +8464,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Feature-Navigation). Beide handeln davon, was im Auswahlzustand wo steht;
   eine zweite Leiste für dieselbe Auswahl gehört in dieselbe Betrachtung.
 
-  **Und sie berührt die offene Frage 8b.** Dort stehen drei Wege für die
+  **Und sie berührte die damals offene Frage 8b.** Dort standen drei Wege für die
   Erklärungen, die heute nur im `title` stehen; Weg 3 ist „ins
   Hilfe-Overlay". **Knöpfe mit eigener Beschriftung tragen ihre Erklärung am
   Knopf** – damit fällt Weg 3 als **alleiniger** Kandidat weg. **8b wird erst
@@ -8498,7 +8528,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   **Was die Entscheidung NICHT beantwortet hat** – aus der Bestandsaufnahme des
   zehnten Durchgangs, mit dem heutigen Stand dahinter:
 
-  | offene Frage | Stand |
+  | damals offene Frage | Stand |
   |---|---|
   | Zustand `mixed` | **beantwortet mit Schritt 3 des elften Durchgangs** – mitgenommen, weil die beiden Auswahlaktionen dort seit 7b gelten |
   | Zustände `drawing` und `measuring` | **gegenstandslos, gemessen im zwanzigsten Durchgang** – siehe unten |
@@ -9331,8 +9361,8 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     geschieht. Diese Frage ist hier gestellt und nicht beantwortet.
   - **Kein Entwurf, keine Bewertung, keine Empfehlung.** Ob die Leiste über der
     Karte, in der Spalte oder anderswo steht, welche Knöpfe sie trägt und was
-    dann aus `#inspectorPoint` wird, ist nicht entschieden und war nicht
-    Gegenstand.
+    dann aus `#inspectorPoint` wird, war damals nicht Gegenstand und ist mit
+    dem einundzwanzigsten Durchgang entschieden: er bleibt, wie er ist.
 
   #### Die senkrechte Leiste links über der Karte – gemessen mit dem zehnten Durchgang, Stand `ae029fe`
 
@@ -10023,7 +10053,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     im Befund ausdrücklich als „nicht erhoben"; hiermit ist sie beantwortet.
 
   **BENANNTE LÜCKE: ein Breitenwechsel über 960 px vergisst den
-  Zuklappwunsch. Sie bleibt BEWUSST OFFEN – entschieden mit Schritt 2 des
+  Zuklappwunsch. Sie ist BEWUSST HINGENOMMEN – entschieden mit Schritt 2 des
   vierzehnten Durchgangs.** Weil unter der Schwelle kein Griff steht, klappt
   `applySelectionBarPlacement()` dort auf – sonst stünde eine zugeklappte
   Leiste ohne Weg zurück da. Zurück über der Karte ist sie damit wieder offen.
