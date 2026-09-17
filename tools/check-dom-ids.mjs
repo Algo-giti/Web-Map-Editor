@@ -20,8 +20,17 @@ const html = readFileSync(indexPath, "utf8");
 //   2. element.id = "..." für programmatisch erzeugte SVG-Gruppen, die kein
 //      Markup haben (geometryGroup, vertexGroup, selectionGhostGroup, ...).
 //   3. setAttribute("id", "...") aus demselben Grund.
+//
+// FALLSTRICK, gemessen im einundzwanzigsten Durchgang: `\bid=` trifft auch
+// `data-map-id="A"` - die Wortgrenze liegt zwischen dem Bindestrich und dem
+// `i`. Zwei solche Attribute zaehlten dadurch als ids "A" und "B", und ein
+// drittes haette einen Doppelungsfehler gemeldet, den es nicht gibt. Verlangt
+// wird deshalb Leerraum davor: ein Attributname faengt am Tag oder hinter
+// einem Leerzeichen an, nie hinter einem Bindestrich.
+const ID_ATTRIBUT = /\sid=["']([^"']+)["']/g;
+
 const existingIds = new Set([
-  ...[...html.matchAll(/\bid=["']([^"']+)["']/g)].map((m) => m[1]),
+  ...[...html.matchAll(ID_ATTRIBUT)].map((m) => m[1]),
   ...[...html.matchAll(/\.id\s*=\s*(["'`])([^"'`]+)\1/g)].map((m) => m[2]),
   ...[...html.matchAll(/setAttribute\(\s*(["'`])id\1\s*,\s*(["'`])([^"'`]+)\2/g)].map(
     (m) => m[3]
@@ -65,7 +74,7 @@ const markup = html.slice(
   html.indexOf("<script", html.indexOf("<body"))
 );
 
-const markupIds = [...markup.matchAll(/\bid=["']([^"']+)["']/g)].map((m) => m[1]);
+const markupIds = [...markup.matchAll(ID_ATTRIBUT)].map((m) => m[1]);
 const seenInMarkup = new Set();
 const duplicateIds = [];
 

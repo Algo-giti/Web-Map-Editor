@@ -3293,6 +3293,21 @@
             </span>
           </button>
 
+          <!--
+            SICHTBARKEIT JE SLOT. Drei Zustaende je Karte - sichtbar, aktiv,
+            nicht sichtbar -, und sie brauchen zwei Elemente statt eines:
+            "aktiv" ist eine Radiogruppe (genau einer), "sichtbar" ist es
+            nicht. Der Schalter der aktiven Karte ist angekreuzt und gesperrt;
+            er leitet sich damit aus aria-checked ab.
+          -->
+          <button id="showMapAButton" class="menu-item" type="button"
+                  role="menuitemcheckbox" aria-checked="true" tabindex="-1"
+                  data-map-id="A" disabled>Karte A anzeigen</button>
+
+          <button id="showMapBButton" class="menu-item" type="button"
+                  role="menuitemcheckbox" aria-checked="true" tabindex="-1"
+                  data-map-id="B" disabled>Karte B anzeigen</button>
+
           <div class="menu-separator" role="separator"></div>
 
           <!--
@@ -4630,6 +4645,27 @@ let drag = null;
 
 /* Drag-Zustand für einen Kartenpunkt. */
 let vertexDrag = null;
+
+/**
+ * Sichtbarkeit je Kartenslot - AUSSERHALB von mapSlots und damit auch
+ * ausserhalb der Historie.
+ *
+ * Sie beschreibt die Ansicht und nicht die Karte: ein Undo soll eine
+ * Geometrie zurueckholen und nicht eine Anzeigeentscheidung des Nutzers. In
+ * `mapSlots` gefuehrt reiste sie im Snapshot mit und wuerde von jedem
+ * Rueckgaengig wieder umgeworfen.
+ *
+ * Kein `localStorage`: das ist ein Arbeitszustand fuer die laufende Sitzung,
+ * kein dauerhafter Wunsch - dieselbe Regel, an der der Behelfsschalter der
+ * Seitenleiste kein Gedaechtnis bekam.
+ *
+ * Die AKTIVE Karte ist immer sichtbar; sie wird ohnehin nicht ueber das
+ * Overlay gezeichnet. Der Schalter der aktiven Karte ist deshalb angekreuzt
+ * und gesperrt und leitet sich damit aus `aria-checked` ab, statt eine zweite
+ * Quelle fuer denselben Zustand zu sein.
+ */
+const slotVisibility = { A: true, B: true };
+
 
 /* SVG-Gruppen – werden beim Neuzeichnen gezielt ersetzt. */
 let gridGroup = null;
@@ -9838,6 +9874,24 @@ function updateMapSlotUi() {
     String(activeMapId === "B" && !!slotB.data)
   );
 
+  /*
+   * Die Sichtbarkeitsschalter. Gesperrt ist einer, wenn sein Slot nichts
+   * haelt - oder wenn er der aktive ist: die aktive Karte laesst sich nicht
+   * ausblenden, sie wird gar nicht ueber das Overlay gezeichnet.
+   */
+  const sichtbarkeitsKnopf = (knopf, id) => {
+    const geladen = !!mapSlots[id].data;
+    const istAktiv = activeMapId === id && geladen;
+
+    if (istAktiv) slotVisibility[id] = true;
+
+    knopf.disabled = !geladen || istAktiv;
+    knopf.setAttribute("aria-checked", String(!geladen || slotVisibility[id]));
+  };
+
+  sichtbarkeitsKnopf(document.getElementById("showMapAButton"), "A");
+  sichtbarkeitsKnopf(document.getElementById("showMapBButton"), "B");
+
   document.getElementById("removeMapBBtn").disabled = !slotB.data;
 
   updateMapSlotLabels();
@@ -11796,7 +11850,13 @@ function renderOtherMapOverlay() {
   otherMapGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
   otherMapGroup.id = "otherMapGroup";
 
-  if (!slot?.data) {
+  /*
+   * Die Gruppe bleibt leer, wenn der andere Slot nichts haelt ODER wenn der
+   * Nutzer ihn ausgeblendet hat. Die Gruppe selbst bleibt stehen, damit die
+   * Z-Ordnung der uebrigen Gruppen nicht davon abhaengt, ob gerade etwas
+   * angezeigt wird.
+   */
+  if (!slot?.data || !slotVisibility[slot.id]) {
     svg.appendChild(otherMapGroup);
     return;
   }
@@ -19981,6 +20041,23 @@ document.getElementById("mapBButton").addEventListener("click", () => {
   activateMap("B");
 });
 
+/*
+ * Sichtbarkeit der jeweils anderen Karte. Die beiden Bezeichner stehen
+ * ausgeschrieben da und nicht als `showMap${id}Button`: eine aus einer
+ * Variablen gebildete id waere fuer die Textsuche unsichtbar, und
+ * tools/check-dom-ids.mjs meldet sie seit Ausgabe 049 als Fehler.
+ */
+const bindeSichtbarkeit = (knopf, id) => {
+  knopf.addEventListener("click", () => {
+    slotVisibility[id] = !slotVisibility[id];
+    updateMapSlotUi();
+    renderGeometry();
+  });
+};
+
+bindeSichtbarkeit(document.getElementById("showMapAButton"), "A");
+bindeSichtbarkeit(document.getElementById("showMapBButton"), "B");
+
 document.getElementById("removeMapBBtn").addEventListener(
   "click",
   removeSecondMap
@@ -20364,6 +20441,8 @@ const I18N_EN = new Map(Object.entries({
   "Typ:":"Type:",
   "Index:":"Index:",
   "Zeichnung abgebrochen.":"Drawing cancelled.",
+  "Karte A anzeigen":"Show map A",
+  "Karte B anzeigen":"Show map B",
   "Search Wire verlängern: neue Punkte am bestehenden Ende anklicken.":"Extend Search Wire: click new points at the existing end.",
   "Search Wire zeichnen: mindestens zwei Punkte anklicken.":"Draw Search Wire: click at least two points.",
   "Search Wire verlängern:":"Extend Search Wire:",

@@ -1155,7 +1155,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->44 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->46 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -5959,6 +5959,20 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   sie prüft `perpendicularDistance()`, und die ist über Douglas-Peucker
   lebendig.
 
+  **RICHTIGGESTELLT mit dem einundzwanzigsten Durchgang: das Muster für `id`
+  war zu weit.** Es lautete `/\bid=["']…/` – und die Wortgrenze liegt auch
+  zwischen dem Bindestrich und dem `i` von `data-map-id="A"`. Zwei solche
+  Attribute zählten dadurch als ids „A" und „B"; ein drittes hätte einen
+  **Doppelungsfehler gemeldet, den es nicht gibt**, und genau daran ist es
+  aufgefallen, als die Sichtbarkeitsschalter dazukamen. Verlangt wird jetzt
+  Leerraum davor (`/\sid=/`): ein Attributname fängt am Tag oder hinter einem
+  Leerzeichen an, nie hinter einem Bindestrich.
+
+  **Die Zahl der ids im Markup fiel dadurch um zwei** – von zwei Einträgen,
+  die nie welche waren. Das ist dieselbe Klasse wie „ein Prüfer, der Text
+  durchsucht, findet sich selbst", nur eine Ebene weiter: **ein Suchmuster
+  findet auch, was nur so aussieht.**
+
   **Die Methode ist sicher, und das ist gemessen:** `index.html` kennt weder
   `window[...]` noch `globalThis[...]` noch `eval()` noch ein einziges
   Markup-Handler-Attribut (die fünf Treffer auf `on[a-z]*="` sind Teile von
@@ -8133,26 +8147,66 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   **Kalibriert ist die Methode am bekannten Treffer** – sie findet
   `setPointRoleText()`.
 
-- **Sichtbarkeit je Kartenslot – Eintrag, kein Auftrag; eingetragen mit
-  Schritt 3 des achten Durchgangs.** Sind zwei Karten geladen, soll sich jede
-  von beiden **einzeln** auf einen von drei Zuständen schalten lassen:
-  **sichtbar**, **aktiv** oder **nicht sichtbar**. Beschrieben ist damit ein
-  Wunsch des Projektinhabers, kein Entwurf.
+- **Sichtbarkeit je Kartenslot – GEBAUT mit dem einundzwanzigsten Durchgang.**
+  Eingetragen als Wunsch des Projektinhabers mit Schritt 3 des achten
+  Durchgangs: sind zwei Karten geladen, soll sich jede von beiden **einzeln**
+  auf einen von drei Zuständen schalten lassen – **sichtbar**, **aktiv** oder
+  **nicht sichtbar**.
 
-  **Der Ort ist offen.** Genannt sind zwei Möglichkeiten – das Menü „Karte",
-  in dem heute „Karte A" und „Karte B" stehen, oder zwei Felder oben in der
-  Oberfläche. Welcher von beiden es wird, ist nicht entschieden.
+  **Der Ort: das Menü „Karte", als zwei eigene Einträge unter der
+  Slot-Radiogruppe** („Karte A anzeigen", „Karte B anzeigen",
+  `role="menuitemcheckbox"`). Zwei Felder oben in der Oberfläche waren die
+  Alternative und sind verworfen: die Kopfzeile ist seit Etappe 6 auf 880 px
+  Eigenbreite zurückgebaut, und zwei Schalter dort kosteten Platz für einen
+  Zustand, den man einmal einstellt.
 
-  **Das Verhältnis zur Etappe „Beide" ist zu klären.** Unter diesem Namen
-  steht in Abschnitt 5 bereits ein Eintrag, und er meint etwas anderes: dort
-  geht es um eine **kartenübergreifende Auswahl**, also um Punkte aus beiden
-  Slots in einer Auswahl, und damit um einen Umbau des Auswahlmodells. Ob die
-  Sichtbarkeit je Slot ein Teil davon ist, eine Vorstufe oder eine eigene
-  Sache, gehört zu dieser Klärung.
+  **Drei Zustände brauchen ZWEI Elemente, nicht eines.** „Aktiv" ist eine
+  Radiogruppe – genau einer –, „sichtbar" ist es nicht; beides in einen
+  Eintrag zu ziehen ginge nur mit einem dritten Radiozustand, und der hieße,
+  dass Sichtbarkeit und Aktivsein einander ausschließen. Der Schalter der
+  **aktiven** Karte ist angekreuzt und gesperrt und leitet sich damit aus
+  `aria-checked` ab, statt eine zweite Quelle für denselben Zustand zu sein.
 
-  **ERHOBEN mit dem zwanzigsten Durchgang: eine Sichtbarkeit je Slot gibt es
-  heute nicht.** Der Eintrag verlangte das ausdrücklich vor allem Weiteren;
-  gemessen im Browser mit zwei geladenen Karten, nicht am Quelltext
+  **`slotVisibility` steht AUSSERHALB von `mapSlots`** – und damit außerhalb
+  der Historie. Es beschreibt die Ansicht und nicht die Karte: ein Undo soll
+  eine Geometrie zurückholen und nicht eine Anzeigeentscheidung umwerfen. In
+  `mapSlots` geführt reiste es im Snapshot mit; zugesichert ist genau das.
+  **Kein `localStorage`:** ein Arbeitszustand der laufenden Sitzung ist kein
+  dauerhafter Wunsch – dieselbe Regel, an der der Behelfsschalter der
+  Seitenleiste kein Gedächtnis bekam.
+
+  **Aktivwerden LÖSCHT den Ausblendwunsch, es merkt ihn nicht daneben.** Wird
+  eine ausgeblendete Karte aktiv, ist sie sichtbar – sie wird ohnehin nicht
+  über das Overlay gezeichnet –, und beim Zurückschalten bleibt sie es. Ihn
+  daneben zu merken hieße, einen **zweiten Zustandshalter** einzuführen, und
+  genau das ist beim Zuklappgriff der Auswahlleiste aus demselben Grund
+  abgelehnt worden. Wer eine Karte bearbeitet, hat sie sehen wollen.
+
+  **ENTSCHIEDEN zur zweiten Achse: die Ebenen-Schalter bleiben global, und es
+  gibt keine Matrix.** Die effektive Sichtbarkeit ist „Ebene sichtbar UND Slot
+  sichtbar". „Exclusions von A zeigen, die von B nicht" bleibt damit nicht
+  ausdrückbar – bewusst: eine Matrix aus fünf Ebenen mal zwei Slots wären zehn
+  Schalter für einen Fall, den niemand verlangt hat, und die beiden Achsen
+  beantworten verschiedene Fragen („welche Art von Ding" gegen „welche Karte").
+
+  **ENTSCHIEDEN zum Verhältnis zur Etappe „Beide": das sind zwei Sachen.**
+  „Beide" meint eine **kartenübergreifende Auswahl** und damit einen Umbau des
+  Auswahlmodells; die Sichtbarkeit je Slot meint die **Anzeige** und kommt
+  ohne ihn aus. Sie ist deshalb keine Vorstufe und kein Teil davon – sie macht
+  nur die passive Karte steuerbar, und das ist unabhängig davon, ob man sie je
+  mitbearbeiten kann.
+
+  **Zugesichert in `tools/test-map-switch.mjs` als Wirkung**, nämlich an der
+  Zahl der wirklich gezeichneten Pfade der passiven Karte, nicht am
+  `aria-checked` des Schalters. Zwei Mutationen, je 0 Timeouts: das Overlay
+  ignoriert die Sichtbarkeit wieder reißt drei benannte Zusicherungen, die
+  Erzwingung für die aktive Karte entfernt reißt vier.
+
+  #### Was die Bestandsaufnahme des zwanzigsten Durchgangs ergeben hatte
+
+  **ERHOBEN mit dem zwanzigsten Durchgang: eine Sichtbarkeit je Slot gab es
+  bis dahin nicht.** Der Eintrag verlangte das ausdrücklich vor allem
+  Weiteren; gemessen im Browser mit zwei geladenen Karten, nicht am Quelltext
   überlegt.
 
   | Frage | Befund |
@@ -8174,11 +8228,9 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Exclusions weg, die der aktiven und die der passiven Karte (Overlay-Pfade
   sichtbar 2 → 1).
 
-  **Wer die Sichtbarkeit je Slot baut, muss deshalb sagen, wie sich die beiden
-  Achsen zueinander verhalten** – Ebene mal Slot ergibt eine Matrix, und
-  „Exclusions von A zeigen, die von B nicht" ist heute nicht ausdrückbar. Das
-  ist keine Ableitung, sondern eine Entscheidung, und sie steht hier
-  ausdrücklich **nicht** getroffen.
+  **Das war die Frage nach den beiden Achsen** – Ebene mal Slot ergäbe eine
+  Matrix. Sie ist oben entschieden: die Ebenen bleiben global, es gibt keine
+  Matrix, und die effektive Sichtbarkeit ist die Und-Verknüpfung beider.
 
   **Nebenbefund, gemessen: das Laden einer zweiten Karte schaltet die aktive
   Karte selbsttätig um.** Nach dem Laden über `#secondFileInput` steht
@@ -9026,14 +9078,14 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   |---|---|---|
   | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**55** | 12 |
   | `tools/test-merge.mjs` | 5 | 5 |
-  | `tools/test-map-switch.mjs` | 1 | 1 |
+  | `tools/test-map-switch.mjs` | 1 | 2 |
   | `tools/test-dockpath.mjs` | – | 2 |
   | `tools/test-menu.mjs` | – | 3 |
   | `tools/test-reduce.mjs` | – | 1 |
   | `tools/test-toolbar.mjs` | – | 1 |
   | `tools/test-validation.mjs` | – | 3 |
   | `tools/test-i18n-dynamic.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**61** | <!-- bestand: zusicherungen-herstellend -->**30** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**61** | <!-- bestand: zusicherungen-herstellend -->**31** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -9063,7 +9115,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Zusicherungen stehen in `tools/test-inspector.mjs`; die fünf in
   `tools/test-merge.mjs` prüfen die beiden Punktknöpfe und ihre
   Überschreibungsmeldung. Wer die Leiste baut, fasst diese eine Datei an –
-  und muss die 30 herstellenden im Blick behalten, denn sie klicken
+  und muss die 31 herstellenden im Blick behalten, denn sie klicken
   `#clearMultiSelectionBtn` und `#deleteMultiSelectionBtn` als **Geste**, nicht
   als Gegenstand. Verschwindet ein solcher Knopf aus dem Inspektor, reißt dort
   keine Zusicherung über ihn, sondern eine ganz andere weiter unten – genau die
