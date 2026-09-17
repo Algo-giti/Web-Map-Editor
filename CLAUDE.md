@@ -7279,20 +7279,46 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   ganze Gruppe – deshalb wanderten Start und Ende oben um dieselben 3,20 m. Wer
   den letzten Punkt allein bewegen will, hebt die Auswahl vorher auf.
 
-  **Zwei Fälle sind weiterhin NICHT gemessen**, und beide sind nur deshalb
-  offen, weil sie sich auf einem Rechteck nicht herstellen ließen:
+  **Die beiden zuletzt offenen Fälle sind mit dem einundzwanzigsten Durchgang
+  GEMESSEN.** Sie standen hier als „nicht gemessen", weil sie sich auf einem
+  Rechteck nicht herstellen ließen; beide brauchen eine eigens dafür gebaute
+  Karte, und beide verhalten sich richtig.
 
-  - **Reduzieren entfernt den letzten Punkt.** Punkt 0 bleibt nach der
-    Hausregel immer erhalten; der letzte Punkt ist in der offenen Folge
-    `[0 … n-1, 0]` dagegen ein Innenpunkt und **kann** fallen. In der Messung
-    fiel ein anderer, weil er der flachste war.
-  - **Begradigen erfasst Punkt 0.** Das setzte voraus, dass der Innenbereich
-    des gewählten Abschnitts über die Schlusskante läuft;
-    `interiorIndicesBetween()` wählte beide Male den nicht umlaufenden Weg.
+  **Fall 1 – Reduzieren entfernt den letzten Punkt.** Punkt 0 bleibt nach der
+  Hausregel immer erhalten; der letzte Punkt ist in der offenen Folge
+  `[0 … n-1, 0]` dagegen ein Innenpunkt und **kann** fallen. Herzustellen ist
+  das nur, wenn er der flachste ist – Ring
+  `(0,0) (40,0) (40,40) (0,40) (0,1)`, Schlusskante als Auftrennstelle
+  (Start (0,0), Ende (0,1)), ganzes Feature reduzieren mit 0,50 m:
 
-  Beide dürfen bis zur Messung **nicht als Befund zitiert werden** – aus dem
-  Verhalten der übrigen Wege folgt zwar, was zu erwarten ist, aber erwartet ist
-  nicht gemessen.
+  | | Ring | Infoblock |
+  |---|---|---|
+  | nach dem Setzen | `0/0 40/0 40/40 0/40 0/1` | „Auftrennstelle **gewählt**.", Ende E 0,00 / N 1,00 |
+  | nach dem Reduzieren | `0/0 40/0 40/40 0/40` | „Auftrennstelle **seit der Wahl verändert**.", Ende E 0,00 / N 40,00 |
+
+  **Fall 2 – Begradigen erfasst Punkt 0.** Das setzt voraus, dass der
+  Innenbereich des gewählten Abschnitts über die Schlusskante läuft;
+  `interiorIndicesBetween()` nimmt den kürzeren Weg, also braucht es einen
+  Ring, auf dem der umlaufende Weg kürzer ist. Sechseck
+  `(0,0) (20,−5) (40,0) (40,40) (20,45) (0,40)`, gewählt sind Punkt 1 und
+  Punkt 5 – der Innenbereich ist dann **{0}**:
+
+  | | Ring | Infoblock |
+  |---|---|---|
+  | nach dem Setzen | `0/0 20/−5 40/0 40/40 20/45 0/40` | „Auftrennstelle **gewählt**.", Start E 0,00 / N 0,00 |
+  | nach dem Begradigen | `14,85/6,60 20/−5 …` | „Auftrennstelle **seit der Wahl verändert**.", Start E 14,85 / N 6,60 |
+
+  **Beide Male meldet der Infoblock den Zustand, den 7d-4a dafür vorgesehen
+  hat** – kein Fall behauptet weiter „gewählt", und die Schließpunkt-Kopie am
+  Ende des Rings wandert mit. Damit ist belegt, was vorher nur zu erwarten war.
+
+  **Was hier NICHT dazugekommen ist, und das ist Absicht: eine Zusicherung.**
+  Der Übergang „gewählt → verändert" ist in `tools/test-merge.mjs` bereits
+  benannt zugesichert („Punkt 0 verschieben macht aus 'gewaehlt' ein
+  'veraendert'"); was fehlte, war die **Erreichbarkeit** dieser beiden Wege,
+  und die ist eine Messung, keine Zusicherung. Zwei weitere Karten in den
+  ohnehin langen Merge-Test zu hängen brächte dieselbe Zustandsprüfung ein
+  drittes Mal.
 
   **Dieselbe Lücke ein zweites Mal, an den beiden alten Punktknöpfen.** Die
   zweite Punktgeste überschreibt die erste – „Startpunkt setzen" auf einen
