@@ -7230,10 +7230,30 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Moment wieder aufzuschnüren, in dem der Umlaufsinn dazukommt – und der kommt,
   sobald Punkt 2 oder 3 des Pakets gebaut wird.
 
-  **Praktisch heißt das: nicht vorziehen.** Wer das Begradigen heute auf eine
-  andere Wegregel umstellt, ändert das Verhalten eines Werkzeugs, das die
-  7d-3-Messungen als Bestand festhalten, und muss es später ein zweites Mal
+  **Praktisch hieß das: nicht vorziehen.** Wer das Begradigen auf eine andere
+  Wegregel umstellt, ändert das Verhalten eines Werkzeugs, das die
+  7d-3-Messungen als Bestand festhalten, und müsste es später ein zweites Mal
   anfassen.
+
+  **ENTSCHIEDEN mit dem einundzwanzigsten Durchgang, zusammen mit Punkt 4 des
+  Pakets: `interiorIndicesBetween()` bleibt, wie es ist.** Die Regel „der
+  kürzere Weg, bei Gleichstand der ohne Index 0" gilt weiter, und sie wird
+  auch dann nicht durch den Umlaufsinn ersetzt, wenn der dazukommt.
+
+  **Der Grund ist, dass die beiden Fragen doch nicht dieselbe sind.** Der
+  Umlaufsinn beantwortet „welche Seite liegt innen" – eine Aussage über die
+  Fläche. Das Begradigen fragt „welche Punkte liegen zwischen den beiden, die
+  ich angeklickt habe" – eine Aussage über die **Auswahl**, und die trifft der
+  Nutzer, nicht die Geometrie. Zwei angeklickte Punkte haben auf einem
+  geschlossenen Ring immer zwei Wege, und der kürzere ist der, den man beim
+  Anklicken zweier naher Punkte meint; welche Seite davon innen liegt, ändert
+  daran nichts.
+
+  **Der Fall, der die Frage aufwarf, bleibt damit richtig beschrieben und
+  hingenommen:** nach dem Setzen einer Auftrennstelle bewegt dieselbe Geste
+  auf derselben Geometrie einen anderen Punkt, weil der Ring gedreht ist. Das
+  ist die Folge davon, dass die Regel über Indizes spricht – und der Nutzer
+  löst sie mit einem Klick auf, indem er die beiden anderen Punkte wählt.
 
   **Und die Schlusskante überlebt das Reduzieren nicht (i).** Ring
   `(0,0) (40,0) (40,40) (0,40) (0,20)`, Schlusskante als Auftrennstelle
@@ -7764,8 +7784,18 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   thematisch streuen.
 
 - **Nach dem UI-Umbau: fünf zusammenhängende Punkte um die Mähergeometrie.**
-  Eintrag, **kein Auftrag** – und ausdrücklich **ein Paket, keine fünf
-  Einzelpunkte**. Die Reihenfolge ist die Abhängigkeit: **1 und 4 tragen 2 und
+  **Alle Entscheidungen des Pakets sind mit dem einundzwanzigsten Durchgang
+  getroffen; gebaut ist nichts, und gebaut wird nach Etappe 10.** Damit ist es
+  derselbe Stand wie die Mähbahnen-Vorschau: eine vollständig festgelegte,
+  noch nicht gebaute Arbeit – und keine offene Frage mehr.
+
+  **Warum nicht jetzt gebaut wird:** das Paket berührt die Mäher-Darstellung,
+  die Kartenprüfung und ein viertes Umformwerkzeug. Etappe 9 fasst den
+  Inspektor an und Etappe 10 das Hilfe-Overlay; wer die Werkzeuge vorher
+  ergänzt, schreibt beide zweimal. Das ist derselbe Grund, aus dem das Overlay
+  zurückgestellt ist, nur eine Ebene größer.
+
+  Der Eintrag ist ausdrücklich **ein Paket, keine fünf Einzelpunkte**. Die Reihenfolge ist die Abhängigkeit: **1 und 4 tragen 2 und
   3**, deshalb wird nichts davon einzeln vorgezogen. Wer 2 oder 3 ohne 1 baut,
   hat keine Abmessung, gegen die er prüft; wer sie ohne 4 baut, verschiebt mit
   gleicher Wahrscheinlichkeit in die falsche Richtung – und das Ergebnis sieht
@@ -7795,18 +7825,39 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     ausgewählten Punktes speichert `mowerLength` und `mowerWidth` **mit** und
     zeichnet den Ghost daraus. Eine neue Geometrie muss dort mitreisen, sonst
     zeigt der Vergleichsmäher weiter den alten Körper.
-  - **Ob der Spielraum ein eigener Wert ist oder eingerechnet wird, ist eine
-    Entscheidung, keine Ableitung.** Für einen eigenen Wert spricht, dass er in
-    2 und 3 wieder auftaucht und eingerechnet dort unsichtbar wäre; dagegen
-    spricht ein Feld mehr. Eingerechnet lässt sich hinterher nicht mehr
-    unterscheiden, was Fahrzeugmaß und was Sicherheitsabstand war.
+  - **ENTSCHIEDEN: der Spielraum ist ein EIGENER Wert.** Er taucht in 2 und 3
+    wieder auf und wäre eingerechnet dort unsichtbar; und eingerechnet ließe
+    sich hinterher nicht mehr unterscheiden, was Fahrzeugmaß und was
+    Sicherheitsabstand war. Ein Feld mehr ist der Preis, und er ist kleiner
+    als eine Zahl, deren Herkunft niemand mehr kennt.
 
-  **2. Kollisionsprüfung eines ausgewählten Bereichs.** Einen gewählten Bereich
-  gegen Fahrzeugabmessung plus Spielraum prüfen. **Zu entscheiden ist, ob die
-  vorhandene Korridorprüfung der Kartenprüfung mitwächst** – sie benutzt heute
-  schlicht `const threshold = mowerWidth` – **oder ob eine zweite Prüfung
-  daneben entsteht.** Zwei Antworten auf „passt der Mäher hier durch" wären
-  eine Tatsache an zwei Orten.
+  **ENTSCHIEDEN, was aus den beiden vorhandenen Feldern wird:**
+
+  | heute | künftig |
+  |---|---|
+  | `mowerLength` / `#mowerLengthInput` | **ersetzt** durch zwei Felder, Antenne→Front und Antenne→Heck. Die Länge selbst bleibt als **abgeleitete** Größe (Summe der beiden) für Tooltip und Größenzeile – abgeleitet, nicht gespeichert, damit sie nicht neben ihren Teilen veralten kann |
+  | `mowerWidth` / `#mowerWidthInput` | **bleibt, mit Namen und Bedeutung.** Sie ist nicht nur Darstellung: sie ist die Schwelle der Korridorprüfung und geht als `mowerWidth²` in die Flächenwarnung beim Reduzieren ein. Eine zweite Breite daneben wäre genau die Tatsache an zwei Orten, die dieses Paket vermeiden soll |
+  | – | **neu** `mowerClearance` / `#mowerClearanceInput`, der Spielraum |
+
+  **Die Vergleichs-Baseline speichert künftig alle vier Werte statt
+  Länge und Breite.** Das ist der vierte Verbraucher oben, und er ist der
+  einzige, der ohne diese Entscheidung still den alten Körper weiterzeichnete.
+
+  **2. Kollisionsprüfung eines ausgewählten Bereichs. ENTSCHIEDEN: die
+  vorhandene Korridorprüfung wächst mit, es entsteht KEINE zweite.** Ihre
+  Schwelle lautet künftig `mowerWidth + 2 × mowerClearance` statt schlicht
+  `mowerWidth`; alles andere bleibt, wie es ist.
+
+  **Der Grund ist die Frage, nicht der Aufwand:** „passt der Mäher hier durch"
+  darf nur eine Antwort haben. Eine zweite Prüfung müsste jede Eigenschaft der
+  ersten neu beantworten – geschlossene Form statt Abtastung, der
+  `pointIsMowable()`-Filter, `GEOMETRY_CHECK_PAIR_BUDGET`, die Sperre bei
+  unbekanntem Maßstab, die Einstufung als Warnung –, und jede abweichende
+  Antwort wäre ein Widerspruch statt eines Zusatzes.
+
+  **Der „ausgewählte Bereich" ist dabei kein eigener Rechenweg, sondern
+  derselbe mit einem Filter:** dieselbe Funktion, beschränkt auf die Kanten
+  der Auswahl. Sonst stünde die Rechnung ein zweites Mal da.
 
   Wer die zweite Prüfung erwägt, übernimmt damit auch alles, was an der ersten
   schon entschieden ist: `segmentDistance()` in geschlossener Form statt
@@ -7840,19 +7891,37 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   - Der **Zwei-Punkte-Fall** deckt sich mit dem Begradigen, das unverändert bei
     genau zwei Punkten desselben Rings bleibt (`getSelectedSection()`).
 
-  **Offen, als Entscheidung einzutragen: was gilt, wenn Lasso oder Rechteck
-  mehrere Features vollständig treffen** – alle abrunden oder ablehnen? Beides
-  ist vertretbar, und die Antwort gehört vor den Bau: ein Werkzeug, das
-  stillschweigend das erste Feature nimmt, wäre die schlechteste der drei
-  Möglichkeiten.
+  **ENTSCHIEDEN: treffen Lasso oder Rechteck mehrere Features vollständig,
+  lehnt das Werkzeug ab – mit Grund im `.tool-reason`-Feld.** Alle zugleich
+  abzurunden wäre ein Undo-Schritt, der mehrere Features ändert und beim
+  Zurücknehmen nicht mehr aufzutrennen ist; stillschweigend das erste zu
+  nehmen war schon in der Frage als das Schlechteste benannt. Und es ist
+  dieselbe Antwort wie bei Rechtwinklig, das über `getWholeFeatureTarget()`
+  ohnehin genau ein Feature verlangt – zwei Umformwerkzeuge mit zwei
+  Auffassungen von „ganzes Feature" wären die schlechtere Wahl als eine
+  Ablehnung, die man mit einem Klick auflöst.
 
-  Offen bleibt außerdem, **welcher Radius genau**: halbe Breite, volle Breite,
-  oder frei einstellbar mit der Geometrie als Vorschlag.
+  **ENTSCHIEDEN: der Radius ist frei einstellbar, und die Vorgabe ist
+  `mowerWidth / 2 + mowerClearance`.** Das ist der Radius, den die
+  Außenkante des Fahrzeugs an einer Ecke tatsächlich braucht; die halbe Breite
+  allein ließe den Spielraum aus, die volle Breite wäre die Vorgabe für ein
+  Fahrzeug, das es nicht gibt. Frei einstellbar ist er aus demselben Grund wie
+  die Toleranz bei Rechtwinklig: der Nutzer weiß Dinge über seinen Garten, die
+  der Editor nicht weiß. **Die Vorgabe folgt der eingestellten Geometrie und
+  ist keine eigene Zahl** – sie ändert sich mit, wenn Breite oder Spielraum
+  geändert werden, solange der Nutzer den Wert nicht überschrieben hat.
+
+  **ENTSCHIEDEN, wie viele Punkte ein Bogen bekommt: so viele, wie die
+  Kreis-Exclusion bei diesem Winkel bekäme.** Die Eckenzahl des Kreises ist
+  bereits entschieden (Vorgabe 24 auf den vollen Kreis, mit der Rechnung
+  `r·(1−cos(π/n))` als Begründung); ein Viertelkreis bekommt davon ein Viertel,
+  aufgerundet, mindestens 2. Damit gibt es **keine zweite Antwort** auf „wie
+  fein wird ein Bogen abgebildet", und die Begründung steht schon da.
 
   Nebenbei festzuhalten, weil es die Nachbarwerkzeuge unterscheidet: Abrunden
   **fügt Punkte hinzu**. Rechtwinklig entfernt ausdrücklich keinen, Reduzieren
-  entfernt – ein Werkzeug, das welche einfügt, ist in dieser Gruppe neu und
-  braucht eine Aussage dazu, wie viele.
+  entfernt – ein Werkzeug, das welche einfügt, ist in dieser Gruppe neu, und
+  die Aussage dazu, wie viele, steht im Absatz darüber.
 
   **Kein eigenes Symbol für das Abrunden.** Entschieden, nicht offen: die drei
   vorhandenen Umformwerkzeuge sind **reine Textknöpfe** im Faltblock – im
@@ -7901,22 +7970,30 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     liest ausschließlich `coordinates[0]`" ist damit erledigt; das Geschwister
     auf Ringebene gibt es.
 
-    **Was NICHT mitentschieden ist: welcher Ring ein Loch ist, sagt heute seine
-    Stelle in `coordinates` und nicht sein Umlaufsinn.** Das war Absicht – am
-    gemessenen Fall laufen beide Ringe gleichsinnig, eine
-    vorzeichenbehaftete Summe lieferte dort 500 statt 300 m². Wer den Umlaufsinn
-    einführt, entscheidet damit auch, ob er die Stellenregel ablöst oder neben
-    ihr steht.
+    **ENTSCHIEDEN: der Umlaufsinn löst die Stellenregel NICHT ab, er steht
+    neben ihr.** Welcher Ring ein Loch ist, sagt weiterhin seine Stelle in
+    `coordinates`. Der Grund ist gemessen: am dokumentierten Fall laufen
+    **beide** Ringe gleichsinnig, und eine vorzeichenbehaftete Summe lieferte
+    dort 500 statt 300 m². Die Stelle ist das, was das Dateiformat und
+    CaSSAndRA tatsächlich einhalten; der Umlaufsinn ist es nachweislich nicht.
+    Eine Eigenschaft, die in echten Dateien falsch ist, darf nicht darüber
+    entscheiden, was die Datei bedeutet – sie darf nur gemeldet werden, und
+    genau das tut Punkt 5.
   - **Nicht verwechseln mit `getVertexOrientation()`.** Das liefert die
     Fahrtrichtung aus der Punktfolge und sagt nichts darüber, welche Seite
     innen liegt.
 
-  **5. Eigener Befund für die Kartenprüfung.** GeoJSON schreibt für Polygone
-  einen Umlaufsinn vor; CaSSAndRA-Dateien halten das nicht zwingend ein.
-  **Als Entscheidung einzutragen, nicht als Auftrag: meldet der Editor einen
-  abweichenden Umlaufsinn nur, oder korrigiert er ihn?** Korrigieren heißt,
-  fremde Dateien umzuschreiben – dieselbe Frage wie bei den Löchern in
-  Polygonen, die heute editierbar, aber nicht validiert sind.
+  **5. Eigener Befund für die Kartenprüfung. ENTSCHIEDEN: melden, nicht
+  korrigieren – und als WARNUNG, nicht als Fehler.** GeoJSON schreibt für
+  Polygone einen Umlaufsinn vor; CaSSAndRA-Dateien halten das nicht zwingend
+  ein.
+
+  **Beide Hälften der Entscheidung haben einen Beleg im Haus:** korrigieren
+  hieße, eine fremde Datei beim Speichern still umzuschreiben – dieselbe
+  Regel, aus der der Export `idx` nicht neu vergibt („Speichern soll nichts
+  still verändern, was der Nutzer nicht angefasst hat"). Und die Einstufung
+  als Warnung folgt dem RFC-Wortlaut darunter: ein `MUST` für den Schreiber,
+  ein ausdrückliches Nicht-Ablehnen für den Leser.
 
   Zwei Dinge, die der Entscheidung vorliegen sollten:
 
@@ -7933,8 +8010,9 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
     `collectGeometryFindings()` sind sämtlich Warnungen, weil der Editor zu
     wenig über die Absicht des Nutzers weiß, und der Export vergibt `idx` nicht
     neu, weil Speichern nichts still verändern soll. Beides zeigt in dieselbe
-    Richtung – **es ist trotzdem eine Entscheidung und keine Ableitung**, denn
-    der Umlaufsinn ist anders als `idx` normativ festgelegt.
+    Richtung – **es war trotzdem eine Entscheidung und keine Ableitung**, denn
+    der Umlaufsinn ist anders als `idx` normativ festgelegt. Getroffen ist sie
+    oben.
 
 - **`#pointMeta` stand beim zweiten Anwählen derselben Rolle leer da – Befund
   des neunten Durchgangs, BEHOBEN mit dem einundzwanzigsten.** Ein Beifang der
