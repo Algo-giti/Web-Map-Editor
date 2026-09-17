@@ -10321,6 +10321,24 @@ const ABSOLUTE_WGS84_THRESHOLD = 0.05;
  */
 const ORIGIN_MATCH_TOLERANCE_METERS = 0.01;
 
+
+/**
+ * Hat sich ein Punkt bewegt? Schwelle in WELTMETERN.
+ *
+ * Dieselbe Frage wird an drei Stellen gestellt - beim Vergleich gegen die
+ * Baseline (`baselineStillMoved()`), beim Zurueckschreiben aus den E/N-Feldern
+ * (`applySelectedPointFromInputs()`) und im Ziehen-Handler (`actuallyMoved`) -
+ * und sie muss an allen dreien dieselbe Antwort bekommen: ein Zug, der als
+ * Bewegung zaehlt, muss auch den Ghost aufloesen, und eine Eingabe, die als
+ * unveraendert gilt, darf keinen Undo-Schritt erzeugen.
+ *
+ * NICHT dieselbe Frage, und deshalb ausdruecklich eine EIGENE Konstante:
+ * `GRID_STEP_MATCH_EPSILON` vergleicht zwei Zahlen aus einem Auswahlfeld, in
+ * Metern statt in Weltmetern. Beide unter einen Namen zu ziehen hiesse, zwei
+ * verschiedene Dinge unter einem zu fuehren.
+ */
+const MOVE_EPSILON_WORLD = 1e-12;
+
 /* RTK-Basisposition für die Umrechnung relativ <-> absolut. */
 let referenceOrigin = {lat:0, lon:0};
 
@@ -12058,10 +12076,12 @@ function renderStraightenPreview(worldUnitsPerPixel) {
  * Punkt später wieder weg, ist der Ghost von selbst wieder da - es wird nichts
  * gelöscht, nur nichts Falsches gezeichnet.
  *
- * Die Schwelle 1e-12 je Achse ist die im Projekt bereits vorhandene: dieselbe
- * Zahl beantwortet in `applyPointCoordinateInput()` ("Die Koordinate wurde
- * nicht verändert.") und im Ziehen-Handler (`actuallyMoved`) genau diese
- * Frage. Eine eigene Schwelle wäre eine dritte Quelle für eine Entscheidung.
+ * Die Schwelle je Achse ist `MOVE_EPSILON_WORLD`: dieselbe Konstante
+ * beantwortet in `applySelectedPointFromInputs()` ("Die Koordinate wurde nicht
+ * verändert.") und im Ziehen-Handler (`actuallyMoved`) genau diese Frage. Sie
+ * stand bis zum einundzwanzigsten Durchgang dreimal als Zahl da - eine eigene
+ * Schwelle wäre eine dritte Quelle für eine Entscheidung gewesen, drei gleiche
+ * Zahlen waren es der Sache nach schon.
  *
  * Ein Punkt, den es nicht mehr gibt, behält seinen Ghost: dort ist die alte
  * Position der einzige Vergleich, der noch existiert.
@@ -12074,8 +12094,8 @@ function baselineStillMoved(baseline) {
   const [east, north] = toWorld(coordinate);
 
   return (
-    Math.abs(east - baseline.east) > 1e-12 ||
-    Math.abs(north - baseline.north) > 1e-12
+    Math.abs(east - baseline.east) > MOVE_EPSILON_WORLD ||
+    Math.abs(north - baseline.north) > MOVE_EPSILON_WORLD
   );
 }
 
@@ -12941,8 +12961,8 @@ function applySelectedPointFromInputs() {
   const [oldEast, oldNorth] = toWorld(coordinateBefore);
 
   if (
-    Math.abs(oldEast - east) < 1e-12 &&
-    Math.abs(oldNorth - north) < 1e-12
+    Math.abs(oldEast - east) < MOVE_EPSILON_WORLD &&
+    Math.abs(oldNorth - north) < MOVE_EPSILON_WORLD
   ) {
     setEditStatus("Die Koordinate wurde nicht verändert.");
     return;
@@ -13091,7 +13111,8 @@ function rotateRingToStart(slot, ringData, startIndex) {
  * Gemessen, nicht geschätzt: ein Rundlauf über das E-Feld einer aus absolutem
  * WGS84 umgerechneten Karte kommt NICHT bitgleich zurück - die Anzeige rundet
  * auf zwei Nachkommastellen, gemessen wurden 5,9·10⁻¹¹ m Abweichung. Die im
- * Haus vorhandene Schwelle 1e-12 (Weltmeter, "hat sich der Punkt bewegt?")
+ * Haus vorhandene Schwelle `MOVE_EPSILON_WORLD` (Weltmeter, "hat sich der
+ * Punkt bewegt?")
  * deckt das nicht ab, ein exakter Vergleich erst recht nicht. Bei unbekanntem
  * Maßstab gibt es keine Meter, dort wird exakt verglichen.
  */
@@ -16435,6 +16456,18 @@ function updateGridStatus(message = null, isError = false, effectiveStep = null)
 }
 
 
+/**
+ * Trifft eine Eingabe einen der `<option>`-Werte des Rastervorwahlfeldes?
+ *
+ * Bewusst NICHT `MOVE_EPSILON_WORLD`, obwohl die Zahl dieselbe ist: hier
+ * werden zwei Werte in METERN auf Gleichheit verglichen und keine Bewegung in
+ * Weltmetern beurteilt. Der gemeinsame Name waere eine Behauptung, die beiden
+ * Schwellen gehoerten zusammen - und dann zoege eine Aenderung an der einen
+ * die andere stillschweigend mit.
+ */
+const GRID_STEP_MATCH_EPSILON = 1e-12;
+
+
 /** Übernimmt den frei eingegebenen Rasterwert. */
 function applyGridStepFromInput() {
   const input = document.getElementById("gridStepInput");
@@ -16453,7 +16486,7 @@ function applyGridStepFromInput() {
 
   const preset = document.getElementById("gridPreset");
   const matching = [...preset.options].find(option =>
-    option.value && Math.abs(Number(option.value) - parsed) < 1e-12
+    option.value && Math.abs(Number(option.value) - parsed) < GRID_STEP_MATCH_EPSILON
   );
   preset.value = matching ? matching.value : "";
 
@@ -18944,8 +18977,8 @@ svg.addEventListener("pointermove", event => {
       targetAnchorNorth - vertexDrag.anchorStart[1];
 
     const actuallyMoved =
-      Math.abs(deltaEast) > 1e-12 ||
-      Math.abs(deltaNorth) > 1e-12;
+      Math.abs(deltaEast) > MOVE_EPSILON_WORLD ||
+      Math.abs(deltaNorth) > MOVE_EPSILON_WORLD;
 
     if (!actuallyMoved) return;
 

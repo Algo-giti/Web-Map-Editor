@@ -6896,13 +6896,38 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | `applyGridStepFromInput()` | **trifft die Eingabe einen `<option>`-Wert?** |
 
   Die ersten drei sind dieselbe Frage in Weltmetern – der Kommentar an
-  `baselineStillMoved()` sagt das selbst („dieselbe Zahl beantwortet in
+  `baselineStillMoved()` sagte das selbst („dieselbe Zahl beantwortet in
   `applyPointCoordinateInput()` … und im Ziehen-Handler … genau diese Frage").
   Die vierte vergleicht **keine Bewegung**, sondern die Gleichheit zweier
   Zahlen aus einem Auswahlfeld, und zwar in Metern statt in Weltmetern. Eine
   gemeinsame Konstante über alle vier hieße, zwei verschiedene Dinge unter
-  einem Namen zu führen. **Für die drei gleichbedeutenden ist eine Konstante
-  naheliegend – das ist eine Entscheidung und wurde hier nicht getroffen.**
+  einem Namen zu führen.
+
+  **Entschieden: die drei gleichbedeutenden bekommen `MOVE_EPSILON_WORLD`, die
+  vierte `GRID_STEP_MATCH_EPSILON`.** Beide tragen heute denselben Wert, und
+  genau deshalb brauchen sie zwei Namen: eine gemeinsame Konstante wäre die
+  Behauptung, eine Änderung an der einen Schwelle solle die andere mitziehen –
+  und sie zöge sie dann still mit. Der Kommentar an `GRID_STEP_MATCH_EPSILON`
+  sagt das an Ort und Stelle, damit die Trennung beim nächsten Aufräumen nicht
+  für ein Versehen gehalten wird.
+
+  **Der Gewinn ist nicht die Ersparnis, sondern die Bindung.** Drei gleiche
+  Zahlen waren der Sache nach schon eine Entscheidung an drei Orten: ein Zug,
+  der als Bewegung zählt, muss auch den Ghost auflösen, und eine Eingabe, die
+  als unverändert gilt, darf keinen Undo-Schritt erzeugen. Wer eine der drei
+  Zahlen anfasste, brach das – und nichts hätte es gemeldet.
+
+  **Zugesichert sind BEIDE Zweige der Schwelle**, an dem, was der Nutzer davon
+  sieht (`tools/test-inspector.mjs`): dieselbe Eingabe noch einmal bestätigt
+  meldet „Die Koordinate wurde nicht verändert." und erzeugt **keinen**
+  Undo-Schritt; eine wirkliche Änderung meldet „Punkt auf E=…" und erzeugt
+  **einen**. Vorher gab es zu dieser Meldung im ganzen Verzeichnis `tools/`
+  keine einzige Zusicherung.
+
+  **Zwei Mutationen in beide Richtungen, je 0 Timeouts:** die Schwelle auf 1 m
+  gesetzt reißt sechs benannte Zusicherungen (darunter viermal „die geaenderte
+  letzte Ziffer wird uebernommen" aus dem Trennzeichenabschnitt), auf 0
+  gesetzt reißt drei.
 
   **Der ursprüngliche Befund**, vom 10.09.2026, Stand `4202533`, in beiden
   Sprachen im Browser gemessen:
@@ -8768,7 +8793,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
 
   | Datei | prüfend | nur herstellend |
   |---|---|---|
-  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**55** | 10 |
+  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**55** | 12 |
   | `tools/test-merge.mjs` | 5 | 5 |
   | `tools/test-map-switch.mjs` | 1 | 1 |
   | `tools/test-dockpath.mjs` | – | 2 |
@@ -8777,7 +8802,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | `tools/test-toolbar.mjs` | – | 1 |
   | `tools/test-validation.mjs` | – | 3 |
   | `tools/test-i18n-dynamic.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**61** | <!-- bestand: zusicherungen-herstellend -->**28** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**61** | <!-- bestand: zusicherungen-herstellend -->**30** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -8807,7 +8832,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Zusicherungen stehen in `tools/test-inspector.mjs`; die fünf in
   `tools/test-merge.mjs` prüfen die beiden Punktknöpfe und ihre
   Überschreibungsmeldung. Wer die Leiste baut, fasst diese eine Datei an –
-  und muss die 28 herstellenden im Blick behalten, denn sie klicken
+  und muss die 30 herstellenden im Blick behalten, denn sie klicken
   `#clearMultiSelectionBtn` und `#deleteMultiSelectionBtn` als **Geste**, nicht
   als Gegenstand. Verschwindet ein solcher Knopf aus dem Inspektor, reißt dort
   keine Zusicherung über ihn, sondern eine ganz andere weiter unten – genau die

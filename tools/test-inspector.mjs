@@ -1961,6 +1961,40 @@ try {
     (await page.locator("#pointNorthInput").inputValue()).includes("7,25"),
     await page.locator("#pointNorthInput").inputValue());
 
+  /*
+   * Und die BEIDEN Zweige der Bewegungsschwelle MOVE_EPSILON_WORLD. Sie
+   * beantwortet an drei Stellen dieselbe Frage - Baseline-Vergleich,
+   * E/N-Felder, Ziehen-Handler - und stand bis zum einundzwanzigsten
+   * Durchgang dreimal als Zahl da. Zugesichert ist hier, was der Nutzer davon
+   * sieht: dieselbe Eingabe noch einmal bestaetigt erzeugt KEINEN
+   * Undo-Schritt und sagt es; eine wirkliche Aenderung erzeugt einen.
+   */
+  const undoTiefe = () => page.evaluate(() => undoStack.length);
+
+  const vorUnveraendert = await undoTiefe();
+
+  await page.locator("#pointEastInput").press("Enter");
+  await page.waitForTimeout(350);
+
+  check("dieselbe Eingabe noch einmal bestaetigt gilt als unveraendert",
+    (await page.locator("#editStatus").textContent())
+      .includes("Die Koordinate wurde nicht verändert."),
+    await page.locator("#editStatus").textContent());
+  check("und sie erzeugt keinen Undo-Schritt",
+    (await undoTiefe()) === vorUnveraendert,
+    `${vorUnveraendert} -> ${await undoTiefe()}`);
+
+  await page.fill("#pointEastInput", "12,51");
+  await page.locator("#pointEastInput").press("Enter");
+  await page.waitForTimeout(350);
+
+  check("eine wirkliche Aenderung gilt als Bewegung",
+    (await page.locator("#editStatus").textContent()).includes("Punkt auf E="),
+    await page.locator("#editStatus").textContent());
+  check("und sie erzeugt einen Undo-Schritt",
+    (await undoTiefe()) === vorUnveraendert + 1,
+    `${vorUnveraendert} -> ${await undoTiefe()}`);
+
   /* Tab führt durch den sichtbaren Block. */
   const focusAfterTabs = async (start, count) => {
     await page.locator(`#${start}`).focus();
