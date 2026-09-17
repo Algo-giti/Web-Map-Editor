@@ -413,6 +413,124 @@ try {
   }
 
   /* ---------------------------------------------------------------- */
+  console.log("Fehlermeldungen, beide Richtungen");
+
+  /*
+   * 28 Statustexte hatten bis zum einundzwanzigsten Durchgang keine englische
+   * Fassung - ueberwiegend Fehlermeldungen seltener Faelle. Sie laufen
+   * saemtlich ueber setLocalizedText(); zugesichert wird deshalb nicht jede
+   * einzeln, sondern der Weg an zwei Vertretern - einem aus jeder der beiden
+   * Mechaniken, die dafuer angefasst wurden.
+   *
+   * Dass KEINER mehr fehlt, prueft die statische Stufe: die Bestandszahl
+   * statustexte-ohne-englisch steht auf 0 und reisst, sobald einer dazukommt.
+   */
+
+  /* --- Vertreter 1: die Rastermeldung, neu ueber setLocalizedText() --- */
+  /*
+   * #gridStatus ist ABGELEITET: renderGrid() steht in refreshDerivedUi() und
+   * baut die Zeile beim Sprachwechsel neu auf. Die Fehlermeldung ueberlebt
+   * ihn deshalb NICHT - gemessen wird sie darum in jeder Sprache EINZELN
+   * erzeugt. Das ist die Ausnahme von Regel (e) und hier keine Auslassung,
+   * sondern die Eigenschaft der Zeile; die Gegenrichtung steht unmittelbar
+   * darunter am abgeleiteten Text, den der Wechsel wirklich anfasst.
+   */
+  const rasterFehler = async () => {
+    await page.fill("#gridStepInput", "keine Zahl");
+    await page.locator("#gridStepInput").press("Enter");
+    await page.waitForTimeout(350);
+
+    return gridStatus();
+  };
+
+  await menueBefehl("Ansicht", "Raster…");
+  await page.waitForTimeout(250);
+
+  const rasterFehlerDe = await rasterFehler();
+
+  check("deutsch: die Rasterfehlermeldung nennt den zulaessigen Bereich",
+    rasterFehlerDe.includes("Bitte einen Wert zwischen 0,001 m und 100 m eingeben."),
+    rasterFehlerDe);
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(400);
+
+  const rasterFehlerEn = await rasterFehler();
+
+  check("englisch erzeugt: dieselbe Meldung steht englisch da",
+    rasterFehlerEn.includes("Please enter a value between 0.001 m and 100 m."),
+    rasterFehlerEn);
+  check("englisch erzeugt: und kein deutscher Rest bleibt stehen",
+    !/Bitte einen Wert/.test(rasterFehlerEn), rasterFehlerEn);
+
+  /*
+   * Und jetzt der ABGELEITETE Text an derselben Stelle, ueber den
+   * Sprachwechsel hinweg. Er entsteht ueber innerHTML; bliebe die Marke der
+   * Fehlermeldung am Element stehen, schriebe applyI18nSnapshot() sie beim
+   * Wechsel wieder hinein - reiner Text statt Markup, und in der falschen
+   * Sprache.
+   */
+  await page.fill("#gridStepInput", "0.25");
+  await page.locator("#gridStepInput").press("Enter");
+  await page.waitForTimeout(350);
+
+  const rasterWertEn = await gridStatus();
+
+  check("englisch: nach einem gueltigen Wert steht wieder der Rasterabstand da",
+    rasterWertEn.startsWith("Grid spacing:"), rasterWertEn);
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+
+  const rasterWertDe = await gridStatus();
+
+  check("und auf deutsch ebenso, nicht von der alten Meldung ueberschrieben",
+    rasterWertDe.startsWith("Rasterabstand:") &&
+    !rasterWertDe.includes("Bitte einen Wert"), rasterWertDe);
+
+  /* --- Vertreter 2: eine Meldung ueber setEditStatus() --------------- */
+  /*
+   * "Bitte gueltige Zahlen fuer East und North eingeben." war zugleich ein
+   * Fall fuer transientStatusCanGoStale(): eine Meldung OHNE englische
+   * Fassung wird beim Sprachwechsel verworfen. Dass sie jetzt stehen bleibt
+   * und uebersetzt wird, belegt beides zugleich.
+   */
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  await page.locator("circle.vertex").first().click();
+  await page.waitForTimeout(300);
+  await openAllFolds(page);
+
+  await page.fill("#pointEastInput", "keine Zahl");
+  await page.locator("#pointEastInput").press("Enter");
+  await page.waitForTimeout(350);
+
+  const zahlFehlerDe = await editStatus();
+
+  check("deutsch: das Koordinatenfeld meldet die ungueltige Eingabe",
+    zahlFehlerDe.includes("Bitte gültige Zahlen für East und North eingeben."),
+    zahlFehlerDe);
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(400);
+
+  const zahlFehlerEn = await editStatus();
+
+  check("englisch: sie ist uebersetzt statt verworfen",
+    zahlFehlerEn.includes("Please enter valid numbers for East and North."),
+    zahlFehlerEn);
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+
+  check("und auch sie kommt unveraendert zurueck",
+    (await editStatus()) === zahlFehlerDe,
+    `${zahlFehlerDe} || ${await editStatus()}`);
+
+  /* ---------------------------------------------------------------- */
   console.log("Der Tooltip unter dem ruhenden Zeiger");
 
   /*

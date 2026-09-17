@@ -1154,7 +1154,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->43 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->44 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -6242,25 +6242,69 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   **Stand danach:** `tools/scan-i18n.mjs` meldet über alle damals siebzehn Zustände
   **null** neue Treffer.
 
-- <!-- bestand: statustexte-ohne-englisch -->**28 Statustexte haben keine englische Fassung.** Sie wurden beim Umzug der
-  Ausgaben in die Statuszeile systematisch erfasst: literale Argumente von
-  `setEditStatus()`, `setMultiSelectionStatus()`, `setReduceStatus()`,
-  `setRectifyStatus()` und `updateGridStatus()`, die weder in `I18N_EN` stehen
-  noch auf ein Muster passen. Es sind überwiegend Fehlermeldungen seltener
-  Fälle („Polygonring konnte nicht neu aufgebaut werden.") sowie zwei
-  Rastertexte. Sie laufen alle über `setLocalizedText()` und wechseln damit
-  sauber hin und her – es gibt nur nichts zu wechseln. Nachzutragen, wenn die
-  betroffenen Bereiche im weiteren Umbau ohnehin angefasst werden; einzeln
-  nachzupflegen lohnt nicht.
+- <!-- bestand: statustexte-ohne-englisch -->**0 Statustexte ohne englische
+  Fassung – ERLEDIGT mit dem einundzwanzigsten Durchgang.** Der Eintrag bleibt
+  stehen, weil die Zahl eine Bestandszahl ist und weiter geprüft wird: sie
+  steht heute auf 0 und **reißt, sobald ein neuer deutscher Statustext ohne
+  Fassung dazukommt**. Das ist die schärfere Zusicherung als jede Liste – ein
+  neuer Text fällt beim nächsten `check-all` auf, nicht erst beim nächsten
+  Durchsehen.
 
-  **Es waren 31, als die Liste entstand; drei haben seither eine englische
-  Fassung bekommen** – und zwar genau die drei, deren Nachtrag in dieser Datei
-  verzeichnet ist: „Karte A und B wurden verbunden …" (Schritt 3 des fünften
-  Durchgangs), „Raster wird nach dem Öffnen einer Karte angezeigt." (Schritt 7
-  des vierten Durchgangs) und „Zeichnung abgebrochen.". Neu dazugekommen ist
-  keiner; die Grundgesamtheit ist mit 57 unverändert. **Das ist die Veralterung
-  durch Arbeit, gegen die der Bestandsprüfer gebaut ist** – niemand hat die Zahl
-  falsch gemessen, sie ist durch drei Übersetzungen richtig geworden.
+  **Die Grundgesamtheit sind die literalen ersten Argumente von
+  `setEditStatus()`, `setMultiSelectionStatus()`, `setReduceStatus()`,
+  `setRectifyStatus()` und `updateGridStatus()`** – 57 eindeutige Texte,
+  unverändert. Sie laufen sämtlich über `setLocalizedText()` und wechseln
+  damit in beide Richtungen.
+
+  **Die Zahl ist 31 → 28 → 0 gegangen, und die ersten beiden Schritte waren
+  Nebenwirkungen.** Drei Texte bekamen ihre Fassung, weil der Bereich um sie
+  herum ohnehin angefasst wurde – „Karte A und B wurden verbunden …" (Schritt 3
+  des fünften Durchgangs), „Raster wird nach dem Öffnen einer Karte angezeigt."
+  (Schritt 7 des vierten) und „Zeichnung abgebrochen.". Die frühere Einschätzung
+  hier lautete, den Rest „einzeln nachzupflegen lohnt nicht"; **das ist
+  richtiggestellt**: es sind überwiegend Fehlermeldungen seltener Fälle, und
+  gerade die trifft ein Nutzer im ungünstigsten Moment – eine deutsche
+  Fehlermeldung in englischer Oberfläche ist dort schlimmer als an jeder
+  gewöhnlichen Stelle.
+
+  **Ein Text brauchte mehr als einen Wörterbucheintrag.** „Bitte einen Wert
+  zwischen **0,001 m** und **100 m** eingeben." des Rasterfeldes stand als
+  Markup mit zwei `<strong>` da und wurde über `element.innerHTML` gesetzt –
+  damit zerfiel der Satz in drei Textknoten, von denen keiner ein
+  Wörterbucheintrag ist. Er steht jetzt ohne Markup und läuft über
+  `setLocalizedText()`; den Fehlerzustand trägt ohnehin die Klasse `error`, die
+  Fettung der beiden Zahlen war Schmuck. **Die abgeleiteten Fassungen derselben
+  Zeile räumen dafür `data-i18n-de`, bevor sie `innerHTML` schreiben** – sonst
+  schriebe `applyI18nSnapshot()` beim nächsten Sprachwechsel den Text der
+  Fehlermeldung über das Markup. Dieselbe Regel wie in `updateStockBlock()` und
+  `setPointRoleText()`; es ist die dritte Stelle, an der sie gebraucht wird.
+
+  **Zugesichert sind zwei Vertreter, nicht achtundzwanzig.**
+  `tools/test-i18n-dynamic.mjs` misst je einen aus den beiden Mechaniken, die
+  angefasst wurden: die Rastermeldung über `updateGridStatus()` und „Bitte
+  gültige Zahlen für East und North eingeben." über `setEditStatus()`. Dass
+  **keiner** mehr fehlt, prüft die Bestandszahl – sie zu wiederholen hieße,
+  dieselbe Analyse an zwei Orten zu führen.
+
+  **Die Rastermeldung ist dabei die Ausnahme von Regel (e), und zwar eine
+  begründete:** `#gridStatus` ist abgeleitet, `renderGrid()` steht in
+  `refreshDerivedUi()` und baut die Zeile beim Sprachwechsel neu auf – die
+  Fehlermeldung überlebt ihn nicht. Gemessen wird sie deshalb in **jeder
+  Sprache einzeln erzeugt**; die Gegenrichtung über den Wechsel hinweg steht
+  unmittelbar daneben am abgeleiteten Text, den der Wechsel wirklich anfasst.
+
+  **Die zweite Zusicherung belegt zwei Dinge auf einmal.** „Bitte gültige
+  Zahlen für East und North eingeben." fiel bis hierher unter
+  `transientStatusCanGoStale()` – eine Meldung **ohne** englische Fassung wird
+  beim Sprachwechsel verworfen. Dass sie jetzt stehen bleibt **und** übersetzt
+  wird, zeigt beides zugleich.
+
+  **Drei Mutationen, je 0 Timeouts:** den Wörterbucheintrag der Rastermeldung
+  entfernt reißt zwei benannte Zusicherungen; `delete element.dataset.i18nDe`
+  entfernt reißt eine, und zwar mit dem verräterischen Detail – an der Stelle
+  der Fehlermeldung steht dann der **alte abgeleitete** Text; den Eintrag der
+  Koordinatenmeldung entfernt reißt zwei, darunter „englisch: sie ist
+  uebersetzt statt verworfen" mit dem Ruhetext als Detail.
 - **`CHANGELOG.md` (deutsch) beginnt erst bei Ausgabe 047.** Die Historie der
   Ausgaben 001–046 existiert nur in `CHANGELOG_EN.md`. Neue Einträge ab
   jetzt bitte in beiden Dateien pflegen.
@@ -8684,7 +8728,8 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   | `tools/test-reduce.mjs` | – | 1 |
   | `tools/test-toolbar.mjs` | – | 1 |
   | `tools/test-validation.mjs` | – | 3 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**61** | <!-- bestand: zusicherungen-herstellend -->**27** |
+  | `tools/test-i18n-dynamic.mjs` | – | 1 |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**61** | <!-- bestand: zusicherungen-herstellend -->**28** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -8714,7 +8759,7 @@ Frameworks/Bundler, versteckte private Testdaten in Kommentaren oder Code.
   Zusicherungen stehen in `tools/test-inspector.mjs`; die fünf in
   `tools/test-merge.mjs` prüfen die beiden Punktknöpfe und ihre
   Überschreibungsmeldung. Wer die Leiste baut, fasst diese eine Datei an –
-  und muss die 27 herstellenden im Blick behalten, denn sie klicken
+  und muss die 28 herstellenden im Blick behalten, denn sie klicken
   `#clearMultiSelectionBtn` und `#deleteMultiSelectionBtn` als **Geste**, nicht
   als Gegenstand. Verschwindet ein solcher Knopf aus dem Inspektor, reißt dort
   keine Zusicherung über ihn, sondern eine ganz andere weiter unten – genau die

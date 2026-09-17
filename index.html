@@ -16372,9 +16372,25 @@ function updateGridStatus(message = null, isError = false, effectiveStep = null)
   updateStatusBar();
 
   if (message) {
-    element.innerHTML = message;
+    /*
+     * Einmalmeldung, also ueber setLocalizedText(): nur so traegt sie ihr
+     * deutsches Original als data-i18n-de und wechselt in BEIDE Richtungen
+     * mit. Deshalb auch ohne Markup - ein <strong> verlangte innerHTML und
+     * zerlegte den Satz in Textknoten, von denen keiner ein
+     * Woerterbucheintrag ist. Der Fehlerzustand ist ohnehin an der Klasse
+     * "error" zu erkennen und braucht die Fettung nicht.
+     */
+    setLocalizedText(element, message);
     return;
   }
+
+  /*
+   * Die abgeleiteten Fassungen schreiben innerHTML - die Marke einer vorher
+   * gezeigten Einmalmeldung muss deshalb weg, sonst ueberschriebe
+   * applyI18nSnapshot() das Markup beim naechsten Sprachwechsel mit reinem
+   * Text. Dieselbe Regel wie in updateStockBlock() und setPointRoleText().
+   */
+  delete element.dataset.i18nDe;
 
   const requested = formatGridMeters(requestedGridStep);
 
@@ -16399,7 +16415,7 @@ function applyGridStepFromInput() {
 
   if (parsed === null) {
     updateGridStatus(
-      "Bitte einen Wert zwischen <strong>0,001 m</strong> und <strong>100 m</strong> eingeben.",
+      "Bitte einen Wert zwischen 0,001 m und 100 m eingeben.",
       true
     );
     return false;
@@ -20284,6 +20300,38 @@ const I18N_EN = new Map(Object.entries({
   "Typ:":"Type:",
   "Index:":"Index:",
   "Zeichnung abgebrochen.":"Drawing cancelled.",
+  /* Einundzwanzigster Durchgang: die Statusmeldungen, die bis dahin keine
+     englische Fassung hatten - siehe CLAUDE.md, Abschnitt 7. Es sind
+     ueberwiegend Fehlermeldungen seltener Faelle; sie laufen saemtlich
+     ueber setLocalizedText() und wechseln damit in beide Richtungen. */
+  "Mehrere Search-Wire-Features gefunden. Bitte zuerst die Kartenprüfung verwenden bzw. die Search Wire löschen.":"Several Search Wire features found. Please run map validation first, or delete the Search Wire.",
+  "Zum Verlängern muss mindestens ein neuer Punkt gesetzt werden.":"At least one new point must be placed in order to extend.",
+  "Feature konnte nicht erzeugt werden.":"The feature could not be created.",
+  "Bitte gültige Zahlen für East und North eingeben.":"Please enter valid numbers for East and North.",
+  "Die Koordinate wurde nicht verändert.":"The coordinate was not changed.",
+  "Der ausgewählte Punkt konnte nicht aktualisiert werden.":"The selected point could not be updated.",
+  "Startpunkt-Neuvergabe ist nur für geschlossene Polygonringe verfügbar.":"Reassigning the start point is only available for closed polygon rings.",
+  "Polygonring konnte nicht gelesen werden.":"The polygon ring could not be read.",
+  "Ungültiger Punktindex.":"Invalid point index.",
+  "Polygonring konnte nicht neu aufgebaut werden.":"The polygon ring could not be rebuilt.",
+  "Endpunkt-Neuvergabe ist nur für geschlossene Polygonringe verfügbar.":"Reassigning the end point is only available for closed polygon rings.",
+  "Punkte können hier nur in Perimeter- oder Exclusion-Polygonen eingefügt werden.":"Points can only be inserted into perimeter or exclusion polygons here.",
+  "Polygonring konnte nach dem Einfügen nicht geschlossen werden.":"The polygon ring could not be closed after inserting.",
+  "Dieses Feature unterstützt das Einfügen von Polygonpunkten nicht.":"This feature does not support inserting polygon points.",
+  "Das Polygon enthält keine editierbaren Punkte.":"The polygon contains no editable points.",
+  "Feature wurde nicht gefunden.":"The feature was not found.",
+  "Nur komplette Exclusions können mit dieser Funktion gelöscht werden.":"Only complete exclusions can be deleted with this function.",
+  "Länge und Breite müssen jeweils zwischen 0,10 m und 5,00 m liegen.":"Length and width must each be between 0.10 m and 5.00 m.",
+  "Beide Karten benötigen einen gültigen Perimeter.":"Both maps need a valid perimeter.",
+  "Die beiden Karten verwenden unterschiedliche Koordinatenskalierungen.":"The two maps use different coordinate scalings.",
+  "Perimeter von Karte A konnte nicht kopiert werden.":"The perimeter of map A could not be copied.",
+  "Nur Exclusion-Polygone können mit dieser Funktion dupliziert werden.":"Only exclusion polygons can be duplicated with this function.",
+  "Speichern wegen Validierungsfehlern abgebrochen.":"Saving cancelled because of validation errors.",
+  "Karte B wurde aus dem Arbeitsbereich geschlossen.":"Map B was closed and removed from the workspace.",
+  "Die ausgewählten Punkte konnten keiner Geometrie zugeordnet werden.":"The selected points could not be assigned to any geometry.",
+  "Polygonring konnte nach dem Löschen nicht neu aufgebaut werden.":"The polygon ring could not be rebuilt after deleting.",
+  "Es wurde nichts gelöscht. Auswahl bitte neu setzen.":"Nothing was deleted. Please make the selection again.",
+  "Bitte einen Wert zwischen 0,001 m und 100 m eingeben.":"Please enter a value between 0.001 m and 100 m.",
   "Hauptmenü":"Main menu",
   "Nicht unterstützte Features und das Ursprungskreuz der Karte":"Unsupported features and the map's origin cross",
   "Auf Englisch umschalten":"Switch to German",
