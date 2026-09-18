@@ -2848,6 +2848,61 @@ gebaut wurde. Der Auf-/Zu-Wunsch steht in `localStorage`
 (`webMapEditor.inspectorTransformOpen`, `webMapEditor.inspectorValidationOpen`),
 damit man ihn einmal einstellt.
 
+**„Von selbst" heißt: aus einer ABGELEITETEN Änderung heraus – nicht auf
+Verlangen.** Die Regel richtet sich gegen einen Block, der aufspringt, weil
+sich der Zustand geändert hat; sie richtet sich nicht gegen eine Handlung, die
+den Block ausdrücklich meint. „Karte prüfen" klappt die Kartenprüfung deshalb
+auf (`runMapValidation()` über `openInspectorFold()`), während „Umformen"
+unverändert zubleibt, wenn zwei Werkzeuge ausführbar werden. Der Unterschied
+ist gemessen und in `tools/test-inspector.mjs` nebeneinander zugesichert.
+
+**Ein so erzwungenes Aufklappen wird NICHT gemerkt.** `openInspectorFold()`
+überspringt das Sichern; gespeichert bleibt allein, was der Nutzer am Griff
+gewählt hat. Andernfalls stünde der Prüfblock nach der ersten Kartenprüfung in
+jeder künftigen Sitzung offen, mit „Noch keine Prüfung durchgeführt." darin –
+genau die Überlagerung, wegen der `#originSection` überhaupt keinen Schlüssel
+bekommen hat. Die Marke muss dabei bis zum Eintreffen des Ereignisses stehen
+bleiben: `<details>` stellt sein `toggle` **asynchron** zu, ein unmittelbar
+zurückgesetzter Schalter käme zu spät.
+
+**Der aufgeklappte Bericht bricht das Höhenziel nicht, er ist sein
+zugelassener Fall.** Gemessen kostet er rund 96 px, bei 900 px Fensterhöhe
+also mehr, als die Spalte hat. Das Ziel gilt dem ausgelieferten Zustand mit
+zugeklappten Blöcken – „wer einen öffnet, will seinen Inhalt sehen und scrollt
+dafür" steht zwei Absätze weiter unten. `tools/test-inspector.mjs` schließt
+den Block für die Höhenmessung deshalb wieder, und zwar hinter einer
+Zusicherung, dass er vorher wirklich offen stand.
+
+**Eine Aktion, die den Inspektor übernimmt, beendet ein laufendes Werkzeug.**
+Der Inspektor hat genau einen Platz, und `getInspectorState()` lässt ein
+laufendes Werkzeug jede Auswahl schlagen – ein Modus liefe sonst unsichtbar
+weiter und verdeckte genau das, worum der Nutzer gebeten hat.
+`endActiveToolModes()` ist die eine Stelle dafür; sie hängt an „Karte prüfen",
+an der Feature-Navigation und am Sprung aus einem Prüfbefund.
+
+Gemessen am Ist-Zustand davor, in allen fünf Fällen: nach „Karte prüfen" hieß
+der Leistenknopf weiter „Messung läuft…", der Block MESSEN stand da, der
+Prüfblock blieb zu, und `elementFromPoint()` lieferte an der Stelle des
+Berichts `inspector`. Ein über die Feature-Navigation gewähltes Feature
+lieferte vier ausgewählte Punkte, die niemand zu sehen bekam. Der Zeichenmodus
+verhielt sich genauso.
+
+**Geräumt wird vollständig, nicht nur angehalten.** `setMeasurementMode(false)`
+beendet allein das Sammeln; der Zustand `measuring` gilt aber auch für bereits
+gesetzte Punkte, der Block bliebe also stehen. `clearMeasurement()` ist
+zugleich das, was das Haus schon tut, wenn ein Werkzeug ein anderes ablöst –
+`startFeatureDrawing()` räumt die Messung, `setMeasurementMode(true)` bricht
+die Zeichnung ab.
+
+**Der Kartenklick ist ausdrücklich NICHT eingehängt.** Dort entscheidet die
+Rangfolge im `pointerdown`-Handler, welches Werkzeug den Klick bekommt; ein
+Räumen an dieser Stelle würde eine fertige Messung beim bloßen Ziehen der
+Karte wegwerfen. Die Folge ist gemessen und bleibt: nach einer abgeschlossenen
+Messung wählt ein Klick auf einen Punktmarker den Punkt zwar aus, der
+Inspektor zeigt aber weiter MESSEN. **Das ist eine andere Frage** – ob ein
+*fertiges* Ergebnis den Platz noch halten darf, entscheidet die Rangfolge in
+`getInspectorState()` und nicht die Aktion.
+
 `restoreInspectorFolds()` läuft **einmal beim Start, nicht in `initialize()`** –
 die Funktion hängt Listener an, und `initialize()` wird beim Dateiladen und
 beim Zurücksetzen erneut aufgerufen.
@@ -5675,7 +5730,8 @@ davonzieht.
 - **Koordinatenbezug bleibt in der Spalte.** Der dokumentierte Grund – der
   Block klappt bei einem Konflikt selbst auf, als einzige Ausnahme von
   „Faltblöcke klappen nie von selbst auf" – gilt **gegen ein Menü, nicht gegen
-  ein Fenster**: ein Fenster kann offen bleiben, `openMapWindow()` gibt es. Er
+  ein Fenster** (die Kartenprüfung klappt seitdem ebenfalls auf, aber *auf
+  Verlangen* und nicht von selbst; siehe Abschnitt 5): ein Fenster kann offen bleiben, `openMapWindow()` gibt es. Er
   wird trotzdem nicht gebraucht, denn 20 px sind es nicht wert, den einzigen
   selbsttätigen Warnpfad der Anwendung umzubauen.
 - **Kein Menü für die vier.** Ein Menüeintrag kann keinen Warnzustand offen

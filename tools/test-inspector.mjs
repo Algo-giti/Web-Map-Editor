@@ -778,11 +778,16 @@ try {
   await page.waitForTimeout(400);
 
   /*
-   * Der Prüfblock ist zugeklappt und klappt bewusst nicht von selbst auf. Um
-   * die Liste zu benutzen, öffnet man ihn - genau wie ein Nutzer.
+   * Der Handgriff, der hier stand - ein Klick auf das summary -, ist entfallen
+   * und durfte nicht bleiben: "Karte pruefen" klappt den Block seit dem
+   * einundzwanzigsten Durchgang selbst auf, ein zweiter Klick schloesse ihn
+   * also wieder. Gemessen: die Befunde waren danach nicht mehr anklickbar.
+   * Zugesichert wird stattdessen, dass die Liste ohne Handgriff dasteht - das
+   * ist schaerfer als vorher, nicht schwaecher.
    */
-  await page.locator("#inspectorValidation > summary").click();
-  await page.waitForTimeout(250);
+  check("die Liste steht ohne weiteren Handgriff offen",
+    await page.evaluate(() =>
+      document.getElementById("inspectorValidation").open));
 
   const befunde = await page.locator("#validationReport .validation-item").count();
 
@@ -793,6 +798,18 @@ try {
 
   check("mindestens ein Befund ist anspringbar", anspringbar > 0,
     String(anspringbar));
+
+  /*
+   * Die Zusicherung oben traegt die Behauptung "die Pruefung klappt selbst
+   * auf"; dieser Griff ist nur Werkzeug. Ohne ihn wuerde eine Mutation am
+   * Aufklappen zwar die Zusicherung reissen, unmittelbar danach aber in einen
+   * dreissig Sekunden langen Timeout laufen und den ganzen Rest der Datei
+   * ungemessen lassen - gemessen: eine benannte Zusicherung statt sechzehn.
+   * Dieselbe Regel wie bei klickeFreienKnopf(): die Zusicherung allein
+   * genuegt nicht, der Klick darf nicht ins Leere gehen. openAllFolds() ist
+   * der vorhandene Helfer dafuer und bei offenem Block wirkungslos.
+   */
+  await openAllFolds(page);
 
   await page.locator("#validationReport button[data-validation-target]")
     .first().click();
@@ -1707,8 +1724,19 @@ try {
 
   check("die Prüfung schreibt ihre Kurzform in die Kopfzeile",
     /Fehler|Warnung|keine Befunde/.test(await kurz()), await kurz());
-  check("und klappt den Block ebenfalls nicht auf",
-    !(await offen("inspectorValidation")));
+
+  /*
+   * UMGEKEHRT gegenueber dem Stand bis hierher, und zwar weil die Zusicherung
+   * falsch war: sie las "klappt nie von selbst auf" als "klappt auch auf
+   * Verlangen nicht auf". Die Regel richtet sich gegen ein Aufklappen aus
+   * einer ABGELEITETEN Aenderung heraus - der Block daneben belegt sie
+   * unveraendert: zwei Werkzeuge sind ausfuehrbar geworden, und "Umformen"
+   * bleibt zu. Ein Klick auf "Karte pruefen" ist dagegen die ausdrueckliche
+   * Bitte um die Ausgabe; sie in der Kurzform zu beantworten hiesse, die
+   * Handlung ins Leere laufen zu lassen.
+   */
+  check("und klappt den Pruefblock auf, weil die Ausgabe verlangt wurde",
+    await offen("inspectorValidation"));
 
   /* Aufklappen geht - und der Wunsch überlebt den Neuaufbau. */
   await page.locator("#inspectorTransform > summary").click();
@@ -1724,8 +1752,219 @@ try {
 
   check("nach dem Neuladen ist er noch offen",
     await offen("inspectorTransform"), "Zustand ging verloren");
+
+  /*
+   * Unveraendert - und sie sagt jetzt mehr als vorher: der Pruefblock STAND
+   * in diesem Abschnitt offen, aufgeklappt von "Karte pruefen". Dass er nach
+   * dem Neuladen wieder zu ist, belegt, dass ein Aufklappen aus einer
+   * Handlung NICHT gemerkt wird. Gemerkt wird allein, was der Nutzer am Griff
+   * gewaehlt hat - sonst stuende der Block kuenftig in jeder Sitzung offen,
+   * mit "Noch keine Pruefung durchgefuehrt." darin.
+   */
   check("und der Prüfblock weiterhin zu",
     !(await offen("inspectorValidation")));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Eine Handlung, die den Inspektor uebernimmt, beendet den Modus");
+
+  /*
+   * Der Inspektor hat genau EINEN Platz, und getInspectorState() laesst ein
+   * laufendes Werkzeug jede Auswahl schlagen. Eine Handlung, die diesen Platz
+   * beansprucht, muss den Modus deshalb beenden - sonst laeuft er unsichtbar
+   * weiter und verdeckt genau das, worum der Nutzer gerade gebeten hat.
+   *
+   * Gemessen am Ist-Zustand davor, und zwar in allen fuenf Faellen dieses
+   * Abschnitts: der Knopf hiess nach "Karte pruefen" weiter "Messung laeuft…",
+   * der Block MESSEN stand da, der Pruefblock blieb zu - und der Bericht war
+   * nicht getroffen (elementFromPoint lieferte "inspector").
+   *
+   * Zugesichert wird ueber sichtbaren Text und elementGetroffen(), nicht ueber
+   * measurementState oder featureDrawState: die sagen, was gemeint war.
+   */
+
+  await load([MIT_LOCH]);
+
+  const messKnopf = () => page.evaluate(() => {
+    const btn = document.getElementById("measureBtn");
+    return {
+      text: btn.querySelector(".tool-label").textContent.trim(),
+      aktiv: btn.classList.contains("active"),
+    };
+  });
+
+  const messenStarten = async () => {
+    await page.locator("#measureBtn").click();
+    await page.waitForTimeout(250);
+  };
+
+  await messenStarten();
+
+  const messVorher = await messKnopf();
+  check("Vorbedingung: der Messmodus laeuft wirklich",
+    messVorher.text === "Messung läuft…" && messVorher.aktiv &&
+    (await visible("inspectorMeasure")),
+    `${messVorher.text} | aktiv ${messVorher.aktiv}`);
+
+  /* Der Pruefblock ist an dieser Stelle zu - load() raeumt den Speicher. */
+  check("Vorbedingung: der Pruefblock ist zu",
+    !(await offen("inspectorValidation")));
+
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(500);
+
+  const messNachher = await messKnopf();
+  check("nach \"Karte pruefen\" traegt der Knopf die Ruhebeschriftung",
+    messNachher.text === "Messen", messNachher.text);
+  check("und er ist nicht mehr aktiv markiert",
+    !messNachher.aktiv);
+
+  check("der Inspektorkopf nennt keine Messung",
+    !(await head()).titel.includes("Messung") &&
+    !(await head()).unter.includes("Punkten"),
+    `${(await head()).titel} | ${(await head()).unter}`);
+  check("und der Block MESSEN ist weg",
+    !(await visible("inspectorMeasure")));
+
+  check("der Pruefblock ist aufgeklappt",
+    await offen("inspectorValidation"));
+
+  /*
+   * Aufgeklappt zu SEIN und gezeichnet zu WERDEN sind zwei verschiedene
+   * Dinge - ein geschlossenes <details> liefert weiterhin textContent und
+   * sogar ein Rechteck. Gefragt ist, was der Browser an der Stelle zeichnet.
+   */
+  await page.evaluate(() =>
+    document.getElementById("validationReport").scrollIntoViewIfNeeded());
+  const bericht = await elementGetroffen(page, "#validationReport", { dy: 5 });
+  check("und ein Stueck seiner Ausgabe ist wirklich getroffen",
+    bericht.ok, bericht.grund);
+
+  const berichtText = await text("validationReport");
+  check("die Ausgabe ist der Bericht, nicht nur die Kurzform",
+    berichtText.length > 40, `${berichtText.length} Zeichen`);
+
+  /* ---- derselbe Mangel, anderer Modus: das Zeichnen ---- */
+
+  await load([MIT_LOCH]);
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(250);
+
+  check("Vorbedingung: das Zeichnen laeuft wirklich",
+    (await visible("inspectorDraw")) &&
+    (await page.evaluate(() =>
+      document.getElementById("drawExclusionBtn").classList.contains("active"))));
+
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(500);
+
+  check("\"Karte pruefen\" beendet auch das Zeichnen",
+    !(await visible("inspectorDraw")) &&
+    !(await page.evaluate(() =>
+      document.getElementById("drawExclusionBtn").classList.contains("active"))));
+  check("und klappt den Pruefblock auch dort auf",
+    await offen("inspectorValidation"));
+
+  /* ---- dieselbe Klasse: eine Handlung, die eine AUSWAHL herstellt ---- */
+
+  await load([MIT_LOCH]);
+  await openAllFolds(page);
+  await messenStarten();
+  await openAllFolds(page);
+
+  const navKnopf = page.locator(
+    '[data-action="select-whole-feature"][data-feature-index="1"]');
+  check("Vorbedingung: die Feature-Navigation bietet das Feature an",
+    (await navKnopf.count()) > 0);
+
+  await navKnopf.first().click();
+  await page.waitForTimeout(400);
+
+  check("die Feature-Navigation beendet den Messmodus",
+    (await messKnopf()).text === "Messen" && !(await visible("inspectorMeasure")));
+  /*
+   * Die Zahl kommt aus der Vorlage dieses Tests, nicht aus einer Messung:
+   * MIT_LOCH hat zwei Ringe zu je vier eindeutigen Punkten.
+   */
+  const lochPunkte = MIT_LOCH.geometry.coordinates
+    .reduce((summe, ring) => summe + ring.length - 1, 0);
+
+  check("und die Auswahl, die sie erzeugt hat, steht wirklich da",
+    (await head()).titel === `${lochPunkte} Punkte ausgewählt`,
+    (await head()).titel);
+
+  /* ---- und der Sprung aus einem Pruefbefund ---- */
+
+  await load([MIT_LOCH]);
+  await openAllFolds(page);
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(400);
+  await messenStarten();
+
+  const befund = page.locator("#validationReport button.validation-item");
+  check("Vorbedingung: es gibt einen anspringbaren Befund",
+    (await befund.count()) > 0, String(await befund.count()));
+
+  await befund.first().click();
+  await page.waitForTimeout(400);
+
+  check("auch der Sprung aus einem Befund beendet den Messmodus",
+    (await messKnopf()).text === "Messen" && !(await visible("inspectorMeasure")));
+  check("und das angesprungene Feature ist sichtbar ausgewaehlt",
+    /ausgewählt/.test((await head()).titel), (await head()).titel);
+
+  /* ---- beide Sprachrichtungen ---- */
+
+  /*
+   * Regel (e): in der einen Sprache erzeugen, umschalten, dann messen - und
+   * umgekehrt. Der Wechsel laeuft ueber setLanguage(), damit zwischen Wechsel
+   * und Messung keine Handlung liegt, die den Knopf ohnehin neu schriebe.
+   */
+  const spracheSetzen = (wert) => page.evaluate((w) => setLanguage(w), wert);
+
+  await load([MIT_LOCH]);
+  await messenStarten();
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(450);
+
+  check("auf deutsch erzeugt: der Knopf steht auf der Ruhebeschriftung",
+    (await messKnopf()).text === "Messen", (await messKnopf()).text);
+
+  await spracheSetzen("en");
+  await page.waitForTimeout(300);
+
+  check("auf deutsch erzeugt, dann englisch: er ist uebersetzt",
+    (await messKnopf()).text === "Measure", (await messKnopf()).text);
+  check("auf deutsch erzeugt, dann englisch: der Kopf nennt keine Messung",
+    (await head()).titel === "Nothing selected", (await head()).titel);
+  check("auf deutsch erzeugt, dann englisch: der Pruefblock bleibt offen",
+    await offen("inspectorValidation"));
+
+  await load([MIT_LOCH]);
+  await spracheSetzen("en");
+  await page.waitForTimeout(300);
+  await messenStarten();
+
+  check("Vorbedingung englisch: der Messmodus laeuft",
+    (await messKnopf()).aktiv && (await visible("inspectorMeasure")),
+    (await messKnopf()).text);
+
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(450);
+
+  check("auf englisch erzeugt: der Knopf steht englisch auf Ruhe",
+    (await messKnopf()).text === "Measure", (await messKnopf()).text);
+  check("auf englisch erzeugt: der Block MESSEN ist weg",
+    !(await visible("inspectorMeasure")));
+
+  await spracheSetzen("de");
+  await page.waitForTimeout(300);
+
+  check("auf englisch erzeugt, dann deutsch: er ist deutsch",
+    (await messKnopf()).text === "Messen", (await messKnopf()).text);
+  check("auf englisch erzeugt, dann deutsch: der Kopf nennt keine Messung",
+    (await head()).titel === "Nichts ausgewählt", (await head()).titel);
+
+  await spracheSetzen("de");
 
   /* ---------------------------------------------------------------- */
   console.log("Höhenziel: bis 900 px scrollfrei, darunter darf sie scrollen");
@@ -1752,6 +1991,27 @@ try {
 
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(500);
+
+  /*
+   * Seit dem einundzwanzigsten Durchgang klappt "Karte pruefen" den
+   * Pruefblock auf, und ein aufgeklappter Bericht kostet gemessen rund 96 px
+   * - bei 900 px Fensterhoehe also mehr, als die Spalte hat.
+   *
+   * Das ist KEIN gebrochenes Hoehenziel, sondern sein ausdruecklich
+   * zugelassener Fall: das Ziel gilt dem ausgelieferten Zustand mit
+   * zugeklappten Faltbloecken, und "wer einen oeffnet, will seinen Inhalt
+   * sehen und scrollt dafuer" steht so in CLAUDE.md. Die beiden Zusicherungen
+   * darunter sind wortgleich geblieben und pruefen weiter dasselbe: dass das
+   * blosse VORHANDENSEIN eines Pruefergebnisses keine Hoehe kostet. Dafuer
+   * wird der Block wieder geschlossen - genau wie ein Nutzer es taete.
+   */
+  const standOffen = await page.evaluate(() =>
+    document.getElementById("inspectorValidation").open);
+
+  check("Vorbedingung: die Pruefung hat den Block aufgeklappt", standOffen);
+
+  await page.locator("#inspectorValidation > summary").click();
+  await page.waitForTimeout(300);
 
   check("mit Prüfergebnis ebenfalls", await passt(), await hoehen());
 

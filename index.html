@@ -5148,8 +5148,16 @@ function restoreInspectorFolds() {
     /*
      * Der Zustand wird beim Umschalten gesichert, nicht bei jedem Neuaufbau -
      * ein toggle-Ereignis entsteht nur durch echtes Auf- und Zuklappen.
+     *
+     * "Echt" heißt: am Griff. Ein Aufklappen, das aus einer Handlung folgt
+     * (openInspectorFold()), wird übersprungen - siehe dort.
      */
     block.addEventListener("toggle", () => {
+      if (foldSaveSkip === id) {
+        foldSaveSkip = null;
+        return;
+      }
+
       try {
         localStorage.setItem(key, block.open ? "1" : "0");
       } catch (error) {
@@ -5157,6 +5165,37 @@ function restoreInspectorFolds() {
       }
     });
   });
+}
+
+
+/**
+ * Faltblock, dessen nächstes toggle-Ereignis NICHT gespeichert wird.
+ *
+ * Eine eigene Marke ist nötig, weil `<details>` sein toggle-Ereignis
+ * asynchron zustellt: ein Schalter, der unmittelbar nach der Zuweisung wieder
+ * zurückgesetzt wird, stünde beim Eintreffen längst wieder auf aus.
+ */
+let foldSaveSkip = null;
+
+/**
+ * Klappt einen Faltblock als Folge einer Handlung auf - ohne sie zu merken.
+ *
+ * Der gespeicherte Wert soll allein das bedeuten, was der Nutzer am Griff
+ * selbst gewählt hat. Würde ein Aufklappen aus einer Handlung mitgesichert,
+ * stünde der Prüfblock nach der ersten Kartenprüfung in jeder künftigen
+ * Sitzung offen - mit "Noch keine Prüfung durchgeführt." darin, und ohne dass
+ * das jemand gewählt hätte. Genau diese Überlagerung ist der Grund, aus dem
+ * #originSection überhaupt keinen localStorage-Schlüssel bekommen hat.
+ *
+ * Ein bereits offener Block wird nicht angefasst: ohne Zustandswechsel
+ * entsteht kein toggle-Ereignis, und die Marke bliebe sonst liegen.
+ */
+function openInspectorFold(id) {
+  const block = document.getElementById(id);
+  if (!block || block.open) return;
+
+  foldSaveSkip = id;
+  block.open = true;
 }
 
 
@@ -5708,6 +5747,43 @@ function runToolAction(id, action) {
   }
 
   action();
+}
+
+
+/**
+ * Beendet ein laufendes Werkzeug, bevor eine Aktion den Inspektor übernimmt.
+ *
+ * Der Inspektor hat genau EINEN Platz, und getInspectorState() lässt ein
+ * laufendes Werkzeug jede Auswahl schlagen. Eine Aktion, die diesen Platz für
+ * sich beansprucht - die Kartenprüfung, jeder Sprung auf ein Feature -, ließe
+ * den Modus sonst unsichtbar im Hintergrund weiterlaufen: der Leistenknopf
+ * bleibt aktiv markiert, der Messblock steht da, und die Auswahl, die die
+ * Aktion gerade erzeugt hat, bekommt niemand zu sehen. Gemessen am
+ * Ist-Zustand: nach "Karte prüfen" im Messmodus hieß der Knopf weiter
+ * "Messung läuft…", und ein über die Feature-Navigation gewähltes Feature
+ * lieferte vier ausgewählte Punkte hinter dem Block MESSEN.
+ *
+ * clearMeasurement() und nicht setMeasurementMode(false): das beendet nur das
+ * Sammeln und lässt die gesetzten Punkte stehen - der Zustand `measuring`
+ * gilt aber auch für sie, der Block bliebe also stehen. Vollständig zu
+ * räumen ist zugleich das, was das Haus schon tut, wenn ein Werkzeug ein
+ * anderes ablöst: startFeatureDrawing() ruft clearMeasurement(),
+ * setMeasurementMode(true) ruft cancelFeatureDrawing({silent:true}).
+ *
+ * Beides still: die Aktion schreibt unmittelbar danach ihre eigene Meldung,
+ * ein "Zeichnung abgebrochen." davor wäre nur ein Aufblitzen.
+ *
+ * NICHT eingehängt ist der Kartenklick. Dort entscheidet die Rangfolge im
+ * pointerdown-Handler, welches Werkzeug den Klick bekommt; ein Räumen an
+ * dieser Stelle würde eine fertige Messung beim bloßen Ziehen der Karte
+ * wegwerfen. Das ist eine andere Frage als diese hier.
+ */
+function endActiveToolModes() {
+  if (featureDrawState) cancelFeatureDrawing({silent:true});
+
+  if (measurementState.active || measurementState.points.length) {
+    clearMeasurement();
+  }
 }
 
 
@@ -7437,6 +7513,35 @@ function renderValidationResult(result) {
   });
 
   report.hidden = items.length === 0;
+}
+
+
+/**
+ * Die Kartenprüfung als Handlung des Nutzers - der Knopf "Karte prüfen".
+ *
+ * Getrennt von validateActiveMap(), weil dort auch der Export vorbeikommt
+ * (silent, vor dem Speichern) und refreshDerivedUi() den fertigen Bericht
+ * beim Sprachwechsel neu darstellt. Keiner der beiden darf ein Werkzeug
+ * beenden oder einen Faltblock aufklappen - hier ist beides richtig.
+ */
+function runMapValidation() {
+  endActiveToolModes();
+  validateActiveMap();
+
+  /*
+   * Aufklappen ist hier KEIN Verstoß gegen "Faltblöcke klappen nie von selbst
+   * auf". Diese Regel richtet sich gegen ein Aufklappen aus einer ABGELEITETEN
+   * Änderung heraus - ein Werkzeug wird ausführbar, die Prüfung findet neue
+   * Fehler -, denn das ist die Unruhe, gegen die der feste Kopfblock gebaut
+   * wurde. Hier hat der Nutzer die Ausgabe ausdrücklich angefordert; sie
+   * zugeklappt zu lassen hieße, seine Handlung nur mit der Kurzform in der
+   * Kopfzeile zu beantworten.
+   *
+   * GEMERKT wird es nicht: openInspectorFold() überspringt das Sichern, damit
+   * der gespeicherte Wunsch weiterhin allein das ist, was der Nutzer am Griff
+   * gewählt hat.
+   */
+  openInspectorFold("inspectorValidation");
 }
 
 
@@ -18234,6 +18339,15 @@ document.getElementById("featureNavigator").addEventListener("click", event => {
   const button = event.target.closest("button[data-action]");
   if (!button) return;
 
+  /*
+   * Jede Aktion dieser Karte endet in etwas, das der Inspektor zeigen soll -
+   * ein gewählter Punkt, ein gewähltes Feature, eine eingefügte oder
+   * duplizierte Geometrie. Ein laufendes Werkzeug verdeckte das alles.
+   * Einmal hier oben statt sechsmal in den Zweigen: der nächste Zweig
+   * bekäme es sonst nicht.
+   */
+  endActiveToolModes();
+
   const action = button.dataset.action;
 
   if (action === "select-point") {
@@ -19889,7 +20003,7 @@ document.getElementById("clearMeasureBtn").addEventListener(
 
 document.getElementById("validateMapBtn").addEventListener(
   "click",
-  () => validateActiveMap()
+  runMapValidation
 );
 
 
@@ -20021,6 +20135,10 @@ document.getElementById("duplicateFeatureBtn").addEventListener("click", () => {
 document.getElementById("validationReport").addEventListener("click", event => {
   const item = event.target.closest("[data-validation-target]");
   if (!item) return;
+
+  /* Derselbe Grund wie in der Feature-Navigation: der Sprung wählt das
+     Feature aus, und hinter einem laufenden Werkzeug sähe man davon nichts. */
+  endActiveToolModes();
 
   selectWholeFeature(Number(item.dataset.validationTarget));
 });
