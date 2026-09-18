@@ -12,12 +12,143 @@ import { readFileSync } from "node:fs";
 const indexPath = new URL("../index.html", import.meta.url);
 const html = readFileSync(indexPath, "utf8");
 
-const existingIds = new Set(
-  [...html.matchAll(/\bid=["']([^"']+)["']/g)].map((m) => m[1])
-);
+// Alle ids, die als LITERAL in der Datei stehen - in drei Schreibweisen:
+//
+//   1. id="..." im Markup, und ebenso in Vorlagen innerhalb des Skripts.
+//      Diese Sammlung ist eine Textsuche, kein DOM-Aufbau; dynamisch
+//      erzeugtes Markup bleibt dadurch prüfbar.
+//   2. element.id = "..." für programmatisch erzeugte SVG-Gruppen, die kein
+//      Markup haben (geometryGroup, vertexGroup, selectionGhostGroup, ...).
+//   3. setAttribute("id", "...") aus demselben Grund.
+//
+// FALLSTRICK, gemessen im einundzwanzigsten Durchgang: `\bid=` trifft auch
+// `data-map-id="A"` - die Wortgrenze liegt zwischen dem Bindestrich und dem
+// `i`. Zwei solche Attribute zaehlten dadurch als ids "A" und "B", und ein
+// drittes haette einen Doppelungsfehler gemeldet, den es nicht gibt. Verlangt
+// wird deshalb Leerraum davor: ein Attributname faengt am Tag oder hinter
+// einem Leerzeichen an, nie hinter einem Bindestrich.
+const ID_ATTRIBUT = /\sid=["']([^"']+)["']/g;
+
+const existingIds = new Set([
+  ...[...html.matchAll(ID_ATTRIBUT)].map((m) => m[1]),
+  ...[...html.matchAll(/\.id\s*=\s*(["'`])([^"'`]+)\1/g)].map((m) => m[2]),
+  ...[...html.matchAll(/setAttribute\(\s*(["'`])id\1\s*,\s*(["'`])([^"'`]+)\2/g)].map(
+    (m) => m[3]
+  ),
+]);
 
 const getByIdCalls = [...html.matchAll(/getElementById\(\s*(["'`])([^"'`]*)\1\s*\)/g)];
 const dynamicCalls = [...html.matchAll(/getElementById\(\s*[^"'`)]/g)].length;
+
+// Zusammengesetzte oder aus Variablen gesetzte ids.
+//
+// Die Sammlung oben findet jede id, die irgendwo als Literal im Dateitext
+// steht. Wird eine id dagegen aus einer Variablen oder per Zeichenkettenkette
+// gesetzt, steht sie nirgends - der Abgleich unten hielte eine später
+// verwaiste Referenz dann für gültig, weil er sie gar nicht kennt. Diese
+// Schreibweise ist deshalb verboten; siehe CLAUDE.md, Abschnitt 6.
+// Geprüft wird das erste Zeichen nach dem Gleichheitszeichen bzw. Komma.
+// Ein negativer Lookahead hinter \s* trüge nicht: der Stern kann auf null
+// Zeichen zurückfallen, und dann steht dort ein Leerzeichen statt des
+// Anführungszeichens - die Regel liefe für JEDE Zuweisung an.
+const composedIds = [
+  ...html.matchAll(/\.id\s*=(?!=)\s*(\S)/g),
+  ...html.matchAll(/setAttribute\(\s*(["'`])id\1\s*,\s*(\S)/g),
+]
+  .filter((match) => !["\"", "'", "`"].includes(match[match.length - 1]))
+  .map((match) => html.slice(0, match.index).split("\n").length);
+
+// Doppelte ids im MARKUP.
+//
+// Der Oberflächenumbau verschiebt Bedienelemente aus der Seitenleiste in den
+// Inspektor. Wird dabei kopiert statt verschoben, existiert dieselbe id
+// zweimal: getElementById() liefert dann das erste Vorkommen, das zweite ist
+// tot, und beide sehen im Browser gleich aus. Genau das ist beim Bau des
+// Inspektors passiert - fünf ids doppelt, und diese Prüfung sah es nicht,
+// weil sie nur fragte, ob eine referenzierte id EXISTIERT.
+//
+// Nur das Markup wird betrachtet: Vorlagen im Skript dürfen dieselbe id
+// enthalten wie das Markup, das sie ersetzen.
+const markup = html.slice(
+  html.indexOf("<body"),
+  html.indexOf("<script", html.indexOf("<body"))
+);
+
+const markupIds = [...markup.matchAll(ID_ATTRIBUT)].map((m) => m[1]);
+const seenInMarkup = new Set();
+const duplicateIds = [];
+
+for (const id of markupIds) {
+  if (seenInMarkup.has(id)) {
+    if (!duplicateIds.includes(id)) duplicateIds.push(id);
+  }
+  seenInMarkup.add(id);
+}
+
+// Doppelte Funktionsnamen.
+//
+// Dieselbe Falle wie bei den ids, nur im Skript: eine zweite Deklaration
+// desselben Namens ueberschreibt die erste lautlos, und die Syntaxpruefung
+// findet daran nichts. Beim Bau des Inspektors bekam
+// isWholeFeatureSelected() eine zweite Fassung mit anderer Signatur - die
+// spaetere gewann, der Zustand "ganzes Feature" wurde nie erreicht, und kein
+// Werkzeug meldete etwas.
+//
+// Betrachtet werden nur Deklarationen am Zeilenanfang: die sind im inline
+// Script alle global. Eingerueckte Funktionen stehen in einem eigenen
+// Gueltigkeitsbereich und duerfen sich wiederholen.
+const functionNames = [...html.matchAll(/^function\s+([A-Za-z0-9_$]+)\s*\(/gm)]
+  .map((m) => m[1]);
+
+const seenFunctions = new Set();
+const duplicateFunctions = [];
+
+for (const name of functionNames) {
+  if (seenFunctions.has(name) && !duplicateFunctions.includes(name)) {
+    duplicateFunctions.push(name);
+  }
+  seenFunctions.add(name);
+}
+
+/*
+ * Funktionen, die NIRGENDS aufgerufen werden.
+ *
+ * Die Klasse, gegen die dieses Skript gebaut ist, hat zwei Hälften: eine
+ * Referenz ohne Element (oben geprüft) und ein Element ohne Referenz - also
+ * Code, der nach dem Entfernen eines Bedienelements stehen bleibt. Genau so
+ * hat deleteSelectedExclusion() den in Ausgabe 043 entfernten Knopf um
+ * mehrere Ausgaben überlebt.
+ *
+ * WARNUNG, NICHT FEHLER: eine ungenutzte Funktion ist Ballast, kein Defekt,
+ * und sie kann absichtlich dastehen. Reissbar wird die Zahl über die
+ * markierte Bestandszahl "funktionen-ohne-aufrufer" in CLAUDE.md.
+ *
+ * Gezählt wird im Skriptblock OHNE Kommentare - eine Erwähnung in einem
+ * Kommentar ist keine Verwendung - und zusätzlich im Markup, wo ein
+ * onclick-Attribut eine Funktion aufrufen könnte. Nachgemessen: die Datei
+ * kennt weder window[...] noch eval() noch ein einziges Markup-Handler-
+ * Attribut, ein dynamischer Aufrufweg besteht also nicht.
+ */
+const scriptStart = html.indexOf("<script>");
+const scriptEnd = html.indexOf("</script>", scriptStart);
+const scriptBody = html.slice(scriptStart, scriptEnd);
+const markupOnly = html.slice(0, scriptStart) + html.slice(scriptEnd);
+const scriptWithoutComments = scriptBody
+  .replace(/\/\*[\s\S]*?\*\//g, " ")
+  .replace(/^\s*\/\/.*$/gm, " ");
+
+const unusedFunctions = [];
+for (const name of seenFunctions) {
+  const pattern = new RegExp(`\\b${name}\\b`, "g");
+  const inCode = (scriptWithoutComments.match(pattern) || []).length;
+  const inMarkup = (markupOnly.match(pattern) || []).length;
+  /* inCode === 1 ist die Deklaration selbst. */
+  if (inCode <= 1 && inMarkup === 0) {
+    const line = html.slice(0, html.indexOf(`function ${name}(`)).split("\n").length;
+    unusedFunctions.push({ name, line });
+  }
+}
+unusedFunctions.sort((a, b) => a.line - b.line);
 
 const missing = [];
 const seen = new Set();
@@ -33,10 +164,61 @@ console.log(
     (dynamicCalls ? `, ${dynamicCalls} dynamic (non-literal) call(s) skipped - review those by hand` : "")
 );
 
+if (duplicateIds.length > 0) {
+  console.error(
+    "check-dom-ids: FAILED - these ids appear more than once in the markup:"
+  );
+  for (const id of duplicateIds) console.error(`  - ${id}`);
+  console.error(
+    "  getElementById() returns the first one; the second is dead markup."
+  );
+  process.exitCode = 1;
+}
+
+if (duplicateFunctions.length > 0) {
+  console.error(
+    "check-dom-ids: FAILED - these top-level functions are declared more than once:"
+  );
+  for (const name of duplicateFunctions) console.error(`  - ${name}()`);
+  console.error(
+    "  The later declaration silently wins; the earlier one is dead code."
+  );
+  process.exitCode = 1;
+}
+
+if (composedIds.length > 0) {
+  console.error(
+    "check-dom-ids: FAILED - every id must be a string literal so this audit can see it."
+  );
+  console.error(
+    "  Composed or variable ids are not allowed. Offending lines in index.html:"
+  );
+  for (const line of composedIds) console.error(`  - line ${line}`);
+  process.exitCode = 1;
+}
+
+if (unusedFunctions.length > 0) {
+  console.log(
+    `check-dom-ids: WARNUNG - ${unusedFunctions.length} Funktion(en) werden in ` +
+      "index.html nirgends aufgerufen (Ballast, kein Defekt - deshalb kein Fehler):"
+  );
+  for (const f of unusedFunctions) {
+    console.log(`  - ${f.name}() (index.html:${f.line})`);
+  }
+}
+
 if (missing.length > 0) {
   console.error("check-dom-ids: FAILED - referenced ids missing from index.html:");
   for (const id of missing) console.error(`  - ${id}`);
   process.exitCode = 1;
-} else {
-  console.log("check-dom-ids: OK - every literal getElementById() reference resolves to an existing id.");
+} else if (
+  composedIds.length === 0 &&
+  duplicateIds.length === 0 &&
+  duplicateFunctions.length === 0
+) {
+  console.log(
+    "check-dom-ids: OK - every literal getElementById() reference resolves to an existing id, " +
+      "every id is a string literal and appears once in the markup, " +
+      `and all ${seenFunctions.size} top-level function names are unique.`
+  );
 }

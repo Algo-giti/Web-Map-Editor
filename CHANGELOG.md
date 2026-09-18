@@ -5,6 +5,139 @@
 > Frühere Ausgaben (001–046) sind ausschließlich im englischen
 > Änderungsprotokoll (`CHANGELOG_EN.md`) dokumentiert.
 
+## Ausgabe 050
+
+Ausgabe 050 baut die Oberfläche neu auf. An den Kartendaten ändert sich
+nichts: Import, Export, Geometrie und alle Rechenwege sind unverändert, und
+eine mit 049 gespeicherte Datei ist Byte für Byte dieselbe wie mit 050. Was
+sich ändert, ist, **wo** die Bedienelemente stehen – und dass die Karte mehr
+Platz bekommt.
+
+---
+
+### 1. Menüleiste statt verstreuter Knöpfe
+
+Oben steht eine Menüleiste mit vier Menüs: **Datei, Ansicht, Karte, Hilfe**.
+Öffnen, Speichern, Zurücksetzen, die Kartenfenster und die Hilfe liegen dort.
+
+Jedes Menü hat ein Tastenkürzel aus dem **ersten Buchstaben seines Titels** –
+deutsch Alt+D, Alt+A, Alt+K, Alt+H, englisch Alt+F, Alt+V, Alt+M, Alt+H. Die
+Kürzel wechseln also mit der Sprache mit, und der markierte Buchstabe wandert
+beim Umschalten von selbst mit. F10 betritt die Leiste ohne Wahltaste; danach
+führen die Pfeiltasten durch alle Menüs, Escape schließt.
+
+Die Kopfzeile ist dadurch von 1038 auf 880 px Mindestbreite geschrumpft und
+von 64 auf 48 px Höhe.
+
+### 2. Werkzeugleiste links
+
+Alle Werkzeuge stehen senkrecht links neben der Karte, in drei Gruppen, und
+die Gruppen sagen das Wichtigste: **was die Karte verändert und was nicht.**
+
+| Gruppe | Werkzeuge |
+|---|---|
+| Auswählen | Zeiger, Rahmen, Lasso |
+| Zeichnen | Exclusion, Kreis, Rechteck, Search Wire, Dockpfad |
+| Prüfen | Messen, Karte prüfen |
+
+Die Leiste lässt sich auf Symbolbreite einklappen; der Wunsch bleibt über den
+nächsten Start hinweg erhalten. In schmalen Fenstern klappt sie von selbst ein.
+
+Ein gesperrtes Zeichenwerkzeug **sagt jetzt, warum** es gesperrt ist – beim
+Anklicken erscheint der Grund in der Statuszeile. Vorher blieb etwa „Search
+Wire" dauerhaft grau, weil die Karte bereits eine hat, ohne dass das irgendwo
+stand.
+
+### 3. Inspektor rechts
+
+Rechts steht ein Inspektor, der **beschreibt, was gerade ausgewählt ist**, und
+die dazu passenden Befehle trägt. Er hat einen festen Kopfblock, der beim
+Auswählen nicht wandert, und darunter je nach Auswahl: die East/North-Felder
+eines Punktes, seine Rolle als Start- oder Endpunkt, Fläche und Punktzahl
+eines Features, die Auswahlaktionen „Auswahl löschen" und „Auswahl aufheben".
+
+Fünf Faltblöcke ergänzen ihn: **Umformen** (Begradigen, Reduzieren,
+Rechtwinklig), **Kartenprüfung**, **Feature-Navigation**, **Koordinatenbezug**
+und die Bestandsangaben. Zugeklappt trägt jeder das Wichtigste in einer Zeile.
+Sie klappen nie von selbst auf – auch dann nicht, wenn ein Werkzeug ausführbar
+wird oder die Prüfung neue Befunde hat.
+
+Auch der Inspektor lässt sich einklappen, auf einen 34-px-Streifen mit dem
+Umschalter; auch dieser Wunsch überlebt den nächsten Start.
+
+Die Umformwerkzeuge stehen **immer** da, auch wenn sie gerade nicht gehen –
+mit dem Grund darunter. Wer sie nur sähe, wenn sie schon gehen, erführe nie,
+was er dafür tun müsste.
+
+### 4. Legende und Statuszeile unten
+
+Die Legende ist eine feste Reihe über der Statuszeile, **immer sichtbar und
+nicht mehr einklappbar**. Vorher lag sie eingeklappt über der Karte und war
+damit genau dann nicht da, wenn man die Farben braucht.
+
+Darunter fasst eine zweizeilige Statuszeile sieben zuvor verstreute Ausgaben
+zusammen: links Dateiname, Maßstab, Bezugspunkt und Prüfergebnis, rechts
+Auswahlzähler und Cursor-Koordinaten, in Zeile 2 über die volle Breite die
+jeweils jüngste Meldung. Zehn der vierzehn Ausgabestellen lagen vorher in
+einklappbaren Bereichen, und genau daran waren zweimal Meldungen unsichtbar
+geworden.
+
+### 5. Drei Fenster über der Karte
+
+**Raster**, **Mähroboter-Vorschau** und **Karten verbinden** sind kleine
+Fenster, die sich über das Menü „Karte" öffnen und beim Einstellen den Blick
+auf die Karte lassen. Zu kosten sie keinen Platz.
+
+### 6. Die Seitenleiste entfällt
+
+Es gibt sie nicht mehr. Ihre Inhalte sind dorthin gezogen, wo sie gebraucht
+werden: die Feature-Navigation und der Koordinatenbezug in den Inspektor, das
+Verbinden in sein Fenster, die Maßfelder der Zeichenwerkzeuge in den
+Zeichenzustand des Inspektors, die Auswahlleiste von der Karte in den
+Inspektor. Der Papierkorb auf der Karte heißt jetzt **„Auswahl löschen"** und
+steht im Inspektor.
+
+Auf dem Telefon stehen Werkzeugleiste, Karte und Inspektor untereinander, und
+die Seite scrollt; jeder Befehl bleibt über die Menüleiste erreichbar. Der
+frühere Knopf, der auf kleinen Displays die Bedienleiste ein- und ausblendete,
+ist damit entfallen.
+
+### 7. Mehr Kartenfläche – vor allem in schmalen Fenstern
+
+Gemessen im selben Browser und mit demselben Skript wie der Ausgangswert:
+
+| Fenster | beide Leisten offen | beide eingeklappt |
+|---|---|---|
+| 1920 × 1080 | −15,2 % | **+8,4 %** |
+| 1440 × 900 | −20,0 % | **+13,5 %** |
+| 1280 × 800 | −22,9 % | **+15,8 %** |
+
+Der eigentliche Gewinn liegt bei den Zwischenbreiten. Bei **940 × 800** –
+einer Breite, in der die Werkzeugleiste ohnehin eingeklappt ist – wuchs die
+Kartenfläche von 147 616 auf **371 676 px², also um 151,8 %**. Dort
+reservierte das alte Raster eine Spalte für eine Seitenleiste, die der Karte
+nichts zurückgab.
+
+**Ehrlich dazu:** mit beiden Leisten offen ist die Fläche kleiner als vorher.
+Der Umbau ist ein Ordnungsgewinn; die Fläche gewinnt, wer einklappt.
+
+### 8. Kleinigkeiten
+
+- Der Mauszeiger zeigt das aktive Werkzeug: Fadenkreuz beim Zeichnen, Messen
+  und bei Rahmen/Lasso, sonst die Greifhand, über einem Punkt ein
+  Verschiebe-Zeiger.
+- Der Knopf „Verschieben" ist entfallen – er war reine Doppelung des Zeigers.
+- Die Punktknöpfe stehen als Paare: davor/danach, Start/Ende; „Punkt löschen"
+  allein über die volle Breite.
+- Ein leeres E/N-Feld sagt jetzt, warum es leer ist.
+- Die Kartenfarben stehen an einer Stelle, und die Legende zieht dieselben
+  Werte wie die Darstellung. Gelb bedeutet nur noch **Auswahl**; der
+  Docking-Pfad ist blau, das Ursprungskreuz neutral, die Vergleichslinie
+  gehört zu den Vorher-Ghosts.
+- Das Hilfe-Overlay beschreibt wieder die tatsächliche Anordnung.
+
+---
+
 ## Ausgabe 049
 
 > **Hinweis für Karten, die vor Ausgabe 048 exportiert wurden:** Bis

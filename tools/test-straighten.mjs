@@ -17,12 +17,18 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-straighten.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import {
+  createChecker,
+  createMenueBefehl,
+  indexUrl,
+  launchBrowser,
+  openAllFolds,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-straighten";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 /*
  * Eine offene Search Wire mit fünf Punkten. Die drei mittleren liegen deutlich
@@ -59,6 +65,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -74,14 +81,16 @@ try {
    * der übrigen Marker verschieben sich. Für diesen Test wird sie abgeschaltet,
    * damit die Marker stabil adressierbar bleiben.
    */
-  const expandSidebar = () =>
-    page.evaluate(() => {
-      document.querySelectorAll("#sidebar details")
-        .forEach((section) => section.setAttribute("open", ""));
-    });
+  /*
+   * Die Faltgeste kommt aus dem browser-harness, nicht aus einer eigenen Kopie.
+   * openAllFolds() steht dort seit Etappe 6 b2 - er wurde nur nie benutzt, und
+   * deshalb erreichte die Reparatur in 3c (die Feature-Karten der Navigation)
+   * zunaechst keinen einzigen Test. Eine Geste an sieben Stellen wird an sechs
+   * davon vergessen.
+   */
 
-  await expandSidebar();
-  await page.uncheck("#showMowerPreview");
+  await openAllFolds(page);
+  await menueBefehl("Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   await page.locator("#fileInput").setInputFiles({
     name: "synthetic-line.geojson",
@@ -112,9 +121,19 @@ try {
 
   const straighten = page.locator("#straightenSelectionBtn");
 
+  /*
+   * Seit Etappe 5 E erklaert der Tooltip, was das Werkzeug TUT - immer
+   * dasselbe. Der Ablehnungsgrund steht sichtbar unter dem Knopf, nicht im
+   * Tooltip: dort erschiene er auf einem Touchgeraet nie.
+   */
+  const grund = () => page.locator("#straightenReason").textContent();
+
   check("Begradigen ist ohne Auswahl gesperrt", await straighten.isDisabled());
-  check("Titel nennt den Grund",
-    (await straighten.getAttribute("title")).includes("genau zwei Punkte"));
+  check("der Grund steht sichtbar unter dem Knopf",
+    (await grund()).includes("genau zwei Punkte"), await grund());
+  check("und der Tooltip erklaert die Wirkung",
+    (await straighten.getAttribute("title")).includes("gerade Verbindungslinie"),
+    await straighten.getAttribute("title"));
 
   await markers.nth(0).click();
   await page.waitForTimeout(150);
@@ -128,18 +147,17 @@ try {
     (await page.locator("#multiSelectionInfo").textContent()).startsWith("2"),
     await page.locator("#multiSelectionInfo").textContent());
   check("Begradigen ist jetzt freigegeben", await straighten.isEnabled());
-  check("Titel nennt die Anzahl der betroffenen Punkte",
-    (await straighten.getAttribute("title")).includes("3 Punkte"),
-    await straighten.getAttribute("title"));
+  check("der Text unter dem Knopf nennt die Anzahl der betroffenen Punkte",
+    (await grund()).includes("3 Punkte"), await grund());
 
   /* ---------------------------------------------------------------- */
   console.log("Vorschau erscheint ohne vorhandene Vergleichszustände");
 
   check("Vorschaulinie ist gezeichnet",
-    (await page.locator("#selectionGhostGroup .straighten-preview-line").count()) === 1);
+    (await page.locator("#toolPreviewGroup .straighten-preview-line").count()) === 1);
   check("betroffene Punkte sind hervorgehoben",
-    (await page.locator("#selectionGhostGroup .straighten-preview-node").count()) === 3,
-    String(await page.locator("#selectionGhostGroup .straighten-preview-node").count()));
+    (await page.locator("#toolPreviewGroup .straighten-preview-node").count()) === 3,
+    String(await page.locator("#toolPreviewGroup .straighten-preview-node").count()));
 
   /* ---------------------------------------------------------------- */
   console.log("Begradigen");
@@ -249,12 +267,33 @@ try {
     buffer: Buffer.from(JSON.stringify(mixedMap)),
   });
   await page.waitForTimeout(400);
-  await expandSidebar();
+  await openAllFolds(page);
 
   /* Zwei Exclusions à 4 editierbare Ecken; die beiden anderen bekommen nichts. */
   check("nur unterstützte Features bekommen Punktmarker",
     (await page.locator("#vertexGroup circle").count()) === 8,
     String(await page.locator("#vertexGroup circle").count()));
+
+  /*
+   * Dieselbe Grenze in der Feature-Navigation. Seit Etappe 7f entscheidet dort
+   * isSupportedFeature() ueber den Knopf "Ganzes Feature auswaehlen" - vorher
+   * trug die Typliste in canMoveWholeFeature() diesen Filter mit. Faellt er
+   * weg, erscheint der Knopf an Features ohne Punktmarker, die anschliessend in
+   * jedem Werkzeug denselben Ablehnungsgrund liefern.
+   *
+   * Die Karte hat vier Features: Exclusion (0), "mow path" (1), Exclusion (2)
+   * und eine namenlose Linie (3). Nur 0 und 2 sind unterstuetzt.
+   */
+  const featureKnopf = (index) => page.locator(
+    `[data-action="select-whole-feature"][data-feature-index="${index}"]`).count();
+
+  check("beide Exclusions haben den Knopf 'Ganzes Feature auswählen'",
+    (await featureKnopf(0)) === 1 && (await featureKnopf(2)) === 1,
+    `${await featureKnopf(0)} / ${await featureKnopf(2)}`);
+  check("das Feature mit unbekanntem Namen hat ihn nicht",
+    (await featureKnopf(1)) === 0, String(await featureKnopf(1)));
+  check("das Feature ohne properties ebenfalls nicht",
+    (await featureKnopf(3)) === 0, String(await featureKnopf(3)));
 
   /* Die Geometrie der nicht unterstützten Features wird trotzdem gezeichnet. */
   check("nicht unterstützte Features bleiben sichtbar",
@@ -286,7 +325,7 @@ try {
     .catch(() => null);
 
   page.once("dialog", (dialog) => dialog.accept());
-  await page.locator("#exportBtn").click();
+  await menueBefehl("Datei", "GeoJSON speichern");
 
   const exportEvent = await pendingExport;
   check("Speichern ist trotz Validierungsfehler möglich", !!exportEvent);
@@ -344,7 +383,7 @@ try {
     .catch(() => null);
 
   page.once("dialog", (dialog) => dialog.accept());
-  await page.locator("#exportBtn").click();
+  await menueBefehl("Datei", "GeoJSON speichern");
 
   const secondExport = await pendingSecond;
   check("Export nach dem Duplizieren", !!secondExport);

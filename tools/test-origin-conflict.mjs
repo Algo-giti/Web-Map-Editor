@@ -17,12 +17,17 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-origin-conflict.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import {
+  createChecker,
+  createMenueBefehl,
+  indexUrl,
+  launchBrowser,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-origin-conflict";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 /* Zwei RTK-Basen rund 1,1 km auseinander - eindeutig verschiedene Standorte. */
 const BASE_A = { lat: 52.5, lon: 13.4 };
@@ -60,6 +65,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -105,6 +111,26 @@ try {
     "Bereich Koordinatenbezug ist aufgeklappt",
     await page.locator("#originSection").evaluate((element) => element.open)
   );
+
+  /*
+   * Seit 7c steht der Block im Inspektor. Zwei getrennte Zusicherungen, weil
+   * sie zwei verschiedene Dinge belegen: die erste den ORT, die zweite die
+   * WIRKUNG des selbsttaetigen Aufklappens. `element.open` allein bewiese
+   * nichts - ein ausgeblendeter Block waere ebenfalls "offen".
+   */
+  check(
+    "und liegt im Inspektor, nicht mehr in der Seitenleiste",
+    (await page.locator("#originSection").evaluate(
+      (element) => element.closest("aside")?.id
+    )) === "inspector",
+    await page.locator("#originSection").evaluate(
+      (element) => element.closest("aside")?.id
+    )
+  );
+  check(
+    "das Feld der RTK-Basis ist dadurch wirklich sichtbar",
+    await page.locator("#originLatInput").isVisible()
+  );
   check(
     "aktiver Bezugspunkt wurde NICHT ueberschrieben",
     (await page.locator("#originLatInput").inputValue()) === String(BASE_A.lat),
@@ -121,6 +147,52 @@ try {
   );
 
   /* ---------------------------------------------------------------- */
+  console.log("Der Bezugspunkt folgt der Sprache");
+
+  /*
+   * Schritt 1, dritter Durchgang: formatOrigin() rechnete mit toFixed() und
+   * zeigte damit in beiden Sprachen einen Punkt - im Deutschen also falsch.
+   * Sie laeuft jetzt ueber formatNumber(), dieselbe eine Stelle wie
+   * formatMeters().
+   *
+   * Zugleich die Zusicherung, dass die Konfliktmeldung ueberhaupt am
+   * abgeleiteten Weg haengt: updateOriginUi() stand bis Schritt 1 nicht in
+   * refreshDerivedUi(), die Meldung blieb nach einem Sprachwechsel in der
+   * Sprache stehen, in der sie entstanden war.
+   */
+  const originText = () => page.locator("#originStatus").textContent();
+
+  check(
+    "deutsch: der Konflikt nennt beide Bezugspunkte mit Komma",
+    (await originText()).includes("52,510000 / 13,400000") &&
+    (await originText()).includes("52,500000 / 13,400000"),
+    await originText()
+  );
+  check(
+    "deutsch: und kein Bezugspunkt traegt einen Punkt als Dezimalzeichen",
+    !/\d{2}\.\d{6}/.test(await originText()),
+    await originText()
+  );
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  check(
+    "englisch: derselbe Konflikt nennt sie mit Punkt",
+    (await originText()).includes("52.510000 / 13.400000") &&
+    (await originText()).includes("52.500000 / 13.400000"),
+    await originText()
+  );
+  check(
+    "englisch: und der Meldungstext ist uebersetzt",
+    (await originText()).includes("Reference point conflict"),
+    await originText()
+  );
+
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(500);
+
+  /* ---------------------------------------------------------------- */
   console.log("Export beider Modi muss gesperrt sein");
 
   for (const mode of ["loaded", "absolute"]) {
@@ -132,7 +204,7 @@ try {
     };
     page.on("download", noteDownload);
 
-    await page.locator("#exportBtn").click();
+    await menueBefehl("Datei", "GeoJSON speichern");
     await page.waitForTimeout(400);
     page.off("download", noteDownload);
 
@@ -162,7 +234,7 @@ try {
     .waitForEvent("download", { timeout: 5000 })
     .catch(() => null);
 
-  await page.locator("#exportBtn").click();
+  await menueBefehl("Datei", "GeoJSON speichern");
 
   const download = await pendingDownload;
   let exported = null;

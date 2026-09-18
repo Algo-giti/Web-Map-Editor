@@ -16,12 +16,18 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-map-switch.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import {
+  createChecker,
+  createMenueBefehl,
+  indexUrl,
+  launchBrowser,
+  openAllFolds,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-map-switch";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 /**
  * Karte in rohen Metern. Der Perimeter hat acht Punkte, damit sich eine
@@ -51,23 +57,26 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
   page.on("pageerror", (error) => consoleErrors.push(String(error)));
   page.on("dialog", (dialog) => dialog.accept().catch(() => {}));
 
-  const expandSidebar = () =>
-    page.evaluate(() => {
-      document.querySelectorAll("#sidebar details")
-        .forEach((section) => section.setAttribute("open", ""));
-    });
+  /*
+   * Die Faltgeste kommt aus dem browser-harness, nicht aus einer eigenen Kopie.
+   * openAllFolds() steht dort seit Etappe 6 b2 - er wurde nur nie benutzt, und
+   * deshalb erreichte die Reparatur in 3c (die Feature-Karten der Navigation)
+   * zunaechst keinen einzigen Test. Eine Geste an sieben Stellen wird an sechs
+   * davon vergessen.
+   */
 
   await page.goto(indexUrl(), { waitUntil: "load" });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "load" });
-  await expandSidebar();
-  await page.uncheck("#showMowerPreview");
+  await openAllFolds(page);
+  await menueBefehl("Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   const upload = async (selector, name, body) => {
     await page.locator(selector).setInputFiles({
@@ -76,7 +85,7 @@ try {
       buffer: Buffer.from(body),
     });
     await page.waitForTimeout(400);
-    await expandSidebar();
+    await openAllFolds(page);
   };
 
   await upload("#fileInput", "a.geojson", mapWith(0));
@@ -85,10 +94,19 @@ try {
   const marks = page.locator('#vertexGroup circle[data-layer="perimeter"]');
   const counter = () => page.locator("#multiSelectionInfo").textContent();
 
+  /*
+   * Der Slot-Wechsel laeuft ueber das Menue "Karte", nicht ueber einen direkten
+   * Klick auf #mapAButton. Seit Etappe 6 b2 sind die beiden Knoepfe
+   * Menueeintraege (role="menuitemradio"), und ein Eintrag ist nur im
+   * geoeffneten Menue sichtbar - Playwright verlangt Sichtbarkeit fuer click().
+   *
+   * Die ids sind dabei unveraendert geblieben; kaputt war allein der Weg
+   * dorthin. Genau das tut auch ein Nutzer: Menue oeffnen, Karte waehlen.
+   */
   const switchTo = async (which) => {
-    await page.locator(`#map${which}Button`).click();
+    await menueBefehl("Karte", `Karte ${which}`);
     await page.waitForTimeout(350);
-    await expandSidebar();
+    await openAllFolds(page);
   };
 
   /**
@@ -192,6 +210,90 @@ try {
   await switchTo("A");
 
   check("es bleibt bei einem", (await counter()).includes("1"), await counter());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Sichtbarkeit je Kartenslot");
+
+  /*
+   * Gemessen wird die WIRKUNG - wie viele Pfade der passiven Karte wirklich
+   * gezeichnet sind -, nicht das aria-checked des Schalters. Die Gruppe
+   * #otherMapGroup bleibt dabei immer stehen; leer ist sie, nicht weg, damit
+   * die Z-Ordnung der uebrigen Gruppen nicht davon abhaengt.
+   */
+  const fremdePfade = () => page.evaluate(() =>
+    document.querySelectorAll("#otherMapGroup path.other-map-feature").length);
+
+  const schalter = (id) => page.evaluate((sel) => {
+    const knopf = document.getElementById(sel);
+    return { gesperrt: knopf.disabled, angekreuzt: knopf.getAttribute("aria-checked") };
+  }, id);
+
+  await switchTo("A");
+
+  const vorher = await fremdePfade();
+
+  check("die passive Karte B wird gezeichnet", vorher > 0, String(vorher));
+
+  const aktiv = await schalter("showMapAButton");
+
+  check("der Schalter der AKTIVEN Karte ist angekreuzt und gesperrt",
+    aktiv.gesperrt === true && aktiv.angekreuzt === "true", JSON.stringify(aktiv));
+
+  await menueBefehl("Karte", "Karte B anzeigen");
+  await page.waitForTimeout(300);
+
+  check("ausgeblendet wird von Karte B nichts mehr gezeichnet",
+    (await fremdePfade()) === 0, String(await fremdePfade()));
+  check("und der Schalter sagt es",
+    (await schalter("showMapBButton")).angekreuzt === "false",
+    JSON.stringify(await schalter("showMapBButton")));
+
+  /*
+   * Der Wunsch gilt dem SLOT, nicht der Rolle: wird B aktiv, ist es sichtbar -
+   * es wird ohnehin nicht ueber das Overlay gezeichnet -, und zurueck auf A
+   * ist es wieder ausgeblendet.
+   */
+  await switchTo("B");
+
+  const nachWechsel = await schalter("showMapBButton");
+
+  check("als aktive Karte ist B angekreuzt und gesperrt",
+    nachWechsel.gesperrt === true && nachWechsel.angekreuzt === "true",
+    JSON.stringify(nachWechsel));
+  check("und die jetzt passive Karte A wird gezeichnet",
+    (await fremdePfade()) > 0, String(await fremdePfade()));
+
+  await switchTo("A");
+
+  /*
+   * Aktivwerden LOESCHT den Ausblendwunsch, es merkt ihn nicht daneben. Das
+   * ist entschieden und nicht uebersehen: ein zweiter Zustandshalter neben
+   * der Sichtbarkeit waere genau das, was beim Zuklappgriff der Auswahlleiste
+   * aus demselben Grund abgelehnt wurde. Wer eine Karte bearbeitet, hat sie
+   * sehen wollen.
+   */
+  check("zurueck auf A ist B wieder sichtbar - aktiv sein hebt das Ausblenden auf",
+    (await fremdePfade()) === vorher, `${vorher} -> ${await fremdePfade()}`);
+
+  /*
+   * Und die Ansichtsentscheidung ueberlebt ein Undo: sie steht ausserhalb von
+   * mapSlots und reist deshalb nicht im Snapshot mit. Ein Rueckgaengig soll
+   * eine Geometrie zurueckholen, nicht eine Anzeigeentscheidung umwerfen.
+   */
+  await menueBefehl("Karte", "Karte B anzeigen");
+  await page.waitForTimeout(300);
+
+  check("vor dem Undo ist B ausgeblendet",
+    (await fremdePfade()) === 0, String(await fremdePfade()));
+
+  await selectPoints([0]);
+  await page.locator("#deletePointBtn").click();
+  await page.waitForTimeout(300);
+  await page.keyboard.press("Control+z");
+  await page.waitForTimeout(400);
+
+  check("ein Undo wirft die Ansichtsentscheidung nicht um",
+    (await fremdePfade()) === 0, String(await fremdePfade()));
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

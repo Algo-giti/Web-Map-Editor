@@ -27,7 +27,7 @@
 //   3. ein Build im ms-playwright-Cache, ohne feste Versionsnummer
 //   4. der von playwright-core selbst verwaltete Browser
 //
-// Fehlt alles, geben die Tests eine Anleitung aus und enden mit Exit-Code 0.
+// Fehlt alles, geben die Tests eine Anleitung aus und enden mit Exit-Code 2.
 
 import { accessSync, constants, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -205,8 +205,12 @@ const SETUP_HINT =
  * Startet einen Browser für einen Test.
  *
  * Liefert null, wenn Playwright fehlt oder kein Browser startet. Der Aufrufer
- * beendet sich dann mit Exit-Code 0 - fehlende Testinfrastruktur ist kein
- * Testfehler.
+ * beendet sich dann mit EXIT-CODE 2 - fehlende Testinfrastruktur ist kein
+ * Testfehler, aber auch kein bestandener Test.
+ *
+ * Bis zum Laeufer war das eine 0, und damit war ein Lauf ohne Browser von einem
+ * bestandenen nicht zu unterscheiden. run-browser-tests.mjs zaehlt 2 deshalb als
+ * "uebersprungen" und meldet den Lauf ausdruecklich als NICHT gelaufen.
  */
 export async function launchBrowser(toolName) {
   const playwright = await importPlaywright();
@@ -231,12 +235,270 @@ export async function launchBrowser(toolName) {
   }
 }
 
+/**
+ * Liefert eine Stelle auf der Karte, an der WIRKLICH die Karte liegt.
+ *
+ * Der Anlass ist die Auswahlleiste des elften Durchgangs: sie liegt links oben
+ * über der Karte, sobald etwas ausgewählt ist, und faengt dort jedes
+ * Zeigerereignis ab. Die drei Klicks "auf die leere Karte" standen bis dahin
+ * auf festen 2/2 bzw. 5/5 - gemessen 7 bis 10 px neben dem Leistenstreifen.
+ * Sie bestanden also, aber nicht mit Absicht: niemand hatte diese Zahlen
+ * gewaehlt, weil dort Platz bleiben sollte.
+ *
+ * GESUCHT WIRD, STATT GERECHNET: der Helfer sucht den ersten Punkt, an dem
+ * `elementFromPoint()` das `svg` SELBST liefert - keinen Marker, keine Ebene,
+ * kein Fenster. Damit haengt die Stelle an keiner Breite und an keiner Zahl;
+ * sie stimmt auch dann noch, wenn die Leiste eine Zeile mehr traegt oder
+ * woandershin zieht.
+ *
+ * Zurueckgegeben wird die Stelle RELATIV zum svg, also so, wie
+ * `locator.click({position})` sie erwartet, oder `null`, wenn die Karte
+ * vollstaendig verdeckt ist - dann gehoert eine benannte Zusicherung dorthin
+ * und kein Klick ins Blaue.
+ */
+export function freieKartenstelle(page, { schritt = 8, luft = 12 } = {}) {
+  return page.evaluate(({ weite, luft: rand }) => {
+    const svg = document.getElementById("svg");
+
+    if (!svg) return null;
+
+    const r = svg.getBoundingClientRect();
+
+    /*
+     * Frei heisst: der Punkt UND seine Umgebung liegen auf dem svg. Ohne den
+     * Rand faende die Suche den 8 px breiten Streifen links neben der
+     * Auswahlleiste - gemessen, das war die erste Fassung. Ein Klick dort
+     * ginge zwar durch, aber er stuende wieder nur zufaellig frei, und genau
+     * das war der Anlass fuer diesen Helfer.
+     */
+    const frei = (x, y) =>
+      document.elementFromPoint(x, y) === svg &&
+      document.elementFromPoint(x - rand, y) === svg &&
+      document.elementFromPoint(x + rand, y) === svg &&
+      document.elementFromPoint(x, y - rand) === svg &&
+      document.elementFromPoint(x, y + rand) === svg;
+
+    for (let y = r.top + rand + 2; y < r.bottom - rand - 2; y += weite) {
+      for (let x = r.left + rand + 2; x < r.right - rand - 2; x += weite) {
+        if (frei(x, y)) return { x: Math.round(x - r.left), y: Math.round(y - r.top) };
+      }
+    }
+
+    return null;
+  }, { weite: schritt, luft });
+}
+
+
+/**
+ * Baut den Auslöser für Menübefehle: Menü öffnen, Eintrag anklicken.
+ *
+ * Der Helfer kapselt AUSSCHLIESSLICH diese beiden Gesten. Das Lauschen auf
+ * `download` oder `dialog` bleibt beim Aufrufer und muss dort weiterhin VOR
+ * dem Aufruf stehen - ein Ereignis, auf das erst nach dem Auslösen gehört
+ * wird, ist verloren.
+ *
+ * Ein Eintrag ist nur im offenen Menü sichtbar; Playwright verlangt
+ * Sichtbarkeit für click(). Genau deshalb gibt es den Helfer: sonst stünde
+ * dieselbe Geste an über einem Dutzend Stellen.
+ *
+ * Er ist eine Fabrik wie createKlicker() und aus demselben Grund: ein
+ * GESPERRTER Eintrag wurde vorher trotzdem angeklickt, und Playwright wartete
+ * dreissig Sekunden auf eine Freigabe, die nicht kommt. Aus einer klaren
+ * Ablehnung wurde ein stummer Abbruch, der seine Ursache nicht nennt. Geprüft
+ * wird deshalb VOR dem Klick; ist der Eintrag gesperrt, reisst eine benannte
+ * Zusicherung, es wird NICHT geklickt und das Menü wird wieder geschlossen.
+ *
+ * Die Zusicherung wird IMMER ausgegeben, nicht nur im Fehlerfall - eine, die
+ * man nur sieht, wenn sie reisst, belegt im Gutfall nichts.
+ *
+ * check() ist je Test eine eigene Closure, deshalb die Fabrik: so kann eine
+ * Aufrufstelle sie nicht vergessen. Ein vierter Parameter könnte weggelassen
+ * werden, und der Wächter meldete dann nichts.
+ *
+ * UNTERSCHIED ZU createKlicker(), und er ist erzwungen, nicht gewählt: dort
+ * genügt ein `false` an den Aufrufer, weil dessen Abschnitt in einer Funktion
+ * liegt und mit `return` enden kann. Die Menübefehle stehen dagegen im
+ * obersten `try`-Block ihrer Datei, und dort ist `return` kein gültiges
+ * JavaScript - ein Rückgabewert liesse sich an den meisten der Aufrufstellen
+ * gar nicht befolgen. Gemessen an der Mutation "Raster… gesperrt": die
+ * Zusicherung riss, das Skript lief weiter und endete in `page.fill(
+ * "#gridStepInput", …)` - also doch im Timeout, den der Wächter gerade
+ * verhindern soll. Deshalb bricht der Helfer den Lauf SELBST ab. Der Fehler
+ * nennt den Eintrag; die gerissene Zusicherung steht unmittelbar darüber.
+ */
+export function createMenueBefehl(page, check) {
+  return async (menue, eintrag) => {
+    const titel = page.locator(".menu-title", { hasText: menue }).first();
+    await titel.click();
+
+    const panel = page.locator(".menu-panel:not([hidden])").first();
+    await panel.waitFor({ state: "visible" });
+
+    const item = panel.locator(".menu-item", { hasText: eintrag }).first();
+
+    /*
+     * isEnabled() erfasst beide Sperrformen dieser Datei - das native
+     * `disabled` der Menüknöpfe und ein `aria-disabled`. Nachgemessen, nicht
+     * angenommen. Ein <label> (Kontrollkästchen, Dateiauswahl) ist kein
+     * Formularelement und gilt darum immer als frei.
+     */
+    const frei = await item.isEnabled();
+    check(`Menüeintrag "${menue} \u2192 ${eintrag}" ist frei`, frei,
+      "der Eintrag ist gesperrt - nicht geklickt");
+
+    if (frei) await item.click();
+
+    /*
+     * Ein Kontrollkästchen lässt das Menü bewusst offen - wer eine Ebene
+     * ausschaltet, will oft gleich die nächste. Für den Test ist ein offenes
+     * Panel über der Karte aber ein Hindernis, deshalb hier zumachen. Bei
+     * einem gesperrten Eintrag steht es ohnehin noch offen.
+     */
+    if (await page.locator(".menu-panel:not([hidden])").count()) {
+      await page.keyboard.press("Escape");
+      await page.locator(".menu-panel:not([hidden])").first()
+        .waitFor({ state: "hidden" })
+        .catch(() => {});
+    }
+
+    if (!frei) {
+      throw new Error(
+        `Menüeintrag "${menue} \u2192 ${eintrag}" ist gesperrt - ` +
+        "nicht geklickt, Lauf abgebrochen."
+      );
+    }
+
+    return true;
+  };
+}
+
+/**
+ * Wird das Element an seinen EIGENEN Koordinaten wirklich getroffen?
+ *
+ * getComputedStyle(el).display prüft eine Eigenschaft des Elements selbst -
+ * ein abschneidender Vorfahr sitzt eine Ebene höher und bleibt dabei
+ * unsichtbar. `display` beantwortet "will sichtbar sein", diese Prüfung
+ * "ist sichtbar": elementFromPoint liefert, was der Browser an dieser Stelle
+ * tatsächlich zeichnet.
+ *
+ * Genau das hat der erste Bildschirmabzug der Menüleiste gefunden und kein
+ * Test: header trug overflow:hidden, die Panels waren gerechnet da, sichtbar
+ * und anklickbar nicht - und elementFromPoint lieferte den toolRail.
+ *
+ * Für jedes Element, das absichtlich über seinen Container hinausragt:
+ * Menüpanels, die schwebenden Fenster über der Karte, Overlays.
+ */
+export function elementGetroffen(page, selector, { dy = 20 } = {}) {
+  return page.evaluate(([sel, abstand]) => {
+    const el = document.querySelector(sel);
+    if (!el) return { ok: false, grund: "Element fehlt" };
+
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return { ok: false, grund: "keine Ausdehnung" };
+
+    const treffer = document.elementFromPoint(r.left + r.width / 2, r.top + abstand);
+
+    return {
+      ok: !!treffer && el.contains(treffer),
+      grund: treffer
+        ? (treffer.id || treffer.className || treffer.tagName)
+        : "nichts",
+    };
+  }, [selector, dy]);
+}
+
+/**
+ * Öffnet alles, was einen Wert verdecken könnte: die Faltbereiche von
+ * Seitenleiste und Inspektor - und optional ein Menü der Leiste.
+ *
+ * Die Faltbereiche ersatzlos wegzulassen wäre die schlechtere Wahl: ein
+ * Selektor, der nichts mehr trifft, wirft nicht, er tut nur nichts - und der
+ * Test bestünde weiter, ohne noch etwas zu prüfen.
+ */
+export async function openAllFolds(page, menue = null) {
+  await page.evaluate(() => {
+    /*
+     * "#featureNavigator details" ist seit Etappe 7b noetig und der Grund, warum
+     * dieser Selektor nicht raten darf: die Feature-Navigation baut je Feature
+     * ein eigenes <details class="feature-card">, und das ist zu, solange das
+     * Feature nicht ausgewaehlt ist. Bis 7b lag die Navigation in der
+     * Seitenleiste, wo "#sidebar details" diese Karten mitoeffnete; seit dem
+     * Umzug in den Inspektor trifft dort nichts mehr - ".inspector-fold" meint
+     * nur den aeusseren Block.
+     *
+     * "#sidebar details" ist mit Etappe 7e entfallen: die Seitenleiste gibt es
+     * nicht mehr. Ein Selektor, der nichts mehr treffen KANN, gehoert nicht
+     * stehengelassen - er sieht beim naechsten Lesen wie eine Zusicherung aus.
+     *
+     * Genau der Fall, vor dem der Absatz oben warnt: der Selektor hat nicht
+     * geworfen, er hat nur nichts mehr getan.
+     */
+    document.querySelectorAll(
+      ".inspector-fold, .tool-settings, #featureNavigator details"
+    ).forEach((d) => d.setAttribute("open", ""));
+  });
+
+  if (menue) {
+    await page.locator(".menu-title", { hasText: menue }).first().click();
+    await page.locator(".menu-panel:not([hidden])").first()
+      .waitFor({ state: "visible" });
+  }
+}
+
+/**
+ * Klickt einen Knopf, der gesperrt sein KANN - und klickt ihn nicht, wenn er
+ * gesperrt ist.
+ *
+ * Eine gerissene check()-Zusicherung bricht den Lauf nicht ab; unmittelbar
+ * danach klickt das Skript weiter, und der gesperrte Knopf liefert doch einen
+ * Timeout. Der Helfer sichert deshalb zu UND kehrt bei gesperrtem Knopf mit
+ * false zurueck, damit der Aufrufer den Abschnitt abbrechen kann.
+ *
+ * Er stand bis zum vierten Durchgang als lokale Fassung in test-merge.mjs.
+ * Hier liegt er, damit es keine zweite Kopie gibt - dieselbe Regel wie bei
+ * openAllFolds(). Die Fabrik bindet check(), das je Test eine eigene Closure
+ * ist.
+ */
+export function createKlicker(page, check) {
+  return async (selektor, name, grundSelektor = null) => {
+    const frei = await page.locator(selektor).isEnabled();
+
+    check(name, frei,
+      grundSelektor
+        ? await page.locator(grundSelektor).textContent()
+        : `${selektor} ist gesperrt`);
+
+    if (!frei) return false;
+
+    await page.locator(selektor).click();
+    return true;
+  };
+}
+
+
 /** Kleiner Zähler für Zusicherungen, gemeinsam von beiden Tests genutzt. */
 export function createChecker(toolName) {
   let failures = 0;
 
   return {
     check(label, condition, detail = "") {
+      /*
+       * Eine Zusicherung, die keinen Wahrheitswert prueft, kann nicht
+       * reissen. Genau so bestand "und sie steht sichtbar da" ueber einen
+       * ganzen Durchgang: elementGetroffen() liefert {ok, grund}, und ein
+       * Objekt ist immer wahr. Das ist keine Formfrage - es ist dieselbe
+       * Klasse wie "eine Zusicherung ueber ein Ausbleiben beweist nichts",
+       * nur eine Ebene tiefer.
+       */
+      if (typeof condition !== "boolean") {
+        failures++;
+        console.error(
+          `  FAIL ${label} - Bedingung ist kein Wahrheitswert, sondern ` +
+          `${typeof condition}; diese Zusicherung koennte nicht reissen`
+        );
+        return;
+      }
+
       if (condition) {
         console.log(`  ok   ${label}`);
         return;

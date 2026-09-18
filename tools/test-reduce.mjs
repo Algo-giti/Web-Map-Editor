@@ -13,12 +13,18 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-reduce.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import {
+  createChecker,
+  createMenueBefehl,
+  indexUrl,
+  launchBrowser,
+  openAllFolds,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-reduce";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 const SCALE = 111111;
 
@@ -105,6 +111,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -114,14 +121,22 @@ try {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "load" });
 
-  const expandSidebar = () =>
-    page.evaluate(() => {
-      document.querySelectorAll("#sidebar details")
-        .forEach((section) => section.setAttribute("open", ""));
-    });
+  /*
+   * Die Faltgeste kommt aus dem browser-harness statt aus einer eigenen Kopie.
+   *
+   * Der Grund ist der Fehler, der diesen Test rot gemacht hat: die Kopie hier
+   * kannte "#sidebar details, .inspector-fold, .tool-settings" - und damit seit
+   * Etappe 7b nicht mehr die <details class="feature-card"> der
+   * Feature-Navigation, die mit 7b aus der Seitenleiste in den Inspektor
+   * gezogen ist. Die ids sind unveraendert; nur der Weg dorthin fuehrt jetzt
+   * durch einen zweiten Faltblock, den der alte Selektor nicht mehr traf.
+   *
+   * Eine Geste, die an sieben Stellen kopiert steht, wird an sechs davon
+   * vergessen. openAllFolds() ist die eine Stelle.
+   */
 
-  await expandSidebar();
-  await page.uncheck("#showMowerPreview");
+  await openAllFolds(page);
+  await menueBefehl("Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   await page.locator("#fileInput").setInputFiles({
     name: "reduce.geojson",
@@ -129,7 +144,7 @@ try {
     buffer: Buffer.from(syntheticMap()),
   });
   await page.waitForTimeout(400);
-  await expandSidebar();
+  await openAllFolds(page);
 
   const status = () => page.locator("#reduceStatus").textContent();
   const applyButton = page.locator("#reduceApplyBtn");
@@ -161,11 +176,50 @@ try {
     /9 → \d+ Punkte/.test(await status()), await status());
   check("Reduzieren ist freigegeben", await applyButton.isEnabled());
 
+  /*
+   * Etappe 7f: die Vorschau kommt erst beim GANZEN Feature.
+   *
+   * Die drei Zusicherungen daneben sind der Grund, warum das Ausbleiben hier
+   * etwas beweist: der Punkt traegt sichtbar den Auswahlring, die Statuszeile
+   * rechnet bereits mit dem ganzen Feature, und der Knopf ist freigegeben. Die
+   * Verarbeitung findet also statt - nur die Vorschau haelt sich zurueck.
+   */
+  check("genau ein Punkt ist ausgewählt",
+    (await page.locator("#vertexGroup circle.selected").count()) === 1,
+    String(await page.locator("#vertexGroup circle.selected").count()));
+  check("bei einem Punkt gibt es noch keine Vorschaulinie",
+    (await page.locator("#toolPreviewGroup .reduce-preview-line").count()) === 0,
+    String(await page.locator("#toolPreviewGroup .reduce-preview-line").count()));
+  check("und keine wegfallenden Punkte",
+    (await page.locator("#toolPreviewGroup .reduce-preview-node").count()) === 0,
+    String(await page.locator("#toolPreviewGroup .reduce-preview-node").count()));
+
+  /* Search Wire ist Feature 2; der Perimeter hat seit 7f ebenfalls einen Knopf. */
+  await openAllFolds(page);
+  await page.locator('[data-action="select-whole-feature"][data-feature-index="2"]')
+    .click();
+  await page.waitForTimeout(300);
+
+  check("alle neun Punkte sind ausgewählt",
+    (await page.locator(
+      "#vertexGroup circle.selected, #vertexGroup circle.multi-selected").count()) === 9,
+    String(await page.locator(
+      "#vertexGroup circle.selected, #vertexGroup circle.multi-selected").count()));
+
   check("Vorschaulinie ist gezeichnet",
-    (await page.locator("#selectionGhostGroup .straighten-preview-line").count()) >= 1);
+    (await page.locator("#toolPreviewGroup .reduce-preview-line").count()) >= 1);
+  /*
+   * Und sie traegt eine EIGENE Klasse. Bis zum einundzwanzigsten Durchgang
+   * borgte sich das Reduzieren die Linienklasse des Begradigens - zwei
+   * Werkzeuge, eine Farbe, und bei einer Zweipunktauswahl beide gleichzeitig
+   * sichtbar.
+   */
+  check("und sie ist nicht die Linie des Begradigens",
+    (await page.locator("#toolPreviewGroup .straighten-preview-line").count()) === 0,
+    String(await page.locator("#toolPreviewGroup .straighten-preview-line").count()));
   check("wegfallende Punkte sind markiert",
-    (await page.locator("#selectionGhostGroup .reduce-preview-node").count()) >= 1,
-    String(await page.locator("#selectionGhostGroup .reduce-preview-node").count()));
+    (await page.locator("#toolPreviewGroup .reduce-preview-node").count()) >= 1,
+    String(await page.locator("#toolPreviewGroup .reduce-preview-node").count()));
 
   await applyButton.click();
   await page.waitForTimeout(350);
@@ -184,6 +238,23 @@ try {
 
   /* ---------------------------------------------------------------- */
   console.log("Abschnitt zwischen zwei Punkten");
+
+  /*
+   * Vorher die Auswahl aufheben. Der vorige Abschnitt hat das ganze Feature
+   * gewaehlt, und ein einfacher Klick auf einen bereits markierten Punkt HEBT
+   * die Gruppe nicht auf - das ist gewolltes Verhalten, damit man sie ziehen
+   * kann. Ohne das Aufheben bliebe der Zustand "ganzes Feature", und der
+   * naechste Klick ergaebe keinen Abschnitt.
+   */
+  const clearButton = page.locator("#clearMultiSelectionBtn");
+  if (await clearButton.isEnabled()) await clearButton.click();
+  await page.waitForTimeout(200);
+
+  const markiert = () => page.locator(
+    "#vertexGroup circle.selected, #vertexGroup circle.multi-selected").count();
+
+  check("danach ist kein Punkt mehr markiert",
+    (await markiert()) === 0, String(await markiert()));
 
   await wireMarks.nth(2).click();
   await page.waitForTimeout(150);
@@ -214,9 +285,14 @@ try {
    * bei 60 Punkten auf 38 m Umfang liegen die Marker so dicht, dass sich
    * benachbarte Kreise am Bildschirm überdecken. Das ist eine Eigenheit des
    * Testaufbaus, kein Fehler der Anwendung - ein Nutzer würde hineinzoomen.
+   *
+   * Die Feature-Nummer steht am Selektor, weil seit Etappe 7f auch der
+   * Perimeter einen solchen Knopf hat - .first() waere seitdem der Perimeter.
+   * Die Exclusion ist Feature 1.
    */
-  await expandSidebar();
-  await page.locator('[data-action="select-whole-feature"]').first().click();
+  await openAllFolds(page);
+  await page.locator('[data-action="select-whole-feature"][data-feature-index="1"]')
+    .click();
   await page.waitForTimeout(300);
 
   check("Ring wird als ganzes Feature erkannt",
@@ -230,14 +306,44 @@ try {
   check("Ring behält mindestens 3 Punkte", ringAfter >= 3, String(ringAfter));
   check("Flächenänderung wird gemeldet",
     (await status()).includes("Fläche"), await status());
+
+  /*
+   * Schritt 1, dritter Durchgang: der PROZENTWERT der Flaechenwarnung lief
+   * bis dahin ueber toFixed() und zeigte in beiden Sprachen einen Punkt. Er
+   * geht jetzt durch formatNumber(), dieselbe Stelle wie formatMeters().
+   *
+   * Geprueft wird in der Sprache, in der die Meldung ENTSTEHT, nicht nach
+   * einem Sprachwechsel: die Reduzier-Meldung ist eine Einmalmeldung ueber
+   * setLocalizedText() und friert ihr Zahlenformat ein. Das ist ein eigener
+   * offener Punkt in CLAUDE.md; eine Zusicherung nach dem Wechsel wuerde ihn
+   * mitpruefen statt der Formatierung.
+   */
+  check("deutsch: der Prozentwert der Flaechenwarnung traegt ein Komma",
+    /\d,\d %/.test(await status()) && !/\d\.\d %/.test(await status()),
+    await status());
   check("Schrumpfen wird als Warnung gefärbt",
     (await page.locator("#reduceStatus").getAttribute("class")).includes("error"),
     await page.locator("#reduceStatus").getAttribute("class"));
 
-  /* Der Ring muss geschlossen geblieben sein - über die Kartenprüfung. */
+  /*
+   * Der Ring muss geschlossen geblieben sein - über die Kartenprüfung.
+   *
+   * Geprüft wird die WIRKUNG, nicht das Ausbleiben: die alte Fassung las den
+   * Bericht und sicherte zu, dass "nicht geschlossen" NICHT darin steht - das
+   * bestünde auch bei leerem Bericht, also auch dann, wenn der Klick auf
+   * "Karte prüfen" gar nichts ausgelöst hätte. Die Zusammenfassung dagegen
+   * entsteht erst durch einen Lauf: vorher steht dort "Noch keine Prüfung
+   * durchgeführt.", danach eine der drei Formen mit Fehler- und Warnungszahl.
+   * Ein offener Ring ist ein FEHLER, die Zusicherung fiele also um.
+   */
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(300);
+
+  const summary = (await page.locator("#validationSummary").textContent()).trim();
   const report = await page.locator("#validationReport").textContent();
+
+  check("die Kartenprüfung ist wirklich gelaufen und meldet null Fehler",
+    /^(Prüfung OK|Keine Fehler)/.test(summary), summary);
   check("Ring ist nach dem Reduzieren noch geschlossen",
     !report.includes("nicht geschlossen"), report.slice(0, 200));
 
@@ -261,6 +367,143 @@ try {
 
   check("nach dem Zurücksetzen wieder freigegeben",
     await applyButton.isEnabled(), await status());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Derselbe Prozentwert auf englisch");
+
+  /*
+   * Eigener Durchlauf statt eines Sprachwechsels: die Meldung ist fluechtig
+   * und behaelt das Format ihrer Entstehung. Sie muss deshalb AUF ENGLISCH
+   * entstehen, damit die Zusicherung die Formatierung prueft und nicht den
+   * eingefrorenen Text.
+   */
+  await page.goto(indexUrl(), { waitUntil: "load" });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "load" });
+  await page.locator("#languageToggle").click();
+  await page.waitForTimeout(400);
+
+  await page.locator("#fileInput").setInputFiles({
+    name: "reduce-en.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(syntheticMap()),
+  });
+  await page.waitForTimeout(400);
+  await openAllFolds(page);
+
+  await page.locator('[data-action="select-whole-feature"][data-feature-index="1"]')
+    .click();
+  await page.waitForTimeout(300);
+  await page.locator("#reduceApplyBtn").click();
+  await page.waitForTimeout(400);
+
+  const enStatus = await status();
+  check("englisch: die Flaechenaenderung wird gemeldet",
+    enStatus.includes("Area shrank"), enStatus);
+  check("englisch: ihr Prozentwert traegt einen Punkt",
+    /\d\.\d %/.test(enStatus) && !/\d,\d %/.test(enStatus), enStatus);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Der WACHSENDE Zweig der Flächenwarnung");
+
+  /*
+   * Bis zum vierten Durchgang war nur der schrumpfende Zweig belegt. Der
+   * wachsende ist schwerer herzustellen, als er aussieht: Douglas-Peucker
+   * haelt eine tiefe Kerbe als groessten Ausreisser bis zu einer Toleranz, bei
+   * der die Form ohnehin zerfaellt. Was traegt, ist eine FLACHE Delle nach
+   * innen - faellt ihr Scheitel weg, wird aus dem Fuenfeck ein Rechteck, und
+   * die Flaeche waechst.
+   *
+   * Eigene Karte statt der gemeinsamen: die Zaehlungen weiter oben gehen ueber
+   * alle Exclusion-Marker, eine zweite Exclusion in syntheticMap() wuerde sie
+   * still verschieben. Die Karte steht hier neben der Zusicherung, die sie
+   * erklaert.
+   *
+   * Die Delle liegt um 5 m versetzt im Perimeter - eine Verschiebung aendert
+   * die Flaeche nicht: 395,00 m² vorher, 400,00 m² nachher, also +5,00 m² und
+   * 1,27 %, gerundet 1,3 %. Das liegt ueber der relativen Schwelle von 1 %.
+   */
+  const delleMap = () => JSON.stringify({
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: { name: "perimeter" },
+        geometry: { type: "Polygon", coordinates: [[
+          [0, 0], [60, 0], [60, 60], [0, 60], [0, 0],
+        ].map(rel)] },
+      },
+      {
+        type: "Feature",
+        idx: 0,
+        properties: { name: "exclusion" },
+        geometry: { type: "Polygon", coordinates: [[
+          [5, 5], [15, 5.5], [25, 5], [25, 25], [5, 25], [5, 5],
+        ].map(rel)] },
+      },
+    ],
+  });
+
+  const wachsen = async (sprache) => {
+    await page.goto(indexUrl(), { waitUntil: "load" });
+    await page.evaluate(() => localStorage.clear());
+    await page.reload({ waitUntil: "load" });
+
+    if (sprache === "en") {
+      await page.evaluate(() => setLanguage("en"));
+      await page.waitForTimeout(400);
+    }
+
+    await page.locator("#fileInput").setInputFiles({
+      name: "delle.geojson",
+      mimeType: "application/geo+json",
+      buffer: Buffer.from(delleMap()),
+    });
+    await page.waitForTimeout(400);
+    await openAllFolds(page);
+
+    await setTolerance(sprache === "en" ? "0.60" : "0,60");
+    await openAllFolds(page);
+
+    const ganzes = page.locator(
+      '[data-action="select-whole-feature"][data-feature-index="1"]');
+
+    check(`${sprache}: die Exclusion mit der Delle lässt sich ganz auswählen`,
+      (await ganzes.count()) === 1, String(await ganzes.count()));
+
+    if (await ganzes.count() !== 1) return null;
+
+    await ganzes.click();
+    await page.waitForTimeout(300);
+    await openAllFolds(page);
+
+    const frei = await applyButton.isEnabled();
+    check(`${sprache}: Reduzieren ist bei dieser Toleranz freigegeben`,
+      frei, await status());
+
+    if (!frei) return null;
+
+    await applyButton.click();
+    await page.waitForTimeout(450);
+
+    return (await status()).trim();
+  };
+
+  const wachsDe = await wachsen("de");
+
+  if (wachsDe !== null) {
+    check("deutsch: der wachsende Zweig meldet sich mit Komma",
+      wachsDe === "Fläche gewachsen: 395,00 → 400,00 m² (+5,00 m², 1,3 %).",
+      wachsDe);
+  }
+
+  const wachsEn = await wachsen("en");
+
+  if (wachsEn !== null) {
+    check("englisch erzeugt: derselbe Zweig meldet sich mit Punkt",
+      wachsEn === "Area grew: 395.00 → 400.00 m² (+5.00 m², 1.3 %).",
+      wachsEn);
+  }
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

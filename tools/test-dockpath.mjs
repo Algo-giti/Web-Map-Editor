@@ -17,12 +17,18 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-dockpath.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import {
+  createChecker,
+  createMenueBefehl,
+  indexUrl,
+  launchBrowser,
+  openAllFolds,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-dockpath";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 const SCALE = 111111;
 
@@ -58,6 +64,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -67,14 +74,16 @@ try {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "load" });
 
-  const expandSidebar = () =>
-    page.evaluate(() => {
-      document.querySelectorAll("#sidebar details")
-        .forEach((section) => section.setAttribute("open", ""));
-    });
+  /*
+   * Die Faltgeste kommt aus dem browser-harness, nicht aus einer eigenen Kopie.
+   * openAllFolds() steht dort seit Etappe 6 b2 - er wurde nur nie benutzt, und
+   * deshalb erreichte die Reparatur in 3c (die Feature-Karten der Navigation)
+   * zunaechst keinen einzigen Test. Eine Geste an sieben Stellen wird an sechs
+   * davon vergessen.
+   */
 
-  await expandSidebar();
-  await page.uncheck("#showMowerPreview");
+  await openAllFolds(page);
+  await menueBefehl("Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
   const load = async (body) => {
     await page.locator("#fileInput").setInputFiles({
@@ -83,7 +92,7 @@ try {
       buffer: Buffer.from(body),
     });
     await page.waitForTimeout(400);
-    await expandSidebar();
+    await openAllFolds(page);
   };
 
   /** Klickt eine Position in Metern auf die Karte. */
@@ -154,11 +163,47 @@ try {
 
   check("Enter beendet die Zeichnung nicht",
     (await drawStatus()).includes("1 Punkt"), await drawStatus());
-  check("Meldung nennt die Mindestanzahl",
-    (await editStatus()).includes("mindestens 2"), await editStatus());
+
+  /*
+   * Diese Zusicherung muss die WIRKUNG belegen, nicht ihr Ausbleiben.
+   *
+   * Vorher stand hier nur, dass die Meldung "mindestens 2" enthält - das tat
+   * auch die Startmeldung "Docking-Pfad: mindestens 2 Punkte anklicken",
+   * die ohnehin noch stand. Der Test bestand deshalb, obwohl Enter für den
+   * Dockpfad gar nichts tat: der Tastaturpfad zählte die Modi einzeln auf und
+   * kannte "dock" nicht. Gefunden hat es der Nutzer, nicht der Test.
+   *
+   * "benötigt mindestens 2" kommt ausschließlich aus der Ablehnung von
+   * finishFeatureDrawing() und beweist damit, dass Enter angekommen ist.
+   */
+  check("Enter wird verarbeitet und lehnt begründet ab",
+    (await editStatus()).includes("benötigt mindestens 2"), await editStatus());
 
   await page.locator("#cancelDrawBtn").click();
   await page.waitForTimeout(200);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Enter schließt den Dockpfad ab");
+  await load(syntheticMap());
+
+  await page.locator("#createDockBtn").click();
+  await page.waitForTimeout(200);
+  await clickMap(5, 5);
+  await clickMap(10, 5);
+  await clickMap(15, 5);
+
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(350);
+
+  check("die Zeichnung ist beendet",
+    (await drawStatus()).includes("Kein Zeichenwerkzeug aktiv") ||
+    !(await page.locator("#finishDrawBtn").isEnabled()),
+    await drawStatus());
+  check("das Feature ist entstanden",
+    (await page.locator('#vertexGroup circle[data-layer="dockpoints"]').count()) === 3,
+    String(await page.locator('#vertexGroup circle[data-layer="dockpoints"]').count()));
+  check("die Erfolgsmeldung nennt die Punktzahl",
+    (await editStatus()).includes("3 Punkten erstellt"), await editStatus());
 
   /* ---------------------------------------------------------------- */
   console.log("Verlängern");
@@ -236,10 +281,20 @@ try {
   const classicDock = [[5, 5], [10, 5], [15, 5]];
   await load(syntheticMap(classicDock));
 
+  /*
+   * Geprüft wird die WIRKUNG, nicht das Ausbleiben: die alte Fassung sicherte
+   * allein zu, dass "Docking-Pfad 1:" NICHT im Bericht steht - das bestünde
+   * auch bei leerem Bericht und damit auch dann, wenn der Klick nichts
+   * ausgelöst hätte. Die Zusammenfassung entsteht erst durch einen Lauf.
+   */
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(300);
 
+  const summary = (await page.locator("#validationSummary").textContent()).trim();
   const report = await page.locator("#validationReport").textContent();
+
+  check("die Kartenprüfung ist wirklich gelaufen und meldet null Fehler",
+    /^(Prüfung OK|Keine Fehler)/.test(summary), summary);
   check("drei Punkte erzeugen keinen Docking-Befund",
     !report.includes("Docking-Pfad 1:"), report.slice(0, 240));
 
@@ -253,7 +308,7 @@ try {
     .waitForEvent("download", { timeout: 5000 })
     .catch(() => null);
 
-  await page.locator("#exportBtn").click();
+  await menueBefehl("Datei", "GeoJSON speichern");
   const exportEvent = await pendingExport;
 
   check("Speichern funktioniert", !!exportEvent);

@@ -14,12 +14,19 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-scale.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import {
+  createChecker,
+  createMenueBefehl,
+  elementGetroffen,
+  indexUrl,
+  launchBrowser,
+  openAllFolds,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-scale";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 const DEG = 111111;
 
@@ -49,6 +56,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -64,10 +72,13 @@ try {
       buffer: Buffer.from(body),
     });
     await page.waitForTimeout(450);
-    await page.evaluate(() => {
-      document.querySelectorAll("#sidebar details")
-        .forEach((section) => section.setAttribute("open", ""));
-    });
+
+    /*
+     * Faltgeste aus dem Harness statt einer eigenen, engeren Fassung: die hier
+     * oeffnete nur "#sidebar details" und traf damit seit dem Umzug der
+     * Abschnitte in den Inspektor fast nichts mehr.
+     */
+    await openAllFolds(page);
   };
 
   const width = () => page.locator("#widthStat").textContent();
@@ -77,11 +88,11 @@ try {
   console.log("Meterkarte wird nicht mehr als Gradkarte gelesen");
 
   await load(square(200, 1));
-  check("200-m-Karte zeigt 200 m", (await width()).trim() === "200.00 m", await width());
+  check("200-m-Karte zeigt 200 m", (await width()).trim() === "200,00 m", await width());
   check("kein Maßstabshinweis", await notice.isHidden());
 
   await load(square(8, 1));
-  check("8-m-Karte zeigt 8 m", (await width()).trim() === "8.00 m", await width());
+  check("8-m-Karte zeigt 8 m", (await width()).trim() === "8,00 m", await width());
 
   /* ---------------------------------------------------------------- */
   console.log("Relativformat kippt nicht mehr durch Bearbeiten");
@@ -100,7 +111,7 @@ try {
   }));
 
   check("frei gesetzte Punkte bleiben in Metern",
-    (await width()).trim() === "200.00 m", await width());
+    (await width()).trim() === "200,00 m", await width());
 
   /* ---------------------------------------------------------------- */
   console.log("Zweifelsfall: nichts wird behauptet");
@@ -120,13 +131,22 @@ try {
   check("Sperre nennt den Grund",
     (await page.locator("#snapPointToGrid").getAttribute("title")).includes("Maßstab"));
 
-  /* Absolutes Speichern muss abgelehnt werden, ohne eine Datei zu schreiben. */
+  /*
+   * Absolutes Speichern muss abgelehnt werden, ohne eine Datei zu schreiben.
+   *
+   * Der Faltblock wird vorher geoeffnet: #exportFrameSelect ist unveraendert,
+   * steht aber seit Etappe 7c im Inspektor unter "Koordinatenbezug" statt in
+   * der Seitenleiste, und dieser Faltblock ist beim Start ZU. Nur der Weg
+   * dorthin ist ein anderer - ueber den Helfer, nicht ueber eine eigene Kopie
+   * der Faltgeste.
+   */
+  await openAllFolds(page);
   await page.selectOption("#exportFrameSelect", "absolute");
 
   let downloaded = false;
   const note = () => { downloaded = true; };
   page.on("download", note);
-  await page.locator("#exportBtn").click();
+  await menueBefehl("Datei", "GeoJSON speichern");
   await page.waitForTimeout(400);
   page.off("download", note);
 
@@ -138,7 +158,20 @@ try {
   /* Die Kartenprüfung darf keine Fläche behaupten. */
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(300);
+  await openAllFolds(page);
   const report = await page.locator("#validationReport").textContent();
+
+  /*
+   * Die andere Haelfte: textContent() traegt durch ein geschlossenes
+   * <details> hindurch. Ohne diese Zusicherung belegten die drei darunter
+   * nur, dass der Text im DOM steht - nicht, dass ihn jemand liest.
+   */
+  await page.locator("#validationReport").scrollIntoViewIfNeeded();
+
+  const berichtGetroffen = await elementGetroffen(page, "#validationReport", { dy: 5 });
+
+  check("der Pruefbericht steht wirklich sichtbar da, nicht nur im DOM",
+    berichtGetroffen.ok === true, berichtGetroffen.grund);
 
   check("keine erfundene Flächenangabe",
     !/Perimeterfläche: [\d.]+ m²/.test(report), report.slice(0, 200));
@@ -163,7 +196,7 @@ try {
   await load(square(200, 1));
 
   const pending = page.waitForEvent("download", { timeout: 5000 }).catch(() => null);
-  await page.locator("#exportBtn").click();
+  await menueBefehl("Datei", "GeoJSON speichern");
   const event = await pending;
 
   check("Export läuft", !!event);
@@ -181,7 +214,7 @@ try {
     /* Und beim Wiedereinlesen greift er. */
     await load(JSON.stringify(saved));
     check("wieder eingelesen weiterhin 200 m",
-      (await width()).trim() === "200.00 m", await width());
+      (await width()).trim() === "200,00 m", await width());
   }
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,

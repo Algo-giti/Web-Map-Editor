@@ -1,5 +1,131 @@
 # Changelog — English
 
+## Release 050
+
+Release 050 rebuilds the interface. Nothing about the map data changes:
+import, export, geometry and every computation are untouched, and a file saved
+with 049 is byte for byte the same as one saved with 050. What changes is
+**where** the controls are - and that the map gets more room.
+
+---
+
+### 1. A menu bar instead of scattered buttons
+
+A menu bar sits at the top with four menus: **File, View, Map, Help**. Open,
+save, reset, the map windows and the help live there.
+
+Each menu has a keyboard shortcut taken from the **first letter of its title** -
+Alt+F, Alt+V, Alt+M, Alt+H in English, Alt+D, Alt+A, Alt+K, Alt+H in German.
+The shortcuts therefore follow the language, and the underlined letter moves
+with it on its own. F10 enters the bar without the Alt key; the arrow keys then
+walk through every menu, Escape closes.
+
+The header shrank from 1038 to 880 px minimum width and from 64 to 48 px high.
+
+### 2. A toolbar on the left
+
+Every tool sits vertically to the left of the map, in three groups, and the
+grouping carries the most useful thing a toolbar can say: **what changes the
+map and what does not.**
+
+| Group | Tools |
+|---|---|
+| Select | pointer, box, lasso |
+| Draw | exclusion, circle, rectangle, Search Wire, dock path |
+| Check | measure, validate map |
+
+The toolbar collapses to icon width, and the choice survives the next start.
+In narrow windows it collapses on its own.
+
+A blocked drawing tool now **says why** it is blocked - clicking it puts the
+reason in the status bar. Before, "Search Wire" would stay greyed out
+permanently because the map already has one, with nothing saying so.
+
+### 3. An inspector on the right
+
+The inspector **describes what is currently selected** and carries the
+commands that go with it. It has a fixed header block that does not move as
+you select, and below it, depending on the selection: the East/North fields of
+a point, its role as start or end point, the area and point count of a
+feature, and the selection actions "Delete selection" and "Clear selection".
+
+Five collapsible blocks complete it: **Reshape** (straighten, reduce,
+right-angle), **Map check**, **Feature navigation**, **Coordinate reference**
+and the inventory. Collapsed, each carries the essentials in one line. They
+never expand on their own - not even when a tool becomes available or the
+check finds new problems.
+
+The inspector collapses too, to a 34 px strip carrying its toggle; that choice
+also survives the next start.
+
+The reshaping tools are **always** present, even when they cannot run - with
+the reason underneath. Showing them only once they work would never tell you
+what to do to get there.
+
+### 4. Legend and status bar at the bottom
+
+The legend is a fixed row above the status bar, **always visible and no longer
+collapsible**. Before, it sat collapsed above the map and was therefore absent
+exactly when the colours were needed.
+
+Below it, a two-line status bar gathers seven previously scattered outputs: file
+name, scale, reference point and validation result on the left, selection count
+and cursor coordinates on the right, and the most recent message across the
+full width of line 2. Ten of the editor's fourteen output locations used to sit
+in collapsible areas, and twice that had made messages invisible.
+
+### 5. Three windows over the map
+
+**Grid**, **mower preview** and **merge maps** are small windows opened from
+the "Map" menu that leave the map in view while you adjust them. Closed, they
+cost no space.
+
+### 6. The sidebar is gone
+
+It no longer exists. Its contents moved to where they are used: feature
+navigation and the coordinate reference into the inspector, merging into its
+own window, the dimension fields of the drawing tools into the inspector's
+drawing state, and the selection toolbar off the map into the inspector. The
+trash button on the map is now **"Delete selection"** in the inspector.
+
+On a phone the toolbar, map and inspector are stacked and the page scrolls;
+every command stays reachable from the menu bar. The former button that showed
+and hid the control panel on small screens is gone with it.
+
+### 7. More map area - especially in narrow windows
+
+Measured in the same browser and with the same script as the baseline:
+
+| Window | both bars open | both collapsed |
+|---|---|---|
+| 1920 x 1080 | -15.2 % | **+8.4 %** |
+| 1440 x 900 | -20.0 % | **+13.5 %** |
+| 1280 x 800 | -22.9 % | **+15.8 %** |
+
+The real gain is at the in-between widths. At **940 x 800** - a width where the
+toolbar is collapsed anyway - the map area grew from 147,616 to **371,676 px²,
+that is by 151.8 %**. There the old grid reserved a column for a sidebar that
+gave the map nothing back.
+
+**To be honest about it:** with both bars open the area is smaller than before.
+The rebuild is a gain in order; the area is gained by collapsing.
+
+### 8. Smaller things
+
+- The mouse cursor shows the active tool: crosshair while drawing, measuring
+  and for box/lasso, otherwise the grab hand, and a move cursor over a point.
+- The "move" button is gone - it merely duplicated the pointer.
+- The point buttons are arranged in pairs: before/after, start/end; "Delete
+  point" stands alone across the full width.
+- An empty East/North field now says why it is empty.
+- The map colours live in one place, and the legend pulls the same values as
+  the rendering. Yellow now means **selection** and nothing else; the dock path
+  is blue, the origin cross neutral, and the comparison line belongs to the
+  before-ghosts.
+- The help overlay describes the actual layout again.
+
+---
+
 ## Release 049
 
 > **Note for maps exported before release 048:** Up to and including release

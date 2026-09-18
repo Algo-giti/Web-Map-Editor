@@ -13,12 +13,18 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-rectify.mjs
 
-import { createChecker, indexUrl, launchBrowser } from "./browser-harness.mjs";
+import {
+  createChecker,
+  createMenueBefehl,
+  indexUrl,
+  launchBrowser,
+  openAllFolds,
+} from "./browser-harness.mjs";
 
 const TOOL = "test-rectify";
 
 const browser = await launchBrowser(TOOL);
-if (!browser) process.exit(0);
+if (!browser) process.exit(2);
 
 /** Karte in rohen Metern mit einer Exclusion aus den gegebenen Punkten. */
 function mapWith(ring) {
@@ -57,23 +63,26 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
   page.on("pageerror", (error) => consoleErrors.push(String(error)));
 
-  const expandSidebar = () =>
-    page.evaluate(() => {
-      document.querySelectorAll("#sidebar details")
-        .forEach((section) => section.setAttribute("open", ""));
-    });
+  /*
+   * Die Faltgeste kommt aus dem browser-harness, nicht aus einer eigenen Kopie.
+   * openAllFolds() steht dort seit Etappe 6 b2 - er wurde nur nie benutzt, und
+   * deshalb erreichte die Reparatur in 3c (die Feature-Karten der Navigation)
+   * zunaechst keinen einzigen Test. Eine Geste an sieben Stellen wird an sechs
+   * davon vergessen.
+   */
 
   const load = async (body) => {
     await page.goto(indexUrl(), { waitUntil: "load" });
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: "load" });
-    await expandSidebar();
-    await page.uncheck("#showMowerPreview");
+    await openAllFolds(page);
+    await menueBefehl("Ansicht", "Mäher am ausgewählten Punkt anzeigen");
 
     await page.locator("#fileInput").setInputFiles({
       name: "rectify.geojson",
@@ -81,7 +90,7 @@ try {
       buffer: Buffer.from(body),
     });
     await page.waitForTimeout(400);
-    await expandSidebar();
+    await openAllFolds(page);
   };
 
   const marks = page.locator('#vertexGroup circle[data-layer="exclusion"]');
@@ -94,7 +103,7 @@ try {
       .waitForEvent("download", { timeout: 5000 })
       .catch(() => null);
 
-    await page.locator("#exportBtn").click();
+    await menueBefehl("Datei", "GeoJSON speichern");
 
     const event = await pending;
     if (!event) return null;
@@ -117,6 +126,19 @@ try {
   check("Statuszeile erklärt die Auswahl",
     (await status()).includes("Punkt des Features auswählen"), await status());
 
+  /*
+   * Seit Etappe 7f traegt auch der Perimeter den Knopf "Ganzes Feature
+   * auswaehlen". Vorher entschied canMoveWholeFeature() darueber, und die
+   * beantwortet eine andere Frage - ob sich ein Feature per Flaechen-Drag
+   * verschieben laesst. Der Perimeter darf das bewusst nicht, ausgewaehlt
+   * werden koennen muss er trotzdem: seit 7f haengt der Zeitpunkt der Vorschau
+   * daran. Gezaehlt statt auf Sichtbarkeit geprueft - die Karten der
+   * Navigation sind zu, solange ihr Feature nicht ausgewaehlt ist.
+   */
+  check("der Perimeter hat einen Knopf 'Ganzes Feature auswählen'",
+    (await page.locator(
+      '[data-action="select-whole-feature"][data-feature-index="0"]').count()) === 1);
+
   /* ---------------------------------------------------------------- */
   console.log("Verzogenes Rechteck");
 
@@ -137,11 +159,80 @@ try {
     /größte Verschiebung [\d.,]+ m/.test(before), before);
   check("Button ist freigegeben", await applyButton.isEnabled());
 
+  /*
+   * Etappe 7f: die Vorschau erscheint erst beim GANZEN Feature.
+   *
+   * Ein Ausbleiben allein bewiese nichts - es bestuende auch, wenn die Vorschau
+   * gar nicht mehr gebaut wuerde. Deshalb steht daneben eine Zusicherung, die
+   * nur bei tatsaechlich vorhandener Auswahl gelingt: genau ein Punktmarker
+   * traegt den Auswahlring, und die Statuszeile des Werkzeugs rechnet bereits
+   * mit diesem Feature.
+   */
+  check("genau ein Punkt ist ausgewählt",
+    (await page.locator("#vertexGroup circle.selected").count()) === 1,
+    String(await page.locator("#vertexGroup circle.selected").count()));
+  check("bei einem Punkt gibt es noch keine Vorschaulinie",
+    (await page.locator("#toolPreviewGroup .rectify-preview-line").count()) === 0,
+    String(await page.locator("#toolPreviewGroup .rectify-preview-line").count()));
+  check("und keine markierten Punkte",
+    (await page.locator("#toolPreviewGroup .rectify-preview-node").count()) === 0,
+    String(await page.locator("#toolPreviewGroup .rectify-preview-node").count()));
+
+  /*
+   * Ganzes Feature waehlen - der Knopf steht in der Feature-Navigation.
+   *
+   * Vorher noch einmal aufklappen: die Navigation wird bei jeder
+   * Auswahlaenderung neu gebaut, und die Karten der nicht ausgewaehlten
+   * Features entstehen dabei ZU. Die Feature-Nummer steht dran, weil seit
+   * Etappe 7f auch der Perimeter einen solchen Knopf hat - die Exclusion ist
+   * Feature 1.
+   */
+  await openAllFolds(page);
+  await page.locator('[data-action="select-whole-feature"][data-feature-index="1"]')
+    .click();
+  await page.waitForTimeout(300);
+
+  check("alle vier Ecken sind ausgewählt",
+    (await page.locator("#vertexGroup circle.selected, #vertexGroup circle.multi-selected")
+      .count()) === 4,
+    String(await page.locator("#vertexGroup circle.selected, #vertexGroup circle.multi-selected")
+      .count()));
+
   check("Vorschaulinie ist gezeichnet",
-    (await page.locator("#selectionGhostGroup .rectify-preview-line").count()) >= 1);
+    (await page.locator("#toolPreviewGroup .rectify-preview-line").count()) >= 1);
   check("bewegte Punkte sind markiert",
-    (await page.locator("#selectionGhostGroup .rectify-preview-node").count()) >= 1,
-    String(await page.locator("#selectionGhostGroup .rectify-preview-node").count()));
+    (await page.locator("#toolPreviewGroup .rectify-preview-node").count()) >= 1,
+    String(await page.locator("#toolPreviewGroup .rectify-preview-node").count()));
+
+  /*
+   * Die Vorschau liegt in einer EIGENEN Gruppe und erbt nicht mehr die
+   * Daempfung der Ghosts. Bis zum einundzwanzigsten Durchgang hing sie in
+   * #selectionGhostGroup mit `opacity:.42`; das blassgruene Rechtwinklig-Gruen
+   * kam damit auf eine effektive Deckung von 0,85 x 0,42 = 0,357 und war von
+   * einem Ghost nicht mehr zu unterscheiden - obwohl das eine die Zukunft
+   * zeigt und das andere die Vergangenheit.
+   *
+   * Gemessen wird die WIRKUNG: die berechnete Deckung der Gruppe, in der die
+   * Linie wirklich haengt, und dass die Ghost-Gruppe ihre eigene behaelt.
+   */
+  const deckung = await page.evaluate(() => {
+    const linie = document.querySelector(".rectify-preview-line");
+    const gruppe = linie?.closest("g");
+
+    return {
+      gruppe: gruppe?.id ?? null,
+      vorschau: gruppe ? getComputedStyle(gruppe).opacity : null,
+      ghost: getComputedStyle(
+        document.getElementById("selectionGhostGroup")).opacity,
+    };
+  });
+
+  check("die Vorschau haengt in der eigenen Gruppe",
+    deckung.gruppe === "toolPreviewGroup", JSON.stringify(deckung));
+  check("und diese Gruppe daempft nicht",
+    Number(deckung.vorschau) === 1, JSON.stringify(deckung));
+  check("waehrend die Ghost-Gruppe ihre Daempfung behaelt",
+    Number(deckung.ghost) < 1, JSON.stringify(deckung));
 
   const pointsBefore = await marks.count();
 
@@ -209,7 +300,7 @@ try {
 
   await page.locator("#undoBtn").click();
   await page.waitForTimeout(400);
-  await expandSidebar();
+  await openAllFolds(page);
 
   const restored = await exportRing();
 
@@ -282,7 +373,7 @@ try {
   await page.reload({ waitUntil: "load" });
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(300);
-  await expandSidebar();
+  await openAllFolds(page);
 
   check("der Abschnitt ist übersetzt",
     (await page.locator("#rectifyApplyBtn").textContent())

@@ -9,8 +9,10 @@ const checks = [
   "check-syntax.mjs",
   "check-dom-ids.mjs",
   "check-privacy.mjs",
+  "check-css-classes.mjs",
   "test-cassandra.mjs",
   "test-geometry.mjs",
+  "check-bestandszahlen.mjs",
 ];
 
 let failed = false;

@@ -89,6 +89,60 @@ for (const mapFile of findMapFiles(repoRoot)) {
   }
 }
 
+/*
+ * Namen aus ignorierten Ordnern duerfen nicht in versionierten Dateien stehen.
+ *
+ * Die Privatsphaere-Regel verbietet ausdruecklich auch DATEINAMEN, nicht nur
+ * Kartendaten - und die Pruefung oben findet die nicht: sie sucht nach
+ * Kartendateien, nicht nach Namen darin. Genau so ueberlebte der Name einer
+ * privaten Karte in tools/test-cassandra.mjs, als fest verdrahteter Pfad
+ * "../test/<name>.json".
+ *
+ * Geprueft wird eng und deshalb ohne Falschmeldungen: gemeldet wird nur ein
+ * Verweis, der IN einen ueber .gitignore ausgeschlossenen Ordner hineinzeigt,
+ * also etwas hinter dem Schraegstrich nennt. Der Ordner selbst ("test/") ist
+ * erlaubt - ein Skript muss ihn ansprechen duerfen, um ihn zu durchsuchen.
+ *
+ * Nachgemessen zum Zeitpunkt des Einbaus: null Treffer im ganzen Repository,
+ * auch in der Prosa der Dokumentation. Die breite Variante - jedes Literal auf
+ * .json/.geojson melden - waere dagegen unbrauchbar gewesen: 38 Vorkommen,
+ * allesamt berechtigt (synthetische Testkartennamen, package.json).
+ */
+const ignoredDirectories = (() => {
+  try {
+    return readFileSync(join(repoRoot, ".gitignore"), "utf8")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#") && line.endsWith("/"))
+      .map((line) => line.replace(/\/$/, "").replace(/^\//, ""));
+  } catch {
+    return [];
+  }
+})();
+
+for (const directory of ignoredDirectories) {
+  const pattern = new RegExp(
+    `\\b${directory.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/[A-Za-z0-9_.-]+`,
+    "g"
+  );
+
+  for (const file of trackedFiles) {
+    let text;
+    try {
+      text = readFileSync(join(repoRoot, file), "utf8");
+    } catch {
+      continue;
+    }
+
+    for (const hit of text.matchAll(pattern)) {
+      problems.push(
+        `"${file}" names "${hit[0]}" - "${directory}/" is git-ignored because it holds ` +
+          "private data; its file names must not appear in versioned files either."
+      );
+    }
+  }
+}
+
 for (const warning of warnings) console.warn(`check-privacy: warning - ${warning}`);
 
 if (problems.length > 0) {

@@ -7,10 +7,21 @@
 // einem minimalen Sandkasten ausgeführt. Dadurch braucht das Projekt weiterhin
 // kein Build-System und keinen Browser für diese Prüfungen.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { extractDeclarations, readInlineScript } from "./extract-script.mjs";
 
 const NAMES = [
+  /*
+   * Seit die Meterausgaben des Pruefberichts ueber formatMeters() laufen,
+   * braucht validateMapData() die Funktion - und sie liest die Sprache aus
+   * currentLanguage. Beide gehoeren deshalb in den Sandkasten; sonst bricht
+   * der Test mit "formatMeters is not defined" ab. Seit Schritt 1 stuetzt
+   * sich formatMeters() auf formatNumber() - die eine Stelle, an der eine
+   * Zahl ihr Format bekommt -, also gehoert auch die dazu.
+   */
+  "currentLanguage",
+  "formatNumber",
+  "formatMeters",
   "SUNRAY_FACTOR",
   "CASSANDRA_NAME_BY_TYPE",
   "FEATURE_TYPE_BY_NAME",
@@ -33,17 +44,24 @@ const NAMES = [
   "SCALE_RELATIVE_MAX_EXTENT",
   "scaleFactorForData",
   "toWorld",
+  "ringAreaMeters",
+  "polygonRingsArea",
   "polygonAreaMeters",
   "geometryCoordinateSequences",
   "computeBoundsForData",
+  "validatePolygonRings",
   "validateMapData",
+  /* Seit dem vierten Durchgang haelt ein Befund seine Rohwerte; die
+     Textlisten von validateMapData() sind daraus abgeleitet. */
+  "BEFUND_TEXTE",
+  "befundText",
+  "pruefErgebnis",
   "GEOMETRY_EPSILON_AREA",
   "GEOMETRY_CHECK_PAIR_BUDGET",
   "turnDirection",
   "segmentsProperlyIntersect",
   "pointInRing",
   "closestPointOnSegment",
-  "pointSegmentDistance",
   "segmentDistance",
   "sequenceBounds",
   "boundsOverlap",
@@ -57,6 +75,16 @@ const NAMES = [
   "getUniqueOuterRing",
   "mowerWidth",
   "collectGeometryFindings",
+  "isUsableCoordinate",
+  "usableCoordinates",
+  "countLineFeaturePoints",
+  "isEmptyLineFeature",
+  "I18N_EN",
+  "I18N_PATTERNS",
+  "I18N_LABEL_PREFIXES",
+  "normalizeI18nText",
+  "translateHistoryLabel",
+  "translateGermanText",
   "describeFeature",
   "DEGREE_METERS",
   "ABSOLUTE_WGS84_THRESHOLD",
@@ -70,7 +98,6 @@ const NAMES = [
   "originsMatch",
   "formatOrigin",
   "originConflict",
-  "isAbsoluteWgs84Collection",
   "convertCollectionCoordinates",
   "absoluteCollectionToRelative",
   "relativeCollectionToAbsolute",
@@ -116,6 +143,21 @@ const app = factory(sandbox.localStorage, sandbox.data, sandbox.scaleFactor, san
 let failures = 0;
 
 function check(label, condition, detail = "") {
+  /*
+   * Eine Zusicherung, die keinen Wahrheitswert prueft, kann nicht reissen -
+   * ein Objekt oder eine Zahl ist immer wahr. Dieselbe Bedingung steht in
+   * tools/browser-harness.mjs; sie ist an drei Stellen noetig, weil die
+   * statische Stufe das Harness nicht einbinden darf.
+   */
+  if (typeof condition !== "boolean") {
+    failures++;
+    console.error(
+      `  FAIL ${label} - Bedingung ist kein Wahrheitswert, sondern ` +
+      `${typeof condition}; diese Zusicherung koennte nicht reissen`
+    );
+    return;
+  }
+
   if (condition) return;
   failures++;
   console.error(`  FAIL ${label}${detail ? ` - ${detail}` : ""}`);
@@ -316,6 +358,14 @@ function box(sizeMetres, divisor, offset = 0) {
 
 const modeOf = (map) => app.classifyCoordinateScale(map).mode;
 
+/*
+ * Die Frage "liegt die Karte in absolutem WGS84 vor?" ist genau eine
+ * Lesart von classifyCoordinateScale(). Der Betrag allein genuegt dafuer
+ * NICHT - eine Meterkarte hat ebenfalls grosse Werte; erst die Ausdehnung
+ * trennt beide, und genau das entscheidet die Klassifikation.
+ */
+const istAbsolut = (map) => modeOf(map) === "absolute";
+
 check("Sunray relativ, 200 m", modeOf(box(200, DEG)) === "sunray-relative",
   modeOf(box(200, DEG)));
 check("Sunray relativ, kleiner Garten 8 m",
@@ -371,11 +421,11 @@ check("leere Karte", app.classifyCoordinateScale({ type: "FeatureCollection", fe
 check("Schwellen sind geordnet",
   app.SCALE_RELATIVE_MAX_EXTENT < app.SCALE_METRIC_MIN_EXTENT);
 
-/* isAbsoluteWgs84Collection folgt jetzt derselben Klassifikation. */
+/* Die Absolut-Frage folgt derselben Klassifikation. */
 check("Meterkarte gilt nicht mehr als absolut",
-  app.isAbsoluteWgs84Collection(box(200, 1)) === false);
+  istAbsolut(box(200, 1)) === false);
 check("echte Gradkarte gilt weiterhin als absolut",
-  app.isAbsoluteWgs84Collection(box(200, DEG, 13.4)) === true);
+  istAbsolut(box(200, DEG, 13.4)) === true);
 
 console.log("Massstab in der Datei");
 
@@ -491,11 +541,11 @@ check("Meter-Rundlauf Ost", near(east, 100, 1e-6));
 check("Meter-Rundlauf Nord", near(north, 200, 1e-6));
 
 check("absolute Karte erkannt",
-  app.isAbsoluteWgs84Collection({ features: [feature("perimeter", [[13.4, 52.5]])] }));
+  istAbsolut({ features: [feature("perimeter", [[13.4, 52.5]])] }));
 check("relative Karte nicht als absolut erkannt",
-  !app.isAbsoluteWgs84Collection({ features: [feature("perimeter", [[-0.00017, -0.00007]])] }));
+  !istAbsolut({ features: [feature("perimeter", [[-0.00017, -0.00007]])] }));
 check("leere Karte ist nicht absolut",
-  !app.isAbsoluteWgs84Collection({ features: [] }));
+  !istAbsolut({ features: [] }));
 
 /* -------------------------------------------------------------------- */
 console.log("Rundlauf relativ -> absolut -> relativ");
@@ -588,7 +638,7 @@ const importedPoints = allPoints(absoluteImport);
 check("erster Punkt liegt im Ursprung",
   near(importedPoints[0][0], 0, 1e-12) && near(importedPoints[0][1], 0, 1e-12));
 check("Karte liegt nach dem Import relativ vor",
-  !app.isAbsoluteWgs84Collection(absoluteImport));
+  !istAbsolut(absoluteImport));
 
 /* -------------------------------------------------------------------- */
 console.log("Bezugspunkt-Konflikt");
@@ -647,8 +697,17 @@ check("Konflikt nennt beide Bezugspunkte",
   conflict?.fileOrigin.lat === twoCentimetresNorth.lat &&
   conflict?.activeOrigin.lat === baseOrigin.lat);
 
-check("formatOrigin ist stabil",
-  app.formatOrigin({ lat: 52.5, lon: 13.4 }) === "52.500000 / 13.400000");
+/*
+ * formatOrigin() folgt seit Schritt 1 der Oberflaechensprache - es laeuft
+ * ueber formatNumber() statt ueber toFixed(). Im Sandkasten steht
+ * currentLanguage auf dem Startwert "de", der Bezugspunkt erscheint hier also
+ * mit Komma. Die englische Fassung ist im Browser zugesichert
+ * (tools/test-origin-conflict.mjs): der Sandkasten haelt Werte, keine
+ * lebenden Bindungen, die Sprache laesst sich hier nicht umschalten.
+ */
+check("formatOrigin ist stabil und folgt der Sprache",
+  app.formatOrigin({ lat: 52.5, lon: 13.4 }) === "52,500000 / 13,400000",
+  app.formatOrigin({ lat: 52.5, lon: 13.4 }));
 
 /* -------------------------------------------------------------------- */
 console.log("Import mit widersprechendem Bezugspunkt");
@@ -760,11 +819,11 @@ check("Export laesst fremdes Feature unveraendert",
 check("Export schreibt Bezugspunkt",
   exportedRelative.referenceOrigin?.lat === 52.5);
 check("relativer Export bleibt relativ",
-  !app.isAbsoluteWgs84Collection(exportedRelative));
+  !istAbsolut(exportedRelative));
 
 const exportedAbsolute = app.buildExportCollection(true);
 check("absoluter Export liefert WGS84",
-  app.isAbsoluteWgs84Collection(exportedAbsolute));
+  istAbsolut(exportedAbsolute));
 check("absoluter Export normalisiert ebenfalls",
   exportedAbsolute.features[0].properties.name === "search wire");
 
@@ -775,16 +834,47 @@ check("Export veraendert die Arbeitskopie nicht",
   JSON.stringify(app.buildExportCollection(false)) === JSON.stringify(workingCopy));
 
 /* -------------------------------------------------------------------- */
-const sampleMap = new URL("../test/herbine_2025_1.json", import.meta.url);
+/*
+ * Lokale Beispielkarten, falls vorhanden. Der Ordner test/ ist ueber
+ * .gitignore ausgeschlossen und enthaelt echte Nutzerkarten; er gehoert NICHT
+ * zu einem frischen Checkout, und das Ueberspringen ist deshalb kein Fehler.
+ *
+ * Gesucht wird nach IRGENDEINER .json/.geojson in diesem Ordner, nicht nach
+ * einem bestimmten Namen. Vorher stand hier ein fester Dateiname - und damit
+ * der Name einer privaten Karte in einer versionierten Datei, was die
+ * Privatsphaere-Regel ausdruecklich verbietet ("niemals ... Dateinamen ... in
+ * versionierte Dateien einbetten"). check-privacy.mjs findet das nicht: es
+ * sucht nach Kartendateien, nicht nach Namen darin.
+ *
+ * Nebenwirkung, die den Fall zugleich besser macht: der Test haengt nicht mehr
+ * an einer Datei, die nur eine Person hat. Wer irgendeine Karte dort ablegt,
+ * bekommt den Rundlauf - und bei mehreren laeuft er ueber jede einzelne.
+ */
+const sampleDir = new URL("../test/", import.meta.url);
+const sampleMaps = existsSync(sampleDir)
+  ? readdirSync(sampleDir)
+      .filter((name) => /\.(geojson|json)$/i.test(name))
+      .sort()
+  : [];
 
-if (existsSync(sampleMap)) {
-  console.log("Rundlauf mit lokaler Beispielkarte (nicht im Repository)");
+if (sampleMaps.length === 0) {
+  console.log("Rundlauf mit lokalen Beispielkarten: uebersprungen (keine Datei unter test/)");
+} else {
+  console.log(`Rundlauf mit lokalen Beispielkarten (nicht im Repository): ${sampleMaps.length}`);
+}
 
-  const sample = JSON.parse(readFileSync(sampleMap, "utf8"));
+for (const name of sampleMaps) {
+  const sample = JSON.parse(readFileSync(new URL(name, sampleDir), "utf8"));
+
+  /*
+   * Der Dateiname wird bewusst NICHT ausgegeben - er koennte selbst privat
+   * sein. Gezaehlt wird stattdessen die Position in der sortierten Liste.
+   */
+  const nr = sampleMaps.indexOf(name) + 1;
   const sampleOrigin = { lat: 52.5, lon: 13.4 };
   const before = app.collectCoords(sample).map((point) => [...point]);
 
-  check("Beispielkarte liegt relativ vor", !app.isAbsoluteWgs84Collection(sample));
+  check(`Beispielkarte ${nr} liegt relativ vor`, !istAbsolut(sample));
 
   app.relativeCollectionToAbsolute(sample, sampleOrigin, 111111);
   app.absoluteCollectionToRelative(sample, sampleOrigin);
@@ -799,11 +889,276 @@ if (existsSync(sampleMap)) {
     )
   );
 
-  check("Rundlauf der Beispielkarte verlustfrei", worst * 111111 < 1e-6,
+  check(`Rundlauf der Beispielkarte ${nr} verlustfrei`, worst * 111111 < 1e-6,
     `Abweichung ${(worst * 111111).toExponential(2)} m`);
-} else {
-  console.log("Rundlauf mit lokaler Beispielkarte: uebersprungen (keine Datei unter test/)");
 }
+
+/* -------------------------------------------------------------------- */
+console.log("Uebersetzungsmuster: Reihenfolge");
+
+/*
+ * I18N_PATTERNS wird von oben nach unten durchsucht und beim ERSTEN Treffer
+ * abgebrochen. Steht ein allgemeines Muster vor einem spezielleren, greift das
+ * falsche: "1 Fehler" traf lange auf /^(\d+) Fehler$/ und wurde zu
+ * "1 errors" - an der sichtbarsten Stelle der englischen Oberflaeche.
+ *
+ * Die konkreten Faelle:
+ */
+check('"1 Fehler" wird zur Einzahl',
+  app.translateGermanText("1 Fehler") === "1 error",
+  app.translateGermanText("1 Fehler"));
+check('"3 Fehler" bleibt Mehrzahl',
+  app.translateGermanText("3 Fehler") === "3 errors",
+  app.translateGermanText("3 Fehler"));
+check('"1 Warnung" wird zur Einzahl',
+  app.translateGermanText("1 Warnung") === "1 warning",
+  app.translateGermanText("1 Warnung"));
+check('"2 Warnungen" bleibt Mehrzahl',
+  app.translateGermanText("2 Warnungen") === "2 warnings",
+  app.translateGermanText("2 Warnungen"));
+check("die Kurzform der Statuszeile stimmt",
+  app.translateGermanText("1 Fehler, 1 Warnung") === "1 error, 1 warning",
+  app.translateGermanText("1 Fehler, 1 Warnung"));
+
+/*
+ * Und die Liste als Ganzes: fuer jedes Muster wird ein Beispieltext erzeugt
+ * und geprueft, ob ein FRUEHERES, ALLGEMEINERES Muster ihn abfaengt.
+ * Umgekehrt - speziell vor allgemein - ist die richtige Reihenfolge und wird
+ * nicht gemeldet. Muster, aus denen sich kein Beispiel erzeugen laesst,
+ * bleiben ungeprueft; sie haben durchweg eindeutige Praefixe.
+ */
+function patternSamples(source) {
+  const body = source.replace(/^\^/, "").replace(/\$$/, "");
+  const variants = [];
+
+  for (const digits of ["1", "3"]) {
+    let text = body
+      .replace(/\(\\d\+\)/g, digits)
+      .replace(/\(\[\\d\.,\]\+\)/g, digits === "1" ? "1,00" : "3,50")
+      .replace(/\(\.\+\??\)/g, "X")
+      .replace(/\(\[AB\]\)/g, "A")
+      .replace(/\(\?:e\)\?/g, "e")
+      .replace(/\(\?:s\)\?/g, "s")
+      .replace(/\\d\+/g, digits)
+      .replace(/(\w)\?/g, "$1")
+      .replace(/\\([.\/(){}\[\]|?*+^$-])/g, "$1");
+
+    if (/[\\()\[\]|*+?]/.test(text)) continue;
+    variants.push(text);
+  }
+
+  return [...new Set(variants)];
+}
+
+const patternList = app.I18N_PATTERNS;
+const patternExamples = patternList.map(([pattern]) =>
+  patternSamples(pattern.source).filter((text) => pattern.test(text)));
+
+const shadowing = [];
+
+patternList.forEach(([pattern], index) => {
+  for (const text of patternExamples[index]) {
+    const winner = patternList.findIndex(([other]) => other.test(text));
+    if (winner === -1 || winner >= index) continue;
+
+    /* Nur ein ALLGEMEINERES frueheres Muster ist ein Fehler. */
+    const earlierIsBroader =
+      patternExamples[index].every((t) => patternList[winner][0].test(t)) &&
+      patternExamples[winner].some((t) => !pattern.test(t));
+
+    if (earlierIsBroader) {
+      shadowing.push(`"${text}" -> #${winner} statt #${index}`);
+    }
+  }
+});
+
+check("kein allgemeines Muster verdeckt ein spezielleres",
+  shadowing.length === 0, shadowing.join(" | "));
+
+const checkedPatterns = patternExamples.filter((s) => s.length).length;
+console.log(
+  `  ${checkedPatterns} von ${patternList.length} Mustern automatisch geprueft`);
+
+/*
+ * Doppelte Schluessel in I18N_EN.
+ *
+ * Ein Objektliteral nimmt denselben Schluessel zweimal klaglos an - der
+ * SPAETERE gewinnt. Die fertige Map zeigt davon nichts, deshalb wird hier der
+ * Quelltext gelesen und nicht app.I18N_EN. Drei solche Paare standen unbemerkt
+ * in der Liste; sie waren zufaellig gleich uebersetzt, die naechste Doppelung
+ * muss es nicht sein.
+ */
+const dictionarySource = (() => {
+  const script = readInlineScript();
+  const start = script.indexOf("const I18N_EN");
+  const end = script.indexOf("const I18N_PATTERNS");
+  return script.slice(start, end);
+})();
+
+const dictionaryKeys = [
+  ...dictionarySource.matchAll(/"((?:[^"\\]|\\.)*)"\s*:/g),
+].map((m) => m[1]);
+
+const seenKeys = new Set();
+const duplicateKeys = [];
+
+for (const key of dictionaryKeys) {
+  if (seenKeys.has(key) && !duplicateKeys.includes(key)) duplicateKeys.push(key);
+  seenKeys.add(key);
+}
+
+check("kein Schluessel steht zweimal in I18N_EN",
+  duplicateKeys.length === 0, duplicateKeys.join(" | "));
+
+/*
+ * Dasselbe fuer I18N_PATTERNS. Ein doppeltes Muster ist harmloser als ein
+ * doppelter Schluessel - das zweite ist schlicht tot, weil die Suche beim
+ * ersten Treffer abbricht -, aber es ist eine stille Doppelung derselben Art,
+ * und die naechste koennte zwei verschiedene Uebersetzungen tragen.
+ *
+ * Gefunden wurde genau das beim Aufloesen der Seitenleiste: das Muster fuer
+ * "N Punkte ausgewaehlt" stand seit Etappe 5 zweimal in der Liste.
+ */
+const duplicatePatterns = [];
+const seenPatterns = new Set();
+
+for (const [pattern] of app.I18N_PATTERNS) {
+  const quelle = String(pattern);
+  if (seenPatterns.has(quelle) && !duplicatePatterns.includes(quelle)) {
+    duplicatePatterns.push(quelle);
+  }
+  seenPatterns.add(quelle);
+}
+
+check("kein Muster steht zweimal in I18N_PATTERNS",
+  duplicatePatterns.length === 0, duplicatePatterns.join(" | "));
+
+console.log(`  ${dictionaryKeys.length} Woerterbucheintraege, ${seenKeys.size} eindeutig`);
+
+/* -------------------------------------------------------------------- */
+console.log("Alt-Buchstaben der Menueleiste");
+
+/*
+ * Der Alt-Buchstabe eines Menues ist ABGELEITET: der erste Buchstabe seines
+ * Titels in der laufenden Sprache. Das ist die richtige Wahl - eine Tabelle
+ * Buchstabe -> Menue waere eine zweite Quelle und zeigte nach einer
+ * Umbenennung still auf das falsche Menue.
+ *
+ * Der Preis ist diese Pruefung: haetten in einer Sprache zwei Titel denselben
+ * Anfangsbuchstaben, gewaenne im Browser schlicht das erste Menue, und das
+ * zweite waere per Tastatur unerreichbar - ohne Fehler, ohne Meldung.
+ *
+ * Geprueft wird deshalb JEDES Woerterbuch, nicht nur das laufende. Eine neue
+ * Sprache muss hier scheitern, nicht erst beim Durchklicken.
+ */
+const menuTitles = [...readFileSync(
+  new URL("../index.html", import.meta.url), "utf8"
+).matchAll(
+  /<button id="menu\w+Btn"[^>]*class="menu-title"[\s\S]*?>([^<]+)<\/button>/g
+)].map((m) => m[1].trim());
+
+check("die Menueleiste hat vier Titel", menuTitles.length === 4,
+  JSON.stringify(menuTitles));
+
+/** Nennt jedes Paar, das denselben Anfangsbuchstaben traegt. */
+const altKollisionen = (titel) => {
+  const buchstaben = titel.map((t) => t.trim().charAt(0).toLowerCase());
+  const treffer = [];
+
+  for (let i = 0; i < buchstaben.length; i++) {
+    for (let j = i + 1; j < buchstaben.length; j++) {
+      if (buchstaben[i] === buchstaben[j]) {
+        treffer.push(
+          `"${titel[i]}" und "${titel[j]}" beginnen beide mit ` +
+          `"${buchstaben[i].toUpperCase()}"`
+        );
+      }
+    }
+  }
+
+  return treffer;
+};
+
+/*
+ * Der Melder selbst wird geprueft. Eine Zusicherung "keine Kollision" bestuende
+ * sonst auch dann, wenn die Suche gar nichts faende - und genau dieser Fall
+ * soll ja eines Tages laut scheitern.
+ */
+const probe = altKollisionen(["Datei", "Ansicht", "Karte", "Dateien"]);
+
+check("der Melder findet eine kuenstliche Kollision",
+  probe.length === 1 && probe[0].includes("Datei") &&
+  probe[0].includes("Dateien") && probe[0].includes('"D"'),
+  JSON.stringify(probe));
+
+/*
+ * Die Woerterbuecher, gegen die geprueft wird. Deutsch ist die Quellsprache
+ * und braucht keine Uebersetzung; jedes weitere Woerterbuch kommt als
+ * [Name, Uebersetzer] dazu und wird damit automatisch mitgeprueft.
+ */
+const woerterbuecher = [
+  ["Deutsch", (text) => text],
+  ["Englisch", (text) => app.translateGermanText(text)],
+];
+
+for (const [sprache, uebersetze] of woerterbuecher) {
+  const titel = menuTitles.map(uebersetze);
+  const kollisionen = altKollisionen(titel);
+
+  check(`${sprache}: die vier Alt-Buchstaben sind eindeutig`,
+    kollisionen.length === 0, kollisionen.join(" | "));
+
+  const buchstaben = titel.map((t) => t.trim().charAt(0).toUpperCase());
+  console.log(
+    `  ${sprache}: ${titel.map((t, i) => `${t} (Alt+${buchstaben[i]})`).join(", ")}`);
+}
+
+/* -------------------------------------------------------------------- */
+console.log("Punktzahl einer Linie");
+
+/*
+ * Ein Eintrag in coordinates ist nur dann ein Punkt, wenn er ein Paar
+ * endlicher Zahlen ist. Ein leerer Ring [[]] ist ein Eintrag OHNE Punkt -
+ * genau daran hing ein unbenutzbares Werkzeug: die Search Wire galt als
+ * befuellt, das Zeichnen war gesperrt und stattdessen "verlaengern" angeboten.
+ */
+const line = (coordinates, type = "LineString") =>
+  ({ type: "Feature", properties: { name: "search wire" },
+     geometry: coordinates === undefined ? undefined : { type, coordinates } });
+
+check("Feature ohne geometry hat 0 Punkte",
+  app.countLineFeaturePoints({ type: "Feature", properties: {} }) === 0);
+check("geometry null hat 0 Punkte",
+  app.countLineFeaturePoints({ type: "Feature", geometry: null }) === 0);
+check("coordinates fehlt: 0 Punkte",
+  app.countLineFeaturePoints(line(undefined)) === 0);
+check("leeres coordinates-Array: 0 Punkte",
+  app.countLineFeaturePoints(line([])) === 0);
+check("ein leerer Ring ist KEIN Punkt",
+  app.countLineFeaturePoints(line([[]])) === 0,
+  String(app.countLineFeaturePoints(line([[]]))));
+check("mehrere leere Ringe sind keine Punkte",
+  app.countLineFeaturePoints(line([[], [], []])) === 0);
+check("zwei echte Punkte zaehlen",
+  app.countLineFeaturePoints(line([[1, 2], [3, 4]])) === 2);
+check("ein einzelner echter Punkt zaehlt",
+  app.countLineFeaturePoints(line([[1, 2]])) === 1);
+check("unvollstaendiges Paar zaehlt nicht",
+  app.countLineFeaturePoints(line([[1]])) === 0);
+check("NaN und Unendlich zaehlen nicht",
+  app.countLineFeaturePoints(line([[NaN, 1], [1, Infinity]])) === 0);
+check("null-Eintraege zaehlen nicht",
+  app.countLineFeaturePoints(line([null, [1, 2]])) === 1);
+check("echte Punkte neben leeren Ringen werden gezaehlt",
+  app.countLineFeaturePoints(line([[], [1, 2], [], [3, 4]])) === 2);
+
+/* Dieselbe Zaehlung entscheidet, was beim Verbinden als leer gilt. */
+check("leerer Platzhalter gilt als leer",
+  app.isEmptyLineFeature(line([])) === true);
+check("Platzhalter mit leerem Ring gilt ebenfalls als leer",
+  app.isEmptyLineFeature(line([[]])) === true);
+check("ein echter Punkt ist NICHT leer",
+  app.isEmptyLineFeature(line([[1, 2]])) === false);
 
 /* -------------------------------------------------------------------- */
 console.log(
