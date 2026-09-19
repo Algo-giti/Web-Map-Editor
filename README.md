@@ -294,6 +294,8 @@ nicht selbst verifizieren.
   bleiben
 - eine neu entstandene Fläche zeigt keinen Vergleich: sie hat keinen Zustand
   von vorher
+- die Vorher-Ghosts lassen sich im Menü „Ansicht“ ausblenden; der Schalter
+  gilt für die laufende Sitzung
 - Speichern setzt einen neuen Vergleichs-/Reset-Checkpoint
 
 ### Deutsch / English

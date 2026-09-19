@@ -30,6 +30,7 @@
 
 import {
   createChecker,
+  createMenueBefehl,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -101,6 +102,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -546,6 +548,104 @@ try {
     check(`${name}: aber er zeigt auf keinen Punkt mehr`,
       (await linien()).length === 0, JSON.stringify(await linien()));
   }
+
+  /* ---------------------------------------------------------------- */
+  console.log("Das Ghosting lässt sich im Menü „Ansicht“ abschalten");
+
+  await laden();
+
+  await waehlePunkt(2, 0);
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(250);
+
+  check("eingeschaltet steht der Ghost da",
+    (await geister()).length === 1, String((await geister()).length));
+
+  await menueBefehl("Ansicht", "Vorher-Ghosts anzeigen");
+  await page.waitForTimeout(250);
+
+  check("abgeschaltet ist kein Ghost mehr gezeichnet",
+    (await geister()).length === 0, String((await geister()).length));
+  check("und auch keine Vergleichslinie",
+    (await linien()).length === 0, JSON.stringify(await linien()));
+
+  /*
+   * Ein Auswahlwechsel baut die Gruppe neu auf - der Schaltzustand darf das
+   * nicht vergessen. Gewählt werden zwei Punkte desselben Rings: damit steht
+   * zugleich die Vorschau des Begradigens da, und die ist KEIN Ghost.
+   */
+  await page.evaluate(() => {
+    setVertexSelection([
+      { featureIndex: 2, containerPath: [0], pointIndex: 0 },
+      { featureIndex: 2, containerPath: [0], pointIndex: 2 },
+    ]);
+    renderGeometry();
+    updateSelectionPanel();
+  });
+  await page.waitForTimeout(250);
+
+  check("der Schaltzustand überlebt den Auswahlwechsel",
+    (await geister()).length === 0, String((await geister()).length));
+  check("die Vorschau des Begradigens steht trotzdem da",
+    await page.evaluate(() =>
+      document.querySelectorAll(
+        "#toolPreviewGroup .straighten-preview-line").length === 1),
+    await page.evaluate(() =>
+      String(document.querySelectorAll(
+        "#toolPreviewGroup .straighten-preview-line").length)));
+
+  await menueBefehl("Ansicht", "Vorher-Ghosts anzeigen");
+  await page.waitForTimeout(250);
+
+  check("wieder eingeschaltet steht der Ghost wieder da",
+    (await geister()).length === 1, String((await geister()).length));
+
+  /* Der Eintrag selbst, in beiden Richtungen. */
+  const eintrag = () => page.evaluate(() =>
+    document.getElementById("showSelectionGhosts")
+      ?.closest("label")?.textContent?.trim() || "");
+
+  check("deutsch heißt der Eintrag „Vorher-Ghosts anzeigen“",
+    (await eintrag()) === "Vorher-Ghosts anzeigen", await eintrag());
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(250);
+
+  check("auf deutsch gestartet, dann englisch: der Eintrag ist übersetzt",
+    (await eintrag()) === "Show previous-position ghosts", await eintrag());
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(250);
+
+  check("und zurückgeschaltet steht wieder der deutsche Eintrag",
+    (await eintrag()) === "Vorher-Ghosts anzeigen", await eintrag());
+
+  /*
+   * Und er wirkt auch in der englischen Oberfläche. Angesprochen wird er
+   * über den Text, der wirklich dasteht - ein fest geschriebener englischer
+   * Name träfe bei fehlender Übersetzung nichts und liefe in einen stummen
+   * Timeout statt in die benannte Zusicherung darüber.
+   */
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(250);
+
+  const englisch = await eintrag();
+
+  await menueBefehl("View", englisch);
+  await page.waitForTimeout(250);
+
+  check("englisch abgeschaltet: kein Ghost",
+    (await geister()).length === 0, String((await geister()).length));
+
+  await menueBefehl("View", englisch);
+  await page.waitForTimeout(250);
+
+  check("englisch wieder eingeschaltet: der Ghost ist zurück",
+    (await geister()).length === 1, String((await geister()).length));
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(200);
 
   /* ---------------------------------------------------------------- */
   check("keine Konsolenfehler", consoleErrors.length === 0,

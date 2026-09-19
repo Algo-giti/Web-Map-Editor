@@ -1156,7 +1156,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->47 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->51 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -3539,6 +3539,55 @@ ersten stimmt die Anzeige weiter, weil die Koordinatenreferenz lebt – falsch
 wird erst die zweite: `markFeatureBaselinesDeleted()` erkennt „ihre" Punkte
 auch am Index samt Anzeigenamen, und der zeigt ohne Neuverankerung auf die
 inzwischen umbenannte Nachbarfläche. Auch hier riss die erste Fassung nichts.
+
+### Das Ghosting lässt sich abschalten
+
+**Der Schalter steht im Menü „Ansicht" und heißt „Vorher-Ghosts anzeigen"**
+(englisch „Show previous-position ghosts"). Der Name ist der, den das
+Hilfe-Overlay seit jeher benutzt – eine zweite Bezeichnung für dieselbe Sache
+wäre die teurere Wahl gewesen.
+
+**Kein `localStorage`.** Der Wunsch gilt der laufenden Sitzung; ein Gedächtnis
+bekommt nur, was dauerhaft gemeint ist – dieselbe Regel, an der der
+Behelfsschalter der Seitenleiste keines bekam. Der Zustand steht damit an
+genau einer Stelle, im Kontrollkästchen selbst, und wird dort gelesen
+(`renderSelectionGhost()`), nicht in eine Modulvariable gespiegelt. Das ist
+die Machart von `#showMowerPreview`.
+
+**Abgeschaltet verschwindet die VERGANGENHEIT, nicht die Vorschau.** Der
+Schalter greift nach den drei Werkzeugvorschauen und vor der Schleife über die
+Vergleichszustände: Begradigen, Reduzieren und Rechtwinklig zeigen einen
+Vorschlag für die Zukunft, liegen seit dem einundzwanzigsten Durchgang in
+`#toolPreviewGroup` und bleiben stehen. Die Entscheidung ist zugesichert – mit
+abgeschaltetem Ghosting steht die Linie des Begradigens weiterhin da.
+
+**Zugesichert in `tools/test-ghosting.mjs`** nach der Wirkung: kein Ghost und
+keine Vergleichslinie mehr, der Schaltzustand überlebt einen Auswahlwechsel,
+und beide Sprachrichtungen über `setLanguage()` – dazu ein Aus- und
+Einschalten in der **englischen** Oberfläche. Der englische Menüeintrag wird
+dabei über den Text angesprochen, der wirklich dasteht; ein fest
+geschriebener Name träfe bei fehlender Übersetzung nichts und liefe in einen
+stummen Timeout statt in die benannte Zusicherung darüber.
+
+**Vier Mutationen, je eine Schreibstelle, je 0 Timeouts:**
+
+| Mutation | gerissene Zusicherungen |
+|---|---|
+| die Abfrage in `renderSelectionGhost()` entfernt | **4**, darunter „und auch keine Vergleichslinie" mit der Linie als Detail |
+| der `change`-Horcher entfernt | **4** – das Umschalten wirkt erst beim nächsten Neuzeichnen |
+| das Häkchen im Markup entfernt, der Schalter startet also aus | **36** |
+| der Wörterbucheintrag entfernt | **1** – „auf deutsch gestartet, dann englisch: der Eintrag ist übersetzt" |
+
+**Die dritte ist ein Holzhammer, und das ist kein Mangel, sondern ihre
+Aussage:** ohne Häkchen ist das Ghosting in der ganzen Datei aus, und jede
+Zusicherung über einen Ghost fällt. Sie belegt damit die Vorgabe „beim Start
+eingeschaltet" und sonst nichts – die drei anderen isolieren.
+
+**BENANNTE LÜCKE: der Satz im Hilfe-Overlay ist nicht zugesichert.** Er nennt
+den Schalter („im Menü ‚Ansicht' lassen sie sich ausblenden"), und keine
+Zusicherung liest ihn – wie bei den meisten Sätzen des Overlays, das mit
+Etappe 10 ohnehin neu geschrieben wird. Seine Übersetzung deckt dagegen
+`tools/scan-i18n.mjs` ab: über alle 24 Zustände meldet es **NEU 0**.
 
 ## Kartenfarben
 

@@ -271,6 +271,8 @@ same physical base.
 - one drag operation equals one Undo step
 - original positions can remain visible for comparison until saving
 - a newly created area shows no comparison: it has no previous state
+- the previous-position ghosts can be hidden from the View menu; the switch
+  applies to the current session
 - saving establishes a new comparison/reset checkpoint
 
 ### German / English
