@@ -701,6 +701,158 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(250);
 
+    /* ---------------------------------------------------------------- */
+  console.log("Die Vorschau zeigt die Eckpunkte, und das Feld steuert sie");
+
+  /*
+   * Warum hier NICHT elementGetroffen() steht: die Vorschau traegt
+   * `pointer-events:none`, damit sie Kartenklicks nicht schluckt - ein
+   * Zeichenklick muss durch sie hindurch auf die Karte gehen.
+   * document.elementFromPoint() liefert an ihrer Stelle deshalb
+   * bauartbedingt das svg darunter, und eine Trefferpruefung auf den Marker
+   * selbst koennte nie gelingen. Gemessen wird stattdessen, was davon
+   * uebrig bleibt und trotzdem eine WIRKUNG ist: der Marker hat ein
+   * Rechteck, seine Mitte liegt auf der gezeichneten Karte und wird von
+   * nichts ausserhalb der Karte verdeckt, und er traegt den Entwurfston.
+   *
+   * Die erwartete Zahl kommt aus dem FELD, nie als Zahl im Test: sonst
+   * pruefte die Zusicherung eine Erinnerung an einen Messtag.
+   */
+  const eckenAusFeld = async () =>
+    Number(await page.inputValue("#circleVerticesInput"));
+
+  const eckMarker = () => page.evaluate(() => {
+    const svg = document.getElementById("svg");
+    const kasten = svg.getBoundingClientRect();
+    const alsRgb = (farbe) => {
+      const probe = document.createElement("span");
+      probe.style.color = farbe;
+      document.body.appendChild(probe);
+      const rgb = getComputedStyle(probe).color;
+      probe.remove();
+      return rgb;
+    };
+    const entwurf = alsRgb(getComputedStyle(document.documentElement)
+      .getPropertyValue("--map-draft").trim());
+
+    const marker = [...document.querySelectorAll(".draw-preview .draw-preview-point")];
+
+    return {
+      anzahl: marker.length,
+      entwurf,
+      lagen: marker.map((m) => {
+        const r = m.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const y = r.top + r.height / 2;
+        const treffer = document.elementFromPoint(x, y);
+        return {
+          gezeichnet: r.width > 0 && r.height > 0,
+          aufDerKarte:
+            x >= kasten.left && x <= kasten.right &&
+            y >= kasten.top && y <= kasten.bottom,
+          freiLiegend: !!treffer && (treffer === svg || svg.contains(treffer)),
+          fuellung: getComputedStyle(m).fill,
+        };
+      }),
+    };
+  });
+
+  const alleMarkerGut = (lage) =>
+    lage.lagen.length > 0 &&
+    lage.lagen.every((m) =>
+      m.gezeichnet && m.aufDerKarte && m.freiLiegend &&
+      m.fuellung === lage.entwurf);
+
+  await reload();
+  await page.locator("#drawCircleBtn").click();
+  await page.waitForTimeout(250);
+  await page.fill("#circleRadiusInput", "3");
+  await page.waitForTimeout(200);
+  await clickMap(30, 30);
+
+  {
+    const soll = await eckenAusFeld();
+    const lage = await eckMarker();
+
+    check(`Kreisvorschau: so viele Eckpunktmarker wie das Feld sagt (${soll})`,
+      lage.anzahl === soll, `${lage.anzahl} gegen ${soll}`);
+    check("und jeder liegt sichtbar auf der Karte, im Entwurfston",
+      alleMarkerGut(lage), JSON.stringify(lage.lagen.slice(0, 2)));
+  }
+
+  /* Weniger Ecken: die Zahl folgt dem Feld sofort, ohne weiteren Klick. */
+  await page.fill("#circleVerticesInput", "8");
+  await page.waitForTimeout(250);
+
+  {
+    const soll = await eckenAusFeld();
+    const lage = await eckMarker();
+
+    check(`nach dem Verkleinern des Feldes sind es entsprechend weniger (${soll})`,
+      lage.anzahl === soll, `${lage.anzahl} gegen ${soll}`);
+    check("und auch diese liegen sichtbar auf der Karte",
+      alleMarkerGut(lage), JSON.stringify(lage.lagen.slice(0, 2)));
+  }
+
+  /* Und mehr Ecken ebenso - die Gegenrichtung. */
+  await page.fill("#circleVerticesInput", "40");
+  await page.waitForTimeout(250);
+
+  const mehrSoll = await eckenAusFeld();
+
+  {
+    const lage = await eckMarker();
+
+    check(`nach dem Vergroessern entsprechend mehr (${mehrSoll})`,
+      lage.anzahl === mehrSoll, `${lage.anzahl} gegen ${mehrSoll}`);
+    check("und auch diese liegen sichtbar auf der Karte",
+      alleMarkerGut(lage), JSON.stringify(lage.lagen.slice(0, 2)));
+  }
+
+  /*
+   * Der eigentliche Beleg dafuer, dass die Vorschau zeigt, was entsteht: die
+   * fertige Exclusion hat genauso viele Punktmarker, wie die Vorschau Ecken
+   * gezeigt hat. Beide Zahlen sind gemessen, keine steht als Literal da.
+   */
+  const markerVorher = await page.evaluate(() =>
+    document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length);
+
+  await finishShape();
+
+  const markerNachher = await page.evaluate(() =>
+    document.querySelectorAll('#vertexGroup circle[data-layer="exclusion"]').length);
+
+  check("nach dem Abschliessen stehen genau diese Eckpunkte als Punktmarker da",
+    markerNachher - markerVorher === mehrSoll,
+    `${markerVorher} -> ${markerNachher}, erwartet +${mehrSoll}`);
+
+  check("und die Vorschau ist weg", (await eckMarker()).anzahl === 0,
+    String((await eckMarker()).anzahl));
+
+  /*
+   * Das Rechteck bekommt seine vier Ecken aus derselben Quelle - ohne eine
+   * Modus-Aufzaehlung im Vorschaucode. Die erwartete Zahl kommt aus
+   * shapePointsAt() selbst, nicht aus einer 4 im Test.
+   */
+  await reload();
+  await page.locator("#drawRectangleBtn").click();
+  await page.waitForTimeout(250);
+  await clickMap(30, 30);
+
+  {
+    const soll = await page.evaluate(() =>
+      shapePointsAt("rectangle", [0, 0]).length);
+    const lage = await eckMarker();
+
+    check(`Rechteckvorschau: so viele Eckpunktmarker wie Formpunkte (${soll})`,
+      lage.anzahl === soll, `${lage.anzahl} gegen ${soll}`);
+    check("und auch dort liegt jeder sichtbar auf der Karte",
+      alleMarkerGut(lage), JSON.stringify(lage.lagen.slice(0, 2)));
+  }
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
     check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
 } finally {

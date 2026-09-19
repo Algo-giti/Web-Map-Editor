@@ -1767,6 +1767,38 @@ heißt „setz hier einen Punkt", und eine Form hat genau **einen** – „einen
 Punkt setzen, wo schon einer ist" heißt dort zwangsläufig „den Punkt
 verschieben". Erzeugen wäre eine versteckte zweite Abschlussgeste.
 
+**Die Vorschau zeigt die ECKPUNKTE der wartenden Form, nicht nur ihren
+Umriss.** Jeder Punkt aus `shapePointsAt()` bekommt einen Marker im
+Entwurfston – dieselben Stellen, an denen nach dem Abschließen die
+Punktmarker sitzen. Der Zweck ist die Eckpunktzahl des Kreises: wer sie im
+Feld ändert, sieht sofort, wieviele Punkte dabei herauskommen, statt es
+hinterher an der fertigen Exclusion abzuzählen. Gestrichelte Kontur und
+Mittelpunkt bleiben, wie sie waren.
+
+**Sie kommen aus derselben Quelle wie die Erzeugung** und können deshalb
+nicht auseinanderlaufen – deswegen trägt das **Rechteck** seine vier Ecken
+ebenso, ohne dass eine Modus-Aufzählung nötig wäre. Sie tragen
+`draw-preview-point`, also die **gefüllte** Form des gesetzten Punktes: die
+Ecken stehen fest, sobald der Bezugspunkt steht. Der hohle
+`draw-preview-pointer` bleibt dem Mittelpunkt vorbehalten.
+
+**Zugesichert wird die Zahl gegen das FELD, nie gegen eine Zahl im Test**
+(`tools/test-shapes.mjs`): so viele Marker wie „Eckpunkte" sagt, nach dem
+Ändern des Feldes entsprechend weniger und mehr, und nach dem Abschließen
+genauso viele neue Punktmarker an der Exclusion.
+
+**Warum dort NICHT `elementGetroffen()` steht, und das ist eine Grenze der
+Methode:** die Vorschau trägt `pointer-events:none`, damit sie Kartenklicks
+nicht schluckt – ein Zeichenklick muss durch sie hindurchgehen.
+`document.elementFromPoint()` liefert an ihrer Stelle deshalb bauartbedingt
+das `svg` darunter, und eine Trefferprüfung auf den Marker selbst könnte
+**nie** gelingen. Gemessen wird stattdessen, was davon übrig bleibt und
+trotzdem eine Wirkung ist: der Marker hat ein Rechteck, seine Mitte liegt
+auf der gezeichneten Karte, sie wird von nichts außerhalb der Karte
+verdeckt, und die Füllung ist der Entwurfston. **Wer die Trefferprüfung
+nachrüsten will, müsste der Vorschau die Zeigerereignisse zurückgeben – das
+wäre der teurere Fehler.**
+
 **„Letzten Punkt entfernen" ist bei Formen AUSGEBLENDET, nicht gesperrt.**
 Kreis und Rechteck entstehen aus einem Bezugspunkt und den eingestellten
 Maßen; einen „letzten Punkt" gibt es dort nicht. Der Knopf hätte genau eine

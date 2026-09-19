@@ -8890,12 +8890,42 @@ function renderFeatureDrawPreview() {
     outline.setAttribute("class", "draw-preview-polygon");
     featureDrawGroup.appendChild(outline);
 
+    /*
+     * Die Eckpunkte der wartenden Form stehen als Marker da - dieselben
+     * Stellen, an denen nach dem Abschließen die Punktmarker sitzen. Der
+     * Zweck ist die Eckpunktzahl des Kreises: wer sie im Feld ändert, sieht
+     * sofort, wieviele Punkte dabei herauskommen, statt es nach dem
+     * Abschließen an der fertigen Exclusion abzuzählen.
+     *
+     * Die Punkte kommen aus `shape` und damit aus `shapePointsAt()` - der
+     * einen Quelle, aus der auch die Erzeugung schöpft. Sie können deshalb
+     * nicht auseinanderlaufen, und die Marker stehen beim Rechteck auf seinen
+     * vier Ecken, ohne dass eine Modus-Aufzählung nötig wäre.
+     *
+     * Sie tragen `draw-preview-point`, also den Entwurfston und die gefüllte
+     * Form des GESETZTEN Punktes der freien Zeichnung. Die Ecken sind
+     * gesetzt, sobald der Bezugspunkt steht - anders als der hohle Zeiger,
+     * der den noch nicht gesetzten Punkt meint.
+     */
+    const shapeRadius = Math.max(view.w, view.h) / 500;
+
+    shape.forEach(([east, north]) => {
+      const corner =
+        document.createElementNS("http://www.w3.org/2000/svg", "circle");
+
+      corner.setAttribute("cx", east);
+      corner.setAttribute("cy", -north);
+      corner.setAttribute("r", shapeRadius);
+      corner.setAttribute("class", "draw-preview-point");
+      featureDrawGroup.appendChild(corner);
+    });
+
     const centreMark =
       document.createElementNS("http://www.w3.org/2000/svg", "circle");
 
     centreMark.setAttribute("cx", origin[0]);
     centreMark.setAttribute("cy", -origin[1]);
-    centreMark.setAttribute("r", Math.max(view.w, view.h) / 500);
+    centreMark.setAttribute("r", shapeRadius);
     centreMark.setAttribute("class", "draw-preview-pointer");
     featureDrawGroup.appendChild(centreMark);
 
