@@ -1696,8 +1696,8 @@ unterschiedliche Polygon-Vertices. Erster eindeutiger Punkt = Start, letzter
 eindeutiger Punkt = Ende.
 
 **Exclusion-Löschung:** Sind alle editierbaren Vertices einer Exclusion
-ausgewählt (Rahmen, Lasso oder Ctrl+Klick), entfernt „Auswahl löschen" im
-Inspektor die **komplette** Exclusion. Teilauswahl löscht nur die ausgewählten Punkte
+ausgewählt (Rahmen, Lasso oder Ctrl+Klick), entfernt „Punkt löschen" die
+**komplette** Exclusion. Teilauswahl löscht nur die ausgewählten Punkte
 (mind. 3 verbleibende Vertices). Nach vollständiger Löschung: verbleibende
 Exclusions neu nummerieren, Undo muss funktionieren. Der frühere separate
 "Exclusion löschen"-Button im Punkteditor wurde entfernt – nicht ohne
@@ -2986,7 +2986,7 @@ Dieselbe Regel gilt seit Etappe 3 für die Zeichenknöpfe der Werkzeugleiste.
 
 **Ein Block kann zu mehreren Zuständen gehören.** `INSPECTOR_BLOCKS` ist
 deswegen eine Liste aus `{id, states}` und keine Zuordnung Zustand → Block:
-die Auswahlaktionen („Auswahl löschen", „Auswahl aufheben") gelten in allen
+die Auswahlaktionen („Punkt löschen", „Auswahl aufheben") gelten in allen
 vier Auswahlzuständen, und sie zu kopieren wäre eine doppelte id.
 
 **Der Kopfblock darf nie etwas anderes sagen als der Block darunter.** Bis
@@ -3019,19 +3019,25 @@ Betroffen sind `#featureAreaRow`, `#featureIdxRow`, `#duplicateFeatureBtn` und
 Das widerspricht dem festen Kopfblock nicht: **der Kopfblock bleibt fest, die
 Kennzahlen darunter dürfen sich in der Zahl unterscheiden.**
 
-**Die Punktknöpfe stehen zweispaltig, „Punkt löschen" allein.** Davor/danach
-und Start/Ende sind **Paare**; fünf gleich breite Zeilen behaupteten dagegen
-fünf gleichrangige Aktionen. Löschen bleibt einzeln über die volle Breite,
-weil es die einzige zerstörende Aktion im Block ist und nicht wie ein
-Paarpartner aussehen soll.
+**Die Punktknöpfe stehen zweispaltig, in zwei Paaren.** Davor/danach und
+Start/Ende gehören jeweils zusammen; vier gleich breite Zeilen behaupteten
+dagegen vier gleichrangige Aktionen.
+
+**„Punkt löschen" gehört seit dem zweiundzwanzigsten Durchgang NICHT mehr
+dazu.** Er stand dort als fünfter, allein über die volle Breite, und liegt
+jetzt in `#inspectorSelection` neben „Auswahl aufheben" – siehe „Es gibt
+genau einen Löschweg" weiter unten. Der Grund ist nicht die Anordnung,
+sondern die Zuständigkeit: der Knopf löscht die ganze Auswahl und gilt damit
+in allen vier Auswahlzuständen, `#pointActions` nur bei genau einem Punkt.
 
 **Zweispaltig unabhängig von der Fensterhöhe.** Eine Anordnung, die nur unter
 900 px erschiene, würde nie durchgeklickt und beim nächsten Umbau vergessen.
 
-Die **Tab-Reihenfolge folgt den Paaren** – davor, danach, Start, Ende, löschen
-–, weil sie bei einem zweispaltigen Raster die DOM-Reihenfolge ist. Genau das
-kann eine spätere Umsortierung im Markup oder ein `order`/`grid-area` in CSS
-lautlos zerreißen; der Test hält die Kette fest.
+Die **Tab-Reihenfolge folgt den Paaren** – davor, danach, Start, Ende, dann
+löschen und aufheben aus dem Auswahlblock –, weil sie bei einem zweispaltigen
+Raster die DOM-Reihenfolge ist. Genau das kann eine spätere Umsortierung im
+Markup oder ein `order`/`grid-area` in CSS lautlos zerreißen; der Test hält
+die Kette über beide Blöcke hinweg fest.
 
 **Die Spalte ist 139 px breit** – gemessen, nicht gerechnet: 320 minus
 Polsterung, minus 12 px Rollbalken, minus Abstand, halbiert. Der schmale Fall
@@ -3047,8 +3053,8 @@ still über den Rand:
    „Punkt" stand viermal da, wo ohnehin nur ein Punkt gemeint sein kann. Der
    Erklärtext, der den Knopf beim Namen nennt, ist mitgezogen.
 2. Das reichte nicht: bei der geerbten Schriftgröße von 16 px fehlten
-   weiterhin 4 bis 8 px. **Diese vier Knöpfe tragen deshalb 14 px**, „Punkt
-   löschen" behält die normale Größe. Das kostet keine Information, während
+   weiterhin 4 bis 8 px. **Diese vier Knöpfe tragen deshalb 14 px.** Das
+   kostet keine Information, während
    die naheliegende Alternative („Start setzen" statt „Startpunkt setzen")
    einen im Editor definierten Begriff verwässert hätte – „Startpunkt" steht
    so in der Legende und in der Rollenanzeige.
@@ -3059,6 +3065,67 @@ bei 16 px. **Der Test misst die Eigenbreite einer Kopie mit
 `scrollWidth` meldet den Überlauf bei `overflow:visible` nicht, und eine Kopie
 außerhalb von `#inspectorPoint` muss Schrift und Polsterung vom Original
 übernehmen, sonst misst man 16 px statt der echten 14.
+
+**Es gibt genau einen Löschweg, und er heißt „Punkt löschen".** Der Knopf
+ruft `deleteSelectedVertices()` und nimmt damit die **ganze** Auswahl; die
+Taste Entf nimmt denselben Weg. Ein zweiter Knopf „Auswahl löschen"
+(`#deleteMultiSelectionBtn`) stand bis zum zweiundzwanzigsten Durchgang
+daneben und rief dieselbe Funktion.
+
+**Die beiden waren aber nicht gleichwertig – gemessen, nicht angenommen.**
+`deleteSelectedPoint()` setzte die Auswahl über `setVertexSelection()` erst
+auf `selectedVertex` zurück und löschte dann. An einem Perimeter mit acht
+Ecken und drei gewählten Punkten:
+
+| | Ring danach |
+|---|---|
+| `deleteSelectedPoint()` (der alte Knopf „Punkt löschen") | 8 → 7 Punkte – **einer** |
+| `deleteSelectedVertices()` (der alte Knopf „Auswahl löschen") | 8 → 5 Punkte – **alle drei** |
+
+Ein Knopf, der weniger tut, als er anbietet, ist schlimmer als zwei Knöpfe:
+sichtbar war der Unterschied nicht, denn `#pointActions` gilt nur im Zustand
+`single`, wo beide dasselbe taten. **Deshalb ist nicht der Knopf entfallen,
+sondern erst der Unterschied** – `deleteSelectedPoint()` gibt es nicht mehr,
+und „Punkt löschen" hängt unmittelbar an `deleteSelectedVertices()`.
+
+**Der Knopf liegt seitdem in `#inspectorSelection`, nicht in
+`#pointActions`.** Das folgt aus derselben Tatsache: er gilt für jede
+Auswahl, und `#inspectorSelection` ist der Block, der in allen vier
+Auswahlzuständen steht. In `#pointActions` wäre er bei einer Mehrfachauswahl
+gar nicht sichtbar – und genau dort wird er gebraucht.
+
+**Seine Freigabe und sein Tooltip stehen an EINER Stelle**, in
+`updateMultiSelectionUi()`, und hängen an der Auswahlzahl.
+`updateSelectionPanel()` fasst ihn nicht mehr an; dort hing er an
+`selectedVertex` und wäre bei mehreren gewählten Punkten gesperrt gewesen.
+Zwei Schreiber auf demselben Attribut laufen auseinander.
+
+**Die drei Punktknöpfe ohne Erklärung sind versorgt.** „Davor einfügen" und
+„Danach einfügen" tragen jetzt einen `title`, der die Wirkung nennt – neuer
+Punkt auf der **Mitte** der Kante zum Nachbarn, Geometrie unverändert, nur in
+Polygonringen. „Punkt löschen" bekommt seine Erklärung aus derselben
+abgeleiteten Quelle wie vorher der entfallene Nachbar; im Markup steht
+weiterhin kein `title`, weil `updateMultiSelectionUi()` ihn schon vor der
+ersten geladenen Karte setzt und ein Markup-Text damit zu keinem Zeitpunkt
+dastünde. `tools/test-inspector.mjs` sichert für **jeden** gerenderten Knopf
+der Leiste zu, dass er eine Erklärung trägt, und zwar in beiden Sprachen.
+
+**Sieben Mutationen belegen das, je eine Schreibstelle, je 0 Timeouts:**
+
+| Mutation | gerissene Zusicherungen |
+|---|---|
+| der Knopf setzt die Auswahl wieder auf `selectedVertex` zurück | **2** – „„Punkt löschen" nimmt ALLE drei gewählten Punkte" (Ring `0/0 10/0 20/0 40/0 …`) und „und genau drei, nicht mehr" (9 → 8) |
+| „Auswahl löschen" steht wieder daneben | **9**, darunter „die Leiste trägt keinen Knopf „Auswahl löschen" mehr" und „sie trägt genau einen Löschknopf" |
+| `title` von „Davor einfügen" entfernt | **3**, deutsch und englisch |
+| `title` von „Danach einfügen" entfernt | **3**, deutsch und englisch |
+| die beiden neuen Wörterbucheinträge entfernt | **1** – „und keine Erklärung ist deutsch geblieben" |
+| `deleteButton.disabled = count === 0` entfernt | **3**, darunter „und „Punkt löschen" ist bei einer Mehrfachauswahl frei" |
+| `#deletePointBtn { grid-column:1 / -1 }` wieder eingesetzt | **3**, darunter „und Löschen ist halb so breit wie der Block" |
+
+**Die sechste zeigt den Wächter bei der Arbeit**: die Zusicherung reißt, und
+der Klick auf den gesperrten Knopf unterbleibt, weil der ganze Abschnitt an
+ihrem Ergebnis hängt. Ohne diese Bindung wäre aus der klaren Ablehnung ein
+stummer Timeout geworden – dieselbe Regel wie bei `klickeFreienKnopf()`.
 
 **`#pointMeta` trägt nur noch die Punktrolle.** Bis Etappe 5 wiederholte es
 Punktnummer, Feature und Geometrietyp – also genau das, was der feste
@@ -5122,7 +5189,7 @@ damit in die Gruppe „Namen von Symbolknöpfen", die ausdrücklich **nicht** zu
 das ist der Punkt dieser Nachschau: die Liste war nicht zu lang, sondern zu
 kurz.
 
-**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->38 Fundstellen –
+**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->40 Fundstellen –
 und ein genannter Wortlaut steht zur Laufzeit nirgends.** Beides fiel bei der
 Bestandsaufnahme zur Kontext-Knopfleiste an; es ist ein Beifang und wird hier
 richtiggestellt, nicht gelöscht.
@@ -5134,11 +5201,14 @@ deshalb durch:
 
 | Fundstelle | was sie setzt |
 |---|---|
-| `updateMultiSelectionUi()`, `deleteButton.title =` | den Erklärtext von `#deleteMultiSelectionBtn`, abgeleitet aus der Auswahlzahl |
+| `updateMultiSelectionUi()`, `deleteButton.title =` | den Erklärtext des Löschknopfes, abgeleitet aus der Auswahlzahl – bis zum zweiundzwanzigsten Durchgang der von `#deleteMultiSelectionBtn`, seitdem der von `#deletePointBtn` |
 | `updateMultiSelectionUi()`, `snapToggle.title =` | den Ablehnungsgrund des Rasterfangs bei unbekanntem Maßstab |
 | `updateMultiSelectionUi()`, `straightenButton.title =` | `TRANSFORM_TOOL_HELP.straightenSelectionBtn` |
 
-**Es sind damit <!-- bestand: title-markup -->22 im Markup und <!-- bestand: title-js -->16 per JS.** Dass ausgerechnet das Muster über
+**Es sind damit <!-- bestand: title-markup -->24 im Markup und <!-- bestand: title-js -->16 per JS.** Zwei der Markup-Titel sind mit dem
+zweiundzwanzigsten Durchgang dazugekommen – die Erklärungen von „Davor
+einfügen" und „Danach einfügen", die vorher gar keine hatten. Dass
+ausgerechnet das Muster über
 Zeilengrenzen versagte, ist in dieser Datei schon einmal gemessen worden – bei
 der Locator-Suche aus Schritt 11 des vierten Durchgangs, wo der bekannte
 Treffer umgebrochen war und die einzeilige Fassung ihn nicht fand. **Es ist
@@ -9295,6 +9365,15 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   war enger als die Frage. Für eine Knopfleiste ist das der interessantere
   Fall: sie müsste für diese drei etwas erfinden, nicht etwas umziehen.
 
+  **ERLEDIGT mit dem zweiundzwanzigsten Durchgang: alle drei haben eine.**
+  „Davor einfügen" und „Danach einfügen" tragen einen `title` im Markup, der
+  die Wirkung nennt und nicht den Namen wiederholt; „Punkt löschen" bekommt
+  seine aus `updateMultiSelectionUi()`, seit er den entfallenen Nachbarn
+  „Auswahl löschen" beerbt hat. Die Tabelle darüber beschreibt den Stand von
+  `a2f1f92` und bleibt als Messung stehen. **Erfunden werden musste nur für
+  zwei der drei etwas** – der dritte hat eine geerbt, und das ist der
+  Nebengewinn der Zusammenlegung.
+
   **Von den 13 „gebrauchten" Markup-Erklärungen der 8b-Liste hängen VIER an
   einer Punktauswahl** und fielen damit in eine solche Leiste:
   `#setStartPointBtn`, `#setEndPointBtn`, `#deleteMultiSelectionBtn`,
@@ -9393,7 +9472,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
 
   | Datei | prüfend | nur herstellend |
   |---|---|---|
-  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**55** | 12 |
+  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**56** | 15 |
   | `tools/test-merge.mjs` | 5 | 5 |
   | `tools/test-map-switch.mjs` | 1 | 2 |
   | `tools/test-dockpath.mjs` | – | 2 |
@@ -9402,7 +9481,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-toolbar.mjs` | – | 1 |
   | `tools/test-validation.mjs` | – | 3 |
   | `tools/test-i18n-dynamic.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**61** | <!-- bestand: zusicherungen-herstellend -->**31** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**62** | <!-- bestand: zusicherungen-herstellend -->**33** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -9410,6 +9489,15 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   dazu, drei weitere prüfende und eine herstellende aus den Symbolen des
   neunzehnten Durchgangs, und eine herstellende aus dem Löschknopf-Abschnitt
   des zwanzigsten. Sie stehen sämtlich in `tools/test-inspector.mjs`.
+
+  **Der zweiundzwanzigste Durchgang hat eine prüfende und drei herstellende
+  hinzugefügt und `deleteMultiSelectionBtn` aus der Bezeichnerliste
+  genommen** – der Knopf existiert nicht mehr, und ein Name der Handliste,
+  den es in `index.html` nicht gibt, ist ein eigener Befund des Prüfers. Die
+  neuen Zusicherungen stehen in `tools/test-inspector.mjs`; dass so viele
+  davon als *herstellend* zählen, liegt an der Methode und nicht an ihnen:
+  sie lesen die Leiste über einen Helfer, der Bezeichner steht damit im
+  Vorlauf und nicht im `check()`-Aufruf.
 
   **Seit dem einundzwanzigsten Durchgang steht eine achte Datei in der
   Tabelle, und `tools/test-inspector.mjs` hat zwei prüfende dazubekommen** –

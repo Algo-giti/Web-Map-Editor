@@ -204,7 +204,6 @@ const AUSWAHLBEZEICHNER = [
   "featureIdxStat",
   "duplicateFeatureBtn",
   "inspectorSelection",
-  "deleteMultiSelectionBtn",
   "clearMultiSelectionBtn",
   "inspectorTitle",
   "inspectorSubtitle",

@@ -252,6 +252,19 @@ try {
   check("deutsch: die Auswahlleiste nennt ihren Zuklappgriff",
     hilfeDe.includes("über den Griff an ihrem Kopf zuklappen"),
     hilfeDe.slice(0, 200));
+  /*
+   * Der Loeschknopf heisst seit dem zweiundzwanzigsten Durchgang „Punkt
+   * loeschen" - „Auswahl loeschen" gibt es nicht mehr. Ein Hilfetext, der
+   * einen Knopf beim Namen nennt, veraltet genau dann; die Liste in
+   * CLAUDE.md, Abschnitt 7 fuehrt drei solche Faelle.
+   *
+   * Geprueft wird die Nennung IN ANFUEHRUNGSZEICHEN: „Entf / Backspace:
+   * Auswahl loeschen." beschreibt die Handlung und nicht den Knopf und bleibt
+   * unveraendert richtig.
+   */
+  check("deutsch: die Hilfe nennt den Loeschknopf bei seinem heutigen Namen",
+    hilfeDe.includes("„Punkt löschen“") && !hilfeDe.includes("„Auswahl löschen“"),
+    hilfeDe.slice(0, 200));
 
   await page.evaluate(() => setLanguage("en"));
   await page.waitForTimeout(400);
@@ -262,6 +275,9 @@ try {
     hilfeEn.includes("the target devices are desktop and tablet.") &&
     hilfeEn.includes("a second gesture therefore replaces the first") &&
     hilfeEn.includes("it can be collapsed using the handle at its head"),
+    hilfeEn.slice(0, 200));
+  check("englisch: auch dort heisst er „Delete point“",
+    hilfeEn.includes("“Delete point”") && !hilfeEn.includes("“Delete selection”"),
     hilfeEn.slice(0, 200));
   check("englisch: und kein deutscher Rest bleibt stehen",
     !hilfeEn.includes("Zielgeräte sind Desktop und Tablet.") &&

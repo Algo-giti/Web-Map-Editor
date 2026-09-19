@@ -62,7 +62,7 @@ In the toolbar on the left, group "Auswählen" (Select):
 
 In the inspector on the right, as soon as something is selected:
 
-- delete selection
+- delete point (deletes the whole selection)
 - clear selection
 
 In addition:
@@ -72,7 +72,7 @@ In addition:
 - hover tooltips
 - touch-friendly controls for mobile browsers
 
-When all editable vertices of an exclusion are selected, "Delete selection"
+When all editable vertices of an exclusion are selected, "Delete point"
 removes the **entire exclusion feature**. Partial selections delete only the
 selected vertices, provided the resulting polygon remains valid.
 

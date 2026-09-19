@@ -412,7 +412,7 @@ try {
     (await sichtbareBloecke()).join(",") === "inspectorPoint,inspectorSelection",
     (await sichtbareBloecke()).join(","));
   check("die Auswahlaktionen sind bedienbar",
-    !(await page.locator("#deleteMultiSelectionBtn").isDisabled()) &&
+    !(await page.locator("#deletePointBtn").isDisabled()) &&
     !(await page.locator("#clearMultiSelectionBtn").isDisabled()));
 
   /* --- zwei Punkte desselben Features ---------------------------- */
@@ -852,10 +852,10 @@ try {
     check("ein Punkt: die Leiste liegt ueber der Karte",
       lage.sichtbar && lage.imViewer && lage.ueberDerKarte,
       JSON.stringify(lage));
-    check("ein Punkt: sie traegt die fuenf Punktknoepfe und die zwei Auswahlaktionen",
+    check("ein Punkt: sie traegt die vier Punktknoepfe und die zwei Auswahlaktionen",
       lage.knoepfe.join(",") === "insertPointBeforeBtn,insertPointAfterBtn," +
-        "setStartPointBtn,setEndPointBtn,deletePointBtn," +
-        "deleteMultiSelectionBtn,clearMultiSelectionBtn",
+        "setStartPointBtn,setEndPointBtn," +
+        "deletePointBtn,clearMultiSelectionBtn",
       lage.knoepfe.join(","));
   }
 
@@ -892,7 +892,7 @@ try {
     const lage = await leiste();
     check("mehrere Punkte: nur noch die beiden Auswahlaktionen",
       lage.sichtbar && lage.ueberDerKarte &&
-      lage.knoepfe.join(",") === "deleteMultiSelectionBtn,clearMultiSelectionBtn",
+      lage.knoepfe.join(",") === "deletePointBtn,clearMultiSelectionBtn",
       JSON.stringify(lage));
   }
 
@@ -1019,7 +1019,7 @@ try {
   const PUNKT_UND_AUSWAHL = [
     "insertPointBeforeBtn", "insertPointAfterBtn", "setStartPointBtn",
     "setEndPointBtn", "deletePointBtn",
-    "deleteMultiSelectionBtn", "clearMultiSelectionBtn",
+    "clearMultiSelectionBtn",
   ];
 
   await page.keyboard.press("Escape");
@@ -1535,6 +1535,7 @@ try {
   const start = await kasten("setStartPointBtn");
   const ende = await kasten("setEndPointBtn");
   const loeschen = await kasten("deletePointBtn");
+  const aufheben = await kasten("clearMultiSelectionBtn");
 
   check("davor und danach stehen nebeneinander",
     davor.oben === danach.oben && danach.links > davor.links,
@@ -1546,14 +1547,20 @@ try {
     `${start.oben} / ${davor.oben}`);
 
   /*
-   * Löschen ist die einzige zerstörende Aktion im Block und soll nicht wie
-   * ein Paarpartner aussehen: eigene Zeile über die volle Breite.
+   * „Punkt löschen" ist der dritte Paarpartner: er steht seit diesem Durchgang
+   * nicht mehr allein über die volle Breite im Punktblock, sondern neben
+   * „Auswahl aufheben" im Auswahlblock. Der Grund ist nicht die Anordnung,
+   * sondern die Zuständigkeit - er löscht die ganze Auswahl und gilt damit in
+   * allen vier Auswahlzuständen, der Punktblock nur bei genau einem Punkt.
    */
-  check("Löschen steht allein über die volle Breite",
-    loeschen.links === davor.links &&
-    loeschen.breit > davor.breit + 100 &&
+  check("Löschen und Aufheben stehen nebeneinander, unter den Punktpaaren",
+    loeschen.oben === aufheben.oben &&
+    aufheben.links > loeschen.links &&
     loeschen.oben > start.oben,
-    `${JSON.stringify(loeschen)} vs ${JSON.stringify(davor)}`);
+    `${JSON.stringify(loeschen)} / ${JSON.stringify(aufheben)} / ${JSON.stringify(start)}`);
+  check("und Löschen ist halb so breit wie der Block, nicht volle Breite",
+    Math.abs(loeschen.breit - davor.breit) <= 1,
+    `${loeschen.breit} gegen ${davor.breit}`);
 
   /*
    * Die Tab-Reihenfolge muss den Paaren folgen. Bei einem zweispaltigen
@@ -1563,14 +1570,15 @@ try {
    */
   await page.locator("#insertPointBeforeBtn").focus();
   const reihenfolge = ["insertPointBeforeBtn"];
-  for (let i = 0; i < 4; i += 1) {
+  for (let i = 0; i < 5; i += 1) {
     await page.keyboard.press("Tab");
     reihenfolge.push(await page.evaluate(() => document.activeElement?.id));
   }
 
-  check("Tab folgt den Paaren: davor, danach, Start, Ende, löschen",
+  check("Tab folgt den Paaren: davor, danach, Start, Ende, löschen, aufheben",
     reihenfolge.join(",") ===
-      "insertPointBeforeBtn,insertPointAfterBtn,setStartPointBtn,setEndPointBtn,deletePointBtn",
+      "insertPointBeforeBtn,insertPointAfterBtn,setStartPointBtn,setEndPointBtn," +
+      "deletePointBtn,clearMultiSelectionBtn",
     reihenfolge.join(","));
 
   /*
@@ -1583,7 +1591,8 @@ try {
    * außerhalb von #inspectorPoint, wo die dortigen Regeln nicht mehr greifen.
    */
   const KNOEPFE = ["insertPointBeforeBtn", "insertPointAfterBtn",
-    "setStartPointBtn", "setEndPointBtn", "deletePointBtn"];
+    "setStartPointBtn", "setEndPointBtn", "deletePointBtn",
+    "clearMultiSelectionBtn"];
 
   const zuEng = () => page.evaluate((ids) => {
     const buehne = document.createElement("div");
@@ -2862,6 +2871,185 @@ try {
     `${(await head()).titel} | ${await text("multiSummary")}`);
 
   /* ---------------------------------------------------------------- */
+  console.log("Ein Loeschknopf fuer die ganze Auswahl");
+
+  /*
+   * „Punkt loeschen" ruft deleteSelectedVertices() und nimmt damit die GANZE
+   * Auswahl. Vorher setzte deleteSelectedPoint() die Auswahl erst auf
+   * selectedVertex zurueck: bei drei gewaehlten Punkten verschwand gemessen
+   * EINER statt dreier, waehrend der Nachbarknopf „Auswahl loeschen" alle
+   * drei nahm. Genau deshalb faellt der Nachbar weg - und genau deshalb steht
+   * die Zusicherung hier ueber der MEHRFACHAUSWAHL und nicht ueber einem
+   * einzelnen Punkt, wo beide Fassungen dasselbe taeten.
+   *
+   * Die Punkte werden ueber ihre WELTKOORDINATE angesprochen, nie ueber einen
+   * Index: ein Index verschiebt sich beim Loeschen, eine Koordinate nicht.
+   */
+  const ACHT_ECKEN = {
+    type: "Feature",
+    properties: { name: "perimeter" },
+    geometry: { type: "Polygon", coordinates: [[
+      [0, 0], [10, 0], [20, 0], [30, 0], [40, 0],
+      [40, 40], [20, 40], [0, 40], [0, 0],
+    ]] },
+  };
+
+  await load([], ACHT_ECKEN);
+
+  const ringWelt = () => page.evaluate(() =>
+    data.features[0].geometry.coordinates[0]
+      .map((c) => toWorld(c).map((v) => Math.round(v)).join("/")));
+
+  const schluesselBei = (ost, nord) => page.evaluate(([o, n]) => {
+    const treffer = enumerateEditableVertices(data.features[0], 0).find((d) => {
+      const c = toWorld(getVertexCoordinate(d));
+      return Math.abs(c[0] - o) < 1e-6 && Math.abs(c[1] - n) < 1e-6;
+    });
+    return treffer ? vertexKey(treffer) : null;
+  }, [ost, nord]);
+
+  const ZIELE = [[10, 0], [20, 0], [30, 0]];
+  const zielSchluessel = [];
+  for (const [ost, nord] of ZIELE) {
+    zielSchluessel.push(await schluesselBei(ost, nord));
+  }
+
+  const ringVorher = await ringWelt();
+
+  check("Vorbedingung: die drei Zielpunkte haben je einen Marker",
+    zielSchluessel.every((k) => !!k), zielSchluessel.join(","));
+  check("Vorbedingung: alle drei stehen im Ring",
+    ZIELE.every(([o, n]) => ringVorher.includes(`${o}/${n}`)),
+    ringVorher.join(" "));
+
+  /*
+   * Ein Locator aus einem ungeprueften Wert wartet dreissig Sekunden und
+   * endet in einem stummen Abbruch statt in einer benannten Zusicherung -
+   * deshalb haengt der ganze Abschnitt an der Vorbedingung darueber.
+   */
+  if (zielSchluessel.every((k) => !!k)) {
+    for (const [i, key] of zielSchluessel.entries()) {
+      await page.locator(`circle.vertex[data-vertex-key="${key}"]`)
+        .click(i === 0 ? {} : { modifiers: ["Control"] });
+      await page.waitForTimeout(220);
+    }
+
+    const gewaehlt = await page.evaluate(() =>
+      getEffectiveSelectedVertices().length);
+
+    check("drei Punkte sind ausgewaehlt", gewaehlt === 3, String(gewaehlt));
+
+    const frei = await page.locator("#deletePointBtn").isEnabled();
+    check("und „Punkt loeschen“ ist bei einer Mehrfachauswahl frei", frei);
+
+    if (frei) {
+      await page.locator("#deletePointBtn").click();
+      await page.waitForTimeout(350);
+
+      const ringNachher = await ringWelt();
+
+      check("„Punkt loeschen“ nimmt ALLE drei gewaehlten Punkte",
+        ZIELE.every(([o, n]) => !ringNachher.includes(`${o}/${n}`)),
+        ringNachher.join(" "));
+      check("und genau drei, nicht mehr",
+        ringVorher.length - ringNachher.length === 3,
+        `${ringVorher.length} -> ${ringNachher.length}`);
+      check("die uebrigen Punkte stehen unveraendert da",
+        ringVorher
+          .filter((k) => !ZIELE.some(([o, n]) => k === `${o}/${n}`))
+          .every((k) => ringNachher.includes(k)),
+        ringNachher.join(" "));
+    }
+  }
+
+  /* ---------------------------------------------------------------- */
+  console.log("Die Leiste traegt einen Loeschknopf, und jeder erklaert sich");
+
+  /*
+   * Gemessen wird am sichtbaren Text und am title der WIRKLICH gerenderten
+   * Knoepfe. Ein Knopf in einer ausgeblendeten Gruppe meldet sein eigenes
+   * display weiterhin als "flex" - dieselbe Falle wie ueberall sonst in
+   * dieser Datei.
+   */
+  const leistenKnoepfe = () => page.evaluate(() =>
+    [...document.querySelectorAll("#selectionActions button")]
+      .filter((b) => b.getClientRects().length > 0)
+      .map((b) => ({
+        id: b.id,
+        text: b.textContent.trim(),
+        titel: (b.getAttribute("title") || "").trim(),
+      })));
+
+  await load([MIT_LOCH]);
+  await page.locator("circle.vertex").first().click();
+  await page.waitForTimeout(300);
+
+  const beiPunktDe = await leistenKnoepfe();
+
+  check("deutsch: die Leiste traegt keinen Knopf „Auswahl loeschen“ mehr",
+    !beiPunktDe.some((k) => k.text === "Auswahl löschen"),
+    beiPunktDe.map((k) => k.text).join(" | "));
+  check("deutsch: sie traegt genau einen Loeschknopf, und der heisst „Punkt loeschen“",
+    beiPunktDe.filter((k) => k.text.includes("löschen")).length === 1 &&
+    beiPunktDe.some((k) => k.text === "Punkt löschen"),
+    beiPunktDe.map((k) => k.text).join(" | "));
+  check("deutsch: jeder Knopf der Leiste erklaert sich beim Ueberfahren",
+    beiPunktDe.length === 6 && beiPunktDe.every((k) => k.titel.length > 0),
+    JSON.stringify(beiPunktDe));
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(400);
+
+  const beiPunktEn = await leistenKnoepfe();
+
+  check("englisch: kein Knopf heisst „Delete selection“",
+    !beiPunktEn.some((k) => k.text === "Delete selection"),
+    beiPunktEn.map((k) => k.text).join(" | "));
+  check("englisch: jeder Knopf der Leiste erklaert sich ebenfalls",
+    beiPunktEn.length === beiPunktDe.length &&
+    beiPunktEn.every((k) => k.titel.length > 0),
+    JSON.stringify(beiPunktEn));
+  check("und keine Erklaerung ist deutsch geblieben",
+    beiPunktEn.every((k, i) => k.titel !== beiPunktDe[i].titel),
+    beiPunktEn.map((k) => k.titel).join(" | "));
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+
+  /*
+   * „Exclusion duplizieren" steht nur im Zustand „ganzes Feature" einer
+   * Exclusion - ohne eigenen Abschnitt bliebe der achte Knopf der Leiste
+   * ohne Zusicherung ueber seine Erklaerung.
+   */
+  await openAllFolds(page);
+  await page.locator('[data-action="select-whole-feature"][data-feature-index="1"]')
+    .click();
+  await page.waitForTimeout(350);
+
+  const beiFeatureDe = await leistenKnoepfe();
+
+  check("Vorbedingung: im Featurezustand steht „Exclusion duplizieren“ dabei",
+    beiFeatureDe.some((k) => k.id === "duplicateFeatureBtn"),
+    beiFeatureDe.map((k) => k.id).join(","));
+  check("deutsch: auch dort erklaert sich jeder Knopf",
+    beiFeatureDe.every((k) => k.titel.length > 0), JSON.stringify(beiFeatureDe));
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(400);
+
+  const beiFeatureEn = await leistenKnoepfe();
+
+  check("englisch: auch dort erklaert sich jeder Knopf",
+    beiFeatureEn.length === beiFeatureDe.length &&
+    beiFeatureEn.every((k) => k.titel.length > 0), JSON.stringify(beiFeatureEn));
+  check("und auch dort ist keine Erklaerung deutsch geblieben",
+    beiFeatureEn.every((k, i) => k.titel !== beiFeatureDe[i].titel),
+    beiFeatureEn.map((k) => k.titel).join(" | "));
+
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+
+  /* ---------------------------------------------------------------- */
   console.log("Der Loeschknopf beugt Einzahl und Mehrzahl, in beiden Sprachen");
 
   /*
@@ -2883,7 +3071,7 @@ try {
    */
   await load();
 
-  const loeschTitel = () => page.getAttribute("#deleteMultiSelectionBtn", "title");
+  const loeschTitel = () => page.getAttribute("#deletePointBtn", "title");
   const sprache = (wert) => page.evaluate((w) => setLanguage(w), wert);
 
   /*

@@ -76,7 +76,7 @@ In der Werkzeugleiste links, Gruppe „Auswählen":
 
 Im Inspektor rechts, sobald etwas ausgewählt ist:
 
-- Auswahl löschen
+- Punkt löschen (löscht die ganze Auswahl)
 - Auswahl aufheben
 
 Dazu:
@@ -87,7 +87,7 @@ Dazu:
 - Touch-Bedienung für mobile Browser
 
 Wenn alle editierbaren Eckpunkte einer Exclusion ausgewählt sind, entfernt
-„Auswahl löschen" die **komplette Exclusion**. Bei Teilselektionen werden nur
+„Punkt löschen" die **komplette Exclusion**. Bei Teilselektionen werden nur
 die ausgewählten Punkte gelöscht, sofern die Polygongeometrie gültig bleibt.
 
 ### Ganze Features verschieben und Exclusions duplizieren

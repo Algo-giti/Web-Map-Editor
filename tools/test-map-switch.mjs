@@ -153,7 +153,7 @@ try {
   check("die Gruppe ist vollständig zurück",
     (await counter()).includes("4"), await counter());
   check("Löschen ist danach freigegeben",
-    await page.locator("#deleteMultiSelectionBtn").isEnabled());
+    await page.locator("#deletePointBtn").isEnabled());
 
   /* ---------------------------------------------------------------- */
   console.log("Die zurückgeholten Punkte sind auch benutzbar");

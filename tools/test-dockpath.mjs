@@ -245,7 +245,7 @@ try {
 
   await dockMarkers.nth(2).click();
   await page.waitForTimeout(150);
-  await page.locator("#deleteMultiSelectionBtn").click();
+  await page.locator("#deletePointBtn").click();
   await page.waitForTimeout(300);
 
   check("ein einzelner Dockpunkt lässt sich löschen",
@@ -253,7 +253,7 @@ try {
 
   await dockMarkers.nth(1).click();
   await page.waitForTimeout(150);
-  await page.locator("#deleteMultiSelectionBtn").click();
+  await page.locator("#deletePointBtn").click();
   await page.waitForTimeout(300);
 
   check("bei 2 Punkten greift die Untergrenze",
