@@ -1767,6 +1767,23 @@ heißt „setz hier einen Punkt", und eine Form hat genau **einen** – „einen
 Punkt setzen, wo schon einer ist" heißt dort zwangsläufig „den Punkt
 verschieben". Erzeugen wäre eine versteckte zweite Abschlussgeste.
 
+**„Letzten Punkt entfernen" ist bei Formen AUSGEBLENDET, nicht gesperrt.**
+Kreis und Rechteck entstehen aus einem Bezugspunkt und den eingestellten
+Maßen; einen „letzten Punkt" gibt es dort nicht. Der Knopf hätte genau eine
+Wirkung – den Bezugspunkt zu vergessen –, und dafür gibt es bereits zwei
+Gesten: ein weiterer Klick verschiebt ihn, Escape verwirft die ganze Form.
+Ein gesperrter Knopf behauptet „hier ginge etwas, nur gerade nicht"; bei
+einer Form ginge es nie.
+
+**Das Rechteck war mitbetroffen und ist mitbehandelt.** Beide sind
+`SHAPE_MODES`, und die Bedingung fragt `isShapeMode()` statt die beiden
+aufzuzählen – eine Modus-Aufzählung vergisst den nächsten Modus. Zugesichert
+in `tools/test-shapes.mjs` nach der Wirkung: bei Kreis und Rechteck wird der
+Knopf nicht getroffen und steht nicht im sichtbaren Text des Zeichenblocks,
+beim freien Zeichnen beides. **Gemessen wird mit `innerText`, nicht mit
+`textContent`** – das trägt durch ein ausgeblendetes Element hindurch, und
+der erste Entwurf der Zusicherung fiel genau darüber.
+
 **Ungültige Maße sperren den Abschluss.** Seit die Felder im Zeichenzustand
 stehen, kann ein ungültiger Wert erst *während* des Zeichnens entstehen;
 `canFinishFeatureDrawing()` prüft deshalb bei Formen zusätzlich

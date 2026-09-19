@@ -7991,6 +7991,20 @@ function updateFeatureDrawUi() {
     featureDrawState?.appendToExisting === true
   );
 
+  /*
+   * „Letzten Punkt entfernen" gibt es bei den Formwerkzeugen NICHT.
+   *
+   * Kreis und Rechteck entstehen aus einem Bezugspunkt und den eingestellten
+   * Maßen, nicht aus gesetzten Punkten - es gibt dort keinen „letzten Punkt",
+   * den man zurücknehmen könnte. Der Knopf hätte genau eine Wirkung, nämlich
+   * den Bezugspunkt zu vergessen, und dafür gibt es bereits zwei Gesten: ein
+   * weiterer Klick verschiebt ihn, Escape verwirft die ganze Form.
+   *
+   * Ausgeblendet statt gesperrt: ein gesperrter Knopf behauptet „hier ginge
+   * etwas, nur gerade nicht". Bei einer Form ginge es nie.
+   */
+  undoButton.hidden = active && isShapeMode(featureDrawState.mode);
+
   undoButton.disabled =
     !active ||
     (

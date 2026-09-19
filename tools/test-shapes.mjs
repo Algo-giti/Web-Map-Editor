@@ -15,6 +15,7 @@
 import {
   createChecker,
   createMenueBefehl,
+  elementGetroffen,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -634,7 +635,73 @@ try {
   await page.locator("#cancelDrawBtn").click();
   await page.waitForTimeout(250);
 
-  check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
+  /* ---------------------------------------------------------------- */
+  console.log("„Letzten Punkt entfernen“ gibt es nur beim freien Zeichnen");
+
+  /*
+   * Kreis und Rechteck entstehen aus Bezugspunkt und Massen, nicht aus
+   * gesetzten Punkten - einen „letzten Punkt" gibt es dort nicht. Geprueft
+   * wird die WIRKUNG: was der Browser an der Stelle des Knopfes zeichnet, und
+   * was im Zeichenblock ueberhaupt lesbar dasteht. Ein `hidden`-Attribut
+   * sagte nur, was gemeint ist.
+   */
+  const undoLage = async () => {
+    await page.locator("#inspectorDraw").scrollIntoViewIfNeeded()
+      .catch(() => {});
+    const treffer = await elementGetroffen(page, "#undoDrawPointBtn", { dy: 10 });
+    /*
+     * innerText, nicht textContent: textContent traegt durch ein
+     * ausgeblendetes Element hindurch und meldete den Knopf auch dann, wenn
+     * er gar nicht gezeichnet wird. Gemessen - der erste Entwurf dieser
+     * Zusicherung fiel genau darueber.
+     */
+    const text = await page.locator("#inspectorDraw").innerText();
+    return { treffer, imText: text.includes("Letzten Punkt entfernen") };
+  };
+
+  for (const [knopf, name] of [
+    ["#drawCircleBtn", "Kreis"],
+    ["#drawRectangleBtn", "Rechteck"],
+  ]) {
+    await page.locator(knopf).click();
+    await page.waitForTimeout(250);
+    await clickMap(30, 45);
+
+    const lage = await undoLage();
+
+    check(`${name}: der Knopf wird nicht getroffen`,
+      !lage.treffer.ok, JSON.stringify(lage.treffer));
+    check(`${name}: und „Letzten Punkt entfernen“ steht nirgends im Zeichenblock`,
+      !lage.imText, String(lage.imText));
+
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(250);
+  }
+
+  /*
+   * Die Gegenprobe ist der eigentliche Beleg: ohne sie bestuende „nicht
+   * getroffen" auch dann, wenn es den Knopf gar nicht mehr gaebe.
+   */
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(250);
+  await clickMap(30, 45);
+  await clickMap(36, 45);
+
+  {
+    const lage = await undoLage();
+
+    check("freies Zeichnen: der Knopf wird getroffen",
+      lage.treffer.ok, JSON.stringify(lage.treffer));
+    check("freies Zeichnen: und er steht lesbar im Zeichenblock",
+      lage.imText, String(lage.imText));
+    check("und er ist dort auch bedienbar",
+      await page.locator("#undoDrawPointBtn").isEnabled());
+  }
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+    check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
 } finally {
   await browser.close();
