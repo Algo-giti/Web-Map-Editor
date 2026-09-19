@@ -137,13 +137,13 @@ erklärt beides.
   Fehler" ein „1 errors" – an der sichtbarsten Stelle der englischen
   Oberfläche. `tools/test-cassandra.mjs` prüft die ganze Liste jetzt
   automatisch darauf: für jedes Muster wird ein Beispieltext erzeugt und
-  gesucht, ob ein früheres, allgemeineres ihn abfängt. 171 der
-  <!-- bestand: i18n-muster -->197 Muster sind so erfassbar; die übrigen 26 sind
+  gesucht, ob ein früheres, allgemeineres ihn abfängt. 173 der
+  <!-- bestand: i18n-muster -->199 Muster sind so erfassbar; die übrigen 26 sind
   lange Meldungen mit eindeutigem Präfix und wurden von Hand durchgesehen.
 
-  **Nur die 197 trägt eine Markierung, die 171 und die 26 nicht.** Sie stammen
+  **Nur die 199 trägt eine Markierung, die 173 und die 26 nicht.** Sie stammen
   aus der Analyse in `tools/test-cassandra.mjs`, das sie bei jedem Lauf selbst
-  ausgibt („171 von 197 Mustern automatisch geprueft"); sie im Bestandsprüfer
+  ausgibt („173 von 199 Mustern automatisch geprueft"); sie im Bestandsprüfer
   ein zweites Mal zu rechnen hieße, dieselbe Analyse an zwei Orten zu führen.
 
   **Zusammengesetzte Texte** kann ein `I18N_PATTERNS`-Muster nicht übersetzen:
@@ -2782,6 +2782,41 @@ Die Knöpfe des Inspektors behalten das native `disabled`: sie stehen in ihrem
 Block bei ihresgleichen, dort erklärt sich der Zustand aus den Nachbarn und aus
 dem `.tool-reason`-Feld darunter. Bis Etappe 7e galt derselbe Satz für die
 Knöpfe der Seitenleiste.
+
+**Der Abschlussknopf nennt, was gleich entsteht.** „Zeichnung abschließen"
+sagte bei einer Form am wenigsten – ein Kreis wird nicht gezeichnet, er
+entsteht aus Mittelpunkt und Radius. Er heißt deshalb je Zeichenart anders:
+„Kreis abschließen", „Rechteck abschließen", „Exclusion abschließen",
+„Search Wire abschließen", „Docking-Pfad abschließen". Ohne laufende
+Zeichnung bleibt es beim allgemeinen Text.
+
+**Alle fünf, nicht nur der Kreis** – ein Knopf, der in einem Modus seinen
+Gegenstand nennt und in vier anderen nicht, sähe aus wie ein vergessener
+Fall.
+
+**Die Beschriftungen stehen als TABELLE** (`DRAW_FINISH_LABELS`) mit einer
+Vorgabe daneben, nicht als Fallunterscheidung im Code. Das ist kein
+Widerspruch zu „keine Modus-Aufzählung mehr einführen": diese Regel gilt dem
+**Verhalten**, und das bleibt `canFinishFeatureDrawing()`. Eine Tabelle trägt
+nur Text, und ein Modus ohne Eintrag bekommt den allgemeinen Satz statt eines
+Lochs.
+
+**Der Text ist ABGELEITET**, nicht flüchtig: `updateFeatureDrawUi()` schreibt
+ihn auf Deutsch, der i18n-Beobachter übersetzt ihn, und weil die Funktion in
+`refreshDerivedUi()` steht, wechselt er beim Sprachwechsel von selbst mit.
+
+**Die Statuszeile zieht mit.** Vier Sätze nannten den Knopf beim alten Namen
+(„Jetzt „Zeichnung abschließen" oder Enter.", dreimal „Mit „Zeichnung
+abschließen" oder Enter übernehmen."); sie nennen ihn jetzt beim heutigen.
+Ein Name in Prosa ist genau das, was veraltet – dieselbe Lehre wie bei den
+acht Hilfesätzen aus 7g. Das eine geteilte Muster für Search Wire und
+Docking-Pfad ist dabei in zwei zerfallen.
+
+**Nebenbefund, gemessen: der Abschlusssatz der Exclusion hatte überhaupt
+keine englische Fassung.** Er entsteht erst ab dem dritten Punkt, und
+`tools/scan-i18n.mjs` erreicht diesen Zustand nicht – Regel (d) zum
+wiederholten Mal. Mit der Umbenennung hat er eine bekommen; zugesichert ist
+er in `tools/test-shapes.mjs` in beiden Richtungen.
 
 **Abschließen hat EINE Bedingung: `canFinishFeatureDrawing()`.** Sie versorgt
 den Abschluss-Knopf, Enter und den Doppelklick. Vorher zählte der Enter-Pfad

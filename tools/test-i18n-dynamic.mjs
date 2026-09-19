@@ -422,7 +422,7 @@ try {
 
   check("auf englisch erzeugt: die Mehrzahl und der andere Nachsatz",
     wireZweiEn.includes("2 points placed.") &&
-    wireZweiEn.includes("Finish drawing"), wireZweiEn);
+    wireZweiEn.includes("Finish search wire"), wireZweiEn);
 
   await page.evaluate(() => setLanguage("de"));
   await page.waitForTimeout(400);
@@ -431,7 +431,7 @@ try {
 
   check("auf englisch erzeugt, dann deutsch: dort steht wieder der deutsche Satz",
     wireZweiDe.includes("2 Punkte gesetzt.") &&
-    wireZweiDe.includes("Zeichnung abschließen"), wireZweiDe);
+    wireZweiDe.includes("Search Wire abschließen"), wireZweiDe);
 
   await page.locator("#cancelDrawBtn").click();
   await page.waitForTimeout(300);

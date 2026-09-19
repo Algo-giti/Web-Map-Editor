@@ -853,6 +853,95 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(250);
 
+    /* ---------------------------------------------------------------- */
+  console.log("Der Abschlussknopf nennt, was gleich entsteht");
+
+  /*
+   * „Zeichnung abschliessen" sagte bei einer Form am wenigsten: ein Kreis
+   * wird nicht gezeichnet, er entsteht aus Mittelpunkt und Radius. Gemessen
+   * wird der SICHTBARE Text des Knopfes, je Zeichenart und in beiden
+   * Sprachen; der Wechsel laeuft ueber setLanguage(), damit zwischen Wechsel
+   * und Messung keine Handlung liegt, die den Text ohnehin neu schriebe.
+   */
+  const abschlussText = () => page.locator("#finishDrawBtn").innerText();
+  const spracheSetzen = (wert) => page.evaluate((w) => setLanguage(w), wert);
+
+  await reload();
+
+  check("ohne laufende Zeichnung traegt er den allgemeinen Text",
+    (await abschlussText()).trim() === "Zeichnung abschließen",
+    await abschlussText());
+
+  const ARTEN = [
+    ["#drawCircleBtn", "Kreis abschließen", "Finish circle"],
+    ["#drawRectangleBtn", "Rechteck abschließen", "Finish rectangle"],
+    ["#drawExclusionBtn", "Exclusion abschließen", "Finish exclusion"],
+    ["#drawSearchWireBtn", "Search Wire abschließen", "Finish search wire"],
+    ["#createDockBtn", "Docking-Pfad abschließen", "Finish docking path"],
+  ];
+
+  for (const [knopf, deutsch, englisch] of ARTEN) {
+    await page.locator(knopf).click();
+    await page.waitForTimeout(250);
+
+    const de = (await abschlussText()).trim();
+
+    check(`${deutsch}: der Knopf traegt seinen eigenen Text`,
+      de === deutsch, de);
+
+    await spracheSetzen("en");
+    await page.waitForTimeout(400);
+
+    const en = (await abschlussText()).trim();
+
+    check(`${deutsch}: und auf englisch den uebersetzten`,
+      en === englisch, en);
+    check(`${deutsch}: nicht mehr der allgemeine „Finish drawing“`,
+      en !== "Finish drawing", en);
+
+    await spracheSetzen("de");
+    await page.waitForTimeout(400);
+
+    check(`${deutsch}: zurueckgeschaltet steht wieder der deutsche da`,
+      (await abschlussText()).trim() === deutsch, await abschlussText());
+
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(250);
+  }
+
+  /*
+   * Die Statuszeile nennt denselben Knopf - ein Satz, der einen Knopf beim
+   * alten Namen nennt, ist genau das, was veraltet. Geprueft an der
+   * Exclusion, weil dort der Satz erst ab drei Punkten erscheint und diese
+   * Fassung bis zum zweiundzwanzigsten Durchgang ueberhaupt keine englische
+   * hatte.
+   */
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(250);
+  await clickMap(20, 40);
+  await clickMap(26, 40);
+  await clickMap(26, 46);
+
+  const statusDe = await page.locator("#drawFeatureStatus").innerText();
+
+  check("die Statuszeile nennt den Knopf bei seinem heutigen Namen",
+    statusDe.includes("Exclusion abschließen") &&
+    !statusDe.includes("Zeichnung abschließen"), statusDe);
+
+  await spracheSetzen("en");
+  await page.waitForTimeout(400);
+
+  const statusEn = await page.locator("#drawFeatureStatus").innerText();
+
+  check("und auf englisch ist der ganze Satz uebersetzt",
+    statusEn.includes("Finish exclusion") &&
+    !statusEn.includes("abschließen"), statusEn);
+
+  await spracheSetzen("de");
+  await page.waitForTimeout(400);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
     check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
 } finally {
