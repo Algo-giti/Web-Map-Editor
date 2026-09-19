@@ -412,6 +412,22 @@ hat*, und dieser Melder ist der Weg, auf dem das Werkzeug es selbst sagt.
 **Ein Eintrag ohne Treffer ist deshalb zuerst ein Verdacht auf einen
 fehlenden Zustand und erst danach auf einen überflüssigen Eintrag.**
 
+**Der vierundzwanzigste Durchgang hat den vierten geprüft, und er war der
+seltene Fall: ein wirklich toter Eintrag.** `/^Deutsch \/ English$/` filterte
+den `title` des Sprachumschalters. Den gibt es seit dem einundzwanzigsten
+Durchgang nicht mehr – er wiederholte die beiden Wörter, die sichtbar links und
+rechts daneben stehen –, und an seiner Stelle steht in `index.html` ein
+Kommentar, der das sagt. **Der Verdacht auf einen fehlenden Zustand trägt hier
+nicht**, und das ist nachgesehen und nicht angenommen: die Zeichenkette kommt
+in der ganzen Datei nur noch in diesem Kommentar vor, es gibt also keinen
+Zustand, in dem sie erscheinen könnte. Eintrag **entfernt**.
+
+**Die Zahl der bekannten Falschmeldungen bleibt dabei unverändert bei 37** –
+gemessen vorher wie nachher, bei NEU 0 über alle 24 Zustände. Das ist kein
+Nebensatz, sondern die Probe: ein Eintrag, dessen Entfernung die Zahl der
+gefilterten Treffer senkte, hätte sehr wohl etwas gefiltert und wäre nicht tot
+gewesen.
+
 **Es ist weder im Läufer noch in `tools/check-all.mjs` eingehängt.** Damit der
 Läufer es nicht doch als Browsertest zählt – es bindet das Harness ein, und
 genau daran erkennt er Tests –, trägt es die Zeile `// KEIN BROWSERTEST` im

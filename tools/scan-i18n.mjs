@@ -115,7 +115,6 @@ const FALSCHMELDUNGEN = [
   /* Die Sprachumschaltung ist absichtlich zweisprachig beschriftet */
   [/^Deutsch$/, "Name der Sprache, steht in beiden Fassungen so da"],
   [/^English$/, "Name der Sprache, steht in beiden Fassungen so da"],
-  [/^Deutsch \/ English$/, "zweisprachige Beschriftung des Umschalters"],
   [/^Sprache \/ Language$/, "zweisprachige Beschriftung des Umschalters"],
 
   /* Koordinatenachsen und Himmelsrichtungen */
