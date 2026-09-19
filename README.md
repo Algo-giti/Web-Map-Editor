@@ -266,6 +266,10 @@ Ein fehlender oder leerer Docking-Pfad ist **kein Fehler**, sondern höchstens
 eine Warnung. Die automatische Prüfung vor dem Speichern ist standardmäßig
 aktiviert.
 
+Das Ergebnis steht danach oben im Inspektor, aufgeklappt und ohne weiteren
+Klick lesbar; wählt man anschließend einen Punkt auf der Karte, übernimmt die
+Auswahl den Platz wieder.
+
 ### Karten verbinden
 
 Zwei Perimeter können zu einem neuen geschlossenen Perimeter verbunden werden.

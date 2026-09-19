@@ -245,6 +245,10 @@ The active map can be validated before export. Checks include:
 A missing or empty docking path is **not an error**; at most it produces a
 warning. Automatic validation before saving is enabled by default.
 
+The result then stands at the top of the inspector, expanded and readable
+without a further click; selecting a point on the map afterwards hands the
+place back to the selection.
+
 ### Merge maps
 
 Two perimeters can be merged into a new closed perimeter.

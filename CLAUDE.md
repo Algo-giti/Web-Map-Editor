@@ -2957,6 +2957,98 @@ dafür" steht zwei Absätze weiter unten. `tools/test-inspector.mjs` schließt
 den Block für die Höhenmessung deshalb wieder, und zwar hinter einer
 Zusicherung, dass er vorher wirklich offen stand.
 
+**Das Ergebnis der zuletzt ausgelösten Handlung steht oben im Inspektor.** Der
+Platz unmittelbar unter dem Kopfblock gehört dem, worum der Nutzer gerade
+gebeten hat. Bis zum dreiundzwanzigsten Durchgang gehörte er ausschließlich den
+Zustandsblöcken der Auswahl, und die Antwort auf eine Handlung lag an
+vorletzter Stelle der Spalte – der Prüfbericht klappte zwar auf, stand aber
+unterhalb von Abmessungen, Feature-Navigation, Bestand und Umformen.
+
+**Der Block wechselt den ORT; er wird weder kopiert noch leer
+zurückgelassen.** Ein Markup, zwei Plätze, mit einem Kommentarknoten als Anker
+– dieselbe Machart wie bei der Auswahlleiste. Damit ist die Frage „entfällt
+der Block unten, oder bleibt er dort leer stehen?" gegenstandslos: es gibt ihn
+genau einmal, und er ist entweder oben oder an seiner Stelle. Die übrigen
+Blöcke behalten dabei ihre Reihenfolge.
+
+**Welche Blöcke eine Antwort tragen, ist nachgesehen und nicht geraten** – es
+sind zwei, und sie stehen in `INSPECTOR_RESULT_BLOCKS`:
+
+| Block | Handlung | was dort steht |
+|---|---|---|
+| KARTENPRÜFUNG | „Karte prüfen" | Zusammenfassung und Befundliste – nirgends sonst |
+| UMFORMEN | Begradigen, Reduzieren, Rechtwinklig | beim Reduzieren die Flächenänderung, bei Reduzieren und Rechtwinklig der Ablehnungsgrund |
+
+**Die übrigen antworten anderswo, und deshalb ändert sich für sie nichts:**
+
+- **Feature-Navigation** – ihre fünf Aktionen enden sämtlich in einer Auswahl
+  (`select-point`, `select-whole-feature`, `duplicate-exclusion`,
+  `add-feature-point`, `delete-exclusion`), und eine Auswahl hat den Platz
+  unter dem Kopfblock ohnehin. **Betroffen ist sie trotzdem, nur
+  andersherum**: ihre Auswahl ist die *nächste* Handlung und gibt den Platz
+  wieder frei.
+- **Bestand** – seine Knöpfe starten eine Zeichnung, und `#inspectorDraw` ist
+  ein Zustandsblock, steht also ohnehin oben.
+- **Koordinatenbezug** – `#originStatus` ist **abgeleitet**: `updateOriginUi()`
+  schreibt ihn bei jedem Aufruf aus dem Zustand neu. Er beschreibt den Stand
+  und nicht das Ergebnis einer einzelnen Handlung, und für den einen Fall, auf
+  den es ankommt, klappt der Block ohnehin selbst auf.
+
+**Die Erfolgsmeldung der drei Umformwerkzeuge steht in der Statuszeile, nicht
+im Block** – gemessen: alle drei rufen `setEditStatus()`. Der Umzug holt beim
+Umformen deshalb keinen Bericht nach oben, sondern das Werkzeug mit seiner
+eigenen Antwort. **Der Gewinn ist trotzdem gemessen**: vor dem Reduzieren
+liegt der Block bei 900 px Fensterhöhe gar nicht im Blick, danach steht er
+oben und wird getroffen.
+
+**Freigegeben wird der Platz an einer SIGNATUR, nicht in jeder
+auswahlsetzenden Funktion.** `releaseInspectorResult()` hält Zustand und
+Auswahl gegen den zuletzt gezeigten Stand; ändert sich etwas, rückt der Block
+an seine Stelle zurück. Eine Auswahl setzen können vier Funktionen
+(`setVertexSelection()`, `selectVertex()`, `toggleVertexSelection()`,
+`clearVertexSelection()`), und die fünfte wäre beim nächsten Umbau vergessen.
+Dass der Zustand mitzählt, deckt zugleich Zeichnen und Messen ab: beide
+schlagen jede Auswahl, und ihr Block gehört dann unter den Kopfblock.
+
+**Geholt wird NACH der Handlung, nicht davor.** Das Reduzieren hebt die
+Auswahl auf; vorher geholt stünde die Antwort im selben Zug wieder unten.
+Dafür gibt es `runTransformTool()` – eine Stelle für alle drei Knöpfe statt
+dreier gleichlautender Zeilen.
+
+**Und die Spalte rollt an den Anfang.** Ohne das nützt der Umzug nichts, wenn
+der Knopf selbst im Inspektor steht: die Spalte behält ihren Rollstand, der
+Block springt von der elften Stelle an die erste, und der Nutzer sieht nach
+seinem Klick irgendeinen anderen Block. Gemessen am Reduzieren: Rollstand
+1504 px bei einem Block, der ab 0 px steht.
+
+**Der aufgeklappte Bericht passt, und die Höhenbegrenzung gibt es schon.**
+Gemessen bei 1280 × 900 px mit sieben Warnungen: der Block steht von 86 bis
+424 px in einer 759 px hohen Spalte, bei Rollstand 0. Er bleibt auch bei mehr
+Befunden so hoch, weil `.validation-report` seit jeher `max-height:260px` und
+`overflow:auto` trägt – nachgemessen mit 6, 13 und 24 Befunden, dreimal 338 px
+Blockhöhe. Eine zweite Begrenzung wäre damit eine zweite Quelle für dieselbe
+Zahl.
+
+**Zugesichert in `tools/test-inspector.mjs` nach der Wirkung**: welcher Block
+der erste SICHTBARE unter dem Kopfblock ist – die Stelle im Markup allein
+sagte nichts darüber, was der Nutzer oben sieht –, dazu `elementGetroffen()`
+auf Zusammenfassung und erste Warnungszeile, der Rollstand 0 und beide
+Sprachrichtungen über `setLanguage()`. Vier Mutationen, je eine Schreibstelle,
+je 0 Timeouts:
+
+| Mutation | gerissene Zusicherungen |
+|---|---|
+| `runMapValidation()` klappt nur wieder auf, statt zu holen | **5**, darunter „nach „Karte pruefen“ steht der Bericht oben im Inspektor" mit dem Detail `inspectorEmpty` |
+| `releaseInspectorResult()` gibt den Platz nicht mehr frei | **2** – „nach der Punktauswahl steht die Auswahl wieder oben" und „und der Bericht steht wieder an seiner eigenen Stelle" |
+| die drei Umformknöpfe rufen ihr Werkzeug wieder unmittelbar | **2** – „nach dem Reduzieren steht das Umformen oben im Inspektor" und „und sein Kopf liegt ohne Rollen im Blick" |
+| `placeInspectorResult()` hängt gar nicht mehr um | **8** – beide Handlungen zugleich |
+| die Spalte rollt nicht mehr an den Anfang | **2**, mit dem Detail `rollstand:1504` – genau die Zahl, die den Zusatz begründet |
+
+**Fünf Mutationen für vier Schreibstellen:** der Rollstand ist eine eigene
+Zeile in `showInspectorResult()` und wird deshalb einzeln gegengeprüft. Ohne
+sie riss keine Zusicherung an der Stelle, an der sie steht – der Umzug allein
+hätte den Block oben stehen lassen, nur eben außerhalb des Blicks.
+
 **Eine Aktion, die den Inspektor übernimmt, beendet ein laufendes Werkzeug.**
 Der Inspektor hat genau einen Platz, und `getInspectorState()` lässt ein
 laufendes Werkzeug jede Auswahl schlagen – ein Modus liefe sonst unsichtbar
@@ -3226,7 +3318,9 @@ ein Fehler aus, weil der Grund nur weiter unten in `#pointMeta` stand. Sie
 tragen jetzt einen `placeholder` („mehrere Punkte ausgewählt", „kein Punkt
 ausgewählt"), der beim Auswählen eines einzelnen Punktes wieder verschwindet.
 
-**Der Prüfbericht liegt im Inspektor, die Kurzform in der Statuszeile.** Ein
+**Der Prüfbericht liegt im Inspektor, die Kurzform in der Statuszeile** – und
+nach „Karte prüfen" steht er **oben** in der Spalte, siehe „Das Ergebnis der
+zuletzt ausgelösten Handlung steht oben im Inspektor" weiter oben. Ein
 Befund, dem sich ein Feature zuordnen lässt, ist ein `<button>` und springt es
 an (`selectWholeFeature()`); die übrigen bleiben `<div>`. Knöpfe statt divs mit
 Klick-Handler, damit sie mit der Tastatur erreichbar sind.
@@ -9556,7 +9650,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
 
   | Datei | prüfend | nur herstellend |
   |---|---|---|
-  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**56** | 15 |
+  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**57** | 15 |
   | `tools/test-merge.mjs` | 5 | 5 |
   | `tools/test-map-switch.mjs` | 1 | 2 |
   | `tools/test-dockpath.mjs` | – | 2 |
@@ -9565,7 +9659,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-toolbar.mjs` | – | 1 |
   | `tools/test-validation.mjs` | – | 3 |
   | `tools/test-i18n-dynamic.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**62** | <!-- bestand: zusicherungen-herstellend -->**33** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**63** | <!-- bestand: zusicherungen-herstellend -->**33** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -9582,6 +9676,12 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   davon als *herstellend* zählen, liegt an der Methode und nicht an ihnen:
   sie lesen die Leiste über einen Helfer, der Bezeichner steht damit im
   Vorlauf und nicht im `check()`-Aufruf.
+
+  **Der dreiundzwanzigste Durchgang hat eine prüfende hinzugefügt**, in
+  `tools/test-inspector.mjs`: „nach der Punktauswahl steht die Auswahl wieder
+  oben" nennt `inspectorPoint` im `check()`-Aufruf selbst. Die übrigen
+  Zusicherungen desselben Abschnitts tragen keinen Auswahlbezeichner – sie
+  messen den Prüfbericht und das Umformen.
 
   **Seit dem einundzwanzigsten Durchgang steht eine achte Datei in der
   Tabelle, und `tools/test-inspector.mjs` hat zwei prüfende dazubekommen** –

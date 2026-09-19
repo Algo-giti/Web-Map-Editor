@@ -21,7 +21,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-inspector.mjs
 
-import { createChecker, elementGetroffen, freieKartenstelle, indexUrl, launchBrowser, openAllFolds } from "./browser-harness.mjs";
+import { createChecker, createKlicker, elementGetroffen, freieKartenstelle, indexUrl, launchBrowser, openAllFolds } from "./browser-harness.mjs";
 
 const TOOL = "test-inspector";
 
@@ -204,12 +204,19 @@ try {
   }, key);
 
   /*
+   * Der Waechter des Hauses fuer einen sperrbaren Knopf: er sichert zu UND
+   * klickt nicht, wenn der Knopf gesperrt ist. Ohne ihn wuerde aus einer
+   * klaren Ablehnung ein stummer Timeout.
+   */
+  const klickeFreienKnopf = createKlicker(page, check);
+
+  /*
    * Ein Klick auf einen Knopf der Auswahlleiste setzt voraus, dass sie da ist.
    * Ohne Waechter wird aus einer verschwundenen Leiste ein stummer Timeout
    * statt einer benannten Zusicherung - dieselbe Regel und derselbe Grund wie
-   * bei klickeFreienKnopf() in tools/test-merge.mjs. Die Zusicherung steht
-   * IMMER da, nicht nur im Fehlerfall: eine, die man nur sieht, wenn sie
-   * reisst, belegt im Gutfall nichts.
+   * bei klickeFreienKnopf(). Die Zusicherung steht IMMER da, nicht nur im
+   * Fehlerfall: eine, die man nur sieht, wenn sie reisst, belegt im Gutfall
+   * nichts.
    */
   const klickeLeistenknopf = async (id, name) => {
     const da = await page.locator(`#${id}`).isVisible();
@@ -3114,6 +3121,225 @@ try {
     ![einDe, einEnNachWechsel, zweiEn, zweiDeNachWechsel]
       .some((t) => t.includes("(s)")),
     [einDe, einEnNachWechsel, zweiEn, zweiDeNachWechsel].join(" | "));
+
+
+  /* ---------------------------------------------------------------- */
+  console.log("Das Ergebnis der letzten Handlung steht oben im Inspektor");
+
+  /*
+   * Perimeter mit fast geraden Zwischenpunkten - daran wirkt das Reduzieren.
+   * Die beiden Exclusions ueberlappen einander und erzeugen damit eine
+   * Warnung; ohne Befund haette der Bericht keine Zeile, die man sehen kann.
+   */
+  const FAST_GERADE = {
+    type: "Feature",
+    properties: { name: "perimeter" },
+    geometry: { type: "Polygon", coordinates: [[
+      [0, 0], [10, 0.01], [20, 0], [30, 0.01], [40, 0],
+      [40, 40], [0, 40], [0, 0],
+    ]] },
+  };
+
+  const UEBERLAPPEND = [
+    { type: "Feature", idx: 0, properties: { name: "exclusion" },
+      geometry: { type: "Polygon", coordinates: [
+        [[5, 5], [20, 5], [20, 20], [5, 20], [5, 5]]] } },
+    { type: "Feature", idx: 1, properties: { name: "exclusion" },
+      geometry: { type: "Polygon", coordinates: [
+        [[10, 10], [25, 10], [25, 25], [10, 25], [10, 10]]] } },
+  ];
+
+  /*
+   * Welcher Block steht unmittelbar unter dem Kopfblock?
+   *
+   * Gemessen wird der erste SICHTBARE - die Zustandsblöcke stehen sämtlich im
+   * Markup, nur einer davon ist gerade nicht ausgeblendet. Die Stelle im
+   * Markup allein saegte nichts darueber, was der Nutzer oben sieht.
+   */
+  const obenImInspektor = () => page.evaluate(() => {
+    const aside = document.getElementById("inspector");
+    const sichtbar = [...aside.children].filter(
+      (k) => k.nodeType === 1 && getComputedStyle(k).display !== "none"
+    );
+
+    /* [0] ist der Kopfblock, er steht in jedem Zustand da. */
+    return sichtbar[1]?.id || null;
+  });
+
+  /** Liegt der Block im sichtbaren Teil der Spalte, ohne zu rollen? */
+  const imBlick = (id) => page.evaluate((wunsch) => {
+    const aside = document.getElementById("inspector");
+    const block = document.getElementById(wunsch);
+    const ar = aside.getBoundingClientRect();
+    const br = block.getBoundingClientRect();
+
+    return {
+      rollstand: aside.scrollTop,
+      oben: br.height > 0 && br.top >= ar.top - 0.5 && br.top <= ar.bottom,
+      ganz: br.height > 0 && br.top >= ar.top - 0.5 && br.bottom <= ar.bottom + 0.5,
+    };
+  }, id);
+
+  await load(UEBERLAPPEND, FAST_GERADE);
+
+  const vorPruefung = await obenImInspektor();
+  check("vor der Pruefung steht die Kartenpruefung nicht oben",
+    vorPruefung !== "inspectorValidation", String(vorPruefung));
+
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(400);
+
+  const nachPruefung = await obenImInspektor();
+  check("nach „Karte pruefen“ steht der Bericht oben im Inspektor",
+    nachPruefung === "inspectorValidation", String(nachPruefung));
+
+  const berichtOffen = await page.evaluate(
+    () => document.getElementById("inspectorValidation").open
+  );
+  check("und er steht aufgeklappt da", berichtOffen, String(berichtOffen));
+
+  const berichtLage = await imBlick("inspectorValidation");
+  check("der ganze Block liegt ohne Rollen im Blick",
+    berichtLage.ganz && berichtLage.rollstand === 0, JSON.stringify(berichtLage));
+
+  const summeTreffer = await elementGetroffen(page, "#validationSummary", { dy: 10 });
+  check("die Zusammenfassung des Berichts ist getroffen",
+    summeTreffer.ok, summeTreffer.grund);
+
+  const summeDe = (await page.locator("#validationSummary").innerText()).trim();
+  check("und sie nennt das Ergebnis der Pruefung",
+    /Warnung/.test(summeDe), summeDe);
+
+  /*
+   * "Ohne Scrollen und ohne weiteren Klick": der Rollstand steht auf 0, die
+   * Zeile hat ein Rechteck im sichtbaren Teil der Spalte, und sie wird an
+   * ihrer eigenen Stelle getroffen. Das Rechteck allein genuegt nicht - es
+   * traegt durch ein geschlossenes <details> hindurch.
+   */
+  const warnzeile = await page.evaluate(() => {
+    const aside = document.getElementById("inspector");
+    const zeile = document.querySelector(
+      "#validationReport .validation-item.warning"
+    );
+
+    if (!zeile) return { da: false };
+
+    const ar = aside.getBoundingClientRect();
+    const zr = zeile.getBoundingClientRect();
+
+    return {
+      da: true,
+      rollstand: aside.scrollTop,
+      imBlick: zr.height > 0 && zr.top >= ar.top - 0.5 && zr.bottom <= ar.bottom + 0.5,
+      text: zeile.textContent.trim(),
+    };
+  });
+  check("mindestens eine Warnungszeile steht ohne Rollen im Blick",
+    warnzeile.da && warnzeile.imBlick && warnzeile.rollstand === 0,
+    JSON.stringify(warnzeile));
+
+  const warnTreffer = await elementGetroffen(
+    page, "#validationReport .validation-item.warning", { dy: 10 }
+  );
+  check("und sie ist ohne weiteren Klick getroffen",
+    warnTreffer.ok, warnTreffer.grund);
+
+  /* Auf deutsch erzeugt, dann englisch gemessen - ohne weitere Handlung. */
+  await spracheSetzen("en");
+  await page.waitForTimeout(250);
+
+  const obenEn = await obenImInspektor();
+  const summeEn = (await page.locator("#validationSummary").innerText()).trim();
+  check("auf deutsch geprueft, dann englisch: der Bericht steht weiter oben",
+    obenEn === "inspectorValidation", String(obenEn));
+  check("auf deutsch geprueft, dann englisch: die Zusammenfassung ist uebersetzt",
+    /warning/i.test(summeEn) && !/Warnung/.test(summeEn), summeEn);
+
+  /* Und die Gegenrichtung: auf englisch erzeugt, auf deutsch gemessen. */
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(350);
+
+  const obenEnErzeugt = await obenImInspektor();
+  check("auf englisch geprueft: der Bericht steht oben",
+    obenEnErzeugt === "inspectorValidation", String(obenEnErzeugt));
+
+  await spracheSetzen("de");
+  await page.waitForTimeout(250);
+
+  const obenDeWieder = await obenImInspektor();
+  const summeDeWieder = (await page.locator("#validationSummary").innerText()).trim();
+  check("auf englisch geprueft, dann deutsch: er steht weiter oben",
+    obenDeWieder === "inspectorValidation", String(obenDeWieder));
+  check("auf englisch geprueft, dann deutsch: die Zusammenfassung ist deutsch",
+    /Warnung/.test(summeDeWieder), summeDeWieder);
+
+  /*
+   * Eine Auswahl ist die naechste Handlung: sie holt den Platz unter dem
+   * Kopfblock zurueck, und der Bericht rueckt an seine Stelle.
+   */
+  const marker = await page.evaluate(() => {
+    const kreis = document.querySelector("circle.vertex");
+    if (!kreis) return null;
+    const r = kreis.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  check("es gibt einen Punktmarker zum Anklicken", !!marker, String(marker));
+
+  if (marker) {
+    await page.mouse.click(marker.x, marker.y);
+    await page.waitForTimeout(300);
+
+    const nachAuswahl = await obenImInspektor();
+    check("nach der Punktauswahl steht die Auswahl wieder oben",
+      nachAuswahl === "inspectorPoint", String(nachAuswahl));
+
+    const zurueck = await page.evaluate(() => {
+      const aside = document.getElementById("inspector");
+      const kinder = [...aside.children].filter((k) => k.nodeType === 1);
+      const val = document.getElementById("inspectorValidation");
+      return { stelle: kinder.indexOf(val), vorletzter: kinder.length - 2 };
+    });
+    check("und der Bericht steht wieder an seiner eigenen Stelle",
+      zurueck.stelle === zurueck.vorletzter, JSON.stringify(zurueck));
+  }
+
+  /* ---------------------------------------------------------------- */
+  console.log("Dieselbe Regel fuer das Umformen");
+
+  await load([], FAST_GERADE);
+  await openAllFolds(page);
+
+  const vorUmformen = await obenImInspektor();
+  const umformVor = await imBlick("inspectorTransform");
+  check("vor dem Umformen steht der Block nicht oben",
+    vorUmformen !== "inspectorTransform", String(vorUmformen));
+  check("und er liegt gar nicht im Blick", !umformVor.oben,
+    JSON.stringify(umformVor));
+
+  await page.locator('[data-action="select-whole-feature"]').first().click();
+  await page.waitForTimeout(300);
+
+  const reduziert = await klickeFreienKnopf(
+    "#reduceApplyBtn", "Punkte reduzieren ist frei", "#reduceReason"
+  );
+
+  if (reduziert) {
+    await page.waitForTimeout(400);
+
+    const nachUmformen = await obenImInspektor();
+    check("nach dem Reduzieren steht das Umformen oben im Inspektor",
+      nachUmformen === "inspectorTransform", String(nachUmformen));
+
+    const umformNach = await imBlick("inspectorTransform");
+    check("und sein Kopf liegt ohne Rollen im Blick",
+      umformNach.oben && umformNach.rollstand === 0, JSON.stringify(umformNach));
+
+    const umformTreffer = await elementGetroffen(
+      page, "#inspectorTransform > summary", { dy: 10 }
+    );
+    check("die Kopfzeile des Blocks ist getroffen",
+      umformTreffer.ok, umformTreffer.grund);
+  }
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

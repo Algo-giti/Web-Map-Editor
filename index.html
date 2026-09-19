@@ -4278,6 +4278,10 @@
         weil sich sein Inhalt geändert hat, ist genau die Unruhe, gegen die
         der feste Kopfblock gebaut wurde.
       -->
+      <!--
+        Auch dieser Block wechselt den Ort: nach dem Anwenden eines der drei
+        Werkzeuge steht er oben. Siehe placeInspectorResult().
+      -->
       <details id="inspectorTransform" class="inspector-block inspector-fold">
         <summary>
           <span class="inspector-section-title">Umformen</span>
@@ -4395,7 +4399,15 @@
         </div>
       </details>
 
-      <!-- Prüfbericht: die Liste gehört hierher, die Kurzform in die Statuszeile. -->
+      <!--
+        Prüfbericht: die Liste gehört hierher, die Kurzform in die Statuszeile.
+
+        Dieser Block WECHSELT DEN ORT: nach "Karte prüfen" steht er oben,
+        gleich unter dem Kopfblock, und rückt hierher zurück, sobald der
+        Nutzer etwas anderes tut. Den Umzug macht placeInspectorResult();
+        die Stelle hier merkt sich ein Kommentar-Ankerknoten, der erst beim
+        ersten Umzug entsteht. Ein Markup, zwei Plätze - siehe dort.
+      -->
       <details id="inspectorValidation" class="inspector-block inspector-fold">
         <summary>
           <span class="inspector-section-title">Kartenprüfung</span>
@@ -5193,6 +5205,176 @@ function openInspectorFold(id) {
 }
 
 
+/* --------------------------------------------------------------------------
+   Das Ergebnis der zuletzt ausgelösten Handlung steht oben
+   --------------------------------------------------------------------------
+   Der Inspektor hat genau einen Platz, an dem man zuerst hinsieht: gleich
+   unter dem Kopfblock. Dort standen bisher ausschließlich die Zustandsblöcke
+   der Auswahl - und die Antwort auf eine Handlung lag je nach Block an
+   vorletzter Stelle der Spalte. Der Prüfbericht war der schärfste Fall: er
+   klappte zwar auf, stand aber unterhalb von Abmessungen, Navigation,
+   Bestand und Umformen.
+
+   Deshalb wechselt der Block, der die Antwort trägt, den ORT: ein Markup,
+   zwei Plätze, genau wie bei der Auswahlleiste. Weder bleibt unten eine
+   leere Hülle stehen, noch gibt es eine zweite Fassung, die auseinanderlaufen
+   könnte - der Block ist entweder oben oder an seiner Stelle, nie beides.
+
+   Die übrigen Blöcke behalten dabei ihre Reihenfolge; nur der eine schiebt
+   sich davor.
+   -------------------------------------------------------------------------- */
+
+/**
+ * Welche Blöcke tragen die Antwort auf eine Handlung des Nutzers?
+ *
+ * Nachgesehen wurde jeder Block des Inspektors, und es sind genau zwei:
+ *
+ * - KARTENPRÜFUNG - "Karte prüfen" schreibt Zusammenfassung und Befundliste
+ *   dorthin, und nirgendwo sonst.
+ * - UMFORMEN - dort steht die Antwort der drei Werkzeuge: beim Reduzieren
+ *   die Flächenänderung, bei Reduzieren und Rechtwinklig der Grund einer
+ *   Ablehnung.
+ *
+ * Die übrigen antworten anderswo und sind deshalb NICHT in der Liste: die
+ * fünf Aktionen der Feature-Navigation enden sämtlich in einer Auswahl, und
+ * eine Auswahl hat den Platz unter dem Kopfblock ohnehin; die Knöpfe des
+ * Bestands starten eine Zeichnung, und der Zeichenblock ist ebenfalls ein
+ * Zustandsblock; `#originStatus` im Koordinatenbezug ist abgeleitet - er
+ * beschreibt den Stand und nicht das Ergebnis einer einzelnen Handlung, und
+ * der Block klappt im einzigen Fall, auf den es ankommt, ohnehin selbst auf.
+ */
+const INSPECTOR_RESULT_BLOCKS = ["inspectorValidation", "inspectorTransform"];
+
+/** Der Block, dessen Antwort gerade oben steht - oder null. */
+let inspectorResultId = null;
+
+/**
+ * Ankerknoten je Block, damit er an SEINE Stelle zurückkommt.
+ *
+ * Ohne ihn landete er beim Zurückgeben am Ende der Spalte, und die
+ * Reihenfolge der übrigen Blöcke wäre eine andere. Kommentarknoten, weil er
+ * kein Element ist: kein Kasten, kein Abstand im Flex-Raster, keine `id` -
+ * dieselbe Machart wie bei der Auswahlleiste.
+ */
+const inspectorResultHomes = new Map();
+
+/**
+ * Setzt jeden Ergebnisblock an seinen Platz - oben oder zu Hause.
+ */
+function placeInspectorResult() {
+  const aside = document.getElementById("inspector");
+  const head = aside?.querySelector(".inspector-head");
+
+  if (!aside || !head) return;
+
+  INSPECTOR_RESULT_BLOCKS.forEach(id => {
+    const block = document.getElementById(id);
+    if (!block) return;
+
+    if (!inspectorResultHomes.has(id)) {
+      const home = document.createComment(id);
+
+      block.parentElement?.insertBefore(home, block);
+      inspectorResultHomes.set(id, home);
+    }
+
+    const home = inspectorResultHomes.get(id);
+    const oben = id === inspectorResultId;
+
+    if (oben ? block.previousSibling === head
+             : block.nextSibling === home) return;
+
+    /*
+     * Ein Umhängen nimmt dem Knoten den Fokus - gemessen bei der
+     * Auswahlleiste: document.activeElement wird BODY. Alles andere überlebt,
+     * deshalb genügt es, ihn danach zurückzusetzen.
+     */
+    const fokus = document.activeElement;
+    const hatteFokus = block.contains(fokus);
+
+    if (oben) head.after(block);
+    else home.parentElement?.insertBefore(block, home);
+
+    if (hatteFokus && typeof fokus.focus === "function") fokus.focus();
+  });
+}
+
+/**
+ * Holt die Antwort auf eine Handlung nach oben und klappt sie auf.
+ *
+ * Aufgeklappt ist hier KEIN Verstoß gegen "Faltblöcke klappen nie von selbst
+ * auf": diese Regel richtet sich gegen ein Aufklappen aus einer abgeleiteten
+ * Änderung heraus. Hier hat der Nutzer die Ausgabe ausdrücklich angefordert.
+ * Gemerkt wird es nicht - darum kümmert sich openInspectorFold().
+ */
+function showInspectorResult(id) {
+  inspectorResultId = id;
+  placeInspectorResult();
+  openInspectorFold(id);
+
+  /*
+   * Und die Spalte an den Anfang. Ohne das nuetzt der Umzug nichts, wenn der
+   * Knopf selbst im Inspektor steht: die Spalte behaelt ihren Rollstand, der
+   * Block springt von der elften Stelle an die erste, und der Nutzer sieht
+   * nach seinem Klick irgendeinen anderen Block. Gemessen am Reduzieren -
+   * Rollstand 1504 px bei einem Block, der ab 0 px steht.
+   */
+  const aside = document.getElementById("inspector");
+
+  if (aside) aside.scrollTop = 0;
+}
+
+/**
+ * Was der Inspektor gerade zeigt, als vergleichbare Zeichenkette.
+ *
+ * Abgeleitet aus Zustand und Auswahl - dieselben beiden Größen, aus denen
+ * der Kopfblock seinen Text baut.
+ */
+function inspectorStateSignature(state) {
+  return [state, ...getEffectiveSelectedVertices().map(vertexKey)].join("|");
+}
+
+/** Der zuletzt gezeigte Stand, gegen den die Änderung erkannt wird. */
+let inspectorLastSignature = null;
+
+/**
+ * Gibt den Platz oben wieder frei, sobald sich Zustand oder Auswahl ändern.
+ *
+ * "Eine Auswahl ist die nächste Handlung": wer nach dem Prüfen einen Punkt
+ * anklickt, will den Punkt sehen und nicht den Bericht. Dasselbe gilt für
+ * ein Werkzeug, das anläuft - `drawing` und `measuring` schlagen jede
+ * Auswahl, und ihr Block gehört dann unter den Kopfblock.
+ *
+ * Erkannt wird das an der Signatur und nicht an einem Aufruf in jeder
+ * auswahlsetzenden Funktion: davon gibt es vier, und die fünfte wäre beim
+ * nächsten Umbau vergessen.
+ */
+function releaseInspectorResult(state) {
+  const signature = inspectorStateSignature(state);
+
+  if (signature === inspectorLastSignature) return;
+
+  inspectorLastSignature = signature;
+
+  if (!inspectorResultId) return;
+
+  inspectorResultId = null;
+  placeInspectorResult();
+}
+
+/**
+ * Führt ein Umformwerkzeug aus und holt seine Antwort nach oben.
+ *
+ * NACH der Handlung, nicht davor: das Reduzieren hebt die Auswahl auf, und
+ * eine Auswahländerung gibt den Platz oben gerade wieder frei - vorher geholt
+ * stünde die Antwort im selben Zug wieder unten.
+ */
+function runTransformTool(action) {
+  action();
+  showInspectorResult("inspectorTransform");
+}
+
+
 /**
  * Wie weit ist die laufende Zeichnung?
  *
@@ -5594,6 +5776,13 @@ function updateInspector() {
   if (!title || !subtitle) return;
 
   const state = getInspectorState();
+
+  /*
+   * Zuerst: gehoert der Platz unter dem Kopfblock noch einer Antwort, oder
+   * hat der Nutzer inzwischen etwas anderes getan? Siehe
+   * releaseInspectorResult().
+   */
+  releaseInspectorResult(state);
 
   INSPECTOR_BLOCKS.forEach(({id, states}) => {
     const block = document.getElementById(id);
@@ -7535,7 +7724,7 @@ function runMapValidation() {
    * der gespeicherte Wunsch weiterhin allein das ist, was der Nutzer am Griff
    * gewählt hat.
    */
-  openInspectorFold("inspectorValidation");
+  showInspectorResult("inspectorValidation");
 }
 
 
@@ -20177,7 +20366,7 @@ document.getElementById("clearMultiSelectionBtn").addEventListener(
 
 document.getElementById("straightenSelectionBtn").addEventListener(
   "click",
-  straightenSelectedSection
+  () => runTransformTool(straightenSelectedSection)
 );
 
 document.getElementById("duplicateFeatureBtn").addEventListener("click", () => {
@@ -20600,7 +20789,7 @@ document.getElementById("reduceToleranceInput").addEventListener(
 
 document.getElementById("reduceApplyBtn").addEventListener(
   "click",
-  applyReduction
+  () => runTransformTool(applyReduction)
 );
 
 /* Ecken rechtwinklig. */
@@ -20685,7 +20874,7 @@ document.getElementById("rectifyToleranceInput").addEventListener(
 
 document.getElementById("rectifyApplyBtn").addEventListener(
   "click",
-  applyRectify
+  () => runTransformTool(applyRectify)
 );
 
 document.getElementById("applyMowerSizeBtn").addEventListener(
