@@ -629,6 +629,27 @@ const MESSUNGEN = {
       return Number(treffer[1]);
     },
   },
+  "marken-in-codebeispielen": {
+    was:
+      "Markierungen in CLAUDE.md, die in einem Codeblock oder in Backticks " +
+      "stehen und darum nicht als Bestandszahl zaehlen",
+    /*
+     * Gemessen wird der Wert, den dieser Pruefer ohnehin rechnet:
+     * leseMarkierungen() bildet ihn als Differenz aus allen und den
+     * sichtbaren Marken, und die Schlusszeile nennt ihn. Ein zweites
+     * Suchmuster daneben waere dieselbe Analyse an zwei Orten - dieselbe
+     * Entscheidung wie bei funktionen-ohne-aufrufer und
+     * verwaiste-css-klassen.
+     *
+     * Die Marke dieser Zahl steht im Fliesztext und zaehlt damit in BEIDEN
+     * Summen mit; sie hebt sich heraus und veraendert das Ergebnis nicht.
+     * Nachgemessen: vorher wie nachher 5.
+     *
+     * inBeispielen entsteht weiter unten - die Messbefehle laufen erst nach
+     * dem Lesen der Marken, der Verweis ist zu diesem Zeitpunkt gueltig.
+     */
+    messen: () => inBeispielen,
+  },
 };
 
 /* ===================================================================== */

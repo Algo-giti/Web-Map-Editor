@@ -1625,6 +1625,7 @@ Dazu drei Regeln, jede mit ihrem Anlass:
 | `klicks-feste-koordinate` | 1 | `position: { x:` in `tools/` |
 | `funktionen-ohne-aufrufer` | 1 | globale Funktionen ohne Aufruf, **gemessen über `tools/check-dom-ids.mjs` selbst** |
 | `verwaiste-css-klassen` | 1 | Klassenselektoren ohne Verwendung, **gemessen über `tools/check-css-classes.mjs` selbst** |
+| `marken-in-codebeispielen` | 1 | Markierungen in Codeblöcken und Backticks, **gemessen an dem Wert, den der Prüfer ohnehin rechnet** |
 
 **Was der Prüfer außerdem meldet**, weil es ohne ihn stillschweigend
 durchginge: eine Marke, hinter der keine Zahl steht; eine Marke, die er nicht
@@ -1648,9 +1649,44 @@ falsche Ausweg – wer sie so schreibt, soll es erfahren.
 **Codebeispiele sind davon ausgenommen, Codeblöcke wie Inline-Backticks.** Ein
 Beispiel zeigt die Form, es behauptet keinen Bestand – und diese Datei zeigt
 absichtlich auch die *falschen* Formen. Damit das nicht zur stillen Lücke
-wird, nennt die Schlusszeile ihre Zahl („… (4 weitere stehen in Codebeispielen
-und zählen nicht)"): eine Marke, die versehentlich in Backticks gerät, fällt
-sonst lautlos aus der Zählung.
+wird, nennt die Schlusszeile ihre Zahl („… (<!-- bestand: marken-in-codebeispielen -->5 weitere
+stehen in Codebeispielen und zählen nicht)"): eine Marke, die versehentlich in
+Backticks gerät, fällt sonst lautlos aus der Zählung.
+
+**Diese Zahl ist selbst markiert, und sie ist genau die Sorte, für die es den
+Prüfer gibt.** Sie beschreibt einen gemessenen Zustand dieser Datei und
+veraltet nicht durch Irrtum, sondern durch Arbeit: wer ein weiteres
+Formbeispiel schreibt, ändert sie, ohne sie zu lesen. Wo sie heute stehen:
+im Codeblock, der die Form der Markierung zeigt, in der verworfenen Fassung
+mit dem Wert in der Marke, in der falsch geschriebenen Großschreibung und in
+derselben falschen Schreibweise noch einmal in der Tabelle über die beiden
+Handlisten. **Im Fließtext steht ihre Zahl nur an der einen markierten
+Stelle** – sie hier noch einmal auszuschreiben wäre die zweite Quelle, gegen
+die der Prüfer gebaut ist; die Messtabellen weiter unten zitieren dagegen
+einen Lauf und beschreiben damit die Vergangenheit, wie überall in dieser
+Datei.
+
+**Sie stand hier auf 4 und war damit um eins zu niedrig** – und das war keine
+Veralterung, sondern von Anfang an falsch, soweit die Historie reicht:
+CLAUDE.md ist auf diesem Zweig in einem einzigen Commit entstanden, und schon
+an ihm zählte der Prüfer mehr, als hier stand. Ob das letzte Beispiel
+nachträglich dazukam oder beim Schreiben übersehen wurde, ist damit nicht
+mehr zu entscheiden – **markiert ist sie, damit die Frage kein zweites Mal
+aufkommt.**
+
+**Gemessen wird sie mit dem Wert, den der Prüfer ohnehin rechnet**, nicht mit
+einem zweiten Suchmuster daneben – dieselbe Entscheidung wie bei
+`funktionen-ohne-aufrufer` und `verwaiste-css-klassen`. Ihre eigene Marke
+steht im Fließtext und zählt damit in **beiden** Summen mit, aus deren
+Differenz die Zahl entsteht; sie hebt sich heraus. Nachgemessen: die Zahl
+ändert sich durch ihre eigene Marke nicht.
+
+**Zwei Mutationen belegen, dass sie reißen kann:**
+
+| Mutation | Meldung |
+|---|---|
+| ein sechstes Formbeispiel in einem Codeblock | „dort steht 5, gemessen 6", mit Fundstelle |
+| die eigene Marke gerät in Backticks | „hat keine Markierung in CLAUDE.md" – genau der Fall, gegen den die Zahl gebaut ist |
 
 **Der Prüfer ist von jeder Zählung über `tools/` ausgenommen**, und das ist
 keine Bequemlichkeit: seine Beschreibungen nennen genau die Muster, nach denen
