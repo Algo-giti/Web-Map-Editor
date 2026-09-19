@@ -270,6 +270,7 @@ same physical base.
 - `Ctrl/Cmd + Shift + Z`
 - one drag operation equals one Undo step
 - original positions can remain visible for comparison until saving
+- a newly created area shows no comparison: it has no previous state
 - saving establishes a new comparison/reset checkpoint
 
 ### German / English

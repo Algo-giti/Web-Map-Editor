@@ -292,6 +292,8 @@ nicht selbst verifizieren.
 - ein Drag-Vorgang entspricht einem Undo-Schritt
 - ursprüngliche Positionen können bis zum Speichern als Vergleich sichtbar
   bleiben
+- eine neu entstandene Fläche zeigt keinen Vergleich: sie hat keinen Zustand
+  von vorher
 - Speichern setzt einen neuen Vergleichs-/Reset-Checkpoint
 
 ### Deutsch / English

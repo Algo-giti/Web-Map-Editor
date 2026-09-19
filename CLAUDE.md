@@ -38,7 +38,7 @@ Abschnitt 5 (Domänenregeln) und `DISCLAIMER.md`.
 ## 2. Architektur
 
 Das gesamte Projekt ist **eine einzige Datei**: [`index.html`](index.html)
-(rund <!-- bestand: zeilen-index-html +-500 -->21 500 Zeilen: HTML, `<style>`-CSS, ein einziger inline
+(rund <!-- bestand: zeilen-index-html +-500 -->22 000 Zeilen: HTML, `<style>`-CSS, ein einziger inline
 `<script>`-Block). Es gibt bewusst **keine** weiteren Build-Artefakte, kein
 `package.json` für die App selbst, keine externen `<script src>`/`<link>`-
 Referenzen und keine `fetch()`/`XMLHttpRequest`-Aufrufe – die Datei ist
@@ -350,6 +350,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-placeholders.mjs` | was als leerer Platzhalter gilt |
 | `test-inspector.mjs` | Inspektor: alle sieben Zustände, Behälter, Tastatur |
 | `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster |
+| `test-ghosting.mjs` | Ghosting: wem ein Vorher-Umriss gehört |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -465,7 +466,7 @@ nächsten Mal wie eine Zusicherung. Der Helfer stand seit Etappe 6 b2 im Harness
 Nachricht ihn als Bündelung „der bisher acht Mal kopierten Faltgeste"
 beschrieb – **aufgerufen hat ihn danach kein einziger Test**, alle acht Kopien
 blieben stehen. Damit erreichte die Reparatur der Navigationskarten zunächst
-niemanden. Seit Etappe 7 f rufen <!-- bestand: openallfolds-aufrufer -->**15 Skripte** den Helfer auf, und
+niemanden. Seit Etappe 7 f rufen <!-- bestand: openallfolds-aufrufer -->**16 Skripte** den Helfer auf, und
 `setAttribute("open", …)` steht im ganzen `tools/`-Verzeichnis an genau einer
 Stelle. **Keine neunte Kopie anlegen** – auch nicht unter anderem Namen; drei
 der acht hießen `expand()` statt `expandSidebar()` oder standen inline.
@@ -1142,7 +1143,7 @@ Menüeintrag trotzdem anklickte – gemessen an „Karte B" ohne geladene Datei 
 und Playwright dann dreißig Sekunden auf eine Freigabe wartete, die nicht
 kommt. Es ist derselbe Fall, für den es `klickeFreienKnopf()` gibt, nur eine
 Ebene höher; offen blieb er, weil die Behebung einen gemeinsamen Helfer
-ändert, den <!-- bestand: openallfolds-aufrufer -->15 Skripte benutzen.
+ändert, den <!-- bestand: openallfolds-aufrufer -->16 Skripte benutzen.
 
 Aus `menueBefehl(page, menue, eintrag)` ist deshalb die Fabrik
 `createMenueBefehl(page, check)` geworden, gebaut wie `createKlicker()`: sie
@@ -1548,7 +1549,7 @@ deshalb steht die Regel oben so scharf da.
 
 ```
    ...die Prüfung hat <!-- bestand: pruefstellen -->49 Fundstellen...
-   ...rund <!-- bestand: zeilen-index-html +-500 -->21 500 Zeilen...
+   ...rund <!-- bestand: zeilen-index-html +-500 -->22 000 Zeilen...
 ```
 
 **Das Beispiel trägt die echten Namen, und das ist eine Zusicherung, keine
@@ -3435,6 +3436,109 @@ Karte, die andere nur den Bildausschnitt – dieselbe Trennung, die in der
 Werkzeugleiste die Gruppen bildet. Dazu verschwindet die Auswahlleiste mit
 Etappe 5 ganz von der Karte; eine Zusammenlegung wäre dann wieder
 aufzutrennen. Sie trägt stattdessen nur noch Symbole.
+
+### Wem ein Ghost gehört
+
+**Ein frisch entstandenes Feature hat keinen Zustand von vorher und zeigt
+deshalb kein Ghosting.** Das klingt selbstverständlich und war es nicht: bis
+zum vierundzwanzigsten Durchgang übernahm eine mit „Exclusion duplizieren"
+erzeugte Kopie den Vergleichszustand ihres Nachbarn.
+
+**Die Ursache liegt darin, wie ein Vergleichszustand seinen Punkt kennt** –
+auf zwei Wegen, und der zweite ist der brüchige:
+
+| Weg | wann er trägt |
+|---|---|
+| die **Array-Referenz** der Koordinate (`coordinateRef`) | im Normalfall; sie überlebt jede Verschiebung im Feature-Array |
+| **Feature-Index und Anzeigename** als Rückfall | wenn die Referenz nicht mehr existiert – nach einem Undo/Redo (`structuredClone`) oder nach einem Umformwerkzeug, das den Ring neu aufbaut |
+
+**Beide Teile des Rückfalls verschieben sich, sobald ein Feature eingefügt
+oder entfernt wird:** der Index um eins, der Anzeigename über
+`renumberExclusions()`. Wer an Stelle *k* einfügt, macht damit aus „Feature k,
+Exclusion #n" die Beschreibung des **neuen** Features – und der alte
+Vergleichszustand zeigt auf die Kopie.
+
+**Gemessen am Stand `282b5b9`, synthetische Karte mit drei Exclusions:**
+
+| Schritt | Vergleichszustand danach |
+|---|---|
+| einen Punkt von Exclusion #2 (Feature 3) bewegen | `A:3:0:0` „Exclusion #2", Ghost an seiner Stelle |
+| Exclusion #1 (Feature 2) duplizieren | die Kopie landet auf **Index 3** und heißt nach der Neunummerierung ebenfalls **„Exclusion #2"** – `findSelectionBaseline()` liefert ihr den fremden Eintrag, sie wird `selectionBaseline` |
+| einen Punkt der Kopie bewegen | `markSelectionBaselineChanged()` findet denselben fremden Eintrag: die **Kopie bekommt keinen eigenen Ghost**, und der fremde gilt als verändert |
+
+**Dieselbe Wurzel in der Gegenrichtung, ebenfalls gemessen:** nach dem
+Löschen einer kompletten Exclusion sprang die Ghost-Linie eines überlebenden
+Eintrags quer über die Karte auf eine andere Fläche (`M 20 -5 L 35 -5`), und
+eine anschließend **gezeichnete** Exclusion erbte den Eintrag einer zuvor
+gelöschten – Index und Nummer werden beide wieder frei.
+
+**Behoben mit zwei Funktionen, nicht mit einem Sonderfall je Werkzeug:**
+
+- **`reanchorSelectionBaselines()`** sucht jeden Vergleichszustand über seine
+  Koordinatenreferenz wieder und schreibt Index, Schlüssel und Anzeigenamen
+  neu. Sie läuft in `afterGeometryEdit()`, also auf **jedem** Weg, der die
+  Geometrie ändert – auch auf künftigen. Die Fundorte werden **einmal** in
+  eine `Map` gesammelt; je Vergleichszustand zu suchen wäre dieselbe Arbeit
+  mal ihrer Zahl.
+- **`markFeatureBaselinesDeleted(featureIndex)`** legt die Vergleichszustände
+  eines Features still, **bevor** es entfernt wird – danach ist nicht mehr
+  feststellbar, welche Koordinaten dazugehörten. Der Ghost bleibt stehen (die
+  alte Position ist der einzige Vergleich, den es noch gibt), er wird nur
+  nicht mehr an das nachrückende Feature gebunden. Aufgerufen in
+  `deleteExclusionFeature()`, `deleteSearchWireFeature()` und
+  `deleteDockFeature()`; `deleteSelectedVertices()` erledigt dasselbe seit
+  jeher über `markSelectionBaselineDeleted()` je Punkt.
+
+Dazu übergeht `findSelectionBaseline()` jeden als gelöscht markierten
+Eintrag: ein gelöschter Punkt ist nie der Vergleich eines vorhandenen.
+
+**Warum die Referenz und nicht der Index die Führung hat:** sie ist die
+Hälfte, die stimmt. Ein Punkt, dessen Referenz nicht mehr dasteht, bleibt
+unangetastet – dort kann nur noch der Rückfall etwas sagen, und nach einem
+Undo ist er richtig. Die naheliegende Alternative, bei fehlender Referenz auf
+„gelöscht" zu schließen, ist **gemessen falsch**: `rebuildClosedRing()` baut
+den Ring aus neuen Arrays, nach jedem Punktlöschen wären also alle Punkte des
+Rings „gelöscht".
+
+**Zugesichert in `tools/test-ghosting.mjs` nach der Wirkung.** Dort steht auch,
+warum `elementGetroffen()` hier **nicht** benutzt werden kann: die Ghost-Gruppe
+trägt `pointer-events:none`, damit sie Kartenklicks nicht schluckt, und
+`elementFromPoint()` liefert an ihrer Stelle bauartbedingt das `svg` darunter –
+dieselbe Grenze wie bei der Zeichenvorschau. Gemessen wird stattdessen, was
+davon übrig bleibt und trotzdem eine Wirkung ist: der Ghost hat ein Rechteck,
+er steht an der Weltkoordinate, an der er stehen soll, und seine Mitte liegt
+auf der gezeichneten Karte.
+
+**Die Gegenprobe trägt den ganzen Punkt:** „an der Stelle der Kopie steht kein
+Ghost" bestünde auch bei komplett abgeschaltetem Ghosting. Daneben steht
+deshalb, dass nach dem Bewegen eines Punktes der Kopie dort sehr wohl einer
+erscheint – auf **ihrer eigenen** vorherigen Position und mit **ihrem** Namen
+im Titel.
+
+**Sieben Mutationen, je eine Schreibstelle, je 0 Timeouts:**
+
+| Mutation | gerissene Zusicherungen |
+|---|---|
+| `reanchorSelectionBaselines()` tut nichts | **6**, darunter „nach dem Bewegen steht ein Ghost an der Kopie" mit dem Detail `[[35,5]]` – der fremden Stelle |
+| ihr Aufruf in `afterGeometryEdit()` entfernt | **5**, dieselben bis auf die Kettenlöschung |
+| `findSelectionBaseline()` übergeht gelöschte Einträge nicht mehr | **1** – „nach dem Bewegen bekommt die Kopie ihren eigenen Ghost", Detail `[[20,5]]` |
+| `markFeatureBaselinesDeleted()` in `deleteExclusionFeature()` entfernt | **1** – „aber er zeigt auf keinen Punkt mehr", Detail `M 20 -5 L 35 -5`: genau der Sprung quer über die Karte |
+| `reanchorSelectionBaselines()` in `deleteExclusionFeature()` entfernt | **1** – „und der Ghost der überlebenden zeigt weiter auf seinen Punkt" |
+| `markFeatureBaselinesDeleted()` in `deleteSearchWireFeature()` entfernt | **1** – Detail `M 20 -30 L 40 -45` |
+| `markFeatureBaselinesDeleted()` in `deleteDockFeature()` entfernt | **1** – Detail `M 40 -45 L 20 -30` |
+
+**Die beiden letzten brauchen eine Karte, in der Search Wire und Docking-Pfad
+DENSELBEN Anzeigenamen tragen** – sonst kann der Rückfall sie gar nicht
+verwechseln, denn „Search Wire" und „Dockpoints" sind verschieden. Ein vom
+Nutzer vergebenes `properties.label` kann dagegen zweimal dasselbe sagen, und
+genau dieser Fall steht im Test. Die erste Fassung der beiden Mutationen riss
+nichts; das war kein Beleg für die Zeilen, sondern eine zu schwache Karte.
+
+**Die fünfte Mutation brauchte zwei Löschungen hintereinander.** Nach der
+ersten stimmt die Anzeige weiter, weil die Koordinatenreferenz lebt – falsch
+wird erst die zweite: `markFeatureBaselinesDeleted()` erkennt „ihre" Punkte
+auch am Index samt Anzeigenamen, und der zeigt ohne Neuverankerung auf die
+inzwischen umbenannte Nachbarfläche. Auch hier riss die erste Fassung nichts.
 
 ## Kartenfarben
 
@@ -6092,7 +6196,7 @@ dokumentiert, aber im Code konsistent sichtbar):
   Schlüssel in einem Objektliteral (`I18N_EN`).
 
   In `index.html` ist das **wahrscheinlich, nicht unwahrscheinlich**: rund
-  <!-- bestand: zeilen-index-html +-500 -->21 500 Zeilen und rund
+  <!-- bestand: zeilen-index-html +-500 -->22 000 Zeilen und rund
   <!-- bestand: globale-funktionen +-20 -->380 globale Funktionen liegen in einem einzigen
   Gültigkeitsbereich, ohne Module, ohne Namensräume. Wer eine Hilfsfunktion
   schreibt, sieht die 9 000 Zeilen weiter unten nicht, und naheliegende Namen
@@ -9659,7 +9763,8 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-toolbar.mjs` | – | 1 |
   | `tools/test-validation.mjs` | – | 3 |
   | `tools/test-i18n-dynamic.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**63** | <!-- bestand: zusicherungen-herstellend -->**33** |
+  | `tools/test-ghosting.mjs` | – | 3 |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**63** | <!-- bestand: zusicherungen-herstellend -->**36** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -9676,6 +9781,12 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   davon als *herstellend* zählen, liegt an der Methode und nicht an ihnen:
   sie lesen die Leiste über einen Helfer, der Bezeichner steht damit im
   Vorlauf und nicht im `check()`-Aufruf.
+
+  **Der vierundzwanzigste Durchgang hat drei herstellende hinzugefügt**, und
+  zwar in der neuen Datei `tools/test-ghosting.mjs`: die beiden Klicks auf
+  `#duplicateFeatureBtn` und der auf `#deletePointBtn` stehen im Vorlauf,
+  geprüft wird danach die Lage der Ghosts. Es ist die zehnte Datei der
+  Tabelle.
 
   **Der dreiundzwanzigste Durchgang hat eine prüfende hinzugefügt**, in
   `tools/test-inspector.mjs`: „nach der Punktauswahl steht die Auswahl wieder

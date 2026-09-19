@@ -8784,6 +8784,7 @@ function deleteSearchWireFeature() {
     createWorkspaceSnapshot("Search Wire löschen");
 
   for (const index of indices.sort((a, b) => b - a)) {
+    markFeatureBaselinesDeleted(index);
     data.features.splice(index, 1);
   }
 
@@ -8827,6 +8828,7 @@ function deleteDockFeature() {
     createWorkspaceSnapshot("Docking-Pfad löschen");
 
   for (const index of dockIndices.sort((a, b) => b - a)) {
+    markFeatureBaselinesDeleted(index);
     data.features.splice(index, 1);
   }
 
@@ -9997,6 +9999,14 @@ function findSelectionBaseline(descriptor) {
   return getSelectionBaselines(activeMapId).find(baseline => {
     if (coordinate && baseline.coordinateRef === coordinate) return true;
 
+    /*
+     * Ein gelöschter Punkt ist nie der Vergleich eines vorhandenen. Ohne
+     * diese Zeile erbt ein neu entstandenes Feature den Ghost eines
+     * entfernten, sobald Index und Anzeigename wieder zusammenfallen - und
+     * die Neunummerierung der Exclusions vergibt beides erneut.
+     */
+    if (baseline.deleted === true) return false;
+
     return (
       baseline.key === key &&
       baseline.featureLabel === featureLabel
@@ -10102,6 +10112,100 @@ function clearAllSelectionBaselines() {
   selectionBaselinesByMap.A = [];
   selectionBaselinesByMap.B = [];
   selectionBaseline = null;
+}
+
+
+/**
+ * Bindet die Vergleichszustände wieder an die Stelle, an der ihr Punkt heute
+ * steht.
+ *
+ * Ein Vergleichszustand kennt seinen Punkt auf zwei Wegen: über die
+ * Array-Referenz seiner Koordinate und - als Rückfall, wenn diese nach einem
+ * Undo oder nach einem Umformwerkzeug nicht mehr existiert - über
+ * Feature-Index und Anzeigenamen. Der Rückfall verschiebt sich, sobald ein
+ * Feature eingefügt oder entfernt wird: der Index um eins, der Anzeigename
+ * über die Neunummerierung der Exclusions.
+ *
+ * Ohne diese Neuverankerung bindet sich der Rückfall an ein FREMDES Feature.
+ * Gemessen: nach „Exclusion duplizieren“ übernimmt die Kopie den
+ * Vergleichszustand ihres Nachbarn - sie zeigt dessen Ghost und bekommt
+ * keinen eigenen. Eine frisch entstandene Fläche ist aber NEU; sie hat keinen
+ * Zustand von vorher.
+ *
+ * Gesucht wird über die Koordinatenreferenz, denn die ist die verlässliche
+ * Hälfte: sie überlebt jede Verschiebung im Feature-Array. Ein Punkt, dessen
+ * Referenz nicht mehr dasteht, bleibt unangetastet - dort kann nur noch der
+ * Rückfall etwas sagen, und nach einem Undo ist er richtig.
+ */
+function reanchorSelectionBaselines() {
+  const baselines = getSelectionBaselines(activeMapId);
+
+  if (!baselines.length || !getActiveSlot()?.data) return;
+
+  /*
+   * Den Fundort jeder lebenden Koordinate EINMAL einsammeln. Je
+   * Vergleichszustand einzeln zu suchen wäre dieselbe Arbeit mal ihrer Zahl.
+   */
+  const fundorte = new Map();
+
+  (data.features || []).forEach((feature, featureIndex) => {
+    for (const descriptor of enumerateEditableVertices(feature, featureIndex)) {
+      const coordinate = getVertexCoordinate(descriptor);
+
+      if (coordinate) fundorte.set(coordinate, descriptor);
+    }
+  });
+
+  for (const baseline of baselines) {
+    if (baseline.deleted === true) continue;
+
+    const descriptor = fundorte.get(baseline.coordinateRef);
+    if (!descriptor) continue;
+
+    baseline.descriptor = {...descriptor};
+    baseline.key = `${baseline.mapId}:${vertexKey(descriptor)}`;
+    baseline.featureLabel = getDescriptorFeatureLabel(descriptor);
+  }
+}
+
+
+/**
+ * Markiert die Vergleichszustände eines ganzen Features als gelöscht.
+ *
+ * Aufzurufen VOR dem Entfernen des Features - danach ist nicht mehr
+ * feststellbar, welche Koordinaten dazugehörten. Der Ghost bleibt damit
+ * stehen, denn die alte Position ist der einzige Vergleich, den es noch
+ * gibt; gebunden wird er aber nicht mehr an das Feature, das auf den frei
+ * gewordenen Index nachrückt.
+ */
+function markFeatureBaselinesDeleted(featureIndex) {
+  const feature = data.features?.[featureIndex];
+  if (!feature) return;
+
+  const eigene = new Set();
+
+  for (const descriptor of enumerateEditableVertices(feature, featureIndex)) {
+    const coordinate = getVertexCoordinate(descriptor);
+
+    if (coordinate) eigene.add(coordinate);
+  }
+
+  const label = describeFeature(feature);
+
+  for (const baseline of getSelectionBaselines(activeMapId)) {
+    /*
+     * Zwei Wege, weil die Referenz nach einem Umformwerkzeug tot sein kann:
+     * dann trägt nur noch der Rückfall, und genau der soll hier stillgelegt
+     * werden.
+     */
+    if (
+      eigene.has(baseline.coordinateRef) ||
+      (baseline.descriptor?.featureIndex === featureIndex &&
+        baseline.featureLabel === label)
+    ) {
+      baseline.deleted = true;
+    }
+  }
 }
 
 
@@ -13443,6 +13547,12 @@ function snapWorldCoordinate(value) {
  * Ziehen eines Punktes nicht springt.
  */
 function afterGeometryEdit() {
+  /*
+   * Zuerst: hat sich die Feature-Liste verschoben? Die Vergleichszustände
+   * hängen sonst am falschen Feature - siehe reanchorSelectionBaselines().
+   */
+  reanchorSelectionBaselines();
+
   pruneSelectedVertices();
   lastValidationResult = null;
   setDirty(true);
@@ -16207,8 +16317,15 @@ function deleteExclusionFeature(featureIndex) {
   const historySnapshot =
     createWorkspaceSnapshot(`${label} komplett löschen`);
 
+  /*
+   * Erst die Vergleichszustände dieser Fläche stilllegen, dann entfernen:
+   * danach ist nicht mehr feststellbar, welche Punkte dazugehörten.
+   */
+  markFeatureBaselinesDeleted(featureIndex);
+
   data.features.splice(featureIndex, 1);
   renumberExclusions();
+  reanchorSelectionBaselines();
 
   /*
    * Nach dem Entfernen eines Features ändern sich die Feature-Indizes aller
