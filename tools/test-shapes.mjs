@@ -1005,6 +1005,33 @@ try {
   const spracheIst = (wert) =>
     page.evaluate((w) => currentLanguage === w, wert);
 
+  /*
+   * Beide Zeilen des Hinweises, in der verlangten Sprache: Abweichung und
+   * Abstand haengen an derselben Einheit, und die englische Fassung ist nur
+   * dann vollstaendig, wenn BEIDE Zeilen samt Einheit englisch dastehen.
+   */
+  const HINWEIS = {
+    de: /^(Abweichung vom Kreis|Abstand benachbarter Eckpunkte): [\d.,]+ (m|Einheiten)\.$/,
+    en: /^(Deviation from the circle|Spacing of adjacent vertices): [\d.,]+ (m|units)\.$/,
+  };
+
+  /** Die Einheiten beider Zeilen, wie sie dastehen - oder der rohe Text. */
+  const hinweisEinheiten = async (sprache) => {
+    const text = await page.locator("#circleHint").innerText();
+    const zeilen = text.split("\n").map((z) => z.trim()).filter(Boolean);
+    const treffer = zeilen.map((z) => z.match(HINWEIS[sprache]));
+
+    return {
+      text: zeilen.join(" | "),
+      einheiten: treffer.every(Boolean) && treffer.length === 2
+        ? treffer.map((t) => t[2])
+        : null,
+    };
+  };
+
+  const beideIn = (ist, einheit) =>
+    !!ist.einheiten && ist.einheiten.every((e) => e === einheit);
+
   await reload();
   await page.locator("#drawCircleBtn").click();
   await page.waitForTimeout(250);
@@ -1052,6 +1079,10 @@ try {
     check("und denselben Wert", trifft(ist, sollNachher), ist.zeile);
   }
 
+  check("auf deutsch erzeugt, dann englisch: auch die Abweichungszeile ist englisch",
+    beideIn(await hinweisEinheiten("en"), "m"),
+    (await hinweisEinheiten("en")).text);
+
   /* Auf englisch erzeugt, dann deutsch. */
   await page.fill("#circleVerticesInput", "36");
   await page.waitForTimeout(200);
@@ -1078,6 +1109,10 @@ try {
       trifft(ist, sollEnglisch), ist.zeile);
   }
 
+  check("auf englisch erzeugt, dann deutsch: auch die Abweichungszeile ist deutsch",
+    beideIn(await hinweisEinheiten("de"), "m"),
+    (await hinweisEinheiten("de")).text);
+
   await page.keyboard.press("Escape");
   await page.waitForTimeout(250);
 
@@ -1092,28 +1127,6 @@ try {
    * derselben Einheit, und ein Hinweis, der nur halb neu berechnet wird,
    * waere derselbe Fehler.
    */
-  const HINWEIS = {
-    de: /^(Abweichung vom Kreis|Abstand benachbarter Eckpunkte): [\d.,]+ (m|Einheiten)\.$/,
-    en: /^(Deviation from the circle|Spacing of adjacent vertices): [\d.,]+ (m|units)\.$/,
-  };
-
-  /** Die Einheiten beider Zeilen, wie sie dastehen - oder der rohe Text. */
-  const hinweisEinheiten = async (sprache) => {
-    const text = await page.locator("#circleHint").innerText();
-    const zeilen = text.split("\n").map((z) => z.trim()).filter(Boolean);
-    const treffer = zeilen.map((z) => z.match(HINWEIS[sprache]));
-
-    return {
-      text: zeilen.join(" | "),
-      einheiten: treffer.every(Boolean) && treffer.length === 2
-        ? treffer.map((t) => t[2])
-        : null,
-    };
-  };
-
-  const beideIn = (ist, einheit) =>
-    !!ist.einheiten && ist.einheiten.every((e) => e === einheit);
-
   const felder = async () =>
     `${await page.inputValue("#circleRadiusInput")} / ` +
     `${await page.inputValue("#circleVerticesInput")}`;
@@ -1212,6 +1225,10 @@ try {
       ist.einheit === "units", ist.zeile);
   }
 
+  check("unbekannter Maszstab, englisch: auch die Abweichungszeile ist vollstaendig englisch",
+    beideIn(await hinweisEinheiten("en"), "units"),
+    (await hinweisEinheiten("en")).text);
+
   await page.fill("#circleVerticesInput", "20");
   await page.waitForTimeout(200);
   await spracheSetzen("de");
@@ -1223,6 +1240,10 @@ try {
     check("auf englisch erzeugt, dann deutsch: wieder Einheiten",
       ist.einheit === "Einheiten", ist.zeile);
   }
+
+  check("auf englisch erzeugt, dann deutsch: beide Zeilen nennen Einheiten",
+    beideIn(await hinweisEinheiten("de"), "Einheiten"),
+    (await hinweisEinheiten("de")).text);
 
   await page.keyboard.press("Escape");
   await page.waitForTimeout(250);

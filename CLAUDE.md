@@ -137,13 +137,13 @@ erklärt beides.
   Fehler" ein „1 errors" – an der sichtbarsten Stelle der englischen
   Oberfläche. `tools/test-cassandra.mjs` prüft die ganze Liste jetzt
   automatisch darauf: für jedes Muster wird ein Beispieltext erzeugt und
-  gesucht, ob ein früheres, allgemeineres ihn abfängt. 175 der
-  <!-- bestand: i18n-muster -->201 Muster sind so erfassbar; die übrigen 26 sind
+  gesucht, ob ein früheres, allgemeineres ihn abfängt. 177 der
+  <!-- bestand: i18n-muster -->202 Muster sind so erfassbar; die übrigen 25 sind
   lange Meldungen mit eindeutigem Präfix und wurden von Hand durchgesehen.
 
-  **Nur die 201 trägt eine Markierung, die 175 und die 26 nicht.** Sie stammen
+  **Nur die 202 trägt eine Markierung, die 177 und die 25 nicht.** Sie stammen
   aus der Analyse in `tools/test-cassandra.mjs`, das sie bei jedem Lauf selbst
-  ausgibt („175 von 201 Mustern automatisch geprueft"); sie im Bestandsprüfer
+  ausgibt („177 von 202 Mustern automatisch geprueft"); sie im Bestandsprüfer
   ein zweites Mal zu rechnen hieße, dieselbe Analyse an zwei Orten zu führen.
 
   **Zusammengesetzte Texte** kann ein `I18N_PATTERNS`-Muster nicht übersetzen:
@@ -1794,6 +1794,14 @@ editierbar.
   der ersten beiden Ecken) und misst in beiden Sprachrichtungen, dazu die
   Einheit bei unbekanntem Maßstab; sieben Mutationen, je eine Schreibstelle,
   reißen 1 bis 15 benannte Zusicherungen bei 0 Timeouts.
+
+  **Die Einheit steht in jedem Muster ausgeschrieben, nicht als Gruppe** –
+  je ein Muster für „m“ und eines für „Einheiten“. Das Muster der Abweichung
+  fasste beide bis dahin als `(m|Einheiten)` und setzte sie als `$2` ein; bei
+  unbekanntem Maßstab stand damit „Deviation from the circle: 0.0164
+  Einheiten.“ unter englischer Beschriftung. Dieselbe Falle wie bei der
+  Punktrolle der Marker: ein Ersetzungsmuster setzt die Gruppe unverändert
+  ein.
 - **Snap-to-Grid wirkt auf den Bezugspunkt, nicht auf die Eckpunkte.** Das
   ergibt sich von selbst, weil `addFeatureDrawPoint()` den Klick rastet und die
   Form anschließend aus dem gerasteten Punkt berechnet wird.
