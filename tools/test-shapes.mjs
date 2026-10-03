@@ -1248,6 +1248,133 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(250);
 
+    /* ---------------------------------------------------------------- */
+  console.log("Kein Text der Oberflaeche nennt die Seitenleiste");
+
+  /*
+   * Die Seitenleiste ist mit Etappe 7e entfallen. Drei Texte zeigten noch
+   * auf sie: die Tooltips von Kreis und Rechteck ("Masse stehen in der
+   * Seitenleiste") und der Leerzustand der Karte ("Oeffne links Karte A
+   * oder Karte B" - links standen ihre Oeffnen-Knoepfe).
+   *
+   * Gesammelt wird JEDER Text der Oberflaeche - Textknoten auch in
+   * ausgeblendeten Elementen, dazu title, aria-label und placeholder - ohne
+   * und mit geladener Karte, denn die Tooltips der Zeichenknoepfe tragen
+   * ihren Erklaertext erst, wenn das Werkzeug verfuegbar ist. Eine
+   * Zusicherung ueber ein Ausbleiben bewiese allein nichts; daneben steht
+   * deshalb, was die Texte jetzt WIRKLICH nennen, und der Ort wird dabei
+   * aus der Oberflaeche gelesen, nicht als Wort im Test gefuehrt.
+   */
+  const SEITENLEISTE = /seitenleiste|sidebar|side ?bar|side ?panel/i;
+
+  check("Kalibrierung: das Suchmuster faengt die frueheren Fassungen",
+    [
+      "Kreis-Exclusion setzen: Mittelpunkt anklicken, Maße stehen in der Seitenleiste.",
+      "Place circle exclusion: click the centre; dimensions are in the sidebar.",
+    ].every((t) => SEITENLEISTE.test(t)));
+
+  const oberflaechenTexte = () => page.evaluate(() => {
+    const texte = [];
+    const gang = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+
+    for (let knoten = gang.nextNode(); knoten; knoten = gang.nextNode()) {
+      if (knoten.parentElement?.closest("script,style")) continue;
+      const text = knoten.nodeValue.trim();
+      if (text) texte.push(text);
+    }
+
+    for (const element of document.body.querySelectorAll("*")) {
+      for (const name of ["title", "aria-label", "placeholder"]) {
+        const wert = element.getAttribute(name);
+        if (wert) texte.push(wert);
+      }
+    }
+
+    return texte;
+  });
+
+  const keineSeitenleiste = async (zustand) => {
+    const texte = await oberflaechenTexte();
+    const treffer = texte.filter((t) => SEITENLEISTE.test(t));
+
+    check(`${zustand}: es wurden Texte gesammelt`, texte.length > 0,
+      String(texte.length));
+    check(`${zustand}: kein Text nennt die Seitenleiste`, treffer.length === 0,
+      treffer.join(" | "));
+  };
+
+  /* Der Leerzustand nennt das Menue, in dem "Karte A oeffnen" wirklich steht. */
+  const leerNenntMenue = async (zustand) => {
+    const menue = (await page.locator("#menuFileBtn").innerText()).trim();
+    const leer = (await page.locator("#emptyMapState .empty-map-text").innerText()).trim();
+    const eintragImMenue = await page.evaluate(() =>
+      !!document.querySelector('#menuFile label[for="fileInput"]'));
+
+    check(`${zustand}: der Leerzustand nennt das Menue „${menue}“`,
+      eintragImMenue && menue.length > 0 && leer.includes(menue), leer);
+  };
+
+  /* Die Tooltips von Kreis und Rechteck nennen den Inspektor bei seinem Namen. */
+  const tooltipsNennenInspektor = async (zustand) => {
+    const name = (await page.getAttribute("#inspector", "aria-label")).toLowerCase();
+
+    for (const knopf of ["#drawCircleBtn", "#drawRectangleBtn"]) {
+      const titel = await page.getAttribute(knopf, "title");
+
+      check(`${zustand}: ${knopf} nennt „${name}“`,
+        !!titel && titel.toLowerCase().includes(name), titel);
+    }
+  };
+
+  await page.goto(indexUrl(), { waitUntil: "load" });
+  await page.waitForTimeout(300);
+
+  check("Vorbedingung: ohne Karte, deutsch",
+    (await spracheIst("de")) &&
+    (await page.evaluate(() => !getActiveSlot()?.data)));
+
+  await keineSeitenleiste("ohne Karte, deutsch");
+  await leerNenntMenue("ohne Karte, deutsch");
+
+  await spracheSetzen("en");
+  await page.waitForTimeout(300);
+
+  check("Vorbedingung: ohne Karte, englisch", await spracheIst("en"));
+  await keineSeitenleiste("ohne Karte, deutsch erzeugt, dann englisch");
+  await leerNenntMenue("ohne Karte, deutsch erzeugt, dann englisch");
+
+  /* Auf englisch geladen: die Tooltips entstehen in dieser Sprache. */
+  await page.locator("#fileInput").setInputFiles({
+    name: "shapes.geojson", mimeType: "application/geo+json",
+    buffer: Buffer.from(baseMap),
+  });
+  await page.waitForTimeout(450);
+
+  check("Vorbedingung: Karte geladen, Kreis und Rechteck verfuegbar",
+    await page.evaluate(() =>
+      !!getActiveSlot()?.data &&
+      !document.getElementById("drawCircleBtn").dataset.blockedReason &&
+      !document.getElementById("drawRectangleBtn").dataset.blockedReason));
+
+  await keineSeitenleiste("mit Karte, englisch");
+  await tooltipsNennenInspektor("mit Karte, englisch");
+
+  await spracheSetzen("de");
+  await page.waitForTimeout(300);
+
+  check("Vorbedingung: mit Karte, wieder deutsch", await spracheIst("de"));
+  await keineSeitenleiste("mit Karte, englisch erzeugt, dann deutsch");
+  await tooltipsNennenInspektor("mit Karte, englisch erzeugt, dann deutsch");
+
+  await spracheSetzen("en");
+  await page.waitForTimeout(300);
+
+  await keineSeitenleiste("mit Karte, deutsch erzeugt, dann englisch");
+  await tooltipsNennenInspektor("mit Karte, deutsch erzeugt, dann englisch");
+
+  await spracheSetzen("de");
+  await page.waitForTimeout(300);
+
     check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
 } finally {

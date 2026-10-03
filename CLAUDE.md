@@ -6251,6 +6251,19 @@ Status-Update-Referenzen. Reine Syntaxprüfung erkennt diese Fehlerklasse
 manuelle Grep-Suche nach Variablennamen bleibt zusätzlich nötig, da das
 Skript nur IDs, keine Variablennamen prüft.
 
+**Dazu gehören die TEXTE, die ein entfallenes Element nennen.** Drei haben die
+Seitenleiste um Monate überlebt: die Tooltips von „Kreis“ und „Rechteck“
+(„Maße stehen in der Seitenleiste“) und der Leerzustand der Karte („Öffne
+links Karte A oder Karte B.“ – links standen ihre Öffnen-Knöpfe). Keine
+Prüfung sah sie, weil sie keine `id` und keinen Bezeichner tragen, sondern
+einen Ort in Prosa. Gefunden wurden sie über die Zeichenkettenliterale und das
+Markup **ohne Kommentare** – die Kommentare dieser Datei nennen die
+Seitenleiste dutzendfach, und zu Recht. `tools/test-shapes.mjs` sammelt
+seitdem jeden Text der Oberfläche, ohne und mit Karte und in beiden Sprachen,
+und sichert zu, dass keiner die Seitenleiste nennt – daneben, was die drei
+Texte jetzt nennen: den Inspektor bzw. das Menü „Datei“, beide aus der
+Oberfläche gelesen.
+
 **Release-Nummerierung und -Packaging:** Baseline aktuell **Ausgabe 050**
 (der Oberflächenumbau), nächstes substantielles Release **Ausgabe 051**.
 Ausgabe 051 nicht anlegen, bevor eine substantielle Änderung tatsächlich
@@ -8373,6 +8386,14 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Ausgabe 049 vorgesehen und wurde herausgenommen, um den Release nicht
   aufzuhalten; sie kommt in einer späteren Ausgabe. In der Anwendung gibt es
   dazu bisher nichts – weder Schalter noch Platzhalter.
+- **OFFEN, gemeldet am 03.10.2026: der Maßstabshinweis verlangt eine Angabe,
+  für die es kein Feld gibt.** `updateScaleNotice()` schließt mit „Maßstab unter
+  „Koordinatenbezug“ angeben.“ – der Faltblock „Koordinatenbezug“ trägt aber
+  nur Breite, Länge und das Ausgabeformat, und kein Weg im Editor setzt
+  `slot.fileScale` außer dem Lesen der Datei. Nachgesehen bis zum Commit, der
+  den Satz eingeführt hat (`d004e52`): ein solches Feld gab es auch dort nicht.
+  Die Antwort ist eine Entscheidung – ein Maßstabsfeld bauen oder den Satz auf
+  `coordinateScale` in der Datei umstellen – und deshalb nicht mitgemacht.
 - **MERKPOSTEN, kein offener Punkt: ein relativer Export schreibt weiterhin
   den aktiven `referenceOrigin` in die Datei.** Das ist korrekt, solange kein
   Konflikt besteht – und ein Konflikt sperrt den Export inzwischen
