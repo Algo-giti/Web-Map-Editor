@@ -14434,6 +14434,21 @@ function circleChordDeviation(radius, vertexCount) {
 
 
 /**
+ * Abstand zweier benachbarter Eckpunkte auf dem Kreis, in Metern - die Sehne
+ * über einen Mittelpunktswinkel von 2π/n.
+ *
+ * Steht neben der Abweichung: die sagt, wie genau das Vieleck den Kreis
+ * trifft, der Abstand, wie dicht die Punkte liegen, die danach als
+ * gewöhnliche Eckpunkte bearbeitet werden.
+ */
+function circleVertexSpacing(radius, vertexCount) {
+  if (!(radius > 0) || !(vertexCount >= CIRCLE_MIN_VERTICES)) return 0;
+
+  return 2 * radius * Math.sin(Math.PI / vertexCount);
+}
+
+
+/**
  * Eckpunkte eines regelmäßigen Vielecks auf einem Kreis.
  *
  * Der erste Punkt liegt in Richtung East, gedreht wird gegen den Uhrzeigersinn
@@ -14561,10 +14576,16 @@ function readShapeSettings() {
 
 
 /**
- * Zeigt an, wie weit das Vieleck vom idealen Kreis abweicht.
+ * Zeigt an, wie weit das Vieleck vom idealen Kreis abweicht und wie weit
+ * seine Eckpunkte auseinanderliegen.
  *
  * Die Vorgabe von 24 Ecken passt nicht für jeden Radius; statt sie als richtig
  * auszugeben, steht die tatsächliche Abweichung daneben.
+ *
+ * Jede Angabe ist ein eigenes Element: als ein Textknoten bräuchte die
+ * Übersetzung ein Muster je Kombination beider Sätze. Der Inhalt ist
+ * ABGELEITET - er folgt allein aus den beiden Feldern - und steht deshalb
+ * auch in refreshDerivedUi().
  */
 function updateCircleHint() {
   const box = document.getElementById("circleHint");
@@ -14578,12 +14599,25 @@ function updateCircleHint() {
     return;
   }
 
-  const deviation =
-    circleChordDeviation(shapeSettings.radius, shapeSettings.vertices);
+  const {radius, vertices} = shapeSettings;
+  const unit = scaleUnitLabel();
+  const line = (text) => {
+    const element = document.createElement("div");
+    element.textContent = text;
+    return element;
+  };
 
   box.className = "grid-status";
-  box.textContent =
-    `Abweichung vom Kreis: ${formatMeters(deviation, 3)} ${scaleUnitLabel()}.`;
+  box.replaceChildren(
+    line(
+      `Abweichung vom Kreis: ` +
+      `${formatMeters(circleChordDeviation(radius, vertices), 3)} ${unit}.`
+    ),
+    line(
+      `Abstand benachbarter Eckpunkte: ` +
+      `${formatMeters(circleVertexSpacing(radius, vertices), 3)} ${unit}.`
+    )
+  );
 }
 
 
@@ -21577,6 +21611,10 @@ const I18N_PATTERNS = [
     "The number of vertices must be between $1 and $2."],
   [/^Abweichung vom Kreis: ([\d.,]+) (m|Einheiten)\.$/,
     "Deviation from the circle: $1 $2."],
+  [/^Abstand benachbarter Eckpunkte: ([\d.,]+) m\.$/,
+    "Spacing of adjacent vertices: $1 m."],
+  [/^Abstand benachbarter Eckpunkte: ([\d.,]+) Einheiten\.$/,
+    "Spacing of adjacent vertices: $1 units."],
 
   /* Punkte reduzieren. */
   [/^Abschnitt: (\d+) → (\d+) Punkte \((\d+) entfallen\)\.$/,
@@ -22018,6 +22056,17 @@ function refreshDerivedUi() {
   updateSelectionPanel({keepFocusedInputs:true});
 
   updateFeatureDrawUi();
+
+  /*
+   * Abweichung und Eckpunktabstand des Kreises folgen allein aus den beiden
+   * Feldern. Bis hierher standen sie nicht auf diesem Weg: updateCircleHint()
+   * ersetzt seinen Inhalt bei jeder Eingabe, der Schnappschuss vom
+   * Seitenaufbau kennt die neuen Knoten nicht, und die Zeilen blieben nach
+   * einem Sprachwechsel in der Sprache und im Zahlenformat, in denen sie
+   * entstanden waren.
+   */
+  updateCircleHint();
+
   updateHistoryButtons();
   updateStatusBar();
 

@@ -942,6 +942,213 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(250);
 
+    /* ---------------------------------------------------------------- */
+  console.log("Der Kreis nennt den Abstand benachbarter Eckpunkte");
+
+  /*
+   * Der erwartete Abstand kommt aus den beiden FELDERN, nie als Zahl im
+   * Test - und er wird hier anders gerechnet als im Editor: als Abstand der
+   * ersten beiden Ecken eines Vielecks, das in East beginnt. Der Editor
+   * rechnet die Sehne 2·r·sin(π/n). Zwei Wege zum selben Wert, damit ein
+   * Fehler in der Formel nicht von derselben Formel bestaetigt wird.
+   *
+   * Gelesen wird der SICHTBARE Text, und verglichen wird mit der Genauigkeit,
+   * die dasteht: eine halbe Einheit der letzten angezeigten Stelle.
+   */
+  const ABSTAND = {
+    de: /^Abstand benachbarter Eckpunkte: ([\d.,]+) (m|Einheiten)\.$/,
+    en: /^Spacing of adjacent vertices: ([\d.,]+) (m|units)\.$/,
+  };
+
+  const abstandSoll = async () => {
+    const radius =
+      Number((await page.inputValue("#circleRadiusInput")).replace(",", "."));
+    const ecken = Number(await page.inputValue("#circleVerticesInput"));
+    const winkel = 2 * Math.PI / ecken;
+
+    return Math.hypot(
+      radius * Math.cos(winkel) - radius,
+      radius * Math.sin(winkel)
+    );
+  };
+
+  /** Die Abstandszeile in der verlangten Sprache, wie sie dasteht. */
+  const abstandIst = async (sprache) => {
+    const zeilen = (await page.locator("#circleHint").innerText())
+      .split("\n").map((z) => z.trim()).filter(Boolean);
+
+    for (const zeile of zeilen) {
+      const treffer = zeile.match(ABSTAND[sprache]);
+      if (!treffer) continue;
+
+      const stellen = (treffer[1].split(/[.,]/)[1] || "").length;
+
+      return {
+        zeile,
+        zahl: treffer[1],
+        einheit: treffer[2],
+        wert: Number(treffer[1].replace(",", ".")),
+        genauigkeit: 0.5 * 10 ** -stellen,
+      };
+    }
+
+    return { zeile: zeilen.join(" | "), zahl: null, einheit: null, wert: NaN };
+  };
+
+  const trifft = (ist, soll) =>
+    Number.isFinite(ist.wert) && Math.abs(ist.wert - soll) <= ist.genauigkeit;
+
+  const mitKomma = (ist) => !!ist.zahl && ist.zahl.includes(",");
+  const mitPunkt = (ist) =>
+    !!ist.zahl && ist.zahl.includes(".") && !ist.zahl.includes(",");
+
+  const spracheIst = (wert) =>
+    page.evaluate((w) => currentLanguage === w, wert);
+
+  await reload();
+  await page.locator("#drawCircleBtn").click();
+  await page.waitForTimeout(250);
+  await page.fill("#circleRadiusInput", "3");
+  await page.fill("#circleVerticesInput", "24");
+  await page.waitForTimeout(200);
+
+  check("Vorbedingung: die Oberflaeche steht auf deutsch", await spracheIst("de"));
+
+  const abstandVorher = await abstandIst("de");
+  const sollVorher = await abstandSoll();
+
+  check("der Abstand benachbarter Eckpunkte steht sichtbar da",
+    abstandVorher.zahl !== null, abstandVorher.zeile);
+  check(`und er ist der Abstand zweier benachbarter Ecken (${sollVorher} m)`,
+    trifft(abstandVorher, sollVorher), abstandVorher.zeile);
+  check("deutsch: mit Komma", mitKomma(abstandVorher), abstandVorher.zeile);
+
+  /* Die Punktzahl aendern - der Abstand folgt, ohne weitere Handlung. */
+  await page.fill("#circleVerticesInput", "12");
+  await page.waitForTimeout(200);
+
+  const abstandNachher = await abstandIst("de");
+  const sollNachher = await abstandSoll();
+
+  check("eine andere Punktzahl aendert den angezeigten Abstand",
+    abstandNachher.zahl !== null && abstandNachher.zahl !== abstandVorher.zahl,
+    `${abstandVorher.zahl} -> ${abstandNachher.zahl}`);
+  check(`und er stimmt wieder mit Radius und Punktzahl ueberein (${sollNachher} m)`,
+    trifft(abstandNachher, sollNachher), abstandNachher.zeile);
+
+  /* Auf deutsch erzeugt, dann englisch - unmittelbar danach gemessen. */
+  await spracheSetzen("en");
+  await page.waitForTimeout(300);
+
+  check("Vorbedingung: die Oberflaeche steht jetzt auf englisch",
+    await spracheIst("en"));
+
+  {
+    const ist = await abstandIst("en");
+
+    check("auf deutsch erzeugt, dann englisch: der Abstand ist uebersetzt",
+      ist.zahl !== null, ist.zeile);
+    check("und traegt den Punkt als Dezimalzeichen", mitPunkt(ist), ist.zeile);
+    check("und denselben Wert", trifft(ist, sollNachher), ist.zeile);
+  }
+
+  /* Auf englisch erzeugt, dann deutsch. */
+  await page.fill("#circleVerticesInput", "36");
+  await page.waitForTimeout(200);
+
+  const sollEnglisch = await abstandSoll();
+
+  check("auf englisch erzeugt: der Abstand steht englisch da",
+    trifft(await abstandIst("en"), sollEnglisch),
+    (await abstandIst("en")).zeile);
+
+  await spracheSetzen("de");
+  await page.waitForTimeout(300);
+
+  check("Vorbedingung: die Oberflaeche steht wieder auf deutsch",
+    await spracheIst("de"));
+
+  {
+    const ist = await abstandIst("de");
+
+    check("auf englisch erzeugt, dann deutsch: der Abstand ist deutsch",
+      ist.zahl !== null, ist.zeile);
+    check("und traegt das Komma", mitKomma(ist), ist.zeile);
+    check("und den Wert aus Radius und der neuen Punktzahl",
+      trifft(ist, sollEnglisch), ist.zeile);
+  }
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  /*
+   * Bei unklarem Maszstab traegt die Zeile "Einheiten" statt "m" - und die
+   * englische Fassung muss das Wort uebersetzen, nicht als $1 durchreichen.
+   * Eine Karte mit 0,5 x 0,5 Ausdehnung ist genau dieser Fall.
+   */
+  await page.locator("#fileInput").setInputFiles({
+    name: "mehrdeutig.geojson", mimeType: "application/geo+json",
+    buffer: Buffer.from(JSON.stringify({
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: { name: "perimeter" },
+        geometry: { type: "Polygon", coordinates: [[
+          [0, 0], [0.5, 0], [0.5, 0.5], [0, 0.5], [0, 0],
+        ]] },
+      }],
+    })),
+  });
+  await page.waitForTimeout(450);
+  await openAllFolds(page);
+  await page.locator("#drawCircleBtn").click();
+  await page.waitForTimeout(250);
+
+  check("Vorbedingung: der Maszstab ist unbekannt",
+    await page.evaluate(() => !hasKnownScale()));
+
+  /*
+   * Erzeugt wird die Zeile durch eine Eingabe nach dem Laden: das Laden
+   * einer Karte rechnet den Kreishinweis nicht neu, er traegt bis zur
+   * naechsten Eingabe die Einheit der vorigen Karte. Das betrifft die
+   * Abweichung genauso und ist ein eigener Befund, nicht Gegenstand dieses
+   * Abschnitts.
+   */
+  await page.fill("#circleVerticesInput", "30");
+  await page.waitForTimeout(200);
+
+  {
+    const ist = await abstandIst("de");
+
+    check("unbekannter Maszstab, deutsch: die Zeile nennt Einheiten",
+      ist.einheit === "Einheiten", ist.zeile);
+  }
+
+  await spracheSetzen("en");
+  await page.waitForTimeout(300);
+
+  {
+    const ist = await abstandIst("en");
+
+    check("auf deutsch erzeugt, dann englisch: units statt Einheiten",
+      ist.einheit === "units", ist.zeile);
+  }
+
+  await page.fill("#circleVerticesInput", "20");
+  await page.waitForTimeout(200);
+  await spracheSetzen("de");
+  await page.waitForTimeout(300);
+
+  {
+    const ist = await abstandIst("de");
+
+    check("auf englisch erzeugt, dann deutsch: wieder Einheiten",
+      ist.einheit === "Einheiten", ist.zeile);
+  }
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
     check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));
 } finally {

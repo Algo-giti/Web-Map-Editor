@@ -140,7 +140,8 @@ and says so explicitly.
 ### Circle and rectangle exclusions
 
 - circle: enter radius in metres and vertex count, then click the centre
-- the actual deviation from the ideal circle is displayed
+- the actual deviation from the ideal circle is displayed, together with the
+  spacing of adjacent vertices
 - rectangle: enter width, height and rotation, then click the reference point
 - the click point is either the centre or a corner
 - angle convention 0 degrees = East, 90 degrees = North

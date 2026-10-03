@@ -154,7 +154,8 @@ wird sie übersprungen und meldet das ausdrücklich.
 ### Kreis- und Rechteck-Exclusions
 
 - Kreis: Radius in Metern und Eckpunktanzahl eingeben, Mittelpunkt anklicken
-- die tatsächliche Abweichung vom idealen Kreis wird angezeigt
+- die tatsächliche Abweichung vom idealen Kreis wird angezeigt, dazu der
+  Abstand benachbarter Eckpunkte
 - Rechteck: Breite, Höhe und Drehwinkel eingeben, Bezugspunkt anklicken
 - Klickpunkt wahlweise Mittelpunkt oder Ecke
 - Winkelkonvention 0° = East, 90° = North
@@ -474,7 +475,8 @@ and says so explicitly.
 ### Circle and rectangle exclusions
 
 - circle: enter radius in metres and vertex count, then click the centre
-- the actual deviation from the ideal circle is displayed
+- the actual deviation from the ideal circle is displayed, together with the
+  spacing of adjacent vertices
 - rectangle: enter width, height and rotation, then click the reference point
 - the click point is either the centre or a corner
 - angle convention 0 degrees = East, 90 degrees = North

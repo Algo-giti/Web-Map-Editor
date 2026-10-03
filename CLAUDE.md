@@ -137,13 +137,13 @@ erklärt beides.
   Fehler" ein „1 errors" – an der sichtbarsten Stelle der englischen
   Oberfläche. `tools/test-cassandra.mjs` prüft die ganze Liste jetzt
   automatisch darauf: für jedes Muster wird ein Beispieltext erzeugt und
-  gesucht, ob ein früheres, allgemeineres ihn abfängt. 173 der
-  <!-- bestand: i18n-muster -->199 Muster sind so erfassbar; die übrigen 26 sind
+  gesucht, ob ein früheres, allgemeineres ihn abfängt. 175 der
+  <!-- bestand: i18n-muster -->201 Muster sind so erfassbar; die übrigen 26 sind
   lange Meldungen mit eindeutigem Präfix und wurden von Hand durchgesehen.
 
-  **Nur die 199 trägt eine Markierung, die 173 und die 26 nicht.** Sie stammen
+  **Nur die 201 trägt eine Markierung, die 175 und die 26 nicht.** Sie stammen
   aus der Analyse in `tools/test-cassandra.mjs`, das sie bei jedem Lauf selbst
-  ausgibt („173 von 199 Mustern automatisch geprueft"); sie im Bestandsprüfer
+  ausgibt („175 von 201 Mustern automatisch geprueft"); sie im Bestandsprüfer
   ein zweites Mal zu rechnen hieße, dieselbe Analyse an zwei Orten zu führen.
 
   **Zusammengesetzte Texte** kann ein `I18N_PATTERNS`-Muster nicht übersetzen:
@@ -1777,6 +1777,19 @@ editierbar.
   unter dem RTK-Rauschen. Weil der passende Wert vom Radius abhängt, zeigt die
   Oberfläche die tatsächliche Abweichung an, statt die Vorgabe als richtig
   auszugeben. Grenzen: 3 bis 720 Ecken.
+- **Daneben steht der Abstand benachbarter Eckpunkte**, die Sehne
+  `2·r·sin(π/n)` (`circleVertexSpacing()`). Die Abweichung sagt, wie genau
+  das Vieleck den Kreis trifft, der Abstand, wie dicht die Punkte liegen, die
+  danach als gewöhnliche Eckpunkte bearbeitet werden. Beide Angaben sind je
+  ein eigenes Element in `#circleHint` – als ein Textknoten bräuchte die
+  Übersetzung ein Muster je Kombination – und beide sind **abgeleitet**:
+  `updateCircleHint()` steht seitdem in `refreshDerivedUi()`. Vorher stand er
+  dort nicht, und der Hinweis behielt nach einem Sprachwechsel Sprache und
+  Zahlenformat seiner Entstehung. `tools/test-shapes.mjs` rechnet den
+  erwarteten Abstand aus den beiden Feldern auf einem zweiten Weg (Abstand
+  der ersten beiden Ecken) und misst in beiden Sprachrichtungen, dazu die
+  Einheit bei unbekanntem Maßstab; sieben Mutationen, je eine Schreibstelle,
+  reißen 1 bis 15 benannte Zusicherungen bei 0 Timeouts.
 - **Snap-to-Grid wirkt auf den Bezugspunkt, nicht auf die Eckpunkte.** Das
   ergibt sich von selbst, weil `addFeatureDrawPoint()` den Klick rastet und die
   Form anschließend aus dem gerasteten Punkt berechnet wird.
