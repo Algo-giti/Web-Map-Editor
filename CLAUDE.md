@@ -1172,7 +1172,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->51 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->52 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -1785,7 +1785,11 @@ editierbar.
   Übersetzung ein Muster je Kombination – und beide sind **abgeleitet**:
   `updateCircleHint()` steht seitdem in `refreshDerivedUi()`. Vorher stand er
   dort nicht, und der Hinweis behielt nach einem Sprachwechsel Sprache und
-  Zahlenformat seiner Entstehung. `tools/test-shapes.mjs` rechnet den
+  Zahlenformat seiner Entstehung. **Und er steht in `updateMapSlotUi()`**,
+  neben dem Maßstabshinweis: seine Einheit hängt am Maßstab der aktiven
+  Karte, und bis dahin rechnete nur eine Eingabe ihn neu – nach dem Laden
+  oder Umschalten trug er bis zur nächsten Eingabe die Einheit der vorigen
+  Karte. `tools/test-shapes.mjs` rechnet den
   erwarteten Abstand aus den beiden Feldern auf einem zweiten Weg (Abstand
   der ersten beiden Ecken) und misst in beiden Sprachrichtungen, dazu die
   Einheit bei unbekanntem Maßstab; sieben Mutationen, je eine Schreibstelle,

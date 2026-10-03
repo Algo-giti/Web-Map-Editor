@@ -10412,6 +10412,14 @@ function updateMapSlotUi() {
   updateOriginUi();
   updateScaleNotice();
 
+  /*
+   * Der Kreishinweis nennt seine Längen in der Einheit des Maßstabs und folgt
+   * damit der aktiven Karte wie der Maßstabshinweis darüber. Bis hierher
+   * wurde er nur bei einer Eingabe neu berechnet und trug nach dem Laden oder
+   * Umschalten einer Karte bis zur nächsten Eingabe die Einheit der vorigen.
+   */
+  updateCircleHint();
+
   const slotA = mapSlots.A;
   const slotB = mapSlots.B;
 

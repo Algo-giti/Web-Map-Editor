@@ -1082,45 +1082,123 @@ try {
   await page.waitForTimeout(250);
 
   /*
-   * Bei unklarem Maszstab traegt die Zeile "Einheiten" statt "m" - und die
-   * englische Fassung muss das Wort uebersetzen, nicht als $1 durchreichen.
-   * Eine Karte mit 0,5 x 0,5 Ausdehnung ist genau dieser Fall.
+   * Bei unklarem Maszstab tragen beide Zeilen "Einheiten" statt "m" - und
+   * zwar sofort nach dem Kartenwechsel, OHNE dass etwas eingegeben wurde.
+   * Bis zu dieser Ausgabe rechnete nur eine Eingabe den Hinweis neu; nach
+   * dem Laden oder Umschalten trug er die Einheit der vorigen Karte. Eine
+   * Karte mit 0,5 x 0,5 Ausdehnung ist genau dieser Fall.
+   *
+   * Gelesen werden BEIDE Zeilen: Abweichung und Abstand haengen an
+   * derselben Einheit, und ein Hinweis, der nur halb neu berechnet wird,
+   * waere derselbe Fehler.
    */
+  const HINWEIS = {
+    de: /^(Abweichung vom Kreis|Abstand benachbarter Eckpunkte): [\d.,]+ (m|Einheiten)\.$/,
+    en: /^(Deviation from the circle|Spacing of adjacent vertices): [\d.,]+ (m|units)\.$/,
+  };
+
+  /** Die Einheiten beider Zeilen, wie sie dastehen - oder der rohe Text. */
+  const hinweisEinheiten = async (sprache) => {
+    const text = await page.locator("#circleHint").innerText();
+    const zeilen = text.split("\n").map((z) => z.trim()).filter(Boolean);
+    const treffer = zeilen.map((z) => z.match(HINWEIS[sprache]));
+
+    return {
+      text: zeilen.join(" | "),
+      einheiten: treffer.every(Boolean) && treffer.length === 2
+        ? treffer.map((t) => t[2])
+        : null,
+    };
+  };
+
+  const beideIn = (ist, einheit) =>
+    !!ist.einheiten && ist.einheiten.every((e) => e === einheit);
+
+  const felder = async () =>
+    `${await page.inputValue("#circleRadiusInput")} / ` +
+    `${await page.inputValue("#circleVerticesInput")}`;
+
+  const mehrdeutigeKarte = JSON.stringify({
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      properties: { name: "perimeter" },
+      geometry: { type: "Polygon", coordinates: [[
+        [0, 0], [0.5, 0], [0.5, 0.5], [0, 0.5], [0, 0],
+      ]] },
+    }],
+  });
+
+  const kreisStarten = async () => {
+    await page.locator("#drawCircleBtn").click();
+    await page.waitForTimeout(250);
+  };
+
+  /* Ausgangslage: bekannter Maszstab, der Hinweis rechnet in Metern. */
+  await kreisStarten();
+
+  const felderVorher = await felder();
+
+  check("Vorbedingung: auf der Ausgangskarte nennt der Hinweis Meter",
+    beideIn(await hinweisEinheiten("de"), "m"),
+    (await hinweisEinheiten("de")).text);
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  /* Kartenwechsel durch Laden. */
   await page.locator("#fileInput").setInputFiles({
     name: "mehrdeutig.geojson", mimeType: "application/geo+json",
-    buffer: Buffer.from(JSON.stringify({
-      type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        properties: { name: "perimeter" },
-        geometry: { type: "Polygon", coordinates: [[
-          [0, 0], [0.5, 0], [0.5, 0.5], [0, 0.5], [0, 0],
-        ]] },
-      }],
-    })),
+    buffer: Buffer.from(mehrdeutigeKarte),
   });
   await page.waitForTimeout(450);
   await openAllFolds(page);
-  await page.locator("#drawCircleBtn").click();
-  await page.waitForTimeout(250);
+  await kreisStarten();
 
   check("Vorbedingung: der Maszstab ist unbekannt",
     await page.evaluate(() => !hasKnownScale()));
+  check("Vorbedingung: in die Felder wurde nichts eingegeben",
+    (await felder()) === felderVorher, `${felderVorher} -> ${await felder()}`);
+  check("nach dem Laden nennt der Hinweis die Einheit der neuen Karte",
+    beideIn(await hinweisEinheiten("de"), "Einheiten"),
+    (await hinweisEinheiten("de")).text);
 
-  /*
-   * Erzeugt wird die Zeile durch eine Eingabe nach dem Laden: das Laden
-   * einer Karte rechnet den Kreishinweis nicht neu, er traegt bis zur
-   * naechsten Eingabe die Einheit der vorigen Karte. Das betrifft die
-   * Abweichung genauso und ist ein eigener Befund, nicht Gegenstand dieses
-   * Abschnitts.
-   */
-  await page.fill("#circleVerticesInput", "30");
-  await page.waitForTimeout(200);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  /* Kartenwechsel durch Umschalten: B hat einen bekannten Maszstab. */
+  await page.locator("#secondFileInput").setInputFiles({
+    name: "bekannt.geojson", mimeType: "application/geo+json",
+    buffer: Buffer.from(baseMap),
+  });
+  await page.waitForTimeout(450);
+  await openAllFolds(page);
+  await kreisStarten();
+
+  check("Vorbedingung: Karte B ist aktiv und ihr Maszstab bekannt",
+    await page.evaluate(() => activeMapId === "B" && hasKnownScale()));
+  check("nach dem Laden von Karte B nennt der Hinweis wieder Meter",
+    beideIn(await hinweisEinheiten("de"), "m"),
+    (await hinweisEinheiten("de")).text);
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  await menueBefehl("Karte", "Karte A");
+  await page.waitForTimeout(300);
+  await kreisStarten();
+
+  check("Vorbedingung: Karte A ist wieder aktiv",
+    await page.evaluate(() => activeMapId === "A" && !hasKnownScale()));
+  check("in die Felder wurde weiterhin nichts eingegeben",
+    (await felder()) === felderVorher, `${felderVorher} -> ${await felder()}`);
+  check("nach dem Umschalten auf A nennt der Hinweis wieder Einheiten",
+    beideIn(await hinweisEinheiten("de"), "Einheiten"),
+    (await hinweisEinheiten("de")).text);
 
   {
     const ist = await abstandIst("de");
 
-    check("unbekannter Maszstab, deutsch: die Zeile nennt Einheiten",
+    check("unbekannter Maszstab, deutsch: die Abstandszeile nennt Einheiten",
       ist.einheit === "Einheiten", ist.zeile);
   }
 
