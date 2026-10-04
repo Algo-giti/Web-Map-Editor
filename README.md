@@ -218,14 +218,19 @@ Sunray-Darstellung als auch in absolutem WGS84.
   der GeoJSON-Datei
 - **Maßstab:** ist er beim Laden unklar, lässt er sich dort ebenfalls von Hand
   setzen, als Meter je Einheit und je Karte. Danach stehen alle Längen und
-  Flächen in Metern, und beim Speichern steht der Wert als `coordinateScale`
-  in der Datei
+  Flächen in Metern. Der Wert gilt für die Sitzung und wird nicht in die Datei
+  geschrieben; nach dem Neuladen ist er erneut zu setzen
 - **Koordinaten beim Speichern:** wahlweise *wie geladen* oder
   *absolut WGS84 (CaSSAndRA)*
 - absolute Karten werden beim Laden automatisch erkannt und in lokale
   East/North-Meter umgerechnet
-- der Bezugspunkt wird im Browser gemerkt und zusätzlich in der Datei
-  hinterlegt, ohne CaSSAndRAs Import zu stören
+- der Bezugspunkt wird im Browser gemerkt, aber nicht in die Datei
+  geschrieben: CaSSAndRAs Datei-Import lehnt eine Datei ab, die auf oberster
+  Ebene mehr trägt als `type` und `features`. Gespeichert wird deshalb nur,
+  was das Format vorsieht. Frühere Fassungen des Editors schrieben
+  `referenceOrigin` und `coordinateScale` dazu, und CaSSAndRA wies solche
+  Dateien ab; im Editor geöffnet und „wie geladen“ erneut gespeichert, sind
+  sie bereinigt
 
 Nennt eine geladene Karte einen anderen RTK-Bezugspunkt als den aktiven,
 behält der Editor den aktiven bei, weist deutlich darauf hin und sperrt
@@ -541,12 +546,17 @@ Sunray representation and in absolute WGS84.
   inspector under "Koordinatenbezug". In CaSSAndRA it lives under *Settings → Robot* and is not part of
   the GeoJSON file
 - **Scale:** if it is unclear on load, it can be set by hand there as well, in
-  metres per unit and per map. All lengths and areas are then shown in metres,
-  and saving writes the value to the file as `coordinateScale`
+  metres per unit and per map. All lengths and areas are then shown in metres.
+  The value applies to the session and is not written to the file; after
+  reloading it has to be set again
 - **Coordinates on save:** either *as loaded* or *absolute WGS84 (CaSSAndRA)*
 - absolute maps are detected on load and converted to local East/North metres
-- the reference point is remembered in the browser and additionally stored in
-  the file without disturbing CaSSAndRA's import
+- the reference point is remembered in the browser but not written to the
+  file: CaSSAndRA's file import rejects a file that carries anything besides
+  `type` and `features` at its top level, so saving writes only what the
+  format provides for. Earlier versions of the editor added `referenceOrigin`
+  and `coordinateScale`, and CaSSAndRA refused such files; opened in the
+  editor and saved again "as loaded", they are clean
 
 If a loaded map declares an RTK reference point that differs from the active
 one, the editor keeps the active point, says so clearly, and blocks both

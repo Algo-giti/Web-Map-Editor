@@ -23,6 +23,7 @@ const NAMES = [
   "formatNumber",
   "formatMeters",
   "SUNRAY_FACTOR",
+  "EMPTY_FEATURE_COLLECTION",
   "CASSANDRA_NAME_BY_TYPE",
   "FEATURE_TYPE_BY_NAME",
   "getFeatureType",
@@ -454,33 +455,73 @@ check("Datei-Massstab schlaegt Heuristik",
   app.prepareImportedCollection(declared, {}).scaleMode);
 
 /* -------------------------------------------------------------------- */
-console.log("Zusicherungen im Export");
+console.log("Oberste Ebene des Exports");
 
+/*
+ * Ein Export traegt auf oberster Ebene nur, was das Format vorsieht: type
+ * und features. Jedes weitere Feld ist ein Fehler. Gemessen wird am
+ * erzeugten Export, nicht am Quelltext.
+ *
+ * Der Anlass: referenceOrigin und coordinateScale brachen CaSSAndRAs
+ * Datei-Import. import_sunray() liest die Datei zuerst mit pd.read_json() als
+ * Sunray-Export; ein Objekt auf oberster Ebene laesst pandas dort abbrechen,
+ * und der Fehlerzweig kehrt zurueck, bevor der GeoJSON-Zweig erreicht wird.
+ *
+ * Den Lesevorgang selbst bildet dieser Test NICHT nach - er laeuft in Python
+ * und pandas, und die statische Stufe kommt ohne beides aus. Die Zusicherung
+ * ist deshalb strenger als der gemessene Bruch: sie verbietet jedes weitere
+ * Feld, nicht nur eines mit Objektwert. Benannte Luecke in CLAUDE.md, 5b.
+ */
+const FORMAT_SCHLUESSEL = ["type", "features"];
+const fremdeSchluessel = (collection) =>
+  Object.keys(collection).filter((key) => !FORMAT_SCHLUESSEL.includes(key));
+
+check("Kalibrierung: ein weiteres Feld wird erkannt",
+  fremdeSchluessel({ type: "FeatureCollection", features: [], coordinateScale: {} }).join() === "coordinateScale");
+
+/*
+ * Die geladene Karte traegt selbst Felder auf oberster Ebene: die beiden
+ * eigenen aelterer Dateien dieses Editors und zwei, die andere Werkzeuge
+ * schreiben. Durchgereicht werden darf keines davon.
+ */
 app.setData({
   type: "FeatureCollection",
+  name: "fremd",
+  crs: { type: "name", properties: { name: "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+  referenceOrigin: { lat: 52.5, lon: 13.4 },
+  coordinateScale: { metersPerUnit: 111111 },
   features: [feature("perimeter", [[0, 0], [0.00001, 0], [0.00001, 0.00001], [0, 0]])],
 });
 app.setReferenceOrigin({ lat: 52.5, lon: 13.4 });
 
-app.setCoordMode("sunray-relative");
-app.setScale(111111);
-const known = app.buildExportCollection(false, null);
-check("bei bekanntem Massstab wird der Bezugspunkt geschrieben",
-  known.referenceOrigin?.lat === 52.5);
-check("bei bekanntem Massstab wird der Massstab geschrieben",
-  known.coordinateScale?.metersPerUnit === 111111,
-  JSON.stringify(known.coordinateScale));
+const exportFaelle = [
+  { name: "relativ, Massstab Sunray", mode: "sunray-relative", factor: 111111, absolute: false },
+  { name: "absolut, Massstab Sunray", mode: "sunray-relative", factor: 111111, absolute: true },
+  { name: "relativ, metrisch angenommen", mode: "metric-assumed", factor: 1, absolute: false },
+  { name: "absolut, metrisch angenommen", mode: "metric-assumed", factor: 1, absolute: true },
+  { name: "relativ, von Hand gesetzt", mode: "metric-assumed", factor: 12.5, absolute: false },
+  { name: "relativ, Massstab unklar", mode: "unknown", factor: 1, absolute: false },
+];
 
-/*
- * Bei unbekanntem Massstab darf keine Zusicherung in die Datei, die sie nicht
- * einloest - weder ein Bezugspunkt noch ein Massstab.
- */
-app.setCoordMode("unknown");
-const unknown = app.buildExportCollection(false, null);
-check("bei unbekanntem Massstab kein Bezugspunkt",
-  unknown.referenceOrigin === undefined, JSON.stringify(unknown.referenceOrigin));
-check("bei unbekanntem Massstab kein Massstab",
-  unknown.coordinateScale === undefined, JSON.stringify(unknown.coordinateScale));
+for (const fall of exportFaelle) {
+  app.setCoordMode(fall.mode);
+  app.setScale(fall.factor);
+  const exportiert = app.buildExportCollection(fall.absolute, null);
+
+  check(`${fall.name}: der Export entsteht`, exportiert !== null);
+  if (!exportiert) continue;
+
+  /* Die Wirkung, ohne die das Ausbleiben unten nichts bewiese. */
+  check(`${fall.name}: er ist eine FeatureCollection mit ihren Features`,
+    exportiert.type === "FeatureCollection" &&
+      exportiert.features.length === 1 &&
+      exportiert.features[0].properties.name === "perimeter",
+    JSON.stringify(exportiert).slice(0, 120));
+  check(`${fall.name}: oben steht nur type und features`,
+    fremdeSchluessel(exportiert).length === 0,
+    fremdeSchluessel(exportiert).join(", "));
+}
+
 check("absoluter Export bei unbekanntem Massstab verweigert",
   app.buildExportCollection(true, null) === null);
 
@@ -791,8 +832,9 @@ check("absoluter Export nach Aufloesen wieder moeglich",
   app.buildExportCollection(true, otherBase) !== null);
 check("relativer Export nach Aufloesen wieder moeglich",
   app.buildExportCollection(false, otherBase) !== null);
-check("Export schreibt danach den aufgeloesten Bezugspunkt",
-  app.buildExportCollection(true, otherBase).referenceOrigin?.lat === otherBase.lat);
+check("und schreibt ihn nicht in die Datei",
+  fremdeSchluessel(app.buildExportCollection(true, otherBase)).length === 0,
+  fremdeSchluessel(app.buildExportCollection(true, otherBase)).join(", "));
 
 /* -------------------------------------------------------------------- */
 console.log("Export");
@@ -815,8 +857,9 @@ check("Export normalisiert 'dock points'",
   exportedRelative.features[1].properties.name === "dockpoints");
 check("Export laesst fremdes Feature unveraendert",
   exportedRelative.features[2].properties.name === "mow path");
-check("Export schreibt Bezugspunkt",
-  exportedRelative.referenceOrigin?.lat === 52.5);
+check("Export schreibt den Bezugspunkt nicht",
+  fremdeSchluessel(exportedRelative).length === 0,
+  fremdeSchluessel(exportedRelative).join(", "));
 check("relativer Export bleibt relativ",
   !istAbsolut(exportedRelative));
 

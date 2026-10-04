@@ -400,6 +400,9 @@ try {
   check("erster Wert: der Satz darunter nennt die Herkunft",
     (await textVon("#scaleInputStatus")).startsWith("Von Hand gesetzt"),
     await textVon("#scaleInputStatus"));
+  check("erster Wert: und sagt, dass er nicht in die Datei kommt",
+    (await textVon("#scaleInputStatus")).includes("in die Datei wird er nicht geschrieben"),
+    await textVon("#scaleInputStatus"));
 
   {
     const bild = await markerImBild();
@@ -436,7 +439,8 @@ try {
     (await textVon('label[for="scaleInput"]')).startsWith("Scale (metres per unit)"),
     await textVon('label[for="scaleInput"]'));
   check("deutsch gesetzt, dann englisch: der Satz darunter ist englisch",
-    (await textVon("#scaleInputStatus")).startsWith("Set by hand"),
+    (await textVon("#scaleInputStatus")).startsWith("Set by hand") &&
+      (await textVon("#scaleInputStatus")).includes("not written to the file"),
     await textVon("#scaleInputStatus"));
   check("deutsch gesetzt, dann englisch: die Statuszeile ist englisch",
     (await textVon("#scaleStatus")) === "set by hand", await textVon("#scaleStatus"));
@@ -817,7 +821,13 @@ try {
       await textVon("#mergeAInfo"));
   }
 
-  /* --- in die Datei, und beim Wiedereinlesen erkannt --------------- */
+  /*
+   * --- nicht in die Datei: wieder eingelesen ist er wieder unklar -----
+   *
+   * Der Massstab ist ein Sitzungswert (entschieden vom Projektinhaber): ein
+   * Feld auf oberster Ebene bricht CaSSAndRAs Datei-Import. Wer die Karte
+   * speichert und neu laedt, setzt ihn erneut.
+   */
 
   await load(KARTE_A);
   await massstabSetzen(EINGABE_2);
@@ -835,19 +845,23 @@ try {
       for await (const teil of stream) teile.push(teil);
       const gespeichert = JSON.parse(Buffer.concat(teile).toString());
 
-      check("von Hand gesetzt: der Massstab steht in der Datei",
-        gespeichert.coordinateScale?.metersPerUnit === FAKTOR_2,
-        JSON.stringify(gespeichert.coordinateScale));
+      check("von Hand gesetzt: die Datei traegt alle Features der Karte",
+        gespeichert.type === "FeatureCollection" &&
+          gespeichert.features?.length === JSON.parse(KARTE_A).features.length,
+        JSON.stringify(gespeichert).slice(0, 120));
+      check("von Hand gesetzt: oben steht nur type und features",
+        Object.keys(gespeichert).every((schluessel) => schluessel === "type" || schluessel === "features"),
+        Object.keys(gespeichert).join(", "));
 
       await load(JSON.stringify(gespeichert));
 
-      check("wieder eingelesen: kein Hinweis", await notice.isHidden());
-      await abmessungenStimmen("wieder eingelesen", KARTE_A, FAKTOR_2, "de");
-      check("wieder eingelesen: das Feld zeigt den Wert der Datei und ist gesperrt",
-        (await feld.inputValue()) === EINGABE_2 && await feld.isDisabled(),
-        await feld.inputValue());
-      check("wieder eingelesen: der Satz darunter sagt, warum",
-        (await textVon("#scaleInputStatus")).startsWith("Der Maßstab dieser Karte ist bekannt"),
+      check("wieder eingelesen: der Hinweis steht wieder da", await notice.isVisible());
+      check("wieder eingelesen: die Abmessungen nennen keine Meter",
+        !(await width()).includes("m"), await width());
+      check("wieder eingelesen: das Feld ist leer und frei - der Massstab ist neu zu setzen",
+        (await feld.inputValue()) === "" && await feld.isEnabled(), await feld.inputValue());
+      check("wieder eingelesen: der Satz darunter nennt ihn unklar",
+        (await textVon("#scaleInputStatus")).startsWith("Maßstab unklar"),
         await textVon("#scaleInputStatus"));
     }
   }
@@ -881,7 +895,7 @@ try {
   await page.evaluate(() => setLanguage("de"));
 
   /* ---------------------------------------------------------------- */
-  console.log("Rundlauf: der Maßstab übersteht das Speichern");
+  console.log("Rundlauf: eine metrische Karte bleibt beim Speichern metrisch");
 
   await load(square(200, 1));
 
@@ -897,11 +911,14 @@ try {
     for await (const chunk of stream) chunks.push(chunk);
     const saved = JSON.parse(Buffer.concat(chunks).toString());
 
-    check("Maßstab steht in der Datei",
-      saved.coordinateScale?.metersPerUnit === 1,
-      JSON.stringify(saved.coordinateScale));
+    check("die Datei traegt die Karte",
+      saved.type === "FeatureCollection" && saved.features?.length === 1,
+      JSON.stringify(saved).slice(0, 120));
+    check("oben steht nur type und features",
+      Object.keys(saved).every((schluessel) => schluessel === "type" || schluessel === "features"),
+      Object.keys(saved).join(", "));
 
-    /* Und beim Wiedereinlesen greift er. */
+    /* Wieder eingelesen erkennt die Heuristik ihn erneut - ohne Feld in der Datei. */
     await load(JSON.stringify(saved));
     check("wieder eingelesen weiterhin 200 m",
       (await width()).trim() === "200,00 m", await width());

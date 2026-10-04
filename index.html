@@ -10646,9 +10646,8 @@ function setMapSlotData(mapId, featureCollection, fileName, options = {}) {
   slot.scaleMode = options.scaleMode || null;
 
   /*
-   * Ein aus der Datei gelesener Maßstab wird beim Export unverändert wieder
-   * mitgeschrieben. Fehlt er, wird beim Export nur dann einer geschrieben,
-   * wenn der Editor ihn sicher kennt.
+   * Ein aus der Datei gelesener Maßstab gilt für die Sitzung. Geschrieben
+   * wird er beim Export nicht, siehe buildExportCollection().
    */
   slot.fileScale = options.fileScale
     ? {metersPerUnit:options.fileScale.metersPerUnit}
@@ -11344,9 +11343,14 @@ function restoreReferenceOrigin() {
    Maßstab in der Datei
    --------------------------------------------------------------------------
    Gleiche Machart wie referenceOrigin: ein Nicht-Standard-Feld auf der
-   FeatureCollection. CaSSAndRAs Import greift ausschließlich auf `features`
-   zu (CaSSAndRA/src/backend/data/mapdata.py, Branch master) und ignoriert
-   zusätzliche Top-Level-Felder nachweislich.
+   FeatureCollection. Geschrieben wird es nicht mehr - es bricht CaSSAndRAs
+   Datei-Import, siehe buildExportCollection(). Gelesen wird es beim Laden
+   älterer Dateien dieses Editors weiterhin (entschieden vom Projektinhaber:
+   nicht mehr zu schreiben hieß nicht, nicht mehr zu lesen).
+
+   OFFEN: ältere ABSOLUTE Exporte trugen hier 111111 zu Gradkoordinaten. Der
+   Wert schlägt die Absolut-Erkennung, die Karte wird nicht umgerechnet.
+   Siehe CLAUDE.md, Abschnitt 7.
 
    Ein Wert in der Datei schlägt jede Heuristik. Damit erkennt der Editor
    seine eigene Ausgabe immer wieder, unabhängig davon, wie die Punkte darin
@@ -11393,9 +11397,17 @@ function scaleModeForFactor(metersPerUnit) {
 /**
  * Liest einen in der Datei hinterlegten Bezugspunkt.
  *
- * `referenceOrigin` ist ein zusätzliches Feld auf der FeatureCollection. Es
- * ist kein Standard-GeoJSON, wird von CaSSAndRAs Import aber ignoriert, weil
- * dieser ausschließlich `features` auswertet.
+ * `referenceOrigin` ist ein zusätzliches Feld auf der FeatureCollection und
+ * kein Standard-GeoJSON. Geschrieben wird es nicht mehr - es bricht
+ * CaSSAndRAs Datei-Import, siehe buildExportCollection().
+ *
+ * Gelesen wird es weiterhin, und das ist Absicht (entschieden vom
+ * Projektinhaber): ältere Dateien des Editors tragen den Schlüssel. Ohne das
+ * Lesen verlören sie ihren Bezugspunkt stillschweigend - eine absolute Karte
+ * nähme ohne gesetzten Bezugspunkt ihren ersten Punkt als Nullpunkt, und ein
+ * relativer Export läge gegen diesen Punkt statt gegen die RTK-Basis, bemerkt
+ * erst im Betrieb. Eine heute erzeugte Datei kann damit keinen
+ * Bezugspunkt-Konflikt mehr auslösen, nur eine ältere.
  */
 function readEmbeddedOrigin(featureCollection) {
   const origin = featureCollection?.referenceOrigin;
@@ -19065,6 +19077,24 @@ function shouldExportAbsolute() {
  * CaSSAndRA-Schreibweise normalisiert; das Koordinatensystem folgt der
  * Auswahl im Speicherbereich.
  *
+ * Auf oberster Ebene steht nur, was das Format vorsieht: type und features.
+ * Jedes weitere Feld bricht CaSSAndRAs Datei-Import. import_sunray()
+ * (CaSSAndRA/src/backend/data/mapdata.py) liest die Datei zuerst mit
+ * pd.read_json() als Sunray-Export; ein Objekt auf oberster Ebene lässt
+ * pandas dort abbrechen ("Mixing dicts with non-Series may lead to ambiguous
+ * ordering."), und der Fehlerzweig kehrt zurück, bevor der GeoJSON-Zweig
+ * erreicht wird, der nur features lesen würde. Gemessen an der
+ * herausgelösten Funktion mit pandas 2.0.1, der Version aus CaSSAndRAs
+ * requirements.txt.
+ *
+ * Die Hülle kommt deshalb aus EMPTY_FEATURE_COLLECTION, übernommen werden
+ * allein die Features. Was eine geladene Datei sonst auf oberster Ebene trug,
+ * fällt beim Speichern weg - auch referenceOrigin und coordinateScale aus
+ * älteren Dateien dieses Editors. Maßstab und Bezugspunkt werden nicht
+ * geschrieben (entschieden vom Projektinhaber); gelesen werden beide aus
+ * älteren Dateien weiterhin, siehe readEmbeddedOrigin() und
+ * readEmbeddedScale().
+ *
  * Liefert null, wenn die Karte gegen eine andere RTK-Basis gerechnet ist als
  * der aktive Bezugspunkt - unabhängig vom Ausgabemodus.
  *
@@ -19083,9 +19113,10 @@ function buildExportCollection(absolute, fileOrigin = null) {
    */
   if (absolute && !hasKnownScale()) return null;
 
-  const exported = structuredClone(data);
+  const exported = structuredClone(EMPTY_FEATURE_COLLECTION);
+  exported.features = structuredClone(data.features || []);
 
-  for (const feature of (exported.features || [])) {
+  for (const feature of exported.features) {
     const canonicalName = cassandraNameForFeature(feature);
     if (!canonicalName) continue;
 
@@ -19097,32 +19128,6 @@ function buildExportCollection(absolute, fileOrigin = null) {
 
   if (absolute) {
     relativeCollectionToAbsolute(exported, referenceOrigin, scaleFactor);
-  }
-
-  /*
-   * Zusicherungen, die die Datei nicht einlöst, werden nicht geschrieben.
-   *
-   * Bei unbekanntem Maßstab bedeutet ein Bezugspunkt nichts: die Zahlen der
-   * Datei lassen sich nicht in Meter und damit auch nicht in Grad umrechnen.
-   * Ein trotzdem geschriebener referenceOrigin würde beim nächsten Öffnen als
-   * gültiger Bezug gelesen. Dasselbe gilt für coordinateScale selbst - ein
-   * unbekannter Maßstab darf nicht als bekannter in die Datei.
-   */
-  const scaleKnown = hasKnownScale();
-
-  if (scaleKnown && hasReferenceOrigin()) {
-    exported.referenceOrigin = {
-      lat:referenceOrigin.lat,
-      lon:referenceOrigin.lon
-    };
-  } else {
-    delete exported.referenceOrigin;
-  }
-
-  if (scaleKnown) {
-    exported.coordinateScale = {metersPerUnit:scaleFactor};
-  } else {
-    delete exported.coordinateScale;
   }
 
   return exported;
@@ -19311,7 +19316,7 @@ function updateScaleField() {
     !settable
       ? "Der Maßstab dieser Karte ist bekannt; von Hand setzen lässt er sich nur, solange er unklar ist."
       : hasManualScale(slot)
-        ? "Von Hand gesetzt; gilt nur für diese Karte und wird beim Speichern mitgeschrieben. Ein leeres Feld nimmt ihn zurück."
+        ? "Von Hand gesetzt; gilt nur für diese Karte und nur in dieser Sitzung, in die Datei wird er nicht geschrieben. Ein leeres Feld nimmt ihn zurück."
         : "Maßstab unklar: Meter je Einheit eintragen. Der Wert gilt nur für diese Karte."
   );
 }
@@ -19323,10 +19328,10 @@ function updateScaleField() {
  * Das Feld schreibt genau den Wert, den eine Datei als
  * coordinateScale.metersPerUnit mitbringt, an genau dieselbe Stelle:
  * `slot.fileScale`. Eine zweite Quelle daneben gibt es nicht - slotScale()
- * liest ihn wie einen aus der Datei, und der Export schreibt ihn wie jeden
- * bekannten Maßstab als coordinateScale zurück (entschieden vom
- * Projektinhaber). Dass er von Hand kam, folgt allein daraus, dass die Karte
- * beim Laden unklar war, siehe canSetScaleByHand().
+ * liest ihn wie einen aus der Datei. In die Datei geschrieben wird er nicht:
+ * der Maßstab ist ein Sitzungswert (entschieden vom Projektinhaber), siehe
+ * buildExportCollection(). Dass er von Hand kam, folgt allein daraus, dass
+ * die Karte beim Laden unklar war, siehe canSetScaleByHand().
  *
  * Ein leeres Feld nimmt den Wert zurück; die Karte ist dann wieder unklar.
  *
@@ -21514,7 +21519,7 @@ const I18N_EN = new Map(Object.entries({
   /* Maßstab von Hand setzen, im Block "Koordinatenbezug". */
   "Maßstab (Meter je Einheit)":"Scale (metres per unit)",
   "Maßstab unklar: Meter je Einheit eintragen. Der Wert gilt nur für diese Karte.":"Scale unclear: enter metres per unit. The value applies to this map only.",
-  "Von Hand gesetzt; gilt nur für diese Karte und wird beim Speichern mitgeschrieben. Ein leeres Feld nimmt ihn zurück.":"Set by hand; applies to this map only and is written to the file on saving. An empty field withdraws it.",
+  "Von Hand gesetzt; gilt nur für diese Karte und nur in dieser Sitzung, in die Datei wird er nicht geschrieben. Ein leeres Feld nimmt ihn zurück.":"Set by hand; applies to this map and this session only, it is not written to the file. An empty field withdraws it.",
   "Der Maßstab dieser Karte ist bekannt; von Hand setzen lässt er sich nur, solange er unklar ist.":"The scale of this map is known; it can only be set by hand while it is unclear.",
   "Ungültiger Maßstab: bitte eine Zahl größer als 0 eingeben.":"Invalid scale: please enter a number greater than 0.",
   "Der Maßstab wurde nicht verändert.":"The scale was not changed.",

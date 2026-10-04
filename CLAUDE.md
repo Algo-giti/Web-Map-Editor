@@ -286,7 +286,8 @@ Führt nacheinander aus:
   Typ-Bezeichner und deren Aliasse, Label-Vorrang bei der Anzeige,
   `cos(lat)`-Skalierung, verlustfreier Rundlauf relativ → absolut → relativ
   bei mehreren Breitengraden, Identität bei `lat0 = lon0 = 0`, Import- und
-  Export-Pfad. Dazu die Bezugspunkt-Konflikte aus Abschnitt 5b: Toleranz,
+  Export-Pfad – dazu, dass der erzeugte Export auf oberster Ebene nur `type`
+  und `features` trägt (Abschnitt 5b). Dazu die Bezugspunkt-Konflikte aus Abschnitt 5b: Toleranz,
   Adoptionsregel und die Exportsperre in beiden Modi. Liegt lokal eine Karte
   unter `test/` (nicht im Repository), wird zusätzlich ein Rundlauf damit
   gefahren; fehlt der Ordner, überspringt das Skript den Fall.
@@ -4156,10 +4157,10 @@ Maßstab bekannt ist – `hasKnownScale()` beantwortet das. Bei `"ambiguous"`
 gelten folgende Regeln:
 
 - **Gesperrt**, weil keine Umrechnung sie rettet: Rasterfang
-  (`snapWorldCoordinate()` bleibt untätig, der Schalter ist deaktiviert),
-  absolutes Speichern, und das Schreiben von `referenceOrigin` bzw.
-  `coordinateScale` in die Datei. **Eine Zusicherung, die die Datei nicht
-  einlöst, wird nicht geschrieben.**
+  (`snapWorldCoordinate()` bleibt untätig, der Schalter ist deaktiviert)
+  und absolutes Speichern. `referenceOrigin` und `coordinateScale` schreibt
+  der Export bei **keinem** Maßstab mehr – siehe „Der Export trägt oben nur
+  `type` und `features`“ in Abschnitt 5b.
 - **Nur gekennzeichnet**, weil dort höchstens Fehlalarme entstehen:
   Reduzieren-Toleranz, Begradigen-Schwellwert, Mäher-Vorschau. Längenangaben
   tragen dann „Einheiten" statt „m" (`scaleUnitLabel()`).
@@ -4192,12 +4193,26 @@ jeden positiven Faktor schon, und eine Karte in Fuß ist keine der beiden.
   bleibt nach dem Laden stehen. Bei bekanntem Maßstab zeigt das Feld den
   Faktor, mit dem gerechnet wird, und ist gesperrt; der Satz darunter sagt
   warum. Ohne Karte ist es leer und gesperrt.
-- **In die Datei – entschieden vom Projektinhaber**, weil das Format die
-  Stelle hat. Der Export schreibt einen von Hand gesetzten Maßstab wie jeden
-  bekannten als `coordinateScale`; mit ihm fallen die Sperren von oben:
-  `referenceOrigin` wird mitgeschrieben, absolut WGS84 speichern geht. Wieder
-  geöffnet wird die Karte ohne Hinweis erkannt, und das Feld ist dann
-  gesperrt – der Wert stammt jetzt aus der Datei.
+- **Nicht in die Datei – entschieden vom Projektinhaber, und damit
+  umgedreht.** Zuerst war entschieden, der Export schreibe einen von Hand
+  gesetzten Maßstab wie jeden bekannten als `coordinateScale`. Am selben Tag
+  gemessen: ein Feld mit Objektwert auf oberster Ebene bricht CaSSAndRAs
+  Datei-Import (Abschnitt 5b). **Der von Hand gesetzte Maßstab ist seitdem
+  ein Sitzungswert.** Gespeichert und wieder geöffnet ist die Karte unklar wie
+  vorher, der Hinweis steht wieder da, und der Wert ist neu zu setzen. Er wird
+  auch nirgends sonst abgelegt – kein `localStorage`, kein zweiter Ort in der
+  Datei. Mit dem Maßstab fallen die Sperren von oben trotzdem: absolut WGS84
+  speichern geht, solange er in der Sitzung gesetzt ist.
+
+  **„Sitzungswert, kein `localStorage`“ gilt nur für den Maßstab, nicht für
+  den Bezugspunkt – entschieden vom Projektinhaber, und der Unterschied ist
+  keine Unachtsamkeit.** Der Bezugspunkt bleibt im `localStorage`
+  (`webMapEditor.referenceOrigin`). Der war nicht die Ursache des
+  Import-Fehlers – das war das Objekt auf oberster Ebene der Datei. Und ohne
+  ihn nähme eine absolute Karte, die ohne gesetzten Bezugspunkt geöffnet
+  wird, ihren ersten Punkt als Nullpunkt; der relative Export läge dann gegen
+  diesen Punkt statt gegen die RTK-Basis. Das sind falsche Koordinaten auf dem
+  Mäher, bemerkt erst im Betrieb.
 - **Ein eigener Undo-Schritt** („Maßstab setzen“). Der Snapshot führt den
   Wert im Slot; ohne eigenen Schritt holte das Undo einer früheren Bearbeitung
   ihn still mit zurück. Derselbe Wert noch einmal legt keinen Schritt an, ein
@@ -4236,7 +4251,8 @@ entsprechend andere Längen – die erwarteten Werte rechnet der Test aus der
 Ausdehnung der Karte und dem eingegebenen Faktor –, und eine metrische Karte
 bleibt, wie sie ist. Dazu beide Sprachrichtungen über `setLanguage()`, je
 Karte statt für beide Slots, das Overlay, die Sperre beim Verbinden, der
-Rundlauf über die Datei und das Undo. **43 Mutationen, je eine Schreibstelle,
+Rundlauf über die Datei – gespeichert und wieder geöffnet ist er wieder
+unklar – und das Undo. **43 Mutationen, je eine Schreibstelle,
 reißen je 1 bis 70 benannte Zusicherungen bei 0 Timeouts**; zehn davon sind
 die Wörterbucheinträge, je einer einzeln entfernt.
 
@@ -4373,24 +4389,103 @@ lon = east  / (111111·cos(lat0)) + lon0
   Editier-Logik arbeiten in lokalen Metern; ein Umstieg auf Grad hätte all das
   gebrochen und der Vorgabe "Rohkoordinaten beim Export erhalten"
   widersprochen.
-- **Der Maßstab steht optional in der Datei.** `coordinateScale`
-  (`{metersPerUnit: 111111 | 1}`) ist ein Nicht-Standard-Feld auf der
-  FeatureCollection, gleiche Machart wie `referenceOrigin`. **Ein Wert in der
-  Datei schlägt jede Heuristik**, damit der Editor seine eigene Ausgabe immer
-  wiedererkennt. Gelesen über `readEmbeddedScale()`, geprüft über
-  `parseScale()` (endlich, > 0) analog zu `parseOrigin()`. Geschrieben wird das
-  Feld nur bei bekanntem Maßstab. **Bei unklarem Maßstab lässt er sich von
-  Hand setzen**; der Wert steht dann an derselben Stelle (`slot.fileScale`)
-  und wird geschrieben wie einer aus der Datei – siehe „Maßstab und
-  Metermaße“ in Abschnitt 5.
+- **Der Maßstab wird nicht mehr in die Datei geschrieben.** `coordinateScale`
+  (`{metersPerUnit: 111111 | 1}`) war ein Nicht-Standard-Feld auf der
+  FeatureCollection, gleiche Machart wie `referenceOrigin`, und bricht wie
+  dieses CaSSAndRAs Datei-Import – siehe „Der Export trägt oben nur `type`
+  und `features`“ weiter unten. **Gelesen wird es weiterhin** – entschieden vom
+  Projektinhaber: nicht mehr zu schreiben hieß nicht, nicht mehr zu lesen.
+  Gelesen über `readEmbeddedScale()`, geprüft über `parseScale()` (endlich,
+  > 0) analog zu `parseOrigin()`; ein solcher Wert schlägt jede Heuristik.
+  **OFFEN** ist dabei der Fall älterer **absoluter** Exporte, siehe
+  Abschnitt 7. **Bei unklarem Maßstab lässt er sich von Hand setzen**; der Wert
+  steht dann an derselben Stelle (`slot.fileScale`) und gilt für die Sitzung –
+  siehe „Maßstab und Metermaße“ in Abschnitt 5.
 - **Der Bezugspunkt musste neu eingeführt werden** – im Projekt gab es vorher
   keinerlei WGS84-Bezug, der Ursprung war hart E=0/N=0. Er wird im
   Inspektor unter "Koordinatenbezug" gepflegt (bis Etappe 7c in der
-  Seitenleiste), in `localStorage`
-  (`webMapEditor.referenceOrigin`) gemerkt und zusätzlich als
-  Nicht-Standard-Feld `referenceOrigin` auf der FeatureCollection
-  mitgeschrieben. CaSSAndRAs Import wertet ausschließlich `features` aus und
-  ignoriert dieses Feld nachweislich.
+  Seitenleiste) und in `localStorage` (`webMapEditor.referenceOrigin`)
+  gemerkt. **In die Datei geschrieben wird er nicht mehr.** Er stand dort als
+  Nicht-Standard-Feld `referenceOrigin` auf der FeatureCollection, und hier
+  stand, CaSSAndRAs Import werte ausschließlich `features` aus und ignoriere
+  das Feld „nachweislich“. **Das war falsch** – das Feld bricht den Import,
+  siehe den nächsten Punkt.
+
+  **Gelesen wird es weiterhin, und das ist kein Rest, sondern entschieden**
+  (vom Projektinhaber, am 04.10.2026): geschrieben wird der Schlüssel nicht
+  mehr, gelesen schon. Ältere Dateien des Editors tragen ihn bereits. Fiele das
+  Lesen weg, verlören sie ihren Bezugspunkt stillschweigend – eine absolute
+  Karte nähme ohne gesetzten Bezugspunkt ihren ersten Punkt als Nullpunkt, und
+  ein relativer Export läge gegen diesen Punkt statt gegen die RTK-Basis,
+  bemerkt erst im Betrieb. Die Konfliktprüfung bleibt damit erreichbar, und
+  alles daran Hängende auch: Warnung, Verbinden-Sperre, Export-Sperre,
+  `tools/test-origin-conflict.mjs`, der Konfliktzustand in
+  `tools/scan-i18n.mjs`.
+
+  **Benannte Folge: eine heute erzeugte Datei kann keinen Bezugspunkt-Konflikt
+  mehr auslösen, nur eine ältere.** Sie trägt den Schlüssel nicht, und ein
+  Konflikt entsteht allein aus dem Bezugspunkt einer Datei gegen den aktiven.
+- **Der Export trägt oben nur `type` und `features`.** Jedes weitere Feld
+  auf oberster Ebene ist ein Fehler; `buildExportCollection()` baut die Hülle
+  deshalb aus `EMPTY_FEATURE_COLLECTION` und übernimmt allein die Features.
+  Was eine geladene Datei sonst oben trug – `name` und `crs` fremder
+  Werkzeuge ebenso wie die beiden eigenen Felder älterer Dateien –, fällt beim
+  Speichern weg. **Entschieden vom Projektinhaber am 04.10.2026.**
+
+  **Der Befund:** CaSSAndRAs einziger Datei-Import ist `import_sunray()` in
+  `CaSSAndRA/src/backend/data/mapdata.py`, aufgerufen aus
+  `src/components/mapping/uploadsunray.py`. Er liest die Datei **zuerst** mit
+  `pd.read_json()` als Sunray-Export. Ein Objekt auf oberster Ebene lässt
+  pandas dort abbrechen – `ValueError: Mixing dicts with non-Series may lead to
+  ambiguous ordering.` –, und der Fehlerzweig setzt `import_status = -1` und
+  **kehrt zurück**. Der GeoJSON-Zweig, der tatsächlich nur `features` liest,
+  wird nie erreicht; die Oberfläche meldet „Import failed“.
+
+  **Gemessen, nicht gelesen** – an echten Exporten des Editors, erzeugt über
+  `buildExportCollection()` im Browser und durch die herausgelöste
+  `import_sunray()` geschickt, mit den Versionen aus CaSSAndRAs
+  `requirements.txt` (pandas 2.0.1, shapely 2.0.1, Python 3.11; Stand
+  CaSSAndRA `c6ad3ba`):
+
+  | Datei | Ergebnis |
+  |---|---|
+  | Export, wie der Editor ihn schrieb (`referenceOrigin` und `coordinateScale`) | Import failed |
+  | nur `referenceOrigin` | Import failed |
+  | nur `coordinateScale` | Import failed |
+  | ohne beide (Kontrolle) | Status 0, Perimeter, Exclusion und Dockpfad kommen an |
+  | `coordinateScale` als Zahl statt Objekt (Kontrolle) | Status 0 |
+
+  Die vierte Zeile belegt, dass der Import in dieser Umgebung gelingen
+  **kann**; die fünfte, dass der **Objektwert** den Abbruch auslöst und nicht
+  der fremde Name. `coordinateScale` stand in jedem Export mit bekanntem
+  Maßstab – praktisch jede Datei des Editors war damit in CaSSAndRA nicht zu
+  laden, seit es das Feld gab.
+
+  **Woran die frühere Lesung scheiterte:** sie sah nur den **GeoJSON-Zweig**
+  – der greift wirklich ausschließlich auf `features` zu – und übersah den
+  **vorgeschalteten Sunray-Versuch**, der bei einem Fehler vorzeitig
+  zurückkehrt, statt in den GeoJSON-Zweig weiterzulaufen. Eine Quelltextlesung
+  hat genau die Stelle belegt, die sie angesehen hat; die Fundstelle davor
+  entschied. Dieselbe Klasse wie „eine Liste ist so vollständig wie ihr
+  Suchmuster“ in Abschnitt 7.
+
+  **Zugesichert in `tools/test-cassandra.mjs` am erzeugten Export**, nicht am
+  Quelltext: sechs Fälle – relativ und absolut, Sunray-Maßstab, metrisch,
+  von Hand gesetzt, unklar –, je mit der Wirkung daneben (eine
+  FeatureCollection mit ihren Features), dazu eine geladene Karte, die selbst
+  `name`, `crs`, `referenceOrigin` und `coordinateScale` trägt. Im Browser
+  dasselbe an den heruntergeladenen Dateien (`tools/test-scale.mjs`,
+  `tools/test-origin-conflict.mjs`).
+
+  **BENANNTE LÜCKE: den Lesevorgang selbst bildet kein Test nach.** Er läuft in
+  Python und pandas, und `tools/test-cassandra.mjs` gehört zur statischen
+  Stufe, die ohne beides auskommen muss. Die Zusicherung ist deshalb
+  **strenger als der gemessene Bruch** – sie verbietet jedes weitere Feld,
+  auch eines mit Zahlenwert, das pandas hinnähme –, sie belegt aber nicht, dass
+  CaSSAndRA die Datei liest. Ein künftiger Bruch an anderer Stelle des
+  Imports, etwa in einem Feature, fiele ihr nicht auf. Nachbilden ließe es sich
+  nur außerhalb der statischen Stufe, mit Python und pandas außerhalb des
+  Repositorys – wie `playwright-core` für die Browsertests.
 - **Rückwärtskompatibilität ist mathematisch garantiert:** mit
   `lat0 = lon0 = 0` ist `cos(lat0) = 1`, und die Formel degeneriert exakt zum
   bisherigen `scaleFactor`-Verhalten. Die vorliegende Beispielkarte ist genau
@@ -4522,7 +4617,8 @@ zwischengespeichert. Dadurch bewertet er sich beim Umschalten der aktiven
 Karte und nach jeder Änderung des Bezugspunktes automatisch neu – es gibt
 keinen Aufräumpfad, der vergessen werden könnte. `slot.fileOrigin` merkt sich
 den Bezugspunkt der Datei auch dann, wenn er *nicht* übernommen wurde; nur so
-ist der Widerspruch später überhaupt erkennbar.
+ist der Widerspruch später überhaupt erkennbar. **Seit dem 04.10.2026 kommt er
+nur noch aus älteren Dateien** – der Editor schreibt keinen mehr, siehe oben.
 
 **Sperren.** Solange ein Widerspruch besteht:
 
@@ -7351,10 +7447,20 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   CaSSAndRA-Instanz oder Firmware getestet.** Dafür fehlt die Hardware; es ist
   derselbe Fall wie in Abschnitt 4.3 und keine Aufgabe, sondern eine Angabe
   zur Reichweite dessen, was die Prüfungen belegen. Insbesondere ein Export mit gesetztem `lat0`/`lon0` wurde noch nie
-  von CaSSAndRA eingelesen. Dasselbe gilt für die beiden Nicht-Standard-Felder
-  `referenceOrigin` und `coordinateScale`: dass CaSSAndRAs Import sie ignoriert,
-  ist am Quelltext belegt (er greift ausschließlich auf `features` zu), aber
-  nicht gegen eine laufende Instanz geprüft.
+  von CaSSAndRA eingelesen.
+
+  **RICHTIGSTELLUNG zu den beiden Nicht-Standard-Feldern `referenceOrigin`
+  und `coordinateScale`.** Hier stand, dass CaSSAndRAs Import sie ignoriert,
+  sei „am Quelltext belegt (er greift ausschließlich auf `features` zu)“. Der
+  Beleg trug nicht: die Lesung sah nur den GeoJSON-Zweig von `import_sunray()`
+  und übersah den vorgeschalteten Sunray-Versuch, der an einem Objekt auf
+  oberster Ebene abbricht und **vorzeitig zurückkehrt**. Gemessen an der
+  herausgelösten Funktion mit pandas 2.0.1 lehnt CaSSAndRA jede solche Datei
+  ab. Beide Felder werden seit dem 04.10.2026 nicht mehr geschrieben, gelesen
+  aber weiterhin; Befund, Messung und die benannte Lücke stehen in Abschnitt 5b unter „Der
+  Export trägt oben nur `type` und `features`“. **Auch dieser Befund ist nicht
+  gegen eine laufende Instanz geprüft**, sondern gegen die Funktion mit den
+  festgelegten Bibliotheksversionen.
 - **ERLEDIGT: Löcher werden abgezogen.** Der Eintrag bleibt vollständig
   stehen, weil er die Messung trägt, auf der die Entscheidung ruht. Die vierte
   der vier genannten Stellen ist **entschieden stehengeblieben**, und die drei
@@ -8484,11 +8590,41 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   vom Projektinhaber: das Feld wird gebaut. Es steht jetzt dort, siehe
   „Maßstab und Metermaße“ in Abschnitt 5; der Satz ist unverändert, er stimmt
   jetzt.
-- **MERKPOSTEN, kein offener Punkt: ein relativer Export schreibt weiterhin
-  den aktiven `referenceOrigin` in die Datei.** Das ist korrekt, solange kein
-  Konflikt besteht – und ein Konflikt sperrt den Export inzwischen
-  vollständig. Der Eintrag steht hier für den Fall, dass die Sperre je
-  gelockert wird; solange sie gilt, ist nichts zu tun.
+- **OFFEN, gemessen am 04.10.2026: ältere absolute Exporte des Editors
+  werden beim Wiederöffnen falsch gelesen.** Der absolute Export schrieb
+  `coordinateScale: {metersPerUnit: 111111}`, obwohl seine Koordinaten Grad
+  sind. Für neue Dateien ist das erledigt – das Feld wird nicht mehr
+  geschrieben. **Gelesen wird es weiterhin** (Abschnitt 5b), und ein
+  eingebetteter Maßstab schlägt jede Heuristik: `prepareImportedCollection()`
+  kehrt in seinem Zweig mit `absolute:false` zurück, bevor die
+  Absolut-Erkennung greift. Die Gradzahlen gelten dann als Relativwerte.
+
+  Gemessen an einem solchen Export (Rechteck, Bezugspunkt 52,5 / 13,4),
+  einmal mit und einmal ohne das Feld geladen:
+
+  | | Modus | umgerechnet | erster Punkt intern | Breite |
+  |---|---|---|---|---|
+  | mit `coordinateScale` (ältere Datei) | sunray-relative | **nein** | 13,4 / 52,5 – Grad | **73,01 m** |
+  | dieselbe Datei ohne das Feld | sunray-relative | ja | 0 / 0 | 44,44 m |
+
+  Die Breite ist um 1/cos(52,5°) zu groß: Grad Länge werden wie Grad Breite
+  mit 111111 gerechnet. **Sichtbar, nicht still** – die East/North-Werte
+  stehen in Millionenhöhe. Aus diesem Zustand gespeichert:
+
+  | Ausgabe | erster Punkt | Urteil |
+  |---|---|---|
+  | „wie geladen“ (Vorgabe) | 13,4 / 52,5, oben nur `type` und `features` | **richtig** – die Gradzahlen gehen unverändert zurück, das Feld fällt weg |
+  | „absolut WGS84“ | 35,41 / **105** | **falsch** – die Gradzahlen werden ein zweites Mal umgerechnet, die Breite liegt außerhalb ±90° |
+
+  **Nicht behoben.** Die naheliegende Antwort – ein eingebetteter Maßstab gilt
+  nicht, wenn die Koordinaten absolut sind – ist eine Entscheidung über das
+  Lesen, und das Lesen ist eben entschieden worden. Sie liegt beim
+  Projektinhaber.
+- **ERLEDIGT am 04.10.2026: ein relativer Export schreibt keinen
+  `referenceOrigin` mehr in die Datei.** Hier stand ein Merkposten für den
+  Fall, dass die Konfliktsperre je gelockert wird. Er ist gegenstandslos: kein
+  Export schreibt das Feld mehr, weil es CaSSAndRAs Datei-Import bricht
+  (Abschnitt 5b).
 
 - **Dateigröße und Struktur von `index.html` – ENTSCHIEDEN mit dem
   einundzwanzigsten Durchgang: die Datei bleibt eine, und es gibt keine

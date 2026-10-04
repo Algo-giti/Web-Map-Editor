@@ -260,9 +260,14 @@ try {
       Math.abs(lat - BASE_B.lat) < 1e-9 && Math.abs(lon - BASE_B.lon) < 1e-9,
       `lat=${lat} lon=${lon} (erwartet ${BASE_B.lat} / ${BASE_B.lon})`
     );
+    /*
+     * Der Bezugspunkt steht nur in den Koordinaten, nicht als eigenes Feld:
+     * ein Feld auf oberster Ebene bricht CaSSAndRAs Datei-Import.
+     */
     check(
-      "Export schreibt den aufgeloesten Bezugspunkt",
-      Math.abs(exported.referenceOrigin.lat - BASE_B.lat) < 1e-9
+      "und oben steht nur type und features",
+      Object.keys(exported).every((key) => key === "type" || key === "features"),
+      Object.keys(exported).join(", ")
     );
   }
 
