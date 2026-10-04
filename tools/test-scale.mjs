@@ -895,6 +895,230 @@ try {
   await page.evaluate(() => setLanguage("de"));
 
   /* ---------------------------------------------------------------- */
+  console.log("Ein Massstab aus der Datei gilt nicht fuer absolute Koordinaten");
+
+  /*
+   * Aeltere absolute Exporte dieses Editors trugen coordinateScale 111111 zu
+   * Gradzahlen. Der Wert wird verworfen, und es gilt, was ohne ihn gaelte -
+   * mit einer Meldung, nicht still.
+   *
+   * Die erwarteten Masse rechnet der Test aus der Geometrie: East ist
+   * Laengengrad mal 111111 mal cos(Breite des Bezugspunkts), North
+   * Breitengrad mal 111111. Die Gradzahlen sind Eingabe, keine Messung.
+   */
+  const LAT0 = 52.5;
+  const LON0 = 13.4;
+  const DLON = 0.0006;
+  const DLAT = 0.0004;
+
+  const absolutKarte = (extra) => JSON.stringify({
+    type: "FeatureCollection",
+    ...extra,
+    features: [{
+      type: "Feature",
+      properties: { name: "perimeter" },
+      geometry: { type: "Polygon", coordinates: [[
+        [LON0, LAT0], [LON0 + DLON, LAT0], [LON0 + DLON, LAT0 + DLAT],
+        [LON0, LAT0 + DLAT], [LON0, LAT0],
+      ]] },
+    }],
+  });
+
+  const BEZUG = { lat: LAT0, lon: LON0 };
+  const MIT_MASSSTAB = absolutKarte({
+    referenceOrigin: BEZUG,
+    coordinateScale: { metersPerUnit: DEG },
+  });
+  const OHNE_MASSSTAB = absolutKarte({ referenceOrigin: BEZUG });
+
+  const ERWARTET_BREITE = DLON * DEG * Math.cos(LAT0 * Math.PI / 180);
+  const ERWARTET_HOEHE = DLAT * DEG;
+
+  const VERWORFEN_DE =
+    "Die Datei bringt einen Maßstab mit, der zu absoluten Koordinaten nicht passt; er wird ignoriert.";
+  const VERWORFEN_EN =
+    "The file carries a scale that does not fit absolute coordinates; it is ignored.";
+
+  const meldung = () => textVon("#editStatus");
+
+  /* Laedt in einer bestimmten Sprache, ohne dass der Neuaufbau sie zuruecksetzt. */
+  const ladenIn = async (body, sprachcode, name = "scale.geojson") => {
+    await page.goto(indexUrl(), { waitUntil: "load" });
+    await page.evaluate(() => localStorage.clear());
+    await page.reload({ waitUntil: "load" });
+    if (sprachcode === "en") await page.evaluate(() => setLanguage("en"));
+    await page.locator("#fileInput").setInputFiles({
+      name,
+      mimeType: "application/geo+json",
+      buffer: Buffer.from(body),
+    });
+    await page.waitForTimeout(450);
+    await openAllFolds(page);
+  };
+
+  const herunterladen = async () => {
+    const wartend = page.waitForEvent("download", { timeout: 5000 }).catch(() => null);
+    await menueBefehl("Datei", "GeoJSON speichern");
+    const ereignis = await wartend;
+    if (!ereignis) return null;
+
+    const stream = await ereignis.createReadStream();
+    const teile = [];
+    for await (const teil of stream) teile.push(teil);
+    return JSON.parse(Buffer.concat(teile).toString());
+  };
+
+  /* --- Gegenprobe zuerst: dieselbe Datei ohne das Feld ------------- */
+
+  await load(OHNE_MASSSTAB);
+
+  const breiteOhne = (await width()).trim();
+  const hoeheOhne = await height();
+
+  check("ohne Massstab: die Breite folgt aus Laengengrad und cos(Breite)",
+    breiteOhne === `${mitZeichen(ERWARTET_BREITE, 2, "de")} m`,
+    `${breiteOhne} gegen ${mitZeichen(ERWARTET_BREITE, 2, "de")} m`);
+  check("ohne Massstab: die Hoehe aus dem Breitengrad",
+    hoeheOhne === `${mitZeichen(ERWARTET_HOEHE, 2, "de")} m`,
+    `${hoeheOhne} gegen ${mitZeichen(ERWARTET_HOEHE, 2, "de")} m`);
+  check("ohne Massstab: die Lademeldung steht da, ohne Satz zum Massstab",
+    (await meldung()).includes("als Karte A geladen.") &&
+      !(await meldung()).includes(VERWORFEN_DE),
+    await meldung());
+
+  /* --- mit dem Feld: dieselbe Ausdehnung, und es wird gesagt ------- */
+
+  await load(MIT_MASSSTAB);
+
+  check("mit Massstab: dieselbe Breite wie ohne",
+    (await width()).trim() === breiteOhne, `${(await width()).trim()} gegen ${breiteOhne}`);
+  check("mit Massstab: dieselbe Hoehe wie ohne",
+    (await height()) === hoeheOhne, `${await height()} gegen ${hoeheOhne}`);
+  check("mit Massstab: die Lademeldung steht da",
+    (await meldung()).includes("scale.geojson als Karte A geladen."), await meldung());
+  check("mit Massstab: und sagt, dass der Massstab ignoriert wird",
+    (await meldung()).includes(VERWORFEN_DE), await meldung());
+  check("mit Massstab: kein Massstabshinweis - der Maßstab ist bekannt",
+    await notice.isHidden());
+
+  /* Auf deutsch erzeugt, dann englisch - ohne weitere Handlung gemessen. */
+  await page.evaluate(() => setLanguage("en"));
+
+  check("Vorbedingung: die Oberflaeche steht auf englisch", (await sprache()) === "en");
+  check("deutsch erzeugt, dann englisch: der Satz ist uebersetzt",
+    (await meldung()).includes(VERWORFEN_EN) && !(await meldung()).includes(VERWORFEN_DE),
+    await meldung());
+  check("deutsch erzeugt, dann englisch: die Lademeldung ebenso",
+    (await meldung()).includes("scale.geojson loaded as map A."), await meldung());
+  check("deutsch erzeugt, dann englisch: die Breite im englischen Format",
+    (await width()).trim() === `${mitZeichen(ERWARTET_BREITE, 2, "en")} m`,
+    (await width()).trim());
+
+  /* Auf englisch erzeugt, dann deutsch. */
+  await ladenIn(MIT_MASSSTAB, "en");
+
+  check("Vorbedingung: englisch geladen", (await sprache()) === "en");
+  check("englisch erzeugt: der Satz steht englisch da",
+    (await meldung()).includes(VERWORFEN_EN), await meldung());
+
+  await page.evaluate(() => setLanguage("de"));
+
+  check("Vorbedingung: die Oberflaeche steht auf deutsch", (await sprache()) === "de");
+  check("englisch erzeugt, dann deutsch: der Satz ist deutsch",
+    (await meldung()).includes(VERWORFEN_DE) && !(await meldung()).includes(VERWORFEN_EN),
+    await meldung());
+  check("englisch erzeugt, dann deutsch: die Lademeldung ebenso",
+    (await meldung()).includes("scale.geojson als Karte A geladen."), await meldung());
+
+  /* --- "absolut WGS84" rechnet nicht ein zweites Mal um ------------ */
+
+  await load(MIT_MASSSTAB);
+  await openAllFolds(page);
+  await page.selectOption("#exportFrameSelect", "absolute");
+
+  {
+    const gespeichert = await herunterladen();
+    check("absolut WGS84: der Export laeuft", !!gespeichert);
+
+    if (gespeichert) {
+      const punkte = gespeichert.features.flatMap((f) => f.geometry.coordinates.flat());
+      const original = JSON.parse(MIT_MASSSTAB).features
+        .flatMap((f) => f.geometry.coordinates.flat());
+
+      check("absolut WGS84: die Datei traegt alle Punkte",
+        punkte.length === original.length && punkte.length > 0, String(punkte.length));
+      check("absolut WGS84: jede Koordinate liegt im gueltigen Bereich",
+        punkte.every(([lon, lat]) => Math.abs(lon) <= 180 && Math.abs(lat) <= 90),
+        JSON.stringify(punkte[2]));
+      check("absolut WGS84: und trifft die Ausgangskoordinaten",
+        punkte.every(([lon, lat], i) =>
+          Math.abs(lon - original[i][0]) < 1e-9 && Math.abs(lat - original[i][1]) < 1e-9),
+        `${JSON.stringify(punkte[2])} gegen ${JSON.stringify(original[2])}`);
+    }
+  }
+
+  /* --- relativ gespeichert: der Massstab gilt dort weiter ---------- */
+
+  /*
+   * Zwei Faelle, je an einer Seite der Absolut-Erkennung: ein Zweifelsfall
+   * und einer, den die Heuristik als Relativformat lesen wuerde - gleiche
+   * kleine Ausdehnung wie eine Gradkarte, nur ohne den Versatz. Beide Male
+   * ergibt der Massstab aus der Datei eine andere Groesse als die Heuristik.
+   */
+  for (const fall of [
+    { name: "Zweifelsfall", karte: square(0.5, 1, 0, { coordinateScale: { metersPerUnit: 12.5 } }), faktor: 12.5 },
+    { name: "Relativformat", karte: square(0.04, 1, 0, { coordinateScale: { metersPerUnit: 1000 } }), faktor: 1000 },
+  ]) {
+    await load(fall.karte);
+    const { breite } = ausdehnung(fall.karte);
+
+    check(`relativ, ${fall.name}: der Massstab aus der Datei gilt`,
+      (await width()).trim() === `${mitZeichen(breite * fall.faktor, 2, "de")} m`,
+      `${(await width()).trim()} gegen ${mitZeichen(breite * fall.faktor, 2, "de")} m`);
+    check(`relativ, ${fall.name}: die Lademeldung steht da, ohne Satz zum Massstab`,
+      (await meldung()).includes("als Karte A geladen.") &&
+        !(await meldung()).includes(VERWORFEN_DE),
+      await meldung());
+  }
+
+  /* --- mit Bezugspunktkonflikt: der Satz steht auch dort ----------- */
+
+  /*
+   * Karte A legt den Bezugspunkt fest, Karte B nennt einen anderen und
+   * bringt den falschen Massstab mit. Die Konfliktmeldung traegt einen
+   * Abstand mit Dezimalzeichen und kann beim Sprachwechsel veralten - als
+   * Meldung aus Stuecken wird sie dann ebenso ganz verworfen wie allein.
+   */
+  await load(OHNE_MASSSTAB);
+
+  await page.locator("#secondFileInput").setInputFiles({
+    name: "konflikt.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(absolutKarte({
+      referenceOrigin: { lat: LAT0 + 0.001, lon: LON0 },
+      coordinateScale: { metersPerUnit: DEG },
+    })),
+  });
+  await page.waitForTimeout(450);
+
+  check("Konflikt: die Konfliktmeldung steht da",
+    (await meldung()).includes("Achtung: Die Datei nennt einen abweichenden"), await meldung());
+  check("Konflikt: und der Satz zum Massstab dahinter",
+    (await meldung()).includes(VERWORFEN_DE), await meldung());
+
+  await page.evaluate(() => setLanguage("en"));
+
+  const ruhetextEn = await page.evaluate(() =>
+    translateGermanText(transientIdleText.get("editStatus")));
+
+  check("Konflikt, dann englisch: die Meldung ist verworfen, zurueck auf den Ruhetext",
+    (await meldung()) === ruhetextEn.trim(), `${await meldung()} gegen ${ruhetextEn}`);
+  check("Konflikt, dann englisch: kein deutsches Dezimalkomma bleibt stehen",
+    !/\d,\d/.test(await meldung()), await meldung());
+
+  await page.evaluate(() => setLanguage("de"));
+
+  /* ---------------------------------------------------------------- */
   console.log("Rundlauf: eine metrische Karte bleibt beim Speichern metrisch");
 
   await load(square(200, 1));

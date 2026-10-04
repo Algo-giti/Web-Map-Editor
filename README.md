@@ -231,6 +231,9 @@ Sunray-Darstellung als auch in absolutem WGS84.
   `referenceOrigin` und `coordinateScale` dazu, und CaSSAndRA wies solche
   Dateien ab; im Editor geöffnet und „wie geladen“ erneut gespeichert, sind
   sie bereinigt
+- einen Maßstab, den eine Datei neben absoluten Koordinaten mitbringt,
+  ignoriert der Editor beim Öffnen und sagt das – WGS84-Grad brauchen keinen.
+  Frühere absolute Exporte des Editors trugen einen solchen
 
 Nennt eine geladene Karte einen anderen RTK-Bezugspunkt als den aktiven,
 behält der Editor den aktiven bei, weist deutlich darauf hin und sperrt
@@ -557,6 +560,9 @@ Sunray representation and in absolute WGS84.
   format provides for. Earlier versions of the editor added `referenceOrigin`
   and `coordinateScale`, and CaSSAndRA refused such files; opened in the
   editor and saved again "as loaded", they are clean
+- a scale that a file carries next to absolute coordinates is ignored on
+  opening, and the editor says so - WGS84 degrees need none. Earlier absolute
+  exports of the editor carried one
 
 If a loaded map declares an RTK reference point that differs from the active
 one, the editor keeps the active point, says so clearly, and blocks both

@@ -339,7 +339,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-straighten.mjs` | Linie begradigen |
 | `test-dockpath.mjs` | Docking-Pfad mit freier Punktzahl |
 | `test-reduce.mjs` | Punkte reduzieren, beide Betriebsarten |
-| `test-scale.mjs` | Maßstabserkennung, Sperren, Rundlauf, Maßstab von Hand |
+| `test-scale.mjs` | Maßstabserkennung, Sperren, Rundlauf, Maßstab von Hand, Maßstab aus der Datei bei absoluten Koordinaten |
 | `test-merge.mjs` | Verbinden, Singletons, Slot-Trennung |
 | `test-shapes.mjs` | Kreis- und Rechteck-Exclusions |
 | `test-validation.mjs` | erweiterte Geometrieprüfung |
@@ -1173,7 +1173,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->56 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->57 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -4396,9 +4396,10 @@ lon = east  / (111111·cos(lat0)) + lon0
   und `features`“ weiter unten. **Gelesen wird es weiterhin** – entschieden vom
   Projektinhaber: nicht mehr zu schreiben hieß nicht, nicht mehr zu lesen.
   Gelesen über `readEmbeddedScale()`, geprüft über `parseScale()` (endlich,
-  > 0) analog zu `parseOrigin()`; ein solcher Wert schlägt jede Heuristik.
-  **OFFEN** ist dabei der Fall älterer **absoluter** Exporte, siehe
-  Abschnitt 7. **Bei unklarem Maßstab lässt er sich von Hand setzen**; der Wert
+  > 0) analog zu `parseOrigin()`; ein solcher Wert schlägt jede Heuristik –
+  **außer bei absoluten Koordinaten**: dort wird er verworfen, und der Editor
+  sagt das (Abschnitt 7, „Ein Maßstab aus der Datei gilt nicht für absolute
+  Koordinaten“). **Bei unklarem Maßstab lässt er sich von Hand setzen**; der Wert
   steht dann an derselben Stelle (`slot.fileScale`) und gilt für die Sitzung –
   siehe „Maßstab und Metermaße“ in Abschnitt 5.
 - **Der Bezugspunkt musste neu eingeführt werden** – im Projekt gab es vorher
@@ -4524,8 +4525,13 @@ lon = east  / (111111·cos(lat0)) + lon0
   Landmasse São Tomé) und die Erwartung „Relativkarte" um Größenordnungen
   wahrscheinlicher ist als „Mähkarte im Golf von Guinea". Wer das ändern will,
   muss dafür jede normale Relativkarte in den Zweifelsfall schicken – das wurde
-  geprüft und verworfen. Ein `coordinateScale` in der Datei löst den Fall
-  ohnehin.
+  geprüft und verworfen.
+
+  **Richtigstellung:** hier stand, ein `coordinateScale` in der Datei löse
+  den Fall ohnehin. Das traf nie zu – der Wert sagt Meter je Einheit, nicht,
+  ob die Zahlen Grad sind; eine Gradkarte im Golf von Guinea mit 111111 darin
+  wurde ebenso als relativ gelesen wie ohne. Und geschrieben wird er seit dem
+  04.10.2026 ohnehin nicht mehr.
 
 - **Der frühere Präzisionstest ist ersetzt.** `detectSunray()` prüfte, ob jeder
   Wert nach Multiplikation mit 111111 ein Zentimeter-Vielfaches ergibt, und
@@ -7291,6 +7297,14 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   und trägt keine Dezimalzahl. Ohne die Marke lässt er sie stehen – genau
   richtig, und ohne dass an `transientStatusCanGoStale()` etwas zu ändern war.
 
+  **Seit dem 04.10.2026 sieht `discardTransientStatus()` die Marken der
+  Stücke an.** Anlass ist die zweite Meldung aus Stücken: die Lademeldung
+  samt dem Satz zu einem verworfenen Maßstab (Abschnitt 7). Steht dort die
+  Konfliktmeldung, trägt sie einen Abstand mit Dezimalzeichen und kann
+  veralten. Veraltet ein Stück, geht die ganze Meldung – ein halber Satz in
+  der alten Sprache wäre schlimmer als keiner. Für die Meldung hier ändert
+  das nichts: keines ihrer Stücke kann veralten.
+
   **Die englischen Texte und warum sie so lauten:**
 
   | deutsch | englisch | Begründung |
@@ -8590,8 +8604,11 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   vom Projektinhaber: das Feld wird gebaut. Es steht jetzt dort, siehe
   „Maßstab und Metermaße“ in Abschnitt 5; der Satz ist unverändert, er stimmt
   jetzt.
-- **OFFEN, gemessen am 04.10.2026: ältere absolute Exporte des Editors
-  werden beim Wiederöffnen falsch gelesen.** Der absolute Export schrieb
+- **Ein Maßstab aus der Datei gilt nicht für absolute Koordinaten –
+  ERLEDIGT am 04.10.2026, entschieden vom Projektinhaber.** Hier stand der
+  offene Punkt „ältere absolute Exporte des Editors werden beim Wiederöffnen
+  falsch gelesen“; der Befund bleibt stehen, weil die Entscheidung auf ihm
+  ruht. Der absolute Export schrieb
   `coordinateScale: {metersPerUnit: 111111}`, obwohl seine Koordinaten Grad
   sind. Für neue Dateien ist das erledigt – das Feld wird nicht mehr
   geschrieben. **Gelesen wird es weiterhin** (Abschnitt 5b), und ein
@@ -8599,7 +8616,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   kehrt in seinem Zweig mit `absolute:false` zurück, bevor die
   Absolut-Erkennung greift. Die Gradzahlen gelten dann als Relativwerte.
 
-  Gemessen an einem solchen Export (Rechteck, Bezugspunkt 52,5 / 13,4),
+  Gemessen vor der Behebung an einem solchen Export (Rechteck, Bezugspunkt 52,5 / 13,4),
   einmal mit und einmal ohne das Feld geladen:
 
   | | Modus | umgerechnet | erster Punkt intern | Breite |
@@ -8616,10 +8633,49 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | „wie geladen“ (Vorgabe) | 13,4 / 52,5, oben nur `type` und `features` | **richtig** – die Gradzahlen gehen unverändert zurück, das Feld fällt weg |
   | „absolut WGS84“ | 35,41 / **105** | **falsch** – die Gradzahlen werden ein zweites Mal umgerechnet, die Breite liegt außerhalb ±90° |
 
-  **Nicht behoben.** Die naheliegende Antwort – ein eingebetteter Maßstab gilt
-  nicht, wenn die Koordinaten absolut sind – ist eine Entscheidung über das
-  Lesen, und das Lesen ist eben entschieden worden. Sie liegt beim
-  Projektinhaber.
+  **Die Entscheidung: das ist kein Sonderfall, sondern ein Widerspruch in
+  der Datei selbst.** WGS84-Grad brauchen keinen Faktor Meter je Einheit.
+  Sind die Koordinaten absolut, verwirft `prepareImportedCollection()` einen
+  `coordinateScale` aus der Datei, und es gilt, was ohne ihn gälte: die Karte
+  wird umgerechnet wie jede absolute. **Nicht still** – hinter der
+  Lademeldung steht „Die Datei bringt einen Maßstab mit, der zu absoluten
+  Koordinaten nicht passt; er wird ignoriert.“, englisch „The file carries a
+  scale that does not fit absolute coordinates; it is ignored.“ Auch hinter
+  einer Konfliktmeldung, denn eine ältere absolute Datei trägt meist beide
+  Felder. Der Satz ist ein eigenes Stück (`setEditStatusParts()`), damit
+  keine der drei Lademeldungen ein zweites Muster braucht, das ihn
+  wiederholt.
+
+  **„Absolut“ heißt dabei, was `classifyCoordinateScale()` sagt – keine
+  zweite Schwelle.** Eine Relativdatei mit Maßstab bleibt davon unberührt,
+  dort gilt er weiter. Dass eine Datei dieses Editors relativ ist und
+  trotzdem als absolut erkannt wird, ist ausgeschlossen, und das ist der
+  Geschichte nachgesehen, nicht gemessen: `coordinateScale` kam mit `d004e52`,
+  derselbe Commit hat die Absolut-Erkennung auf die heutige Ausdehnungsregel
+  gestellt, und einen relativen Export einer umgerechneten Karte hat es nie
+  gegeben – „wie geladen“ gibt sie absolut zurück.
+
+  **Zugesichert in `tools/test-scale.mjs` nach der Wirkung, über sichtbaren
+  Text:** dieselbe absolute Datei mit und ohne das Feld zeigt dieselbe
+  Breite und Höhe, beide aus der Geometrie gerechnet (Längengrad mal 111111
+  mal cos(Breite des Bezugspunkts)); die Meldung steht dabei, in beiden
+  Richtungen über `setLanguage()`; „absolut WGS84“ liefert Koordinaten im
+  gültigen Bereich, die die Ausgangskoordinaten treffen; zwei relative
+  Dateien mit Maßstab – ein Zweifelsfall und eine im Relativformat – zeigen
+  Ausdehnung mal ihrem Maßstab und keinen Satz dazu; mit Bezugspunktkonflikt
+  steht der Satz hinter der Konfliktmeldung, und nach dem Sprachwechsel ist
+  die ganze Meldung verworfen statt halb veraltet.
+
+  **Sechs Mutationen, je eine Schreibstelle, je 0 Timeouts:**
+
+  | Mutation | gerissene Zusicherungen |
+  |---|---|
+  | der Maßstab wird nie verworfen | **9**, darunter „mit Massstab: dieselbe Breite wie ohne“ (66,67 gegen 40,58 m) und „absolut WGS84: jede Koordinate liegt im gueltigen Bereich“ (Breite 105,0004°) |
+  | der Maßstab wird auch bei relativen Koordinaten verworfen | **4**, darunter „relativ, Relativformat: der Massstab aus der Datei gilt“ (4444,44 gegen 40,00 m) |
+  | der absolute Zweig meldet den Fall nicht weiter | **5**, sämtlich die Meldung |
+  | `reportImportedFrame()` hängt den Satz nicht an | **5**, ebenso |
+  | der Wörterbucheintrag entfernt | **5**, beide Sprachrichtungen |
+  | `discardTransientStatus()` sieht die Stücke nicht an | **2** – „Konflikt, dann englisch: die Meldung ist verworfen“ und „kein deutsches Dezimalkomma bleibt stehen“, Detail „distance 111,111 m“ |
 - **ERLEDIGT am 04.10.2026: ein relativer Export schreibt keinen
   `referenceOrigin` mehr in die Datei.** Hier stand ein Merkposten für den
   Fall, dass die Konfliktsperre je gelockert wird. Er ist gegenstandslos: kein
