@@ -38,7 +38,7 @@ Abschnitt 5 (Domänenregeln) und `DISCLAIMER.md`.
 ## 2. Architektur
 
 Das gesamte Projekt ist **eine einzige Datei**: [`index.html`](index.html)
-(rund <!-- bestand: zeilen-index-html +-500 -->25 000 Zeilen: HTML, `<style>`-CSS, ein einziger inline
+(rund <!-- bestand: zeilen-index-html +-500 -->25 500 Zeilen: HTML, `<style>`-CSS, ein einziger inline
 `<script>`-Block). Es gibt bewusst **keine** weiteren Build-Artefakte, kein
 `package.json` für die App selbst, keine externen `<script src>`/`<link>`-
 Referenzen und keine `fetch()`/`XMLHttpRequest`-Aufrufe – die Datei ist
@@ -345,7 +345,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-straighten.mjs` | Linie begradigen |
 | `test-dockpath.mjs` | Docking-Pfad mit freier Punktzahl |
 | `test-reduce.mjs` | Punkte reduzieren, beide Betriebsarten |
-| `test-scale.mjs` | Maßstabserkennung, Sperren, Rundlauf, Maßstab von Hand, Maßstab aus der Datei bei absoluten Koordinaten |
+| `test-scale.mjs` | Maßstabserkennung, Sperren, Rundlauf, Maßstab von Hand, Maßstab aus der Datei bei absoluten Koordinaten, der Maßstabshinweis im Sprachwechsel |
 | `test-merge.mjs` | Verbinden, Singletons, Slot-Trennung |
 | `test-shapes.mjs` | Kreis- und Rechteck-Exclusions |
 | `test-validation.mjs` | erweiterte Geometrieprüfung |
@@ -1574,7 +1574,7 @@ deshalb steht die Regel oben so scharf da.
 
 ```
    ...die Prüfung hat <!-- bestand: pruefstellen -->49 Fundstellen...
-   ...rund <!-- bestand: zeilen-index-html +-500 -->25 000 Zeilen...
+   ...rund <!-- bestand: zeilen-index-html +-500 -->25 500 Zeilen...
 ```
 
 **Das Beispiel trägt die echten Namen, und das ist eine Zusicherung, keine
@@ -3720,8 +3720,9 @@ Rechtecke, kein `getComputedStyle`:
   Angaben mit Luft dazwischen, die Angaben schließen unten rechts mit der
   Karte ab und behalten ihre Breite, beide stehen in der Karte, und die
   Zoom-Leiste bleibt frei – auch ohne Auswahl; dazu, dass der Hinweis ganz
-  dasteht und so hoch ist wie sein Text. Dass die Sprache wirklich die
-  gemeinte ist, ist selbst zugesichert;
+  dasteht und so hoch ist wie sein Text. Englisch wird dabei **umgeschaltet**,
+  während der Hinweis dasteht, und die Sprache ist unmittelbar nach dem
+  Wechsel zugesichert;
 - wird es knapp, gibt der Hinweis nach: bei 1280 × 720 rollt er, und die
   Angaben stehen ganz in der Karte; sein Text bleibt dabei im Kasten – in der
   Lücke zu den Angaben liegt die Karte, und mit dem Mausrad kommt das Ende des
@@ -3841,18 +3842,19 @@ der Spalte. Ebenso entfallen sind `width:auto` am zugeklappten `<details>` und
 `gap` am oberen Stapel, der nur noch ein Kind hat; beide hatten in der neuen
 Anordnung nichts mehr zu tun.
 
-**BENANNTER BEFUND, nicht behoben: der Maßstabshinweis folgt einem
-Sprachwechsel nicht.** `updateScaleNotice()` schreibt ihn deutsch, der
-Beobachter übersetzt beim Einfügen, und `refreshDerivedUi()` baut ihn nicht
-neu. Gemessen am Stand `1055ce9`, und nach dem Umzug unverändert: auf Deutsch
+**ERLEDIGT – hier stand der benannte Befund: der Maßstabshinweis folgte einem
+Sprachwechsel nicht.** `updateScaleNotice()` schrieb ihn deutsch, der
+Beobachter übersetzte beim Einfügen, und `refreshDerivedUi()` baute ihn nicht
+neu. Gemessen am Stand `1055ce9` und nach dem Umzug unverändert: auf Deutsch
 erzeugt, dann `setLanguage("en")` – „Maßstab unklar. Die Zahlen der Datei …“
-bleibt deutsch stehen, bis die nächste Handlung ihn neu schreibt (eine Auswahl
-genügt); in der Gegenrichtung ebenso. Gefunden hat es die Zusicherung „der
-Hinweis steht wirklich in dieser Sprache da“, die beim Umschalten riss. Die
-Lagezusicherungen erzeugen den Hinweis deshalb in jeder Sprache neu, statt
-umzuschalten – die Lage ist in beiden Sprachen gemessen, der Wechsel nicht.
-Die naheliegende Behebung ist eine Zeile (`updateScaleNotice()` in
-`refreshDerivedUi()`); sie ist eine eigene Entscheidung.
+blieb deutsch stehen, mit deutschem Dezimalkomma, bis die nächste Handlung
+ihn neu schrieb; in der Gegenrichtung ebenso. Gefunden hatte es die
+Zusicherung „der Hinweis steht wirklich in dieser Sprache da“, die beim
+Umschalten riss. **`updateScaleNotice()` steht seitdem in
+`refreshDerivedUi()`**, und die Lagezusicherungen schalten wieder um, statt
+die Karte je Sprache neu zu laden – die Umgehung ist zurückgenommen. Was die
+Suche nach weiteren Ausgaben mit demselben Mangel ergab, steht in Abschnitt 7,
+„Drei Ausgaben folgten dem Sprachwechsel nicht“.
 
 **Nebenbefund aus den Mutationsproben, ebenfalls nicht behoben:**
 `tools/check-syntax.mjs` benennt seine Zwischendatei nach `Date.now()`. Zwei
@@ -7285,7 +7287,7 @@ dokumentiert, aber im Code konsistent sichtbar):
   Schlüssel in einem Objektliteral (`I18N_EN`).
 
   In `index.html` ist das **wahrscheinlich, nicht unwahrscheinlich**: rund
-  <!-- bestand: zeilen-index-html +-500 -->25 000 Zeilen und rund
+  <!-- bestand: zeilen-index-html +-500 -->25 500 Zeilen und rund
   <!-- bestand: globale-funktionen +-20 -->450 globale Funktionen liegen in einem einzigen
   Gültigkeitsbereich, ohne Module, ohne Namensräume. Wer eine Hilfsfunktion
   schreibt, sieht die 9 000 Zeilen weiter unten nicht, und naheliegende Namen
@@ -8108,6 +8110,132 @@ Durchgang ihn von den dreien oben unterscheiden kann.
 
   **Zugesichert wird ohne Mausbewegung zwischen Wechsel und Ablesen** – eine
   Bewegung schriebe den Tooltip ohnehin neu und deckte den Fall zu.
+
+- **Drei Ausgaben folgten dem Sprachwechsel nicht – ERLEDIGT am 04.10.2026.**
+  Der Anlass war der Maßstabshinweis (Abschnitt 5, „Der Maßstabshinweis steht
+  mit den Angaben in einer Spalte“); gesucht wurde danach, ob weitere
+  Ausgaben denselben Mangel haben: sie bleiben nach `setLanguage()` in der
+  Sprache und mit dem Dezimalzeichen stehen, in denen sie entstanden, bis eine
+  Handlung sie neu schreibt. **Es waren zwei weitere.**
+
+  | Ausgabe | stand so bis zur nächsten | behoben durch |
+  |---|---|---|
+  | `#scaleNotice`, der Maßstabshinweis | Auswahl oder Bearbeitung | `updateScaleNotice()` in `refreshDerivedUi()` |
+  | `#validationSummary`, „Noch keine Prüfung durchgeführt.“ | Kartenprüfung – sichtbar in jedem Zustand nach dem Laden einer Karte, solange nicht geprüft ist | `renderValidationPlaceholder()`, in `refreshDerivedUi()` neben dem Bericht |
+  | `#hud`, die Cursor-Koordinaten der Statuszeile | Mausbewegung über der Karte | `renderHud()` aus der zuletzt gemessenen Stelle, in `refreshDerivedUi()` |
+
+  **Beim Sprachwechsel neu geschrieben, nicht neu gerechnet**, wie bei den
+  übrigen Ausgaben: der Bericht wird nicht neu geprüft, ob der Hinweis
+  dasteht, sagt weiter der beim Laden bestimmte Maßstab, und die
+  Cursor-Koordinaten kommen aus `hudReading`, das der Zeiger hinterlässt –
+  samt der Angabe, ob dabei in Metern gezählt wurde. Ein inzwischen von Hand
+  gesetzter Maßstab deutete die alte Stelle sonst in einem Rahmen, in dem sie
+  nie gemessen wurde; zugesichert ist genau das.
+
+  **Warum die Zusammenfassung erst nach dem Laden einer Karte betroffen war:**
+  der Schnappschuss wird nach `initialize()` genommen und kennt deshalb den
+  Textknoten „Zuerst eine Karte laden.“ vom Start. Das Laden ersetzt ihn durch
+  einen neuen, den kein Schnappschuss kennt.
+
+  **Gesucht wurde zur Laufzeit, mit einem Werkzeug außerhalb des
+  Repositorys**, über die 24 Zustände von `tools/scan-i18n.mjs` und neun
+  weitere – unklarer Maßstab ohne und mit Auswahl, Kreis mit „Einheiten“,
+  wartendes Rechteck, Maßstab von Hand, Glättungsvorschau und -ergebnis,
+  Mäherfenster, Beispielkarte. Je Zustand: alles lesen, was dasteht – jeden
+  Textknoten, `title`, `aria-label`, `placeholder` und Feldwerte, mit der
+  Angabe, ob es gezeichnet wird –, dann `setLanguage("en")` und melden, was
+  noch deutsch dasteht, obwohl es eine Übersetzung hat, und was ein deutsches
+  Dezimalkomma trägt; danach zurück nach Deutsch und melden, was sich gegen
+  vorher verändert hat. **Kalibriert am bekannten Fall:** am Stand vor der
+  Behebung fand es den Maßstabshinweis, in beiden Meldearten. Eine statische
+  Suche über die Aufrufer von `refreshDerivedUi()` ersetzt das nicht:
+  erreichbar heißt nicht durchlaufen, und ob ein Zweig beim Wechsel läuft,
+  sieht nur die Laufzeit.
+
+  **Was danach noch gemeldet wird, ist keiner dieser Fälle:**
+
+  | Fund | warum kein Mangel dieser Art |
+  |---|---|
+  | `#tip`, `#featureAreaStat`, `#drawProgress`, `title` von `#duplicateFeatureBtn` | stehen veraltet nur, solange sie **nicht gezeichnet** werden; die Funktion, die sie wieder zeigt, schreibt sie vorher neu |
+  | Meldungen in `#editStatus`, Ergebnis in `#reduceStatus` | werden beim Wechsel absichtlich verworfen bzw. von ihrer abgeleiteten Fassung ersetzt (Abschnitt 7, „Dezimaltrennzeichen“) |
+  | Abmessungen und Cursor bei unklarem Maßstab | Exponentialzahlen wie `5.0000e-1`, in beiden Sprachen gleich geschrieben |
+
+  **BENANNTE BEFUNDE, nicht behoben – keiner davon ist der Mangel dieses
+  Eintrags, und jeder ist eine eigene Entscheidung:**
+
+  - **Eingabefelder mit Dezimalzahl behalten das Zeichen ihrer Entstehung**:
+    `#mowerLengthInput`, `#mowerWidthInput`, `#circleRadiusInput`,
+    `#rectWidthInput`, `#rectHeightInput`, `#reduceToleranceInput`,
+    `#gridStepInput` – „0,35“ in der englischen Oberfläche. Ein falscher Wert
+    entsteht nicht, `parseLocaleNumber()` liest beide Zeichen. Die E/N-Felder
+    und die Felder der Glättung schreiben ihre Zahl beim Wechsel neu; das ist
+    das Vorbild, falls sie mitziehen sollen. Die Felder des Bezugspunkts
+    tragen dagegen in beiden Sprachen einen Punkt.
+  - **Die Vorgaben von `#gridPreset` und `#reducePreset`** („0,01 m (1 cm)“)
+    stehen fest im Markup und haben keine englische Fassung. `tools/scan-i18n.mjs`
+    sieht sie nicht: es filtert Texte ohne drei Buchstaben in Folge, und „cm“
+    hat zwei.
+  - **Der Maßstabshinweis nennt die Relativgröße auf vier Nachkommastellen**
+    („78567,3416 m“): `formatMeters(…, 0)` setzt die **Mindestzahl** der
+    Nachkommastellen, die Höchstzahl bleibt 4.
+  - **Kein Sprachmangel, aber dabei gemessen: die Feature-Navigation sagt nach
+    dem Start der Messung weiter „Feature vollständig ausgewählt“**, obwohl
+    die Messung die Auswahl geleert hat – sichtbar, bis sie neu gebaut wird,
+    durch die nächste Auswahländerung oder einen Sprachwechsel.
+
+  **Zugesichert nach der Wirkung, über sichtbaren Text und unmittelbar nach
+  `setLanguage()`, ohne Klick und ohne Mausbewegung dazwischen**, je in beiden
+  Richtungen – einmal deutsch erzeugt, einmal englisch erzeugt:
+  `tools/test-scale.mjs` für den Hinweis (dieselben Größen mit dem Zeichen der
+  Sprache, kein Rest der anderen, wortgleich zurück),
+  `tools/test-i18n-dynamic.mjs` für die Cursor-Koordinaten und für beide Sätze
+  der Zusammenfassung, mit und ohne Karte. `tools/test-auswahlangaben.mjs`
+  lud die Karte für die englische Lage bis dahin neu, weil der Hinweis nicht
+  umschaltete – diese Umgehung ist zurückgenommen, die Lage wird umgeschaltet
+  gemessen und die Sprache dort zugesichert.
+
+  **Die Cursor-Koordinaten werden nicht über `elementGetroffen()` gemessen.**
+  `.hud` trägt `pointer-events:none`, `elementFromPoint()` liefert an seiner
+  Stelle bauartbedingt die Statuszeile – dieselbe Grenze wie bei Ghosts und
+  Zeichenvorschau. Gemessen wird dort, dass der Text ein Rechteck hat und
+  an seiner Mitte die Zeile gezeichnet wird, in der er steht.
+
+  **Acht Mutationsproben, je eine Schreibstelle; alle reißen, 0 Timeouts.**
+  Gefahren in vier Arbeitskopien außerhalb des Repositorys, je Probe aus
+  derselben Sicherungskopie zurückgespielt; die Prüfsumme ist vorher und
+  nachher in allen Kopien `f82fffca…`, und `index.html` im Repository war nie
+  angefasst. Gemessen je Probe: Syntaxprüfung, Bestandsprüfer und die sieben
+  Browsertests, die eine der drei Ausgaben lesen – `tools/test-scale.mjs`,
+  `tools/test-i18n-dynamic.mjs`, `tools/test-auswahlangaben.mjs`,
+  `tools/test-inspector.mjs`, `tools/test-dockpath.mjs`,
+  `tools/test-reduce.mjs` und `tools/test-menu.mjs`. Die statische Stufe reißt
+  bei keiner; im zweiten Lauf meldete die Syntaxprüfung dreimal „OK“ und danach
+  ENOENT – der Nebenbefund zu `tools/check-syntax.mjs` in Abschnitt 5.
+
+  | Probe | Schreibstelle | gerissen |
+  |---|---|---|
+  | P1 | `updateScaleNotice()` in `refreshDerivedUi()` entfernt | **6** in `tools/test-scale.mjs` + **3** in `tools/test-auswahlangaben.mjs`, z. B. „dann englisch, unmittelbar: „Scale unclear.“ steht vorn“ und „1280 px, en: ohne Auswahl: der Hinweis steht in dieser Sprache da“ |
+  | P2 | der Platzhalter in `refreshDerivedUi()` entfernt | **2**, „dann englisch, unmittelbar: übersetzt“ und „dann deutsch, unmittelbar: zurückübersetzt“ |
+  | P3 | `renderValidationPlaceholder()` in `resetValidationUi()` entfernt | **1** in `tools/test-inspector.mjs`, „mit geladener Karte fordert die Prüfung nicht mehr zum Laden auf“ |
+  | P4 | `hudReading` wird im `pointermove`-Handler nicht gesetzt | **3**, z. B. „deutsch gemessen: E und N mit Dezimalkomma“ |
+  | P5 | `renderHud()` im `pointermove`-Handler entfernt | **5**, z. B. „dann englisch, ohne Mausbewegung: dieselbe Stelle mit Dezimalpunkt“ |
+  | P6 | `renderHud()` in `refreshDerivedUi()` entfernt | **2**, dieselbe und ihre Gegenrichtung, Detail „E: 20,56 m … ‖ E: 20,56 m …“ |
+  | P7 | `renderHud()` fragt `hasKnownScale()` statt der gemessenen Angabe | **1**, „der Wechsel deutet die alte Stelle nicht in Metern um“, Detail „x: 1.713471e-1 … ‖ E: 0.17 m …“ |
+  | P8 | der Platzhalter schreibt keinen Text | **3**, z. B. „ohne Karte: „Zuerst eine Karte laden.““ |
+
+  Ohne Angabe zählt die Zahl in `tools/test-i18n-dynamic.mjs`.
+
+  **P3 reißt nur im Inspektortest.** In `tools/test-i18n-dynamic.mjs` steht der
+  englische Satz schon vor dem Laden da – das Umschalten hat ihn geschrieben –,
+  und ein Laden, das ihn nicht neu schreibt, lässt denselben Satz stehen.
+
+  **P8 riss im ersten Lauf nichts, und das war eine Lücke im Test, keine
+  wirkungslose Mutation.** Nachgemessen: ohne Karte steht dann der Satz aus
+  dem Markup da, „Noch keine Prüfung durchgeführt.“, und der Wechsel sieht
+  trotzdem richtig aus, weil der Schnappschuss den Markuptext kennt. Die drei
+  Zusicherungen ohne Karte sind ergänzt, und alle acht Proben sind danach
+  noch einmal gegen den fertigen Test gefahren; die Zahlen oben stammen aus
+  diesem zweiten Lauf.
 
 - **Acht Texte ohne englische Fassung – ERLEDIGT mit Schritt 7 des vierten
   Durchgangs.** Gefunden hat sie `tools/scan-i18n.mjs`, und zwar erst, als

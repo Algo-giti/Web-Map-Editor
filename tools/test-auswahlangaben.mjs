@@ -119,11 +119,10 @@ try {
     return { kontext, seite };
   };
 
-  const laden = async (seite, karte = KARTE, sprache = "de") => {
+  const laden = async (seite, karte = KARTE) => {
     await seite.goto(indexUrl(), { waitUntil: "load" });
     await seite.evaluate(() => localStorage.clear());
     await seite.reload({ waitUntil: "load" });
-    if (sprache !== "de") await seite.evaluate((s) => setLanguage(s), sprache);
     await seite.locator("#fileInput").setInputFiles({
       name: "auswahlangaben.geojson",
       mimeType: "application/geo+json",
@@ -533,15 +532,12 @@ try {
    * Stelle zeichnet, je Breite in beiden Sprachen: ein englischer Hinweis ist
    * anders lang und damit anders hoch.
    *
-   * Die Sprache wird VOR dem Laden über setLanguage() gesetzt, der Hinweis
-   * entsteht also in ihr - und nicht umgeschaltet, während er dasteht. Der
-   * Grund ist ein Befund, kein Bequemlichkeitsweg: der Hinweis folgt einem
-   * Sprachwechsel nicht, er behält die Sprache, in der er entstand, bis ihn
-   * die nächste Handlung neu schreibt (updateScaleNotice() steht nicht in
-   * refreshDerivedUi()). Gemessen am Stand vor diesem Umbau ebenso; benannt
-   * in CLAUDE.md und nicht im selben Zug behoben. Umgeschaltet gemessen
-   * stünde hier die Zusicherung über die Sprache rot - zu Recht, aber über
-   * etwas anderes als die Lage.
+   * Englisch wird UMGESCHALTET, während der Hinweis dasteht, und nicht neu
+   * geladen. Bis der Hinweis in refreshDerivedUi() stand, folgte er einem
+   * Sprachwechsel nicht, und die Runde lud die Karte deshalb je Sprache neu -
+   * eine Umgehung, die verdeckt hätte, ob die Behebung wirkt. Gemessen wird
+   * die englische Lage jetzt unmittelbar nach dem Wechsel, und die Sprache
+   * selbst ist dort zugesichert.
    */
   const MARKE = { de: "Maßstab unklar.", en: "Scale unclear." };
 
@@ -583,10 +579,16 @@ try {
   for (const breite of [1280, 960, 744]) {
     const { kontext, seite } = await neueSeite(breite);
 
+    await laden(seite, KARTE_UNKLAR);
+
     for (const sprache of ["de", "en"]) {
       const wo = `${breite} px, ${sprache}`;
 
-      await laden(seite, KARTE_UNKLAR, sprache);
+      /* Die Auswahl der deutschen Runde aufheben, DANN umschalten. */
+      if (sprache !== "de") {
+        await seite.keyboard.press("Escape");
+        await seite.evaluate((s) => setLanguage(s), sprache);
+      }
 
       {
         const lage = await hinweisLage(seite);
@@ -594,6 +596,10 @@ try {
 
         check(`${wo}: Vorbedingung: der Maßstabshinweis steht da und wird getroffen`,
           !!lage.hinweis && hinweis.ok, JSON.stringify({ lage, hinweis }));
+        check(`${wo}: ohne Auswahl: Vorbedingung: die Angaben stehen nicht da`,
+          !lage.angaben, JSON.stringify(lage.angaben));
+        check(`${wo}: ohne Auswahl: der Hinweis steht in dieser Sprache da`,
+          lage.markeText === MARKE[sprache], lage.markeText);
         check(`${wo}: ohne Auswahl: Hinweis und Zoom-Leiste überdecken einander nicht`,
           !!lage.zoom && !ueberdecken(lage.hinweis, lage.zoom),
           JSON.stringify({ hinweis: lage.hinweis, zoom: lage.zoom }));

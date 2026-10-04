@@ -23,6 +23,7 @@
 import {
   createChecker,
   createMenueBefehl,
+  elementGetroffen,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -661,6 +662,204 @@ try {
         `${tipDe} || ${await tipText()}`);
     }
   }
+
+  /* ---------------------------------------------------------------- */
+  console.log("Die Cursor-Koordinaten unter dem ruhenden Zeiger");
+
+  /*
+   * #hud wurde nur bei pointermove geschrieben und behielt nach einem
+   * Sprachwechsel das Dezimalzeichen der vorigen Sprache, bis der Zeiger
+   * wieder ueber die Karte fuhr. Wie beim Tooltip: zwischen Wechsel und
+   * Ablesen keine Mausbewegung. Die Zahlen sind eine Beziehung - dieselbe
+   * Stelle, nur mit dem Zeichen der Sprache.
+   */
+  const hudText = () => page.locator("#hud").innerText();
+  const hudZahlen = (text) =>
+    [...text.matchAll(/-?\d+[.,]\d+/g)].map((m) => m[0].replace(",", "."));
+  /*
+   * #hud traegt pointer-events:none, elementFromPoint() liefert an seiner
+   * Stelle deshalb bauartbedingt die Statuszeile darunter - dieselbe Grenze
+   * wie bei Ghosts und Zeichenvorschau. Gemessen wird, was davon eine Wirkung
+   * ist: der Text hat ein Rechteck, und an seiner Mitte zeichnet der Browser
+   * die Zeile, in der er steht, nicht etwas, das ihn verdeckt.
+   */
+  const hudSteht = async (wo) => {
+    const lage = await page.evaluate(() => {
+      const el = document.getElementById("hud");
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return { ok: false, grund: "keine Ausdehnung" };
+      const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return { ok: !!t && t.contains(el), grund: t ? (t.id || t.className || t.tagName) : "nichts" };
+    });
+    check(`${wo}: die Koordinaten stehen unverdeckt in der Statuszeile`,
+      lage.ok === true, lage.grund);
+  };
+  const karte = await page.locator("#svg").boundingBox();
+
+  await page.mouse.move(karte.x + karte.width * 0.4, karte.y + karte.height * 0.6);
+  await page.waitForTimeout(200);
+
+  const hudDe = await hudText();
+
+  await hudSteht("deutsch gemessen");
+  check("deutsch gemessen: E und N mit Dezimalkomma",
+    hudZahlen(hudDe).length === 2 && /\d,\d/.test(hudDe) && !/\d\.\d/.test(hudDe), hudDe);
+
+  await page.evaluate(() => setLanguage("en"));
+  const hudDeEn = await hudText();
+
+  check("dann englisch, ohne Mausbewegung: dieselbe Stelle mit Dezimalpunkt",
+    JSON.stringify(hudZahlen(hudDeEn)) === JSON.stringify(hudZahlen(hudDe)) &&
+    !/\d,\d/.test(hudDeEn),
+    `${hudDe} || ${hudDeEn}`);
+  await hudSteht("dann englisch");
+
+  await page.evaluate(() => setLanguage("de"));
+
+  check("zurueckgeschaltet steht sie wortgleich wieder da",
+    (await hudText()) === hudDe, `${hudDe} || ${await hudText()}`);
+
+  await page.evaluate(() => setLanguage("en"));
+  await page.mouse.move(karte.x + karte.width * 0.55, karte.y + karte.height * 0.45);
+  await page.waitForTimeout(200);
+
+  const hudEn = await hudText();
+
+  check("englisch gemessen: E und N mit Dezimalpunkt",
+    hudZahlen(hudEn).length === 2 && /\d\.\d/.test(hudEn) && !/\d,\d/.test(hudEn), hudEn);
+
+  await page.evaluate(() => setLanguage("de"));
+  const hudEnDe = await hudText();
+
+  check("dann deutsch, ohne Mausbewegung: dieselbe Stelle mit Dezimalkomma",
+    JSON.stringify(hudZahlen(hudEnDe)) === JSON.stringify(hudZahlen(hudEn)) &&
+    !/\d\.\d/.test(hudEnDe),
+    `${hudEn} || ${hudEnDe}`);
+  await hudSteht("dann deutsch");
+
+  /*
+   * Neu geschrieben, nicht neu gerechnet: auch die Angabe, ob in Metern
+   * gezaehlt wird, stammt aus dem Moment der Messung. Gemessen ueber einer
+   * Karte mit unklarem Massstab, danach ein Massstab von Hand - die Stelle
+   * davor ist in keinem Meterrahmen gemessen, und ein Sprachwechsel darf sie
+   * nicht nachtraeglich in einen stellen.
+   */
+  await page.locator("#fileInput").setInputFiles({
+    name: "i18n-unklar.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(JSON.stringify({
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: { name: "perimeter" },
+        geometry: { type: "Polygon", coordinates: [[
+          [0, 0], [0.5, 0], [0.5, 0.5], [0, 0.5], [0, 0],
+        ]] },
+      }],
+    })),
+  });
+  await page.waitForTimeout(400);
+  await openAllFolds(page);
+  await page.mouse.move(karte.x + karte.width * 0.4, karte.y + karte.height * 0.6);
+  await page.waitForTimeout(200);
+
+  const hudUnklar = await hudText();
+
+  check("unklarer Massstab: die Stelle steht ohne Meterangabe da",
+    hudUnklar.startsWith("x:") && !hudUnklar.includes(" m"), hudUnklar);
+
+  await page.fill("#scaleInput", "2");
+  await page.locator("#applyScaleBtn").click();
+  await page.waitForTimeout(400);
+
+  check("Vorbedingung: der Massstab ist jetzt bekannt",
+    await page.evaluate(() => hasKnownScale()));
+
+  await page.evaluate(() => setLanguage("en"));
+
+  check("der Wechsel deutet die alte Stelle nicht in Metern um",
+    (await hudText()) === hudUnklar, `${hudUnklar} || ${await hudText()}`);
+
+  await page.evaluate(() => setLanguage("de"));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Die Zusammenfassung vor der ersten Pruefung, beide Richtungen");
+
+  /*
+   * resetValidationUi() schrieb „Noch keine Prüfung durchgeführt.“ einmal hin,
+   * und nach dem Laden einer Karte blieb der Satz in der Sprache stehen, in
+   * der er entstanden war - der Schnappschuss vom Seitenaufbau kennt den
+   * neuen Textknoten nicht. Der Satz entsteht hier je Richtung neu, durch das
+   * Laden einer Karte, und wird sichtbar gelesen: der Prueffaltblock ist offen.
+   */
+  const summaryText = () => page.locator("#validationSummary").innerText();
+  const summarySteht = async (wo) => {
+    await page.locator("#validationSummary").scrollIntoViewIfNeeded();
+    const getroffen = await elementGetroffen(page, "#validationSummary", { dy: 5 });
+    check(`${wo}: die Zusammenfassung steht sichtbar da`,
+      getroffen.ok === true, getroffen.grund);
+  };
+  const ladeKarte = async () => {
+    await page.locator("#fileInput").setInputFiles({
+      name: "i18n.geojson",
+      mimeType: "application/geo+json",
+      buffer: Buffer.from(MAP),
+    });
+    await page.waitForTimeout(400);
+    await openAllFolds(page);
+  };
+
+  await ladeKarte();
+  await summarySteht("deutsch erzeugt");
+
+  check("deutsch erzeugt: „Noch keine Prüfung durchgeführt.“",
+    (await summaryText()) === "Noch keine Prüfung durchgeführt.", await summaryText());
+
+  await page.evaluate(() => setLanguage("en"));
+
+  check("dann englisch, unmittelbar: übersetzt",
+    (await summaryText()) === "No validation performed yet.", await summaryText());
+
+  await page.evaluate(() => setLanguage("de"));
+
+  check("zurückgeschaltet wieder deutsch",
+    (await summaryText()) === "Noch keine Prüfung durchgeführt.", await summaryText());
+
+  await page.evaluate(() => setLanguage("en"));
+  await ladeKarte();
+  await summarySteht("englisch erzeugt");
+
+  check("englisch erzeugt: „No validation performed yet.“",
+    (await summaryText()) === "No validation performed yet.", await summaryText());
+
+  await page.evaluate(() => setLanguage("de"));
+
+  check("dann deutsch, unmittelbar: zurückübersetzt",
+    (await summaryText()) === "Noch keine Prüfung durchgeführt.", await summaryText());
+
+  /*
+   * Der zweite Satz desselben Platzhalters, ohne Karte. Im Markup steht der
+   * erste - schriebe der Platzhalter nichts, stuende ohne Karte „Noch keine
+   * Prüfung durchgeführt.“ da, und der Wechsel sähe trotzdem richtig aus,
+   * weil der Schnappschuss den Markuptext kennt. Deshalb neu geladen, als
+   * letzter Abschnitt.
+   */
+  await page.reload({ waitUntil: "load" });
+  await openAllFolds(page);
+  await summarySteht("ohne Karte");
+
+  check("ohne Karte: „Zuerst eine Karte laden.“",
+    (await summaryText()) === "Zuerst eine Karte laden.", await summaryText());
+
+  await page.evaluate(() => setLanguage("en"));
+
+  check("ohne Karte, dann englisch: übersetzt",
+    (await summaryText()) === "Load a map first.", await summaryText());
+
+  await page.evaluate(() => setLanguage("de"));
+
+  check("ohne Karte, zurückgeschaltet wieder deutsch",
+    (await summaryText()) === "Zuerst eine Karte laden.", await summaryText());
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

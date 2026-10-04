@@ -182,6 +182,97 @@ try {
     report.includes("Segmentprüfung"), report.slice(0, 300));
 
   /* ---------------------------------------------------------------- */
+  console.log("Der Maßstabshinweis folgt dem Sprachwechsel, beide Richtungen");
+
+  /*
+   * Er stand nicht in refreshDerivedUi() und behielt nach einem Wechsel die
+   * Sprache - und die Dezimalzeichen -, in der er entstanden war, bis die
+   * naechste Handlung ihn neu schrieb. Gemessen wird deshalb UNMITTELBAR nach
+   * setLanguage(), ohne Klick und ohne Mausbewegung dazwischen: jede Handlung
+   * schriebe ihn ohnehin neu und deckte den Fall zu. Gelesen wird der
+   * sichtbare Text, und dass der Hinweis dasteht, ist je Schritt zugesichert.
+   *
+   * Die Zahlen sind eine Beziehung, keine Messung: in beiden Sprachen stehen
+   * dieselben Groessen, nur mit dem Dezimalzeichen der Sprache.
+   */
+  const hinweisText = () => notice.innerText();
+  const groessen = (text) =>
+    [...text.matchAll(/(\d+(?:[.,]\d+)?) m\b/g)].map((m) => m[1]);
+  const gleicheGroessen = (a, b) =>
+    JSON.stringify(groessen(a).map((z) => z.replace(",", "."))) ===
+    JSON.stringify(groessen(b).map((z) => z.replace(",", ".")));
+  const hinweisSteht = async (wo) => {
+    const getroffen = await elementGetroffen(page, "#scaleNotice", { dy: 8 });
+    check(`${wo}: der Hinweis steht da und wird getroffen`,
+      getroffen.ok === true, getroffen.grund);
+  };
+
+  await load(square(0.5, 1));
+
+  await hinweisSteht("deutsch erzeugt");
+  const hinweisDe = await hinweisText();
+
+  check("deutsch erzeugt: „Maßstab unklar.“ steht vorn",
+    hinweisDe.startsWith("Maßstab unklar."), hinweisDe.slice(0, 80));
+  check("deutsch erzeugt: zwei Groessen, mit Dezimalkomma",
+    groessen(hinweisDe).length === 2 && groessen(hinweisDe).some((z) => z.includes(",")),
+    JSON.stringify(groessen(hinweisDe)));
+
+  await page.evaluate(() => setLanguage("en"));
+  const hinweisDeEn = await hinweisText();
+
+  check("dann englisch, unmittelbar: „Scale unclear.“ steht vorn",
+    hinweisDeEn.startsWith("Scale unclear."), hinweisDeEn.slice(0, 80));
+  check("dann englisch: kein deutscher Rest",
+    !/Maßstab|Relativformat|Meterkarte/.test(hinweisDeEn), hinweisDeEn.slice(0, 160));
+  check("dann englisch: dieselben Groessen, mit Dezimalpunkt",
+    gleicheGroessen(hinweisDe, hinweisDeEn) && !/\d,\d/.test(hinweisDeEn),
+    `${JSON.stringify(groessen(hinweisDe))} || ${JSON.stringify(groessen(hinweisDeEn))}`);
+  await hinweisSteht("dann englisch");
+
+  await page.evaluate(() => setLanguage("de"));
+
+  check("zurueckgeschaltet steht er wortgleich wieder da",
+    (await hinweisText()) === hinweisDe, (await hinweisText()).slice(0, 80));
+
+  /* Gegenrichtung: der Hinweis entsteht auf Englisch. */
+  await page.evaluate(() => setLanguage("en"));
+  await page.locator("#fileInput").setInputFiles({
+    name: "scale-en.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(square(0.6, 1)),
+  });
+  await page.waitForTimeout(450);
+
+  await hinweisSteht("englisch erzeugt");
+  const hinweisEn = await hinweisText();
+
+  check("englisch erzeugt: „Scale unclear.“ steht vorn",
+    hinweisEn.startsWith("Scale unclear."), hinweisEn.slice(0, 80));
+  check("englisch erzeugt: zwei Groessen, mit Dezimalpunkt",
+    groessen(hinweisEn).length === 2 && groessen(hinweisEn).some((z) => z.includes(".")),
+    JSON.stringify(groessen(hinweisEn)));
+
+  await page.evaluate(() => setLanguage("de"));
+  const hinweisEnDe = await hinweisText();
+
+  check("dann deutsch, unmittelbar: „Maßstab unklar.“ steht vorn",
+    hinweisEnDe.startsWith("Maßstab unklar."), hinweisEnDe.slice(0, 80));
+  check("dann deutsch: kein englischer Rest",
+    !/Scale unclear|relative format/.test(hinweisEnDe), hinweisEnDe.slice(0, 160));
+  check("dann deutsch: dieselben Groessen, mit Dezimalkomma",
+    gleicheGroessen(hinweisEn, hinweisEnDe) && !/\d\.\d/.test(hinweisEnDe),
+    `${JSON.stringify(groessen(hinweisEn))} || ${JSON.stringify(groessen(hinweisEnDe))}`);
+  await hinweisSteht("dann deutsch");
+
+  await page.evaluate(() => setLanguage("en"));
+
+  check("zurueckgeschaltet steht er wortgleich wieder englisch da",
+    (await hinweisText()) === hinweisEn, (await hinweisText()).slice(0, 80));
+
+  await page.evaluate(() => setLanguage("de"));
+
+  /* ---------------------------------------------------------------- */
   console.log("Maßstab in der Datei schlägt die Heuristik");
 
   /* Dieselbe Karte, die eben ein Zweifelsfall war - jetzt mit Angabe. */

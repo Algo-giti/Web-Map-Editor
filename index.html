@@ -5062,6 +5062,14 @@ const hud = document.getElementById("hud");
 const tip = document.getElementById("tip");
 
 /*
+ * Die zuletzt gemessene Zeigerstelle für die Cursor-Koordinaten der
+ * Statuszeile, samt der Angabe, ob der Maßstab dabei bekannt war. Null, bis
+ * der Zeiger zum ersten Mal über der Karte war - dann steht der Text aus dem
+ * Markup da.
+ */
+let hudReading = null;
+
+/*
  * Neutrale globale Arbeitsreferenz. Sie bleibt leer, bis Karte A oder B
  * tatsächlich über die lokale Dateiauswahl geladen wurde.
  */
@@ -8242,14 +8250,35 @@ function resetValidationUi() {
 
   if (!summary || !report) return;
 
+  renderValidationPlaceholder();
+
+  report.innerHTML = "";
+  report.hidden = true;
+}
+
+
+/**
+ * Die Zusammenfassung, solange keine Prüfung vorliegt.
+ *
+ * Abgeleitet: welcher der beiden Sätze dasteht, folgt allein daraus, ob eine
+ * Karte geladen ist. Sie steht deshalb in refreshDerivedUi() neben dem
+ * Prüfbericht und wird beim Sprachwechsel neu geschrieben. Bis dahin schrieb
+ * resetValidationUi() sie einmal hin, und nach dem ersten Laden einer Karte
+ * blieb „Noch keine Prüfung durchgeführt.“ in der Sprache stehen, in der sie
+ * entstanden war - der Schnappschuss vom Seitenaufbau kennt den neuen
+ * Textknoten nicht.
+ */
+function renderValidationPlaceholder() {
+  const summary =
+    document.getElementById("validationSummary");
+
+  if (!summary) return;
+
   summary.className = "validation-summary";
   summary.textContent =
     getActiveSlot()?.data
       ? "Noch keine Prüfung durchgeführt."
       : "Zuerst eine Karte laden.";
-
-  report.innerHTML = "";
-  report.hidden = true;
 }
 
 
@@ -20361,6 +20390,32 @@ svg.addEventListener("pointerdown", event => {
 });
 
 
+/**
+ * Schreibt die Cursor-Koordinaten der Statuszeile aus der zuletzt gemessenen
+ * Stelle.
+ *
+ * Bis hierher schrieb sie allein der pointermove-Handler, und nach einem
+ * Sprachwechsel standen sie mit dem Dezimalzeichen der vorigen Sprache da,
+ * bis der Zeiger wieder über die Karte fuhr - wer die Sprache umschaltet, hat
+ * ihn gerade in der Kopfzeile. Der Sprachwechsel schreibt deshalb dieselbe
+ * Stelle neu, ohne sie neu zu rechnen: auch die Angabe, ob in Metern gezählt
+ * wird, stammt aus dem Moment der Messung. Ein inzwischen gesetzter Maßstab
+ * deutete die alte Stelle sonst in einem Rahmen, in dem sie nie gemessen
+ * wurde.
+ */
+function renderHud() {
+  if (!hudReading) return;
+
+  const {east, north, metric} = hudReading;
+
+  hud.textContent =
+    metric
+      ? `E: ${formatMeters(east, 2, 2)} m   ` +
+        `N: ${formatMeters(north, 2, 2)} m`
+      : `x: ${east.toExponential(6)}   y: ${north.toExponential(6)}`;
+}
+
+
 /*
  * Pointer-Move hat zwei Betriebsarten:
  * 1. ausgewählten Punkt verschieben
@@ -20369,11 +20424,8 @@ svg.addEventListener("pointerdown", event => {
 svg.addEventListener("pointermove", event => {
   const [pointerEast, pointerNorth] = screenToWorld(event.clientX, event.clientY);
 
-  hud.textContent =
-    hasKnownScale()
-      ? `E: ${formatMeters(pointerEast, 2, 2)} m   ` +
-        `N: ${formatMeters(pointerNorth, 2, 2)} m`
-      : `x: ${pointerEast.toExponential(6)}   y: ${pointerNorth.toExponential(6)}`;
+  hudReading = {east:pointerEast, north:pointerNorth, metric:hasKnownScale()};
+  renderHud();
 
   /* Das Aufziehen einer Form geht allem anderen vor. */
   if (updateShapeSizing(event)) {
@@ -25387,9 +25439,25 @@ function refreshDerivedUi() {
 
   /*
    * Der Prüfbericht wird nur dann neu gezeichnet, wenn tatsächlich einer
-   * vorliegt. Sonst würde ein Sprachwechsel den Bericht wegräumen.
+   * vorliegt. Sonst würde ein Sprachwechsel den Bericht wegräumen. Liegt
+   * keiner vor, steht der Platzhalter da, und auch er wird neu geschrieben -
+   * neu geprüft wird dabei nichts.
    */
   if (lastValidationResult) renderValidationResult(lastValidationResult);
+  else renderValidationPlaceholder();
+
+  /*
+   * Der Maßstabshinweis nennt beide Lesarten mit ihrer Größe, also Text UND
+   * Zahlen mit Dezimalzeichen. Er stand nicht auf diesem Weg und behielt nach
+   * einem Sprachwechsel die Sprache, in der er entstanden war, bis die
+   * nächste Handlung ihn neu schrieb - gefunden beim Umzug in die Spalte mit
+   * den Angaben zur Auswahl. Neu geschrieben, nicht neu entschieden: ob er
+   * dasteht, sagt weiter der beim Laden bestimmte Maßstab.
+   */
+  updateScaleNotice();
+
+  /* Die Cursor-Koordinaten aus der zuletzt gemessenen Stelle, siehe renderHud(). */
+  renderHud();
 }
 
 const languageToggle =
