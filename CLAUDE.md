@@ -359,7 +359,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster |
 | `test-ghosting.mjs` | Ghosting: wem ein Vorher-Umriss gehört |
 | `test-glaettung.mjs` | Kartenglättung: Vorschau, Anwenden, Abbrechen, Grenzwerte, Auswahl |
-| `test-auswahlangaben.mjs` | Angaben zur Auswahl über der Karte: Ort, Felder, Griff, Überdeckung, beide Sprachen |
+| `test-auswahlangaben.mjs` | Angaben zur Auswahl über der Karte: Ort, Felder, Griff, Überdeckung – auch mit dem Maßstabshinweis –, beide Sprachen |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -1181,7 +1181,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->60 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->62 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -3713,7 +3713,23 @@ Rechtecke, kein `getComputedStyle`:
   Legenden- oder Statuszeile; mit jedem der drei Fenster: keine Überdeckung,
   beide getroffen, die Angaben rechts und mit ihrer Höhe, das Fenster links und
   so breit wie die Angaben;
-- beide Sprachrichtungen über `setLanguage()`: Kopf, Felder und Griff.
+- beide Sprachrichtungen über `setLanguage()`: Kopf, Felder und Griff;
+- bei unklarem Maßstab, mit Auswahl, bei 1280, 960 und 744 px, auf Deutsch
+  und auf Englisch: Angaben und Maßstabshinweis überdecken einander nicht,
+  beide werden an ihrer eigenen Stelle getroffen, der Hinweis steht über den
+  Angaben mit Luft dazwischen, die Angaben schließen unten rechts mit der
+  Karte ab und behalten ihre Breite, beide stehen in der Karte, und die
+  Zoom-Leiste bleibt frei – auch ohne Auswahl; dazu, dass der Hinweis ganz
+  dasteht und so hoch ist wie sein Text. Dass die Sprache wirklich die
+  gemeinte ist, ist selbst zugesichert;
+- wird es knapp, gibt der Hinweis nach: bei 1280 × 720 rollt er, und die
+  Angaben stehen ganz in der Karte; sein Text bleibt dabei im Kasten – in der
+  Lücke zu den Angaben liegt die Karte, und mit dem Mausrad kommt das Ende des
+  Textes herein; bei 744 px mit Auswahl und Fenster bleibt
+  seine erste Zeile ganz stehen, und keiner der drei überdeckt einen anderen.
+  Dass es wirklich knapp ist, steht als Vorbedingung da;
+- über den Angaben bleibt die Karte anklickbar, obwohl ihre Spalte die ganze
+  Zeile füllt; und ein Fenster allein bekommt die ganze Höhe des Stapels.
 
 **In `tools/test-inspector.mjs` haben vier Zusicherungen den Ort gewechselt**,
 jede aus demselben Grund – ihr Gegenstand steht nicht mehr im Inspektor:
@@ -3725,6 +3741,15 @@ jede aus demselben Grund – ihr Gegenstand steht nicht mehr im Inspektor:
 | „von North führt Tab zum ersten Knopf der Auswahlleiste“ | die ganze Kette: Notiz, Umschalter des Inspektors, erster Knopf | Karte vor Inspektor in der DOM-Reihenfolge; ein weiterer Halt fiele so auf |
 | „nach der Punktauswahl steht die Auswahl wieder oben“ (`inspectorPoint`) | „… steht oben wieder der erste eigene Block“ (Feature-Navigation) + „und die Auswahl steht in den Angaben über der Karte“ | dasselbe |
 
+**Mit dem Umzug des Maßstabshinweises haben dort zwei weitere ihren Inhalt
+nachgezogen**, im Abschnitt „Leiste und Maszstabshinweis ueberdecken einander
+nicht“:
+
+| Zusicherung vorher | jetzt | warum |
+|---|---|---|
+| „ohne Auswahl steht der Hinweis oben und wird getroffen“ | „… steht der Hinweis da und wird getroffen“ | der Name sagte „oben“, geprüft war nur der Treffer – und oben steht er nicht mehr |
+| „der Hinweis ist dabei tiefer gerueckt, nicht verschwunden“ | „der Hinweis ist dabei den Angaben ausgewichen, nicht verschwunden“ – seine Unterkante steht höher als ohne Auswahl | er weicht nicht mehr der Leiste nach unten aus, sondern den Angaben nach oben; geprüft bleibt, dass er gerückt und nicht verschwunden ist |
+
 Dazu misst die Suche nach dem „verdeckten Marker“ im Abschnitt über das
 Zuklappen der Auswahlleiste seitdem nur noch Marker unter der **Leiste**: sie
 fand zuerst den Marker unter den Angaben, und „zugeklappt ist er wieder
@@ -3732,14 +3757,102 @@ erreichbar“ riss, weil die falsche Ebene zugeklappt wurde. Die Kopfangaben der
 Auswahlzustände liest der Test über `auswahlKopf()` aus den Angaben, die der
 übrigen Zustände über `head()` aus dem Kopfblock.
 
-#### Offen: der Maßstabshinweis
+#### Der Maßstabshinweis steht mit den Angaben in einer Spalte
 
-**BENANNTER BEFUND, nicht behoben.** Bei unklarem Maßstab **und** einer Auswahl
-rückt der Hinweis unter die Auswahlleiste in die Kartenmitte, und die Angaben
-decken sein rechtes Ende ab: gemessen bei 1280 × 900 (Hinweis 362–437, Angaben
-ab 410), 1280 × 720 und 960 × 900; bei 744 px und bei 1600 × 1000 nicht. Der
-Auftrag nannte Zoom-Leiste, Legende, Statuszeile und Kartenfenster, nicht den
-Hinweis; wie er weicht, ist eine eigene Entscheidung.
+**ERLEDIGT – hier stand der offene Befund:** bei unklarem Maßstab **und** einer
+Auswahl rückte der Hinweis unter die Auswahlleiste in die Kartenmitte, und die
+Angaben deckten sein rechtes Ende ab. Gemessen am Stand `1055ce9`, 900 px
+Fensterhöhe, Rechtecke im Fenster:
+
+| Breite | Hinweis | Angaben | Überdeckung |
+|---|---|---|---|
+| 1280 px | 180–948 / 362–437 | 648–948 / 410–795 | ja |
+| 960 px | 68–628 / 362–454 | 328–628 / 410–795 | ja |
+| 744 px | 68–412 / 60–205 | 112–412 / 410–795 | nein – die Leiste steht dort im Inspektor |
+
+**Gewählt ist derselbe Weg wie beim oberen Stapel – nur mit dem anderen
+Nachbarn.** Hinweis und Angaben stehen seitdem in **einer** Spalte unten
+rechts, `.map-right-stack`, einem Kind des unteren Stapels: der Hinweis oben,
+die Angaben darunter. Erscheinen die Angaben, rückt der Hinweis von selbst
+nach oben; wo er landet, entscheidet das Layout. (Der Auftrag nannte als
+Vorbild den dreizehnten Durchgang; der Stapel, in dem der Hinweis der Leiste
+auswich, stammt aus Schritt 4 des elften – der dreizehnte hat die Leiste
+zuklappbar gemacht.)
+
+**Zwei andere Wege sind gemessen und verworfen:**
+
+| Weg | warum nicht |
+|---|---|
+| ein gerechneter Versatz – der Hinweis endet links vor den Angaben, oder er rückt um ihre Höhe | die Höhe der Angaben wechselt mit dem Auswahlzustand, der Sprache und dem Griff; eine Zahl, die jemand nachführen müsste |
+| der Hinweis bleibt oben, und der untere Stapel beginnt erst unter ihm | Leiste, Hinweis und Angaben stünden dann **übereinander**, obwohl Leiste und Angaben nebeneinander Platz haben: bei 1280 × 900 brauchten 290 + 75 + 385 px plus vier Abstände 798 px, die Karte hat 759 |
+
+**Nebenbei steht der Hinweis nicht mehr unter der Zoom-Leiste.** Quer über der
+Karte reichte er bis an ihren rechten Rand, und die Zoom-Leiste lag über seinem
+rechten Ende – gemessen ohne Auswahl in jeder Breite, bei 744 px auch mit
+Auswahl: Hinweis 180–948 / 60–135 gegen Zoom-Leiste 828–948 / 60–96, getroffen
+wurde dort `zoomInBtn`. Der untere Stapel beginnt unter der Zoom-Leiste, die
+Spalte also auch.
+
+**Gemessen danach, 900 px Fensterhöhe:**
+
+| Breite | ohne Auswahl: Hinweis | mit Auswahl: Hinweis | Angaben |
+|---|---|---|---|
+| 1280 px | 648–948 / 633–795 | 648–948 / 236–398 | 648–948 / 410–795 |
+| 960 px | 328–628 / 633–795 | 328–628 / 236–398 | 328–628 / 410–795 |
+| 744 px | 112–412 / 633–795 | 112–412 / 236–398 | 112–412 / 410–795 |
+
+**Reicht der Platz nicht, gibt der Hinweis nach – nicht die Angaben.** Die
+Spalte meldet dem Raster nur die Höhe der Angaben und einer Zeile des Hinweises
+(`flex:1 1 0`, `min-height:1lh`); den Rest bekommt der Hinweis, wenn er frei
+ist, bis zur Höhe seines Textes (`max-height:max-content`), sonst rollt er.
+Die Rangfolge ist damit: die Angaben behalten ihre Höhe wie bisher, ein
+geöffnetes Fenster – eine ausdrückliche Handlung – geht dem Hinweis vor, der
+von selbst erscheint, und vom Hinweis bleibt mindestens seine erste Zeile. Die
+Kurzform „unklar“ steht dabei weiter in der Statuszeile.
+
+| Fall | Hinweis | Angaben | Fenster |
+|---|---|---|---|
+| 1280 × 720, Auswahl | 108–218, rollt um 52 px | 230–615, ganz | – |
+| 744 × 900, Auswahl und Mäherfenster | 108–148, eine Zeile, rollt | 160–545, ganz | 557–795, rollt |
+| 744 × 900, nur Mäherfenster | 108–264, rollt um 6 px | – | 393–795, ganz |
+
+**Warum nicht die einfachere Fassung, in der der Hinweis seine ganze Höhe
+behält:** sie war gebaut und gemessen. Bei 1280 × 720 ragten die Angaben dann
+40 px über den unteren Kartenrand hinaus, und bei 960 × 720 mit Fenster rollte `.viewer` – das
+`overflow:hidden` trägt, aber programmatisch rollbar bleibt – beim Öffnen des
+Fensters um 118 px, die ganze Karte samt `svg` verschoben. **Die Spalte darf
+deshalb nicht mehr melden, als sie sicher braucht.**
+
+**`content-box` und `1lh` statt einer Zahl:** im Rahmen der Polsterung ginge
+eine Mindesthöhe auf, die keine Zeile freilässt; mit `content-box` addiert
+sich die eine Zeile zur Polsterung. Ohne die Mindesthöhe blieb im knappsten
+Fall – schmale Karte, Auswahl und Fenster – ein leerer orangefarbener Rahmen
+von 22 px stehen.
+
+**Ohne Hinweis und ohne Angaben ist die Spalte leer** und fällt per `:has()`
+ganz aus dem Raster; sonst hielte sie eine Spur und eine Lücke fest, und ein
+Fenster allein bekäme 12 px weniger Höhe.
+
+**Ein `justify-self:right` an der Spalte war gebaut und ist nachgemessen ohne
+Wirkung**: sie trägt die Ebenenbreite, und im rtl-Raster ist der Anfang einer
+Spur ihr rechter Rand. Entfernt, nicht stehen gelassen – an den Angaben war es
+nur im zugeklappten Zustand wirksam, und dort trägt es jetzt `align-self` in
+der Spalte. Ebenso entfallen sind `width:auto` am zugeklappten `<details>` und
+`gap` am oberen Stapel, der nur noch ein Kind hat; beide hatten in der neuen
+Anordnung nichts mehr zu tun.
+
+**BENANNTER BEFUND, nicht behoben: der Maßstabshinweis folgt einem
+Sprachwechsel nicht.** `updateScaleNotice()` schreibt ihn deutsch, der
+Beobachter übersetzt beim Einfügen, und `refreshDerivedUi()` baut ihn nicht
+neu. Gemessen am Stand `1055ce9`, und nach dem Umzug unverändert: auf Deutsch
+erzeugt, dann `setLanguage("en")` – „Maßstab unklar. Die Zahlen der Datei …“
+bleibt deutsch stehen, bis die nächste Handlung ihn neu schreibt (eine Auswahl
+genügt); in der Gegenrichtung ebenso. Gefunden hat es die Zusicherung „der
+Hinweis steht wirklich in dieser Sprache da“, die beim Umschalten riss. Die
+Lagezusicherungen erzeugen den Hinweis deshalb in jeder Sprache neu, statt
+umzuschalten – die Lage ist in beiden Sprachen gemessen, der Wechsel nicht.
+Die naheliegende Behebung ist eine Zeile (`updateScaleNotice()` in
+`refreshDerivedUi()`); sie ist eine eigene Entscheidung.
 
 **Nebenbefund aus den Mutationsproben, ebenfalls nicht behoben:**
 `tools/check-syntax.mjs` benennt seine Zwischendatei nach `Date.now()`. Zwei
@@ -3750,12 +3863,16 @@ Arbeitskopien: „OK“ und danach Exit 1. Einzeln gestartet tritt es nicht auf.
 
 **Und eine Grenze:** die Angaben rollen nicht. Ist die Karte niedriger als ihr
 Inhalt plus der Platz unter der Zoom-Leiste – bei 900 px Fensterhöhe weit
-entfernt, die Angaben messen rund 385 px –, ragen sie über den Stapel hinaus.
+entfernt, die Angaben messen rund 385 px –, ragen sie über den Stapel hinaus. Der
+Maßstabshinweis verschiebt diese Grenze nur um seine erste Zeile und einen
+Abstand: den Rest gibt er her.
 
 #### Die Mutationsproben
 
 **27 Proben, je eine Schreibstelle; 26 reißen, eine ist nachgemessen ohne
-Wirkung; 0 Timeouts.** Gefahren in fünf Arbeitskopien außerhalb des
+Wirkung; 0 Timeouts** – Stand `1055ce9`. **Die wirkungslose, M4b, ist mit dem
+Umzug des Maßstabshinweises ersetzt** durch M4b′, die das Gegenteil ihrer
+Zusicherung wirklich herstellt; Tabelle dort. Gefahren in fünf Arbeitskopien außerhalb des
 Repositorys, je Probe aus derselben Sicherungskopie zurückgespielt; die
 Prüfsumme ist vorher und nachher in allen Kopien `a1fef370…`, und `index.html`
 im Repository war nie angefasst. Gemessen wurde je Probe die Syntaxprüfung,
@@ -3770,7 +3887,7 @@ der Bestandsprüfer und die drei Browsertests, die die Schreibstellen treffen:
 | M3 | der Titel geht in den Kopfblock statt in die Angaben | **18** + **11**, z. B. „der Kopf nennt Nummer und Anzahl“ |
 | M3b | ebenso der Untertitel | **2** + **10**, z. B. „ein einfaches Polygon heißt schlicht Polygon“ |
 | M4 | Markup: ohne `open`, die Angaben starten zugeklappt | **43** + **41**, z. B. „die Angaben stehen ohne Zutun ausgeklappt da“ |
-| M4b | Markup: ohne das anfängliche `hidden` | **keine – ohne Wirkung**, nachgemessen: das Skript setzt `hidden` schon vor `DOMContentLoaded`, der Kasten hat dort und nach `load` kein Rechteck |
+| M4b | Markup: ohne das anfängliche `hidden` | **keine – ohne Wirkung**, nachgemessen: das Skript setzt `hidden` schon vor `DOMContentLoaded`, der Kasten hat dort und nach `load` kein Rechteck. **Wirkungslose Mutation, ersetzt durch M4b′** beim Umzug des Maßstabshinweises – nicht umformuliert, sondern durch eine, die die Angaben ohne Auswahl wirklich zeigt |
 | M5 | der Punktblock steht wieder im Inspektor | **8** + **2**, z. B. „die Angaben stehen ohne Zutun ausgeklappt da“ und die Tab-Kette |
 | M6 | der Stapel beginnt bei 12 px statt unter der Zoom-Leiste | **9**, z. B. „960 px, gridWindow: die Angaben bleiben … unter der Zoom-Leiste frei“ |
 | M7 | ohne `direction:rtl` | **6**, z. B. „1280 px, gridWindow: die Angaben stehen weiter rechts“ |
@@ -3790,7 +3907,7 @@ der Bestandsprüfer und die drei Browsertests, die die Schreibstellen treffen:
 | M17b | ebenso ihre Regel für den Umschalter | **1**, „ohne Text ist der Kopfblock nur so hoch wie sein Umschalter“ |
 | M18 | der Wörterbucheintrag des Griffs fehlt | **1**, „auf deutsch erzeugt, dann englisch: der Griff ist übersetzt“ |
 | M19 | die Kinder des Stapels ohne `align-self:end` | **9** + **1**, z. B. „die Angaben behalten ihre Höhe“ |
-| M20 | die Angaben ohne `justify-self:right` | **1** + **35**, z. B. „zugeklappt ist von den Angaben allein der Griff übrig“ (766 gegen 36) |
+| M20 | die Angaben ohne `justify-self:right` | **1** + **35**, z. B. „zugeklappt ist von den Angaben allein der Griff übrig“ (766 gegen 36). Die Zeile gibt es seit dem Umzug des Hinweises nicht mehr; ihre Aufgabe trägt `align-self:flex-end` am zugeklappten `<details>`, Probe R17 |
 | M21 | der Grund deckend statt 0,8 | **1**, „die Karte scheint durch die Angaben hindurch“ |
 
 Die Zahl hinter dem „+“ zählt in `tools/test-inspector.mjs`, die davor in
@@ -3818,6 +3935,58 @@ vierte meldete etwas, das nicht sie betraf:**
 **Die Prüfungen der statischen Stufe reißen bei keiner Probe außer M17 und
 M17b**: dort meldet der Bestandsprüfer eine verwaiste CSS-Klasse mehr, weil die
 Mutation den Selektor auf eine Klasse umlenkt, die es nicht gibt.
+
+#### Die Mutationsproben zum Maßstabshinweis
+
+**18 Proben, je eine Schreibstelle; alle reißen, 0 Timeouts.** Gefahren in
+vier Arbeitskopien außerhalb des Repositorys, je Probe aus derselben
+Sicherungskopie zurückgespielt; die Prüfsumme ist vorher und nachher in allen
+Kopien `9d9f5e97…`, und `index.html` im Repository war nie angefasst. Gemessen
+wie bei den Proben darüber: Syntaxprüfung, Bestandsprüfer,
+`tools/test-auswahlangaben.mjs`, `tools/test-inspector.mjs` und
+`tools/test-toolbar.mjs`; die statische Stufe und `tools/test-toolbar.mjs`
+reißen bei keiner.
+
+| Probe | Schreibstelle | gerissen |
+|---|---|---|
+| R1 | Markup: der Hinweis wieder im oberen Stapel, an seinem alten Ort | **19** + **1**, z. B. „1280 px, de: Angaben und Maßstabshinweis überdecken einander nicht“ und „ohne Auswahl: Hinweis und Zoom-Leiste überdecken einander nicht“ |
+| R2 | Markup: der Hinweis unter den Angaben statt darüber | **13** + **1**, z. B. „der Hinweis steht über den Angaben, mit Luft dazwischen“ |
+| R3 | die Spalte ohne `align-self:stretch` | **12**, z. B. „der Hinweis steht ganz da und rollt nicht“ |
+| R4 | die Spalte `display:block` statt `flex` | **19** + **1**, z. B. „die Angaben schließen unten rechts mit der Karte ab“ |
+| R5 | die Spalte als Zeile statt als Spalte | **41** + **1**, z. B. „die Angaben behalten ihre Breite“ |
+| R6 | die Spalte ohne `justify-content:flex-end` | **7** + **1**, z. B. „die Angaben schließen unten rechts mit der Karte ab“ |
+| R7 | die Spalte ohne `gap` | **7**, z. B. „der Hinweis steht über den Angaben, mit Luft dazwischen“ |
+| R8 | die Spalte ohne `pointer-events:none` | **2** + **36**, z. B. „über den Angaben bleibt die Karte anklickbar“ und, in `tools/test-inspector.mjs`, „der Marker 0:0:1 ist getroffen“ mit dem Detail `map-right-stack` |
+| R9 | ihre Kinder ohne `pointer-events:auto` | **29** + **37**, z. B. „beide werden an ihrer eigenen Stelle getroffen“ |
+| R10 | die `:has()`-Regel für die leere Spalte fehlt | **1**, „ein Fenster allein bekommt die ganze Höhe des Stapels“ |
+| R11 | der Hinweis wächst nicht (`flex:0 1 0`) | **12**, z. B. „der Hinweis steht ganz da und rollt nicht“ |
+| R12 | der Hinweis mit voller Basis (`flex:1 1 auto`) | **4**, z. B. „1280 x 720: die Angaben stehen ganz in der Karte“ |
+| R13 | der Hinweis ohne `box-sizing:content-box` | **1**, „744 px mit Fenster: die erste Zeile des Hinweises steht ganz da“ |
+| R14 | der Hinweis ohne `min-height:1lh` | **1**, dieselbe |
+| R15 | der Hinweis ohne `max-height:max-content` | **6**, „der Hinweis ist so hoch wie sein Text“ |
+| R16 | der Hinweis ohne `overflow:auto` | **2**, „in der Lücke zwischen Hinweis und Angaben liegt die Karte“ und „mit dem Mausrad kommt das Ende des Textes in den Kasten“ |
+| R17 | die zugeklappten Angaben ohne `align-self:flex-end` | **1** + **35**, z. B. „zugeklappt ist von den Angaben allein der Griff übrig“ (298 gegen 36) |
+| M4b′ | `INSPECTOR_BLOCKS`: die Angaben bekommen zusätzlich den Zustand `empty` | **3** + **6**, darunter „ohne Auswahl sind die Angaben nicht sichtbar“ und „nach dem Aufheben der Auswahl sind die Angaben weg“ |
+
+Die Zahl vor dem „+“ zählt in `tools/test-auswahlangaben.mjs`, die dahinter in
+`tools/test-inspector.mjs`.
+
+**M4b′ ersetzt M4b, und zwar nicht als Umformulierung.** M4b nahm das
+anfängliche `hidden` aus dem Markup und blieb ohne Wirkung, weil das Skript es
+vor dem ersten Zeichnen ohnehin setzt – sie stellte das Gegenteil von „ohne
+Auswahl nicht sichtbar“ nie her. M4b′ setzt an der Stelle an, die das wirklich
+entscheidet: mit `empty` in der Zustandsliste stehen die Angaben ohne Auswahl
+da, mit „Nichts ausgewählt“ im Kopf. Das anfängliche `hidden` im Markup bleibt
+stehen; es ist harmlos und keine Schreibstelle, an der etwas hängt.
+
+**R16 riss im ersten Lauf nichts, und das war eine Lücke im Test, keine
+wirkungslose Mutation.** Nachgemessen bei 1280 × 720: ohne `overflow:auto`
+wird der Kasten zwar ebenso klein, sein Text läuft aber 41 px darunter heraus –
+in die Lücke und auf die Angaben, wo an der Stelle `scaleNotice` statt der
+Karte getroffen wird –, und das Mausrad rollt nichts. Die beiden
+Zusicherungen dazu sind ergänzt, und alle 18 Proben sind danach noch einmal
+gegen den fertigen Test gefahren; die Zahlen oben stammen aus diesem zweiten
+Lauf.
 
 ### Wem ein Ghost gehört
 
@@ -4748,7 +4917,9 @@ gelten folgende Regeln:
 - Ein dauerhaft sichtbarer Hinweis liegt **im Kartenbereich**, nicht in einem
   einklappbaren Seitenleistenabschnitt – dort war er beim Koordinatenbezug
   schon einmal übersehen worden. Er nennt beide Lesarten mit ihrer konkreten
-  Größe, damit sofort erkennbar ist, welche stimmt.
+  Größe, damit sofort erkennbar ist, welche stimmt. Er steht unten rechts,
+  über den Angaben zur Auswahl und mit ihnen in einer Spalte – siehe „Der
+  Maßstabshinweis steht mit den Angaben in einer Spalte“ in Abschnitt 5.
 
 **Von Hand gesetzt wird der Maßstab im Inspektor unter „Koordinatenbezug“**,
 im Feld „Maßstab (Meter je Einheit)“ – dorthin verweist der Hinweis auf der
@@ -10313,6 +10484,13 @@ Durchgang ihn von den dreien oben unterscheiden kann.
 
   #### Der obere Stapel der Karte – Schritt 4 des elften Durchgangs
 
+  **ÜBERHOLT seit dem Umzug des Hinweises zu den Angaben zur Auswahl:** der
+  Maßstabshinweis steht nicht mehr in diesem Stapel, sondern unten rechts,
+  in einer Spalte mit den Angaben – siehe „Der Maßstabshinweis steht mit den
+  Angaben in einer Spalte“ in Abschnitt 5. Der Stapel trägt seitdem allein die
+  Leiste. Der Abschnitt bleibt stehen, weil die Abwägung „Layout statt
+  Versatz“ hier zum ersten Mal getroffen und gemessen wurde.
+
   **Der Maßstabshinweis weicht, und zwar nach unten.** `#scaleNotice` stand bei
   `left:12px; right:12px; top:12px` – genau dort, wo die Leiste jetzt liegt.
   Die Bestandsaufnahme des zehnten Durchgangs hatte das als den härtesten
@@ -10771,7 +10949,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | Datei | prüfend | nur herstellend |
   |---|---|---|
   | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**55** | 17 |
-  | `tools/test-auswahlangaben.mjs` | 1 | 17 |
+  | `tools/test-auswahlangaben.mjs` | 1 | 19 |
   | `tools/browser-harness.mjs` | – | 1 |
   | `tools/test-merge.mjs` | 5 | 5 |
   | `tools/test-map-switch.mjs` | 1 | 2 |
@@ -10784,7 +10962,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-ghosting.mjs` | – | 3 |
   | `tools/test-scale.mjs` | – | 2 |
   | `tools/test-glaettung.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**62** | <!-- bestand: zusicherungen-herstellend -->**59** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**62** | <!-- bestand: zusicherungen-herstellend -->**61** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -10832,6 +11010,13 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-inspector.mjs` | 57 / 15 | 55 / 17 | zwei Zusicherungen nannten `inspectorPoint` im Aufruf selbst und mussten den Ort wechseln: „nach der Punktauswahl steht oben wieder der erste eigene Block" erwartet jetzt die Feature-Navigation, und „der Inhalt ist nicht mehr sichtbar" misst am ersten Faltblock. Daneben steht je eine neue, die `#selectionTitle` im Vorlauf liest – zwei herstellende mehr |
   | `tools/test-auswahlangaben.mjs` | – | 1 / 17 | die neue Datei; fast alles herstellend, weil sie die Angaben über `elementGetroffen()` und Rechtecke im Vorlauf misst |
   | `tools/browser-harness.mjs` | – | 0 / 1 | `createMarkerKlicker()` fragt im Vorlauf seines `check()`, ob ein Marker unter `#selectionOverlay` liegt |
+
+  **Der Umzug des Maßstabshinweises zu den Angaben hat
+  `tools/test-auswahlangaben.mjs` auf 1 / 19 gebracht**, also zwei
+  herstellende mehr: der neue Abschnitt über Hinweis und Angaben liest die
+  Angaben im Vorlauf – sein Messhelfer nennt `#selectionOverlay`, der
+  Treffer am Kopf `#selectionTitle`. Prüfend ist keine dazugekommen; der
+  Bezeichner steht in keinem der neuen `check()`-Aufrufe selbst.
 
   **Dazu sind drei Namen in die Bezeichnerliste gekommen**: `selectionOverlay`,
   `selectionTitle` und `selectionSubtitle`. Der Kopf der Auswahl steht seitdem

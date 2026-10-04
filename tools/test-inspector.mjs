@@ -1373,8 +1373,11 @@ try {
   console.log("Leiste und Maszstabshinweis ueberdecken einander nicht");
 
   /*
-   * Beide wollen an denselben Platz: links oben ueber der Karte. Seit dem
-   * elften Durchgang stehen sie deshalb untereinander in EINEM Stapel.
+   * Beide wollten an denselben Platz: links oben ueber der Karte. Seit dem
+   * elften Durchgang standen sie deshalb untereinander in EINEM Stapel; seit
+   * dem Umzug des Hinweises steht er unten rechts bei den Angaben zur
+   * Auswahl, im rechten Stapel. Die Zusicherung bleibt: die beiden duerfen
+   * einander auch dort nicht ueberdecken.
    *
    * Gemessen wird die WIRKUNG, nicht der berechnete Stil: zwei Rechtecke, die
    * sich nicht schneiden, und beide an ihrer eigenen Stelle wirklich
@@ -1439,12 +1442,12 @@ try {
     const lage = await obenLinks();
     check("Vorbedingung: der Maszstabshinweis steht wirklich da",
       lage.hinweis.sichtbar, JSON.stringify(lage.hinweis));
-    check("ohne Auswahl steht der Hinweis oben und wird getroffen",
+    check("ohne Auswahl steht der Hinweis da und wird getroffen",
       !lage.bar.sichtbar && lage.hinweisGetroffen === true,
       JSON.stringify(lage));
   }
 
-  const oben = (await obenLinks()).hinweis.o;
+  const untenVorher = (await obenLinks()).hinweis.u;
 
   await page.locator("circle.vertex").first().click();
   await page.waitForTimeout(350);
@@ -1455,8 +1458,13 @@ try {
       lage.bar.sichtbar && lage.hinweis.sichtbar, JSON.stringify(lage));
     check("und ihre Rechtecke schneiden einander nicht",
       !lage.ueberdeckt, JSON.stringify(lage));
-    check("der Hinweis ist dabei tiefer gerueckt, nicht verschwunden",
-      lage.hinweis.o > oben, `${lage.hinweis.o} gegen vorher ${oben}`);
+    /*
+     * Gerueckt ist er nach OBEN: mit der Auswahl erscheinen unter ihm die
+     * Angaben, und er steht mit ihnen in einer Spalte. Bis zum Umzug stand
+     * hier "tiefer gerueckt" - damals schob ihn die Leiste nach unten.
+     */
+    check("der Hinweis ist dabei den Angaben ausgewichen, nicht verschwunden",
+      lage.hinweis.u < untenVorher, `${lage.hinweis.u} gegen vorher ${untenVorher}`);
     check("beide werden an ihrer eigenen Stelle getroffen",
       lage.barGetroffen === true && lage.hinweisGetroffen === true,
       JSON.stringify(lage));

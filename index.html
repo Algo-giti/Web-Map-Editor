@@ -1494,13 +1494,14 @@
   /* Komplette Feature-Navigation standardmäßig geschlossen. */
   /* Neutraler Startzustand ohne Karte und Raster. */
   /*
-   * Der Stapel traegt die Positionierung, seine Kinder stehen im Fluss. Die
-   * Leiste haengt sich als erstes Kind hinein (applySelectionBarPlacement),
-   * der Hinweis rueckt dadurch von selbst darunter.
+   * Der Stapel traegt die Positionierung, die Leiste steht in ihm im Fluss
+   * (applySelectionBarPlacement haengt sie hinein). Bis zum Umzug des
+   * Maszstabshinweises stand der Hinweis als zweites Kind darunter; er steht
+   * seitdem unten rechts bei den Angaben zur Auswahl (.map-right-stack).
    */
   .map-top-stack {
     position:absolute; left:12px; right:12px; top:12px; z-index:6;
-    display:flex; flex-direction:column; gap:12px;
+    display:flex; flex-direction:column;
     pointer-events:none;
     /*
      * Die Klammer sitzt am Stapel, nicht an der Leiste: `.viewer` traegt
@@ -2282,9 +2283,9 @@
   /*
    * DER UNTERE STAPEL DER KARTE
    * ---------------------------
-   * Ein Raster aus den drei Kartenfenstern (links) und den Angaben zur
-   * Auswahl (rechts). Ob beide nebeneinander oder uebereinander stehen,
-   * entscheidet das Layout:
+   * Ein Raster aus den drei Kartenfenstern (links) und dem rechten Stapel -
+   * Maszstabshinweis und Angaben zur Auswahl (rechts). Ob beide nebeneinander
+   * oder uebereinander stehen, entscheidet das Layout:
    *
    *  - Die Spalten sind `repeat(auto-fit, ...)` mit der Ebenenbreite als
    *    Mindestmass. Passen zwei hinein, stehen beide nebeneinander; sonst gibt
@@ -2333,6 +2334,69 @@
   }
 
   /*
+   * DER RECHTE STAPEL: Maszstabshinweis und Angaben zur Auswahl, untereinander
+   * in einer Spalte unten rechts.
+   *
+   * Er ist die Antwort auf eine Ueberdeckung: bei unklarem Maszstab und einer
+   * Auswahl stand der Hinweis quer ueber der Karte und die Angaben deckten
+   * sein rechtes Ende ab. Statt den Hinweis um die Hoehe der Angaben zu
+   * versetzen - eine Zahl, die mit jedem Auswahlzustand eine andere waere -,
+   * stehen beide in EINER Spalte; erscheinen die Angaben, rueckt der Hinweis
+   * von selbst nach oben. In derselben Spalte steht er zugleich unter der
+   * Zoom-Leiste, die er quer ueber der Karte ebenfalls zum Teil verdeckte.
+   *
+   * Die Spalte fuellt ihre Zeile (stretch) und packt nach unten (flex-end),
+   * damit die Angaben am unteren Rand stehen wie bisher. Ihre eigene Hoehe
+   * im Raster ist die der Angaben: der Hinweis traegt nur seine erste Zeile
+   * bei. Reicht der Platz nicht, gibt deshalb der Hinweis nach und rollt - die
+   * Angaben behalten ihre Hoehe, und ein geoeffnetes Fenster, eine
+   * ausdrueckliche Handlung, geht dem Hinweis vor, der von selbst erscheint.
+   * Die Kurzform "Massstab: unklar" bleibt dabei in der Statuszeile stehen.
+   *
+   * pointer-events:none, weil die Spalte ihre ganze Zeile fuellt; die Karte
+   * darueber muss anklickbar bleiben.
+   *
+   * Rechts steht sie ohne eigene Regel: sie traegt die Ebenenbreite, und im
+   * rtl-Raster ist der Anfang einer Spur ihr rechter Rand. Ein justify-self
+   * dafuer war gebaut und ist nachgemessen ohne Wirkung - entfernt.
+   */
+  .map-bottom-stack > .map-right-stack {
+    align-self:stretch;
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-end;
+    gap:12px;
+    pointer-events:none;
+  }
+
+  .map-right-stack > * { pointer-events:auto; }
+
+  /*
+   * Ohne Hinweis und ohne Angaben ist die Spalte leer - und waere doch ein
+   * Element des Rasters: sie hielte eine Spur und eine Luecke fest, und ein
+   * Fenster allein bekaeme nicht mehr die ganze Hoehe des Stapels.
+   */
+  .map-right-stack:not(:has(> :not([hidden]))) { display:none; }
+
+  /*
+   * Basis 0, wachsen bis zur Hoehe des eigenen Textes, darunter rollen. Ohne
+   * die Obergrenze fuellte der Hinweis die ganze Spalte ueber den Angaben.
+   *
+   * Nie weniger als eine Zeile: sonst bliebe im knappsten Fall - schmale
+   * Karte, Auswahl und ein offenes Fenster - ein leerer Rahmen stehen.
+   * content-box, damit die eine Zeile sich zur Polsterung ADDIERT, statt in
+   * ihr aufzugehen; die Zeile selbst misst 1lh, ohne dass hier eine Zahl
+   * steht.
+   */
+  .map-right-stack > .scale-notice {
+    flex:1 1 0;
+    box-sizing:content-box;
+    min-height:1lh;
+    max-height:max-content;
+    overflow:auto;
+  }
+
+  /*
    * DIE ANGABEN ZUR AUSWAHL
    *
    * Durchscheinend: Deckkraft 0,8 statt der 0,96 der Kartenfenster, damit die
@@ -2342,7 +2406,6 @@
    */
   .selection-overlay {
     position:relative;
-    justify-self:right;
     padding:10px;
     border:1px solid var(--line);
     border-radius:10px;
@@ -2352,9 +2415,10 @@
 
   /*
    * Zugeklappt bleibt allein der Griff stehen, wie bei der Auswahlleiste: ohne
-   * Polsterung und ohne die Ebenenbreite misst er genau sich selbst.
+   * Polsterung und rechts in der Spalte, statt sie zu fuellen, misst er genau
+   * sich selbst.
    */
-  .selection-overlay:not([open]) { width:auto; padding:0; }
+  .selection-overlay:not([open]) { align-self:flex-end; padding:0; }
 
   /*
    * Aufgeklappt sitzt der Griff in der Ecke oben rechts, neben dem Kopf - eine
@@ -3698,19 +3762,19 @@
       <!--
         DER OBERE STAPEL DER KARTE.
 
-        Er ist die Antwort auf eine Ueberdeckung: der Maszstabshinweis stand
+        Er war die Antwort auf eine Ueberdeckung: der Maszstabshinweis stand
         bei left:12/top:12 - genau dort, wo seit dem elften Durchgang die
-        Auswahlleiste liegt. Statt den Hinweis mit einem gerechneten Versatz
-        wegzuschieben, stehen beide untereinander in EINEM Stapel; wo der
-        Hinweis landet, entscheidet damit das Layout und nicht eine Zahl, die
-        jemand nachfuehren muesste, sobald die Leiste eine Zeile mehr traegt.
+        Auswahlleiste liegt. Beide standen deshalb untereinander in EINEM
+        Stapel. Seit die Angaben zur Auswahl unten rechts ueber der Karte
+        stehen, steht der Hinweis bei ihnen im rechten Stapel (siehe dort);
+        hier steht allein die Leiste, die applySelectionBarPlacement() ab der
+        Schwelle hineinhaengt.
 
         pointer-events:none am Stapel, auto an den Kindern: der Stapel spannt
         sich ueber die ganze Kartenbreite, und die Karte darunter muss
         anklickbar bleiben.
       -->
       <div id="mapTopStack" class="map-top-stack">
-        <div id="scaleNotice" class="scale-notice" role="status" hidden></div>
       </div>
 
       <div id="emptyMapState" class="empty-map-state">
@@ -3818,8 +3882,8 @@
       </div>
 
       <!--
-        DER UNTERE STAPEL DER KARTE: die Angaben zur Auswahl und die drei
-        Kartenfenster.
+        DER UNTERE STAPEL DER KARTE: der rechte Stapel (Maszstabshinweis und
+        Angaben zur Auswahl) und die drei Kartenfenster.
 
         Er ist die Antwort auf eine Ueberdeckung, wie der obere Stapel: die
         Angaben stehen unten rechts, die Fenster unten links, und auf einer
@@ -3838,139 +3902,148 @@
       <div id="mapBottomStack" class="map-bottom-stack">
 
         <!--
-          DIE ANGABEN ZUR AUSWAHL - der Auswahlbereich, der bis dahin im
-          Inspektor stand: Kopf, Koordinaten, Vergleich, Fahrtrichtung, die
-          Notiz zu geschlossenen Polygonen und die Bloecke der uebrigen drei
-          Auswahlzustaende. Verschoben, nicht kopiert: die ids der Bloecke
-          sind unveraendert, und welcher davon sichtbar ist, entscheidet
-          weiter INSPECTOR_BLOCKS.
-
-          Nur die Information zur Auswahl ist umgezogen, keine Bedienung - die
-          Knoepfe stehen in der Auswahlleiste, die Werkzeuge im Inspektor.
-
-          Einklappbar wie die Auswahlleiste und mit derselben Mechanik: ein
-          natives <details>, dessen `open`-Attribut der einzige Zustandshalter
-          ist. Es steht im Markup und wird nirgends zurueckgesetzt - der
-          Ausgangszustand ist aufgeklappt, und wer zuklappt, bekommt bei der
-          naechsten Auswahl die zugeklappten Angaben. Kein localStorage.
+          DER RECHTE STAPEL: der Maszstabshinweis ueber den Angaben zur
+          Auswahl, in einer Spalte. Erscheinen die Angaben, rueckt der Hinweis
+          von selbst nach oben; die Regeln stehen am Selektor .map-right-stack.
         -->
-        <details id="selectionOverlay" class="selection-overlay" open hidden>
+        <div class="map-right-stack">
+          <div id="scaleNotice" class="scale-notice" role="status" hidden></div>
+
           <!--
-            Der Griff, quadratisch in der Groesse der Kartenknoepfe und ohne
-            Beschriftung - derselbe wie an der Auswahlleiste, damit beide sich
-            gleich bedienen. Sein title ist sein NAME, kein Erklaertext.
+            DIE ANGABEN ZUR AUSWAHL - der Auswahlbereich, der bis dahin im
+            Inspektor stand: Kopf, Koordinaten, Vergleich, Fahrtrichtung, die
+            Notiz zu geschlossenen Polygonen und die Bloecke der uebrigen drei
+            Auswahlzustaende. Verschoben, nicht kopiert: die ids der Bloecke
+            sind unveraendert, und welcher davon sichtbar ist, entscheidet
+            weiter INSPECTOR_BLOCKS.
+
+            Nur die Information zur Auswahl ist umgezogen, keine Bedienung - die
+            Knoepfe stehen in der Auswahlleiste, die Werkzeuge im Inspektor.
+
+            Einklappbar wie die Auswahlleiste und mit derselben Mechanik: ein
+            natives <details>, dessen `open`-Attribut der einzige Zustandshalter
+            ist. Es steht im Markup und wird nirgends zurueckgesetzt - der
+            Ausgangszustand ist aufgeklappt, und wer zuklappt, bekommt bei der
+            naechsten Auswahl die zugeklappten Angaben. Kein localStorage.
           -->
-          <summary id="selectionOverlayHandle" class="map-tool-button"
-                   title="Auswahlangaben ein- und ausklappen"
-                   aria-label="Auswahlangaben ein- und ausklappen"></summary>
-
-          <div class="selection-overlay-body">
+          <details id="selectionOverlay" class="selection-overlay" open hidden>
             <!--
-              Der Kopf der Auswahl. Er stand im Kopfblock des Inspektors, der
-              seitdem nur noch beschreibt, was ohne Auswahl dort steht: den
-              leeren Zustand, das Zeichnen und das Messen.
+              Der Griff, quadratisch in der Groesse der Kartenknoepfe und ohne
+              Beschriftung - derselbe wie an der Auswahlleiste, damit beide sich
+              gleich bedienen. Sein title ist sein NAME, kein Erklaertext.
             -->
-            <div class="selection-overlay-head">
-              <div id="selectionTitle" class="inspector-title"></div>
-              <div id="selectionSubtitle" class="inspector-subtitle"></div>
-            </div>
-            <div id="inspectorPoint" class="inspector-block" hidden>
-              <div class="inspector-section-title">Koordinaten</div>
+            <summary id="selectionOverlayHandle" class="map-tool-button"
+                     title="Auswahlangaben ein- und ausklappen"
+                     aria-label="Auswahlangaben ein- und ausklappen"></summary>
 
-              <div class="coord-grid">
-                <label class="coord-field" for="pointEastInput">
-                  East / E (m)
-                  <input id="pointEastInput" class="coord-input" type="text"
-                         inputmode="decimal" autocomplete="off" disabled>
-                </label>
-                <label class="coord-field" for="pointNorthInput">
-                  North / N (m)
-                  <input id="pointNorthInput" class="coord-input" type="text"
-                         inputmode="decimal" autocomplete="off" disabled>
-                </label>
-              </div>
-
-              <div id="selectionDeltaInfo" class="comparison-status" aria-live="polite">
-                Verschiebungen bleiben bis zum Speichern als Vergleich sichtbar.
-              </div>
-
+            <div class="selection-overlay-body">
               <!--
-                Fahrtrichtung des AUSGEWÄHLTEN Punktes - deshalb hier und nicht im
-                Mäherfenster. Die id bleibt bei diesem Teil: sie heisst
-                "OrientationInfo", und die Orientierung ist genau das, was hier
-                steht. Die Grössenangabe war der andere Teil derselben Box und liegt
-                jetzt als #mowerSizeInfo bei den Feldern, die sie einstellen.
+                Der Kopf der Auswahl. Er stand im Kopfblock des Inspektors, der
+                seitdem nur noch beschreibt, was ohne Auswahl dort steht: den
+                leeren Zustand, das Zeichnen und das Messen.
               -->
-              <div id="mowerOrientationInfo" class="orientation-box" aria-live="polite">
-                Punkt auswählen, um die Fahrtrichtung anzuzeigen.
+              <div class="selection-overlay-head">
+                <div id="selectionTitle" class="inspector-title"></div>
+                <div id="selectionSubtitle" class="inspector-subtitle"></div>
               </div>
+              <div id="inspectorPoint" class="inspector-block" hidden>
+                <div class="inspector-section-title">Koordinaten</div>
 
-              <details class="inspector-note">
-                <summary>Geschlossene Polygone</summary>
-                <div class="map-info-text">
-                  Start und Ende sind zwei benachbarte echte Eckpunkte. Danach
-                  wiederholt GeoJSON intern den Startpunkt, damit der Ring
-                  geschlossen bleibt. Beim Neuvergeben werden die Punkte zyklisch neu
-                  nummeriert. Neue Punkte werden zunächst auf einer bestehenden Kante
-                  eingesetzt, damit sich die Polygonform beim Einfügen nicht
-                  unbeabsichtigt verändert.
+                <div class="coord-grid">
+                  <label class="coord-field" for="pointEastInput">
+                    East / E (m)
+                    <input id="pointEastInput" class="coord-input" type="text"
+                           inputmode="decimal" autocomplete="off" disabled>
+                  </label>
+                  <label class="coord-field" for="pointNorthInput">
+                    North / N (m)
+                    <input id="pointNorthInput" class="coord-input" type="text"
+                           inputmode="decimal" autocomplete="off" disabled>
+                  </label>
                 </div>
-              </details>
+
+                <div id="selectionDeltaInfo" class="comparison-status" aria-live="polite">
+                  Verschiebungen bleiben bis zum Speichern als Vergleich sichtbar.
+                </div>
+
+                <!--
+                  Fahrtrichtung des AUSGEWÄHLTEN Punktes - deshalb hier und nicht im
+                  Mäherfenster. Die id bleibt bei diesem Teil: sie heisst
+                  "OrientationInfo", und die Orientierung ist genau das, was hier
+                  steht. Die Grössenangabe war der andere Teil derselben Box und liegt
+                  jetzt als #mowerSizeInfo bei den Feldern, die sie einstellen.
+                -->
+                <div id="mowerOrientationInfo" class="orientation-box" aria-live="polite">
+                  Punkt auswählen, um die Fahrtrichtung anzuzeigen.
+                </div>
+
+                <details class="inspector-note">
+                  <summary>Geschlossene Polygone</summary>
+                  <div class="map-info-text">
+                    Start und Ende sind zwei benachbarte echte Eckpunkte. Danach
+                    wiederholt GeoJSON intern den Startpunkt, damit der Ring
+                    geschlossen bleibt. Beim Neuvergeben werden die Punkte zyklisch neu
+                    nummeriert. Neue Punkte werden zunächst auf einer bestehenden Kante
+                    eingesetzt, damit sich die Polygonform beim Einfügen nicht
+                    unbeabsichtigt verändert.
+                  </div>
+                </details>
+
+                <!--
+                  Seit Etappe 4 nennt der Kopfblock Punktnummer, Feature und Behälter.
+                  Dieses Feld sagte dasselbe noch einmal - genau das sollte der feste
+                  Kopfblock überflüssig machen. Übrig bleibt die Punktrolle, und die
+                  auch nur, wenn es eine gibt: "Zwischenpunkt" ist der Normalfall und
+                  sagt nichts. Weglassen statt platzhaltern.
+                -->
+                <div id="pointMeta" class="point-role" hidden></div>
+              </div>
 
               <!--
-                Seit Etappe 4 nennt der Kopfblock Punktnummer, Feature und Behälter.
-                Dieses Feld sagte dasselbe noch einmal - genau das sollte der feste
-                Kopfblock überflüssig machen. Übrig bleibt die Punktrolle, und die
-                auch nur, wenn es eine gibt: "Zwischenpunkt" ist der Normalfall und
-                sagt nichts. Weglassen statt platzhaltern.
+                Mehrere Punkte EINES Features. Der Kopfblock nennt die Anzahl; hier
+                stehen nur die Aktionen, die auf eine Gruppe passen.
               -->
-              <div id="pointMeta" class="point-role" hidden></div>
-            </div>
+              <div id="inspectorMulti" class="inspector-block" hidden>
+                <div class="inspector-section-title">Gruppe</div>
+                <div id="multiSummary" class="editor-meta">Mehrere Punkte ausgewählt.</div>
+                <div class="hint">
+                  Einen markierten Punkt ziehen verschiebt die ganze Gruppe.
+                </div>
+              </div>
 
-            <!--
-              Mehrere Punkte EINES Features. Der Kopfblock nennt die Anzahl; hier
-              stehen nur die Aktionen, die auf eine Gruppe passen.
-            -->
-            <div id="inspectorMulti" class="inspector-block" hidden>
-              <div class="inspector-section-title">Gruppe</div>
-              <div id="multiSummary" class="editor-meta">Mehrere Punkte ausgewählt.</div>
-              <div class="hint">
-                Einen markierten Punkt ziehen verschiebt die ganze Gruppe.
+              <!-- Punkte aus MEHREREN Features. -->
+              <div id="inspectorMixed" class="inspector-block" hidden>
+                <div class="inspector-section-title">Mehrere Features</div>
+                <div id="mixedSummary" class="editor-meta">Punkte aus mehreren Features.</div>
+                <div class="hint">
+                  Löschen und gemeinsames Verschieben gehen weiterhin. Alles, was einen
+                  einzelnen Linienzug braucht - Koordinaten, Start/Ende, Begradigen,
+                  Reduzieren, Rechtwinklig - braucht eine Auswahl innerhalb EINES
+                  Features.
+                </div>
+              </div>
+
+              <!-- Alle editierbaren Punkte eines Features. -->
+              <div id="inspectorFeature" class="inspector-block" hidden>
+                <div class="inspector-section-title">Feature</div>
+
+                <!--
+                  Typabhaengige Kennzahlen werden WEGGELASSEN, nicht platzhaltert.
+                  Ein "-" bei idx behauptete, es gaebe dort einen Wert, den man nur
+                  nicht kennt; ein Perimeter hat aber keinen idx. Die Zeilen tragen
+                  deshalb eigene ids und werden ueber hidden geschaltet.
+                -->
+                <div class="stat"><span>Typ</span><strong id="featureTypeStat">–</strong></div>
+                <div class="stat"><span>Punkte</span><strong id="featurePointStat">–</strong></div>
+                <div id="featureAreaRow" class="stat" hidden><span>Fläche</span><strong id="featureAreaStat">–</strong></div>
+                <div id="featureIdxRow" class="stat" hidden><span>idx</span><strong id="featureIdxStat">–</strong></div>
+                <div class="hint">
+                  Verschieben durch Ziehen an der Geometrie auf der Karte.
+                </div>
               </div>
             </div>
-
-            <!-- Punkte aus MEHREREN Features. -->
-            <div id="inspectorMixed" class="inspector-block" hidden>
-              <div class="inspector-section-title">Mehrere Features</div>
-              <div id="mixedSummary" class="editor-meta">Punkte aus mehreren Features.</div>
-              <div class="hint">
-                Löschen und gemeinsames Verschieben gehen weiterhin. Alles, was einen
-                einzelnen Linienzug braucht - Koordinaten, Start/Ende, Begradigen,
-                Reduzieren, Rechtwinklig - braucht eine Auswahl innerhalb EINES
-                Features.
-              </div>
-            </div>
-
-            <!-- Alle editierbaren Punkte eines Features. -->
-            <div id="inspectorFeature" class="inspector-block" hidden>
-              <div class="inspector-section-title">Feature</div>
-
-              <!--
-                Typabhaengige Kennzahlen werden WEGGELASSEN, nicht platzhaltert.
-                Ein "-" bei idx behauptete, es gaebe dort einen Wert, den man nur
-                nicht kennt; ein Perimeter hat aber keinen idx. Die Zeilen tragen
-                deshalb eigene ids und werden ueber hidden geschaltet.
-              -->
-              <div class="stat"><span>Typ</span><strong id="featureTypeStat">–</strong></div>
-              <div class="stat"><span>Punkte</span><strong id="featurePointStat">–</strong></div>
-              <div id="featureAreaRow" class="stat" hidden><span>Fläche</span><strong id="featureAreaStat">–</strong></div>
-              <div id="featureIdxRow" class="stat" hidden><span>idx</span><strong id="featureIdxStat">–</strong></div>
-              <div class="hint">
-                Verschieben durch Ziehen an der Geometrie auf der Karte.
-              </div>
-            </div>
-          </div>
-        </details>
+          </details>
+        </div>
 
         <!--
           Die drei Einstellfenster. Nicht-modal und bewusst KEIN <dialog>:
@@ -6427,10 +6500,9 @@ function applySelectionBarPlacement() {
   const bar = document.getElementById("selectionActions");
 
   /*
-   * Ziel ist der obere Stapel der Karte, nicht `#viewer` selbst: dort steht
-   * auch der Maszstabshinweis, und die beiden sollen einander nicht
-   * ueberdecken. Der Stapel ordnet sie untereinander, ohne dass irgendwo eine
-   * Hoehe gerechnet wird.
+   * Ziel ist der obere Stapel der Karte, nicht `#viewer` selbst: er traegt
+   * Ort und Hoehenklammer. Der Maszstabshinweis stand dort frueher unter der
+   * Leiste; er steht seitdem unten rechts bei den Angaben zur Auswahl.
    */
   const viewer = document.getElementById("mapTopStack");
 

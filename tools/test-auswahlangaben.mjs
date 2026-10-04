@@ -55,6 +55,21 @@ const KARTE = JSON.stringify({
   ],
 });
 
+/*
+ * Eine Karte mit unklarem Maßstab: 0,5 x 0,5 Einheiten lassen sich weder als
+ * Grad noch als Meter sicher lesen, und genau dann steht der Maßstabshinweis
+ * auf der Karte. Der Punkt bei 0/0 liegt unten links, weit weg von Hinweis
+ * und Angaben.
+ */
+const KARTE_UNKLAR = JSON.stringify({
+  type: "FeatureCollection",
+  features: [
+    { type: "Feature", properties: { name: "perimeter" },
+      geometry: { type: "Polygon", coordinates: [[
+        [0, 0], [0.5, 0], [0.5, 0.5], [0, 0.5], [0, 0]]] } },
+  ],
+});
+
 /** Die Fenster der Karte - Menü und Eintrag, wie ein Nutzer sie öffnet. */
 const FENSTER = [
   { id: "gridWindow", menue: "Ansicht", eintrag: "Raster…" },
@@ -89,9 +104,9 @@ try {
    * von selbst tun, sonst überdecken Angaben und Zoom-Leiste einander genau
    * dort.
    */
-  const neueSeite = async (breite, grob = false) => {
+  const neueSeite = async (breite, grob = false, hoehe = 900) => {
     const kontext = await browser.newContext({
-      viewport: { width: breite, height: 900 },
+      viewport: { width: breite, height: hoehe },
       hasTouch: grob,
     });
     const seite = await kontext.newPage();
@@ -104,14 +119,15 @@ try {
     return { kontext, seite };
   };
 
-  const laden = async (seite) => {
+  const laden = async (seite, karte = KARTE, sprache = "de") => {
     await seite.goto(indexUrl(), { waitUntil: "load" });
     await seite.evaluate(() => localStorage.clear());
     await seite.reload({ waitUntil: "load" });
+    if (sprache !== "de") await seite.evaluate((s) => setLanguage(s), sprache);
     await seite.locator("#fileInput").setInputFiles({
       name: "auswahlangaben.geojson",
       mimeType: "application/geo+json",
-      buffer: Buffer.from(KARTE),
+      buffer: Buffer.from(karte),
     });
     await seite.waitForTimeout(400);
   };
@@ -225,6 +241,21 @@ try {
         karte.right - ov.right < ov.left - karte.left &&
         karte.bottom - ov.bottom < ov.top - karte.top,
         JSON.stringify({ ov, karte }));
+
+      /*
+       * Die Spalte, in der die Angaben stehen, reicht bis unter die
+       * Zoom-Leiste hinauf - sie füllt ihre Zeile, damit der
+       * Maßstabshinweis darin Platz findet. Über den Angaben muss die Karte
+       * trotzdem anklickbar bleiben.
+       */
+      const darueber = ov && await seite.evaluate(([x, y]) => {
+        const el = document.elementFromPoint(x, y);
+        return { karte: !!(el && el.closest("#svg")),
+                 grund: el ? (el.id || el.className.baseVal || el.className || el.tagName) : "nichts" };
+      }, [ov.left + ov.width / 2, ov.top - 30]);
+
+      check("über den Angaben bleibt die Karte anklickbar",
+        !!darueber && darueber.karte, JSON.stringify(darueber));
 
       /*
        * Der Griff sitzt neben dem Kopf, nicht in einer eigenen Zeile darüber,
@@ -485,6 +516,270 @@ try {
       await seite.keyboard.press("Escape");
       await seite.waitForTimeout(200);
     }
+
+    await kontext.close();
+  }
+
+  /* ---------------------------------------------------------------- */
+  console.log("Angaben und Maßstabshinweis überdecken einander nicht");
+
+  /*
+   * Bei unklarem Maßstab steht der Hinweis auf der Karte. Er stand quer über
+   * ihr, und die Angaben deckten sein rechtes Ende ab - gemessen bei 1280 und
+   * 960 px. Seitdem stehen beide in EINER Spalte unten rechts: erscheinen die
+   * Angaben, rückt der Hinweis von selbst nach oben.
+   *
+   * Zugesichert an gemessenen Rechtecken und an dem, was der Browser an der
+   * Stelle zeichnet, je Breite in beiden Sprachen: ein englischer Hinweis ist
+   * anders lang und damit anders hoch.
+   *
+   * Die Sprache wird VOR dem Laden über setLanguage() gesetzt, der Hinweis
+   * entsteht also in ihr - und nicht umgeschaltet, während er dasteht. Der
+   * Grund ist ein Befund, kein Bequemlichkeitsweg: der Hinweis folgt einem
+   * Sprachwechsel nicht, er behält die Sprache, in der er entstand, bis ihn
+   * die nächste Handlung neu schreibt (updateScaleNotice() steht nicht in
+   * refreshDerivedUi()). Gemessen am Stand vor diesem Umbau ebenso; benannt
+   * in CLAUDE.md und nicht im selben Zug behoben. Umgeschaltet gemessen
+   * stünde hier die Zusicherung über die Sprache rot - zu Recht, aber über
+   * etwas anderes als die Lage.
+   */
+  const MARKE = { de: "Maßstab unklar.", en: "Scale unclear." };
+
+  /** Alles, was zur Lage des Hinweises gehört, in einem Durchgang gemessen. */
+  const hinweisLage = (seite) => seite.evaluate(() => {
+    const rect = (el) => {
+      if (!el || el.getClientRects().length === 0) return null;
+      const r = el.getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom,
+               width: r.width, height: r.height };
+    };
+    const hinweis = document.getElementById("scaleNotice");
+    const marke = hinweis.querySelector("strong");
+    const bereich = document.createRange();
+    bereich.selectNodeContents(hinweis);
+
+    return {
+      hinweis: rect(hinweis),
+      marke: rect(marke),
+      text: hinweis.getClientRects().length ? rect(bereich) : null,
+      markeText: marke ? marke.innerText : "",
+      rollt: hinweis.scrollHeight > hinweis.clientHeight,
+      angaben: rect(document.getElementById("selectionOverlay")),
+      karte: rect(document.getElementById("viewer")),
+      zoom: rect(document.querySelector(".map-view-toolbar")),
+    };
+  });
+
+  /** Ein Element an seiner eigenen Stelle wirklich getroffen - ein paar Pixel hinein. */
+  const getroffenBei = (seite, selektor) => seite.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el || el.getClientRects().length === 0) return { ok: false, grund: "nicht gezeichnet" };
+    const r = el.getBoundingClientRect();
+    const t = document.elementFromPoint(r.left + 8, r.top + 8);
+    return { ok: !!t && el.contains(t),
+             grund: t ? (t.id || t.className.baseVal || t.className || t.tagName) : "nichts" };
+  }, selektor);
+
+  for (const breite of [1280, 960, 744]) {
+    const { kontext, seite } = await neueSeite(breite);
+
+    for (const sprache of ["de", "en"]) {
+      const wo = `${breite} px, ${sprache}`;
+
+      await laden(seite, KARTE_UNKLAR, sprache);
+
+      {
+        const lage = await hinweisLage(seite);
+        const hinweis = await getroffenBei(seite, "#scaleNotice");
+
+        check(`${wo}: Vorbedingung: der Maßstabshinweis steht da und wird getroffen`,
+          !!lage.hinweis && hinweis.ok, JSON.stringify({ lage, hinweis }));
+        check(`${wo}: ohne Auswahl: Hinweis und Zoom-Leiste überdecken einander nicht`,
+          !!lage.zoom && !ueberdecken(lage.hinweis, lage.zoom),
+          JSON.stringify({ hinweis: lage.hinweis, zoom: lage.zoom }));
+      }
+
+      if (!(await punktWaehlen(seite, 0, 0, `${wo}, unklarer Maßstab`))) continue;
+
+      const lage = await hinweisLage(seite);
+      const hinweis = await getroffenBei(seite, "#scaleNotice");
+      const kopf = await getroffenBei(seite, "#selectionTitle");
+
+      /* Die Bedingung, unter der gemessen wird, selbst zusichern. */
+      check(`${wo}: der Hinweis steht wirklich in dieser Sprache da`,
+        lage.markeText === MARKE[sprache], lage.markeText);
+
+      check(`${wo}: Angaben und Maßstabshinweis überdecken einander nicht`,
+        !!lage.hinweis && !!lage.angaben && !ueberdecken(lage.hinweis, lage.angaben),
+        JSON.stringify({ hinweis: lage.hinweis, angaben: lage.angaben }));
+      check(`${wo}: beide werden an ihrer eigenen Stelle getroffen`,
+        hinweis.ok && kopf.ok, JSON.stringify({ hinweis, kopf }));
+      check(`${wo}: der Hinweis steht über den Angaben, mit Luft dazwischen`,
+        !!lage.hinweis && !!lage.angaben && lage.hinweis.bottom < lage.angaben.top,
+        JSON.stringify({ hinweis: lage.hinweis, angaben: lage.angaben }));
+
+      /*
+       * Unten rechts wie ohne Hinweis: zum unteren Kartenrand derselbe
+       * Abstand wie zum rechten. Eine Beziehung, keine Zahl.
+       */
+      check(`${wo}: die Angaben schließen unten rechts mit der Karte ab`,
+        !!lage.angaben && !!lage.karte &&
+        Math.abs((lage.karte.bottom - lage.angaben.bottom) -
+                 (lage.karte.right - lage.angaben.right)) < 1,
+        JSON.stringify({ angaben: lage.angaben, karte: lage.karte }));
+      check(`${wo}: die Angaben behalten ihre Breite`,
+        !!lage.angaben && ebenenbreite !== null &&
+        Math.abs(lage.angaben.width - ebenenbreite) < 0.5,
+        `${lage.angaben ? lage.angaben.width : "–"} gegen ${ebenenbreite}`);
+      check(`${wo}: Hinweis und Angaben stehen in der Karte, die Zoom-Leiste bleibt frei`,
+        innerhalb(lage.hinweis, lage.karte) && innerhalb(lage.angaben, lage.karte) &&
+        !ueberdecken(lage.hinweis, lage.zoom),
+        JSON.stringify(lage));
+
+      /*
+       * Bei 900 px Höhe ist Platz für beide: der Hinweis steht ganz da, rollt
+       * nicht und ist so hoch wie sein Text - oben und unten gleich viel Luft
+       * zwischen Text und Rand. Ein Hinweis, der die freie Spalte füllte,
+       * hätte unten mehr.
+       */
+      check(`${wo}: der Hinweis steht ganz da und rollt nicht`,
+        !lage.rollt, JSON.stringify(lage.hinweis));
+      check(`${wo}: der Hinweis ist so hoch wie sein Text`,
+        !!lage.text && !!lage.hinweis &&
+        Math.abs((lage.text.top - lage.hinweis.top) -
+                 (lage.hinweis.bottom - lage.text.bottom)) < 2,
+        JSON.stringify({ hinweis: lage.hinweis, text: lage.text }));
+    }
+
+    await kontext.close();
+  }
+
+  /* ---------------------------------------------------------------- */
+  console.log("Wird es knapp, gibt der Hinweis nach - nicht die Angaben");
+
+  /*
+   * Bei 720 px Höhe passen Hinweis und Angaben nicht beide ganz in die
+   * Spalte. Dann rollt der Hinweis, und die Angaben bleiben ganz in der
+   * Karte - sie tragen keine Rollfunktion. Die Vorbedingung, dass es wirklich
+   * knapp ist, steht als eigene Zusicherung da: ohne sie bewiese der Rest
+   * nichts.
+   */
+  {
+    const { kontext, seite } = await neueSeite(1280, false, 720);
+
+    await laden(seite, KARTE_UNKLAR);
+
+    if (await punktWaehlen(seite, 0, 0, "1280 x 720")) {
+      const lage = await hinweisLage(seite);
+
+      check("1280 x 720: Vorbedingung: der Platz reicht nicht für beide ganz, der Hinweis rollt",
+        lage.rollt, JSON.stringify(lage.hinweis));
+      check("1280 x 720: die Angaben stehen ganz in der Karte",
+        innerhalb(lage.angaben, lage.karte),
+        JSON.stringify({ angaben: lage.angaben, karte: lage.karte }));
+      check("1280 x 720: Angaben und Hinweis überdecken einander nicht",
+        !ueberdecken(lage.hinweis, lage.angaben),
+        JSON.stringify({ hinweis: lage.hinweis, angaben: lage.angaben }));
+      check("1280 x 720: der Hinweis bleibt in der Karte und unter der Zoom-Leiste frei",
+        innerhalb(lage.hinweis, lage.karte) && !ueberdecken(lage.hinweis, lage.zoom),
+        JSON.stringify({ hinweis: lage.hinweis, karte: lage.karte, zoom: lage.zoom }));
+
+      /*
+       * Rollen heißt: der Rest des Textes bleibt im Kasten und kommt mit dem
+       * Mausrad herein. Ein Kasten, der nur kleiner wird, ließe den Text
+       * darunter herauslaufen - über die Lücke und auf die Angaben.
+       */
+      const luecke = await seite.evaluate(([x, y]) => {
+        const el = document.elementFromPoint(x, y);
+        return { karte: !!(el && el.closest("#svg")),
+                 grund: el ? (el.id || el.className.baseVal || el.className || el.tagName) : "nichts" };
+      }, [lage.hinweis.left + lage.hinweis.width / 2,
+          (lage.hinweis.bottom + lage.angaben.top) / 2]);
+
+      check("1280 x 720: in der Lücke zwischen Hinweis und Angaben liegt die Karte",
+        luecke.karte, JSON.stringify(luecke));
+
+      await seite.mouse.move(lage.hinweis.left + lage.hinweis.width / 2,
+        lage.hinweis.top + lage.hinweis.height / 2);
+      await seite.mouse.wheel(0, 400);
+      await seite.waitForTimeout(250);
+
+      const gerollt = await hinweisLage(seite);
+
+      check("1280 x 720: mit dem Mausrad kommt das Ende des Textes in den Kasten",
+        !!gerollt.text && gerollt.text.bottom <= gerollt.hinweis.bottom &&
+        gerollt.text.bottom < lage.text.bottom,
+        JSON.stringify({ vorher: lage.text, nachher: gerollt.text, hinweis: gerollt.hinweis }));
+    }
+
+    await kontext.close();
+  }
+
+  /*
+   * Der knappste Fall: schmale Karte, Auswahl und ein offenes Fenster. Ein
+   * geöffnetes Fenster ist eine ausdrückliche Handlung und geht dem Hinweis
+   * vor, der von selbst erscheint - aber von ihm bleibt mindestens seine
+   * erste Zeile, nicht bloß ein leerer Rahmen.
+   */
+  {
+    const { kontext, seite } = await neueSeite(744);
+    const menueBefehl = createMenueBefehl(seite, check);
+
+    await laden(seite, KARTE_UNKLAR);
+
+    if (await punktWaehlen(seite, 0, 0, "744 px mit Fenster")) {
+      await menueBefehl("Ansicht", "Mähroboter-Vorschau…");
+      await seite.waitForTimeout(250);
+
+      const lage = await hinweisLage(seite);
+      const fenster = await kasten(seite, "#mowerWindow");
+
+      check("744 px mit Fenster: Vorbedingung: der Hinweis rollt",
+        lage.rollt, JSON.stringify(lage.hinweis));
+      check("744 px mit Fenster: die erste Zeile des Hinweises steht ganz da",
+        !!lage.marke && innerhalb(lage.marke, lage.hinweis),
+        JSON.stringify({ marke: lage.marke, hinweis: lage.hinweis }));
+      check("744 px mit Fenster: Hinweis, Angaben und Fenster überdecken einander nicht",
+        !!fenster && !ueberdecken(lage.hinweis, lage.angaben) &&
+        !ueberdecken(lage.hinweis, fenster) && !ueberdecken(lage.angaben, fenster),
+        JSON.stringify({ hinweis: lage.hinweis, angaben: lage.angaben, fenster }));
+      check("744 px mit Fenster: alle drei stehen in der Karte",
+        innerhalb(lage.hinweis, lage.karte) && innerhalb(lage.angaben, lage.karte) &&
+        innerhalb(fenster, lage.karte),
+        JSON.stringify({ hinweis: lage.hinweis, angaben: lage.angaben, fenster, karte: lage.karte }));
+    }
+
+    await kontext.close();
+  }
+
+  /*
+   * Ohne Hinweis und ohne Angaben bleibt die Spalte leer - und darf dann
+   * nichts kosten: ein Fenster allein bekommt die ganze Höhe des Stapels, es
+   * beginnt so weit unter der Zoom-Leiste, wie die Zoom-Leiste unter dem
+   * Kartenrand steht. Gemessen mit dem Verbinden-Fenster bei 720 px, das dort
+   * höher ist als der Platz; dass es wirklich rollt, ist Vorbedingung.
+   */
+  {
+    const { kontext, seite } = await neueSeite(744, false, 720);
+    const menueBefehl = createMenueBefehl(seite, check);
+
+    await laden(seite);
+    await menueBefehl("Karte", "Karten verbinden…");
+    await seite.waitForTimeout(250);
+
+    const fenster = await kasten(seite, "#mergeWindow");
+    const zoom = await kasten(seite, ".map-view-toolbar");
+    const karte = await kasten(seite, "#viewer");
+    const rollt = await seite.evaluate(() => {
+      const rumpf = document.querySelector("#mergeWindow .map-window-body");
+      return !!rumpf && rumpf.scrollHeight > rumpf.clientHeight;
+    });
+
+    check("ein Fenster allein: Vorbedingung: es ist höher als der Platz und rollt", rollt);
+    check("ein Fenster allein bekommt die ganze Höhe des Stapels",
+      !!fenster && !!zoom && !!karte &&
+      Math.abs((fenster.top - zoom.bottom) - (zoom.top - karte.top)) < 1,
+      JSON.stringify({ fenster, zoom, karte }));
 
     await kontext.close();
   }
