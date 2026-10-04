@@ -2095,6 +2095,86 @@ try {
   await spracheSetzen("de");
 
   /* ---------------------------------------------------------------- */
+  console.log("Ein startendes Werkzeug nimmt auch der Feature-Navigation die Auswahl");
+
+  /*
+   * Messen und Zeichnen heben beim Start die Auswahl auf: der Zaehler sagt
+   * danach 0, die Angaben ueber der Karte sind weg. Die Feature-Navigation
+   * sagte trotzdem weiter „Feature vollständig ausgewählt“, bis die naechste
+   * Auswahlaenderung oder ein Sprachwechsel sie neu baute - gemessen beim
+   * Messen, beim Zeichnen einer Exclusion und eines Kreises.
+   *
+   * Gelesen wird, was die Navigation sichtbar sagt, und zwar unmittelbar nach
+   * dem Start, ohne Faltgeste dazwischen. Die Zusicherung ueber das Ausbleiben
+   * steht nicht allein: aufgeklappt bietet der Knopf das Feature wieder an,
+   * und der Knopf wird dabei getroffen - das gibt es nur, wenn die Navigation
+   * neu gebaut wurde.
+   *
+   * Beide Sprachrichtungen, ueber setLanguage(): einmal deutsch erzeugt und
+   * englisch gelesen, einmal englisch erzeugt und deutsch gelesen.
+   */
+  const navSichtbar = () => page.evaluate(() =>
+    document.getElementById("featureNavigator").innerText);
+  const navKnopfText = async () => {
+    const knopf = page.locator(
+      '[data-action="select-whole-feature"][data-feature-index="1"]');
+    await knopf.scrollIntoViewIfNeeded();
+    const getroffen = await elementGetroffen(page,
+      '[data-action="select-whole-feature"][data-feature-index="1"]', { dy: 6 });
+    return getroffen.ok ? (await knopf.innerText()).trim() : `(nicht getroffen: ${getroffen.grund})`;
+  };
+  const TEXTE = {
+    de: { voll: "Feature vollständig ausgewählt", anbieten: "Ganzes Feature auswählen" },
+    en: { voll: "Feature fully selected", anbieten: "Select whole feature" },
+  };
+
+  for (const [werkzeug, knopfId] of [["Messen", "measureBtn"], ["Zeichnen", "drawExclusionBtn"]]) {
+    for (const [erzeugt, gelesen] of [["de", "en"], ["en", "de"]]) {
+      const wo = `${werkzeug}, ${erzeugt} erzeugt`;
+
+      await load([MIT_LOCH]);
+      await page.evaluate((s) => setLanguage(s), erzeugt);
+      await page.waitForTimeout(250);
+      await openAllFolds(page);
+
+      await page.locator(
+        '[data-action="select-whole-feature"][data-feature-index="1"]').click();
+      await page.waitForTimeout(300);
+
+      check(`${wo}: Vorbedingung: die Navigation nennt das Feature vollstaendig ausgewaehlt`,
+        (await navKnopfText()) === TEXTE[erzeugt].voll, await navKnopfText());
+
+      await page.locator(`#${knopfId}`).click();
+      await page.waitForTimeout(300);
+
+      check(`${wo}: Vorbedingung: das Werkzeug laeuft`,
+        await page.evaluate((id) =>
+          document.getElementById(id).classList.contains("active"), knopfId));
+
+      check(`${wo}: nach dem Start nennt die Navigation kein vollstaendig ausgewaehltes Feature mehr`,
+        !(await navSichtbar()).includes(TEXTE[erzeugt].voll), await navSichtbar());
+
+      await openAllFolds(page);
+
+      check(`${wo}: aufgeklappt bietet der Knopf das Feature wieder an`,
+        (await navKnopfText()) === TEXTE[erzeugt].anbieten, await navKnopfText());
+
+      await page.evaluate((s) => setLanguage(s), gelesen);
+      await page.waitForTimeout(250);
+      await openAllFolds(page);
+
+      check(`${wo}, dann ${gelesen}: der Knopf bietet es in dieser Sprache an`,
+        (await navKnopfText()) === TEXTE[gelesen].anbieten, await navKnopfText());
+      check(`${wo}, dann ${gelesen}: und nennt nichts vollstaendig ausgewaehlt`,
+        !(await navSichtbar()).includes(TEXTE[gelesen].voll), await navSichtbar());
+    }
+  }
+
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(250);
+
+  /* ---------------------------------------------------------------- */
   console.log("Höhenziel: bis 900 px scrollfrei, darunter darf sie scrollen");
 
   await page.setViewportSize({ width: 1600, height: 1000 });

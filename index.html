@@ -7050,6 +7050,16 @@ function setMeasurementMode(active) {
     selectedVertex = null;
     selectionBaseline = null;
 
+    /*
+     * Die Auswahl ist damit aufgehoben - auch für die Feature-Navigation. Sie
+     * sagte sonst weiter „Feature vollständig ausgewählt“, bis die nächste
+     * Auswahländerung oder ein Sprachwechsel sie neu baute; der Zähler stand
+     * da schon auf 0. Neu gebaut wird sie hier, weil die Auswahl hier fällt,
+     * und nicht in updateSelectionPanel(): das läuft weit öfter, und die
+     * Navigation klappte dabei jedesmal ihre Karten zu, auch ohne Grund.
+     */
+    renderFeatureNavigator();
+
     setEditStatus("Messung: ersten Punkt wählen.", "ok");
   } else {
     measurementState.active = false;
@@ -8900,6 +8910,13 @@ function startFeatureDrawing(mode, options = {}) {
   selectedVertices = [];
   selectedVertex = null;
   selectionBaseline = null;
+
+  /*
+   * Wie beim Messen: die aufgehobene Auswahl gilt auch für die
+   * Feature-Navigation - und zwar sofort, vor den Ablehnungen darunter, die
+   * mit aufgehobener Auswahl zurückkehren.
+   */
+  renderFeatureNavigator();
 
   let points = [];
   let targetFeatureIndex = -1;

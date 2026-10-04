@@ -3189,6 +3189,53 @@ Inspektor zeigt aber weiter MESSEN. **Das ist eine andere Frage** – ob ein
 *fertiges* Ergebnis den Platz noch halten darf, entscheidet die Rangfolge in
 `getInspectorState()` und nicht die Aktion.
 
+**Die Gegenrichtung: ein startendes Werkzeug hebt die Auswahl auf, und das
+gilt für JEDEN Block, der sie zeigt – ERLEDIGT am 04.10.2026.** Messen und
+Zeichnen leeren beim Start die Auswahl (`setMeasurementMode(true)`,
+`startFeatureDrawing()`). Inspektorblöcke, Zähler und Angaben über der Karte
+folgten dem; die Feature-Navigation nicht. Gemessen beim Messen, beim
+Zeichnen einer Exclusion und eines Kreises: die Karte des Features blieb
+offen und markiert, ihr Knopf sagte weiter „Feature vollständig
+ausgewählt“, während der Zähler schon 0 nannte – bis die nächste
+Auswahländerung oder ein Sprachwechsel die Navigation neu baute.
+
+**Beide Stellen bauen sie seitdem neu, unmittelbar dort, wo die Auswahl
+fällt** – nicht in `updateSelectionPanel()`: das läuft weit öfter, und die
+Navigation klappte dabei jedesmal ihre Karten zu, auch ohne Grund. In
+`startFeatureDrawing()` steht der Aufruf vor den Ablehnungen darunter, denn
+auch die kehren mit aufgehobener Auswahl zurück. Gesucht wurde über jede
+Stelle, die `selectedVertices` leert: die übrigen bauen die Navigation
+schon neu oder laufen in einen Weg, der es tut (`clearVertexSelection()`,
+`afterGeometryEdit()`, `activateMap()`, beim Start `initialize()` mit dem
+folgenden `setLanguage()`); es waren genau diese zwei.
+
+**Zugesichert in `tools/test-inspector.mjs` nach der Wirkung**, über das,
+was die Navigation sichtbar sagt, unmittelbar nach dem Start und ohne
+Faltgeste dazwischen: sie nennt kein vollständig ausgewähltes Feature mehr.
+Daneben steht die Wirkung, die es nur nach einem Neubau gibt: aufgeklappt
+bietet der Knopf das Feature wieder an, und er wird dabei getroffen. Je
+Werkzeug (Messen, Exclusion zeichnen) in beiden Richtungen über
+`setLanguage()` – deutsch erzeugt und englisch gelesen, englisch erzeugt und
+deutsch gelesen.
+
+**Zwei Mutationsproben, je eine Schreibstelle; beide reißen, 0 Timeouts.**
+Gefahren in zwei Arbeitskopien außerhalb des Repositorys, aus derselben
+Sicherungskopie zurückgespielt, Prüfsumme vorher und nachher `97c34ac2…`;
+gemessen mit Syntaxprüfung, Bestandsprüfer, `tools/test-inspector.mjs` und
+`tools/test-i18n-dynamic.mjs`, die statische Stufe und der i18n-Test reißen
+bei keiner.
+
+| Probe | Schreibstelle | gerissen |
+|---|---|---|
+| V1 | `renderFeatureNavigator()` in `setMeasurementMode()` entfernt | **4**, „Messen, ⟨de/en⟩ erzeugt: nach dem Start nennt die Navigation kein vollstaendig ausgewaehltes Feature mehr“ und „… aufgeklappt bietet der Knopf das Feature wieder an“, Detail „Feature fully selected“ |
+| V2 | dasselbe in `startFeatureDrawing()` | **4**, dieselben beiden je Richtung für „Zeichnen“ |
+
+**Die Gegenrichtung nach dem Sprachwechsel reißt unter keiner der beiden,
+und das ist kein Mangel:** `setLanguage()` baut die Navigation über
+`refreshDerivedUi()` ohnehin neu, und genau dieser Neubau verdeckte den
+Fehler bisher. Getragen wird die Zusicherung deshalb von der Messung
+unmittelbar nach dem Start, vor jedem Wechsel.
+
 `restoreInspectorFolds()` läuft **einmal beim Start, nicht in `initialize()`** –
 die Funktion hängt Listener an, und `initialize()` wird beim Dateiladen und
 beim Zurücksetzen erneut aufgerufen.
@@ -8184,7 +8231,9 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   - **Der Maßstabshinweis nennt die Relativgröße auf vier Nachkommastellen**
     („78567,3416 m“): `formatMeters(…, 0)` setzt die **Mindestzahl** der
     Nachkommastellen, die Höchstzahl bleibt 4.
-  - **Kein Sprachmangel, aber dabei gemessen: die Feature-Navigation sagt nach
+  - **ERLEDIGT am 04.10.2026, siehe „Die Gegenrichtung: ein startendes
+    Werkzeug hebt die Auswahl auf“ in Abschnitt 5 – kein Sprachmangel, aber
+    dabei gemessen: die Feature-Navigation sagt nach
     dem Start der Messung weiter „Feature vollständig ausgewählt“**, obwohl
     die Messung die Auswahl geleert hat – sichtbar, bis sie neu gebaut wird,
     durch die nächste Auswahländerung oder einen Sprachwechsel.
