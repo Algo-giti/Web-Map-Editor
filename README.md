@@ -216,6 +216,10 @@ Sunray-Darstellung als auch in absolutem WGS84.
 - **Koordinatenbezug:** RTK-Basisposition (lat/lon) im Inspektor unter
   „Koordinatenbezug" eintragen. Sie steht in CaSSAndRA unter *Settings → Robot* und ist nicht Teil
   der GeoJSON-Datei
+- **Maßstab:** ist er beim Laden unklar, lässt er sich dort ebenfalls von Hand
+  setzen, als Meter je Einheit und je Karte. Danach stehen alle Längen und
+  Flächen in Metern, und beim Speichern steht der Wert als `coordinateScale`
+  in der Datei
 - **Koordinaten beim Speichern:** wahlweise *wie geladen* oder
   *absolut WGS84 (CaSSAndRA)*
 - absolute Karten werden beim Laden automatisch erkannt und in lokale
@@ -536,6 +540,9 @@ Sunray representation and in absolute WGS84.
 - **Coordinate reference:** enter the RTK base position (lat/lon) in the
   inspector under "Koordinatenbezug". In CaSSAndRA it lives under *Settings → Robot* and is not part of
   the GeoJSON file
+- **Scale:** if it is unclear on load, it can be set by hand there as well, in
+  metres per unit and per map. All lengths and areas are then shown in metres,
+  and saving writes the value to the file as `coordinateScale`
 - **Coordinates on save:** either *as loaded* or *absolute WGS84 (CaSSAndRA)*
 - absolute maps are detected on load and converted to local East/North metres
 - the reference point is remembered in the browser and additionally stored in

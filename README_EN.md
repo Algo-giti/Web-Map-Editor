@@ -201,6 +201,9 @@ Sunray representation and in absolute WGS84.
 - **Coordinate reference:** enter the RTK base position (lat/lon) in the
   inspector under "Koordinatenbezug". In CaSSAndRA it lives under *Settings → Robot* and is not part of
   the GeoJSON file
+- **Scale:** if it is unclear on load, it can be set by hand there as well, in
+  metres per unit and per map. All lengths and areas are then shown in metres,
+  and saving writes the value to the file as `coordinateScale`
 - **Coordinates on save:** either *as loaded* or *absolute WGS84 (CaSSAndRA)*
 - absolute maps are detected on load and converted to local East/North metres
 - the reference point is remembered in the browser and additionally stored in

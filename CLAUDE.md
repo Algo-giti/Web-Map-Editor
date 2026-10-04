@@ -338,7 +338,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-straighten.mjs` | Linie begradigen |
 | `test-dockpath.mjs` | Docking-Pfad mit freier Punktzahl |
 | `test-reduce.mjs` | Punkte reduzieren, beide Betriebsarten |
-| `test-scale.mjs` | Maßstabserkennung, Sperren, Rundlauf |
+| `test-scale.mjs` | Maßstabserkennung, Sperren, Rundlauf, Maßstab von Hand |
 | `test-merge.mjs` | Verbinden, Singletons, Slot-Trennung |
 | `test-shapes.mjs` | Kreis- und Rechteck-Exclusions |
 | `test-validation.mjs` | erweiterte Geometrieprüfung |
@@ -1172,7 +1172,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->52 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->56 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -4168,6 +4168,94 @@ gelten folgende Regeln:
   schon einmal übersehen worden. Er nennt beide Lesarten mit ihrer konkreten
   Größe, damit sofort erkennbar ist, welche stimmt.
 
+**Von Hand gesetzt wird der Maßstab im Inspektor unter „Koordinatenbezug“**,
+im Feld „Maßstab (Meter je Einheit)“ – dorthin verweist der Hinweis auf der
+Karte, und er verschwindet, sobald ein Wert steht. Der Satz im Hinweis stand
+seit `d004e52` ohne Feld da; gebaut ist es mit dem Entscheid des
+Projektinhabers vom 04.10.2026.
+
+**Die Form folgt dem Bestand.** Intern führt der Editor einen Maßstab als
+`metersPerUnit` – dieselbe Zahl, die eine Datei als
+`coordinateScale.metersPerUnit` mitbringt, die `parseScale()` prüft und die
+als `scaleFactor` in `toWorld()` geht. Das Feld setzt genau diesen Wert an
+genau dieser Stelle, `slot.fileScale`; eine zweite Quelle daneben gibt es
+nicht. Eine Auswahl nach den beiden Lesarten des Hinweises („Relativformat“
+oder „Meterkarte“) wäre enger als der Bestand: `scaleModeForFactor()` trägt
+jeden positiven Faktor schon, und eine Karte in Fuß ist keine der beiden.
+
+- **Je Karte.** Der Wert hängt am Slot und reist mit ihm – beim Umschalten,
+  im Undo-Snapshot und beim Verbinden.
+- **Setzbar nur, solange der Maßstab beim Laden unklar war**
+  (`canSetScaleByHand()`: `slot.scaleMode === "ambiguous"`). Ob ein Wert von
+  Hand kam, folgt daraus ohne eigene Marke (`hasManualScale()`): eine Datei
+  mit eigenem Maßstab bekommt beim Laden nie „ambiguous“, und `scaleMode`
+  bleibt nach dem Laden stehen. Bei bekanntem Maßstab zeigt das Feld den
+  Faktor, mit dem gerechnet wird, und ist gesperrt; der Satz darunter sagt
+  warum. Ohne Karte ist es leer und gesperrt.
+- **In die Datei – entschieden vom Projektinhaber**, weil das Format die
+  Stelle hat. Der Export schreibt einen von Hand gesetzten Maßstab wie jeden
+  bekannten als `coordinateScale`; mit ihm fallen die Sperren von oben:
+  `referenceOrigin` wird mitgeschrieben, absolut WGS84 speichern geht. Wieder
+  geöffnet wird die Karte ohne Hinweis erkannt, und das Feld ist dann
+  gesperrt – der Wert stammt jetzt aus der Datei.
+- **Ein eigener Undo-Schritt** („Maßstab setzen“). Der Snapshot führt den
+  Wert im Slot; ohne eigenen Schritt holte das Undo einer früheren Bearbeitung
+  ihn still mit zurück. Derselbe Wert noch einmal legt keinen Schritt an, ein
+  leeres Feld nimmt den Wert zurück.
+- **Ein neuer Rahmen, keine neue Datei.** Die Rohwerte bleiben, die
+  Weltkoordinaten nicht – derselbe Fall wie `rebaseConvertedMaps()`. Die
+  Ghosts der Karte fallen deshalb weg, eine laufende Zeichnung oder Messung
+  endet, und die Ansicht wird eingepasst. **Dasselbe gilt für ein Undo oder
+  Redo über den Schritt hinweg**: `restoreWorkspaceSnapshot()` erkennt den
+  Rahmenwechsel am Faktor jeder Karte, die vorher und nachher geladen ist.
+  Das Zurückholen eines Ladevorgangs zählt nicht dazu und behält die Ansicht
+  wie bisher. Ein Undo über „Bezugspunkt ändern“ hinweg ist davon nicht
+  erfasst – dort bleibt der Faktor gleich, und das Verhalten ist das alte.
+
+**Die Abmessungen nennen bei unklarem Maßstab keine „Einheiten“**, sondern
+eine Exponentialzahl ohne Einheit und „–“ als Fläche. Das war schon so und ist
+nicht angefasst; zugesichert ist, dass dort vorher kein Meter steht und
+nachher Ausdehnung mal Faktor in Metern.
+
+**`slotScale()` ist die eine Stelle, an der aus einem Slot sein Maßstab
+wird.** `setModeFromData()` liest sie für die aktive Karte; das gedämpfte
+Overlay der anderen, die Endpunkte beim Verbinden, das Einpassen über beide
+Karten und der Vergleich der Auftrennstelle lesen sie für jeden Slot. Bis zum
+Feld rechneten diese vier mit `scaleFactorForData()`, also allein mit der
+Heuristik, und gingen an `slot.fileScale` vorbei – bei Dateien des Editors
+deckungsgleich, bei einem von Hand gesetzten Wert nicht: das Verbinden hätte
+zwei Karten mit verschiedenen Maßstäben ohne Einwand zusammengelegt, und das
+Overlay hätte die passive Karte im falschen Rahmen gezeichnet.
+`scaleFactorForData()` ist entfallen, `computeBoundsForData()` verlangt seinen
+Faktor.
+
+**Zugesichert in `tools/test-scale.mjs` nach der Wirkung**, über sichtbaren
+Text: bei unklarem Maßstab ist das Feld da und leer, nach dem Setzen nennen
+die Abmessungen Meter und der Hinweis ist weg, ein zweiter Wert ergibt
+entsprechend andere Längen – die erwarteten Werte rechnet der Test aus der
+Ausdehnung der Karte und dem eingegebenen Faktor –, und eine metrische Karte
+bleibt, wie sie ist. Dazu beide Sprachrichtungen über `setLanguage()`, je
+Karte statt für beide Slots, das Overlay, die Sperre beim Verbinden, der
+Rundlauf über die Datei und das Undo. **43 Mutationen, je eine Schreibstelle,
+reißen je 1 bis 70 benannte Zusicherungen bei 0 Timeouts**; zehn davon sind
+die Wörterbucheinträge, je einer einzeln entfernt.
+
+| Mutation | gerissen, unter anderem |
+|---|---|
+| Overlay rechnet wieder mit der Heuristik | „die passive Karte A wird mit ihrem eigenen Massstab gezeichnet“, Verhältnis 1,25 statt 15,625 |
+| Endpunkte beim Verbinden ebenso | „verschiedene Massstaebe: das Verbinden nennt den Grund“ und „und es ist gesperrt“ |
+| Einpassen ebenso | 5, darunter „die Ansicht ist neu eingepasst“ – ein Marker von vier im Bild |
+| Auftrennstelle fragt wieder den Lademodus | „zurueckgesetzt gilt sie wieder als gewaehlt“ – ohne Toleranz trifft der Rundlauf 0,33 → 3,30 → 0,32999999999999996 den Rohwert nicht |
+| Undo behält die Ghosts beim Rahmenwechsel | „zurueck im ersten Rahmen: kein Ghost aus dem anderen Rahmen“ |
+| Undo passt nicht neu ein | „nach dem Undo: die Ansicht ist fuer den alten Rahmen neu eingepasst“ |
+| Undo zählt auch Ladevorgänge | „Undo und Redo des Ladens behalten die Ansicht“ |
+
+**Die Marker werden vor jedem Klick auf Trefferbarkeit geprüft**
+(`markerKlicken()`). Der erste Lauf der Mutationen endete siebenmal in einem
+Timeout: lag die Karte unter der Mutation außerhalb des Bildes, wartete der
+Klick dreißig Sekunden und nahm alles dahinter mit. Mit dem Wächter melden
+dieselben Mutationen eine benannte Zusicherung und messen weiter.
+
 **In der Kartenprüfung gilt: eine übersprungene Prüfung ist nicht bestanden.**
 Bei unbekanntem Maßstab meldet die Flächenangabe „konnte nicht berechnet
 werden" statt einer Zahl, und die Segmentprüfung sagt, dass nur ihr relativer
@@ -4291,7 +4379,10 @@ lon = east  / (111111·cos(lat0)) + lon0
   Datei schlägt jede Heuristik**, damit der Editor seine eigene Ausgabe immer
   wiedererkennt. Gelesen über `readEmbeddedScale()`, geprüft über
   `parseScale()` (endlich, > 0) analog zu `parseOrigin()`. Geschrieben wird das
-  Feld nur bei bekanntem Maßstab.
+  Feld nur bei bekanntem Maßstab. **Bei unklarem Maßstab lässt er sich von
+  Hand setzen**; der Wert steht dann an derselben Stelle (`slot.fileScale`)
+  und wird geschrieben wie einer aus der Datei – siehe „Maßstab und
+  Metermaße“ in Abschnitt 5.
 - **Der Bezugspunkt musste neu eingeführt werden** – im Projekt gab es vorher
   keinerlei WGS84-Bezug, der Ursprung war hart E=0/N=0. Er wird im
   Inspektor unter "Koordinatenbezug" gepflegt (bis Etappe 7c in der
@@ -6336,7 +6427,7 @@ dokumentiert, aber im Code konsistent sichtbar):
 
   In `index.html` ist das **wahrscheinlich, nicht unwahrscheinlich**: rund
   <!-- bestand: zeilen-index-html +-500 -->22 000 Zeilen und rund
-  <!-- bestand: globale-funktionen +-20 -->380 globale Funktionen liegen in einem einzigen
+  <!-- bestand: globale-funktionen +-20 -->400 globale Funktionen liegen in einem einzigen
   Gültigkeitsbereich, ohne Module, ohne Namensräume. Wer eine Hilfsfunktion
   schreibt, sieht die 9 000 Zeilen weiter unten nicht, und naheliegende Namen
   (`isWholeFeatureSelected`, `describeFeature`, `updateX`) sind genau die, die
@@ -8386,14 +8477,13 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Ausgabe 049 vorgesehen und wurde herausgenommen, um den Release nicht
   aufzuhalten; sie kommt in einer späteren Ausgabe. In der Anwendung gibt es
   dazu bisher nichts – weder Schalter noch Platzhalter.
-- **OFFEN, gemeldet am 03.10.2026: der Maßstabshinweis verlangt eine Angabe,
-  für die es kein Feld gibt.** `updateScaleNotice()` schließt mit „Maßstab unter
-  „Koordinatenbezug“ angeben.“ – der Faltblock „Koordinatenbezug“ trägt aber
-  nur Breite, Länge und das Ausgabeformat, und kein Weg im Editor setzt
-  `slot.fileScale` außer dem Lesen der Datei. Nachgesehen bis zum Commit, der
-  den Satz eingeführt hat (`d004e52`): ein solches Feld gab es auch dort nicht.
-  Die Antwort ist eine Entscheidung – ein Maßstabsfeld bauen oder den Satz auf
-  `coordinateScale` in der Datei umstellen – und deshalb nicht mitgemacht.
+- **ERLEDIGT am 04.10.2026: der Maßstabshinweis verlangte eine Angabe, für
+  die es kein Feld gab.** `updateScaleNotice()` schließt mit „Maßstab unter
+  „Koordinatenbezug“ angeben.“, und der Faltblock trug seit `d004e52`, das
+  den Satz eingeführt hat, nur Breite, Länge und das Ausgabeformat. Entschieden
+  vom Projektinhaber: das Feld wird gebaut. Es steht jetzt dort, siehe
+  „Maßstab und Metermaße“ in Abschnitt 5; der Satz ist unverändert, er stimmt
+  jetzt.
 - **MERKPOSTEN, kein offener Punkt: ein relativer Export schreibt weiterhin
   den aktiven `referenceOrigin` in die Datei.** Das ist korrekt, solange kein
   Konflikt besteht – und ein Konflikt sperrt den Export inzwischen
@@ -9911,7 +10001,8 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-validation.mjs` | – | 3 |
   | `tools/test-i18n-dynamic.mjs` | – | 1 |
   | `tools/test-ghosting.mjs` | – | 3 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**63** | <!-- bestand: zusicherungen-herstellend -->**36** |
+  | `tools/test-scale.mjs` | – | 2 |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**63** | <!-- bestand: zusicherungen-herstellend -->**38** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -9934,6 +10025,11 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   `#duplicateFeatureBtn` und der auf `#deletePointBtn` stehen im Vorlauf,
   geprüft wird danach die Lage der Ghosts. Es ist die zehnte Datei der
   Tabelle.
+
+  **Das Maßstabsfeld hat zwei herstellende hinzugefügt**, in
+  `tools/test-scale.mjs`: zwei Abschnitte wählen einen Punkt und lesen sein
+  E-Feld, und `#pointEastInput` steht dort im Vorlauf. Es ist die elfte Datei
+  der Tabelle.
 
   **Der dreiundzwanzigste Durchgang hat eine prüfende hinzugefügt**, in
   `tools/test-inspector.mjs`: „nach der Punktauswahl steht die Auswahl wieder

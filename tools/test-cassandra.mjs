@@ -42,7 +42,6 @@ const NAMES = [
   "scaleUnitLabel",
   "SCALE_METRIC_MIN_EXTENT",
   "SCALE_RELATIVE_MAX_EXTENT",
-  "scaleFactorForData",
   "toWorld",
   "ringAreaMeters",
   "polygonRingsArea",

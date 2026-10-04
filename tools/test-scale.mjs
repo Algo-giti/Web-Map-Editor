@@ -3,8 +3,8 @@
 //
 // tools/test-cassandra.mjs prüft die Klassifikation als Funktion. Hier geht es
 // um das, was der Nutzer davon sieht: welche Größe angezeigt wird, was bei
-// unbekanntem Maßstab gesperrt ist, und dass der Maßstab in der Datei den
-// Rundlauf übersteht.
+// unbekanntem Maßstab gesperrt ist, dass der Maßstab in der Datei den
+// Rundlauf übersteht, und was ein von Hand gesetzter Maßstab bewirkt.
 //
 // Einrichtung und Browsersuche siehe tools/browser-harness.mjs. Wie die
 // übrigen Browsertests bewusst NICHT Teil von check-all.mjs.
@@ -189,6 +189,696 @@ try {
   check("mit Angabe kein Zweifelsfall mehr", await notice.isHidden());
   check("Größe wird in Metern gezeigt",
     (await width()).includes("m"), await width());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Massstab von Hand setzen");
+
+  /*
+   * Die erwarteten Laengen rechnet der Test aus der Geometrie der Karte und
+   * dem eingegebenen Faktor. Der Faktor ist Eingabe, keine Messung; eine
+   * abgelesene Zahl steht nirgends als Literal da.
+   */
+  const ausdehnung = (body) => {
+    const xs = [];
+    const ys = [];
+
+    for (const feature of JSON.parse(body).features) {
+      for (const [x, y] of feature.geometry.coordinates.flat()) {
+        xs.push(x);
+        ys.push(y);
+      }
+    }
+
+    return {
+      breite: Math.max(...xs) - Math.min(...xs),
+      hoehe: Math.max(...ys) - Math.min(...ys),
+    };
+  };
+
+  /* Eine Zahl so, wie der Editor sie in der jeweiligen Sprache schreibt. */
+  const mitZeichen = (wert, stellen, sprache) => {
+    const text = wert.toFixed(stellen);
+    return sprache === "de" ? text.replace(".", ",") : text;
+  };
+
+  const sprache = () => page.evaluate(() => currentLanguage);
+  const textVon = async (selektor) =>
+    (await page.locator(selektor).textContent()).trim();
+
+  const feld = page.locator("#scaleInput");
+  const height = () => textVon("#heightStat");
+  const area = () => textVon("#areaStat");
+
+  /*
+   * Setzt den Massstab ueber Feld und Knopf - der Weg des Nutzers -, mit
+   * `{taste:true}` ueber Enter im Feld. Ein gesperrtes Feld wird nicht
+   * befuellt: fill() wartete sonst dreissig Sekunden auf eine Freigabe, die
+   * nicht kommt.
+   */
+  const massstabSetzen = async (eingabe, { taste = false } = {}) => {
+    await openAllFolds(page);
+
+    const frei = await feld.isEnabled() &&
+      await page.locator("#applyScaleBtn").isEnabled();
+
+    check(`das Feld nimmt "${eingabe}" an`, frei);
+    if (!frei) return false;
+
+    await feld.fill(eingabe);
+
+    if (taste) {
+      await feld.press("Enter");
+    } else {
+      await page.locator("#applyScaleBtn").click();
+    }
+
+    await page.waitForTimeout(350);
+    return true;
+  };
+
+  /* Abmessungen und Flaeche gegen Ausdehnung mal Faktor. */
+  const abmessungenStimmen = async (name, karte, faktor, sprachcode) => {
+    const { breite, hoehe } = ausdehnung(karte);
+
+    check(`${name}: die Breite ist die Ausdehnung mal dem Massstab, in Metern`,
+      (await width()).trim() === `${mitZeichen(breite * faktor, 2, sprachcode)} m`,
+      `${(await width()).trim()} gegen ${mitZeichen(breite * faktor, 2, sprachcode)} m`);
+    check(`${name}: ebenso die Hoehe`,
+      (await height()) === `${mitZeichen(hoehe * faktor, 2, sprachcode)} m`,
+      `${await height()} gegen ${mitZeichen(hoehe * faktor, 2, sprachcode)} m`);
+    check(`${name}: und die Flaeche in Quadratmetern`,
+      (await area()) === `${mitZeichen(breite * hoehe * faktor * faktor, 1, sprachcode)} m²`,
+      `${await area()} gegen ${mitZeichen(breite * hoehe * faktor * faktor, 1, sprachcode)} m²`);
+  };
+
+  /*
+   * Liegen alle Punktmarker im Kartenfeld, und fuellen sie es? Belegt das
+   * Einpassen UND das Neuzeichnen: ohne Einpassen lagen die Marker ausserhalb,
+   * ohne Neuzeichnen stuenden sie im alten Rahmen auf wenigen Pixeln beisammen.
+   */
+  const markerImBild = () => page.evaluate(() => {
+    const feldRahmen = document.getElementById("viewer").getBoundingClientRect();
+    const marker = [...document.querySelectorAll("circle.vertex")].map((m) => {
+      const r = m.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+
+    const drin = marker.filter(({ x, y }) =>
+      x >= feldRahmen.left && x <= feldRahmen.right &&
+      y >= feldRahmen.top && y <= feldRahmen.bottom);
+
+    const xs = marker.map((m) => m.x);
+    const ys = marker.map((m) => m.y);
+
+    return {
+      alle: marker.length,
+      drin: drin.length,
+      spanne: Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)),
+      kurzeSeite: Math.min(feldRahmen.width, feldRahmen.height),
+    };
+  });
+
+  /* Ohne Karte gibt es keinen Massstab: das Feld steht da, leer und gesperrt. */
+  await page.goto(indexUrl(), { waitUntil: "load" });
+  await openAllFolds(page);
+
+  check("ohne Karte: das Feld ist leer und gesperrt",
+    (await feld.inputValue()) === "" && await feld.isDisabled(), await feld.inputValue());
+  check("ohne Karte: und es steht kein Satz darunter",
+    await page.evaluate(() =>
+      getComputedStyle(document.getElementById("scaleInputStatus")).display === "none"));
+
+  /*
+   * Klickt einen Punktmarker nur, wenn er an seiner Stelle wirklich getroffen
+   * wird. Sonst liefe der Klick dreissig Sekunden in einen Timeout und naehme
+   * alles dahinter mit; so sagt eine benannte Zusicherung, was dort liegt.
+   */
+  const markerKlicken = async (schluessel, optionen = {}) => {
+    const treffer = await page.evaluate((k) => {
+      const marker = document.querySelector(`circle.vertex[data-vertex-key="${k}"]`);
+      if (!marker) return { ok: false, grund: "kein Marker" };
+
+      const r = marker.getBoundingClientRect();
+      const oben = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+
+      return {
+        ok: oben === marker,
+        grund: oben ? (oben.id || oben.getAttribute("class") || oben.tagName) : "nichts",
+      };
+    }, schluessel);
+
+    check(`der Marker ${schluessel} ist getroffen`, treffer.ok, treffer.grund);
+    if (!treffer.ok) return false;
+
+    await page.locator(`circle.vertex[data-vertex-key="${schluessel}"]`).click(optionen);
+    return true;
+  };
+
+  const KARTE_A = square(0.5, 1);
+
+  await load(KARTE_A);
+
+  check("Vorbedingung: die Oberflaeche steht auf deutsch", (await sprache()) === "de");
+  check("Vorbedingung: der Massstab ist unklar, der Hinweis steht da",
+    await notice.isVisible());
+
+  await feld.scrollIntoViewIfNeeded();
+  const feldGetroffen = await elementGetroffen(page, "#scaleInput", { dy: 5 });
+
+  check("unklar: das Feld steht im Koordinatenbezug und ist wirklich getroffen",
+    feldGetroffen.ok === true, feldGetroffen.grund);
+  check("unklar: das Feld ist leer",
+    (await feld.inputValue()) === "", await feld.inputValue());
+  check("unklar: und es nimmt eine Eingabe an", await feld.isEnabled());
+  check("unklar: der Satz darunter sagt, was einzutragen ist",
+    (await textVon("#scaleInputStatus")).includes("Meter je Einheit eintragen"),
+    await textVon("#scaleInputStatus"));
+  check("unklar: die Abmessungen nennen keine Meter",
+    !(await width()).includes("m") && (await area()) === "–",
+    `${await width()} / ${await area()}`);
+  check("unklar: das leere Feld sagt, warum es leer ist",
+    (await feld.getAttribute("placeholder")) === "unklar",
+    await feld.getAttribute("placeholder"));
+
+  await page.evaluate(() => setLanguage("en"));
+
+  check("Vorbedingung: unklar, die Oberflaeche steht auf englisch",
+    (await sprache()) === "en");
+  check("unklar, deutsch erzeugt, dann englisch: der Platzhalter ist englisch",
+    (await feld.getAttribute("placeholder")) === "unclear",
+    await feld.getAttribute("placeholder"));
+  check("unklar, deutsch erzeugt, dann englisch: der Satz darunter ist englisch",
+    (await textVon("#scaleInputStatus")).startsWith("Scale unclear: enter metres per unit"),
+    await textVon("#scaleInputStatus"));
+
+  await page.evaluate(() => setLanguage("de"));
+
+  check("Vorbedingung: unklar, die Oberflaeche steht wieder auf deutsch",
+    (await sprache()) === "de");
+  check("unklar, zurueck auf deutsch: der Satz darunter ist deutsch",
+    (await textVon("#scaleInputStatus")).startsWith("Maßstab unklar: Meter je Einheit"),
+    await textVon("#scaleInputStatus"));
+
+  /* --- erster Wert ------------------------------------------------- */
+
+  const EINGABE_1 = "250";
+  const FAKTOR_1 = Number(EINGABE_1);
+
+  await massstabSetzen(EINGABE_1);
+  await abmessungenStimmen("erster Wert", KARTE_A, FAKTOR_1, "de");
+
+  await page.locator("#widthStat").scrollIntoViewIfNeeded();
+  const breiteGetroffen = await elementGetroffen(page, "#widthStat", { dy: 5 });
+
+  check("erster Wert: und die Breite steht sichtbar da",
+    breiteGetroffen.ok === true, breiteGetroffen.grund);
+  check("erster Wert: der Hinweis auf der Karte ist weg", await notice.isHidden());
+  check("erster Wert: die Statuszeile nennt den Massstab als von Hand gesetzt",
+    (await textVon("#scaleStatus")) === "von Hand gesetzt", await textVon("#scaleStatus"));
+  check("erster Wert: das Feld zeigt den gesetzten Wert",
+    (await feld.inputValue()) === EINGABE_1, await feld.inputValue());
+  check("erster Wert: der Satz darunter nennt die Herkunft",
+    (await textVon("#scaleInputStatus")).startsWith("Von Hand gesetzt"),
+    await textVon("#scaleInputStatus"));
+
+  {
+    const bild = await markerImBild();
+
+    check("erster Wert: die Ansicht ist neu eingepasst, jeder Marker liegt im Kartenfeld",
+      bild.alle > 0 && bild.drin === bild.alle, JSON.stringify(bild));
+    check("erster Wert: und die Karte fuellt es, statt im alten Rahmen zu stehen",
+      bild.spanne >= bild.kurzeSeite / 2, JSON.stringify(bild));
+  }
+
+  /* --- zweiter Wert ------------------------------------------------ */
+
+  const EINGABE_2 = "12,5";
+  const FAKTOR_2 = Number(EINGABE_2.replace(",", "."));
+
+  const breiteErster = await width();
+
+  await massstabSetzen(EINGABE_2);
+  await abmessungenStimmen("zweiter Wert", KARTE_A, FAKTOR_2, "de");
+
+  check("zweiter Wert: die Breite ist eine andere als beim ersten",
+    (await width()) !== breiteErster, `${breiteErster} -> ${await width()}`);
+
+  /* --- Sprachwechsel in beiden Richtungen -------------------------- */
+
+  await page.evaluate(() => setLanguage("en"));
+
+  check("Vorbedingung: die Oberflaeche steht jetzt auf englisch",
+    (await sprache()) === "en");
+  await abmessungenStimmen("deutsch gesetzt, dann englisch", KARTE_A, FAKTOR_2, "en");
+  check("deutsch gesetzt, dann englisch: das Feld traegt den Punkt",
+    (await feld.inputValue()) === mitZeichen(FAKTOR_2, 1, "en"), await feld.inputValue());
+  check("deutsch gesetzt, dann englisch: die Beschriftung ist englisch",
+    (await textVon('label[for="scaleInput"]')).startsWith("Scale (metres per unit)"),
+    await textVon('label[for="scaleInput"]'));
+  check("deutsch gesetzt, dann englisch: der Satz darunter ist englisch",
+    (await textVon("#scaleInputStatus")).startsWith("Set by hand"),
+    await textVon("#scaleInputStatus"));
+  check("deutsch gesetzt, dann englisch: die Statuszeile ist englisch",
+    (await textVon("#scaleStatus")) === "set by hand", await textVon("#scaleStatus"));
+
+  const EINGABE_3 = "7.5";
+  const FAKTOR_3 = Number(EINGABE_3);
+
+  await massstabSetzen(EINGABE_3);
+  await abmessungenStimmen("englisch gesetzt", KARTE_A, FAKTOR_3, "en");
+  check("englisch gesetzt: die Meldung ist englisch",
+    (await textVon("#editStatus")) === "Scale set.", await textVon("#editStatus"));
+  check("englisch gesetzt: Zurueck nennt den Schritt englisch",
+    (await page.locator("#undoBtn").getAttribute("title")) === "Undo: Set scale",
+    await page.locator("#undoBtn").getAttribute("title"));
+
+  /* Derselbe Wert noch einmal: keine Aenderung, kein neuer Schritt. */
+  const undoVorher = await page.locator("#undoBtn").getAttribute("title");
+
+  await massstabSetzen(EINGABE_3);
+
+  check("englisch, derselbe Wert: die Meldung sagt, dass sich nichts aendert",
+    (await textVon("#editStatus")) === "The scale was not changed.",
+    await textVon("#editStatus"));
+
+  await massstabSetzen("abc");
+
+  check("englisch, ungueltig: die Ablehnung ist englisch",
+    (await textVon("#editStatus")) === "Invalid scale: please enter a number greater than 0.",
+    await textVon("#editStatus"));
+
+  await page.evaluate(() => setLanguage("de"));
+
+  check("Vorbedingung: die Oberflaeche steht wieder auf deutsch",
+    (await sprache()) === "de");
+  await abmessungenStimmen("englisch gesetzt, dann deutsch", KARTE_A, FAKTOR_3, "de");
+  check("englisch gesetzt, dann deutsch: das Feld traegt das Komma",
+    (await feld.inputValue()) === mitZeichen(FAKTOR_3, 1, "de"), await feld.inputValue());
+  check("englisch gesetzt, dann deutsch: die Beschriftung ist deutsch",
+    (await textVon('label[for="scaleInput"]')).startsWith("Maßstab (Meter je Einheit)"),
+    await textVon('label[for="scaleInput"]'));
+  check("englisch gesetzt, dann deutsch: der Satz darunter ist deutsch",
+    (await textVon("#scaleInputStatus")).startsWith("Von Hand gesetzt"),
+    await textVon("#scaleInputStatus"));
+  check("englisch gesetzt, dann deutsch: Zurueck nennt den Schritt deutsch",
+    (await page.locator("#undoBtn").getAttribute("title")) === "Rückgängig: Maßstab setzen",
+    await page.locator("#undoBtn").getAttribute("title"));
+  check("englisch abgelehnt, dann deutsch: die Ablehnung ist deutsch",
+    (await textVon("#editStatus")).startsWith("Ungültiger Maßstab"),
+    await textVon("#editStatus"));
+  check("derselbe Wert hat keinen eigenen Schritt angelegt",
+    undoVorher === "Undo: Set scale" &&
+      (await page.locator("#undoBtn").getAttribute("title")) === "Rückgängig: Maßstab setzen");
+
+  /* --- Undo, Zuruecknehmen, ungueltige Eingabe --------------------- */
+
+  /*
+   * Jedes Setzen ist ein eigener Schritt: das Undo holt den vorigen Wert
+   * zurueck, nicht den Stand vor dem ersten.
+   */
+  const undoFrei = await page.locator("#undoBtn").isEnabled();
+  check("Zurueck ist nach dem Setzen frei", undoFrei);
+
+  if (undoFrei) {
+    await page.locator("#undoBtn").click();
+    await page.waitForTimeout(350);
+    await abmessungenStimmen("nach dem Undo", KARTE_A, FAKTOR_2, "de");
+
+    const bild = await markerImBild();
+
+    check("nach dem Undo: die Ansicht ist fuer den alten Rahmen neu eingepasst",
+      bild.alle > 0 && bild.drin === bild.alle && bild.spanne >= bild.kurzeSeite / 2,
+      JSON.stringify(bild));
+  }
+
+  await massstabSetzen("abc");
+
+  check("ungueltig: die Ablehnung wird gemeldet",
+    (await textVon("#editStatus")).startsWith("Ungültiger Maßstab"),
+    await textVon("#editStatus"));
+  await abmessungenStimmen("ungueltig: der vorige Wert gilt weiter", KARTE_A, FAKTOR_2, "de");
+
+  /* Zuruecknehmen ueber Enter: die zweite Geste des Feldes. */
+  await massstabSetzen("", { taste: true });
+
+  check("leer uebernommen: der Hinweis auf der Karte ist wieder da",
+    await notice.isVisible());
+  check("leer uebernommen: die Abmessungen nennen wieder keine Meter",
+    !(await width()).includes("m"), await width());
+  check("leer uebernommen: das Feld ist leer und nimmt weiter an",
+    (await feld.inputValue()) === "" && await feld.isEnabled(), await feld.inputValue());
+  check("leer uebernommen: die Meldung sagt es",
+    (await textVon("#editStatus")) === "Maßstab zurückgenommen; er ist wieder unklar.",
+    await textVon("#editStatus"));
+
+  await page.evaluate(() => setLanguage("en"));
+
+  check("Vorbedingung: zurueckgenommen, die Oberflaeche steht auf englisch",
+    (await sprache()) === "en");
+  check("deutsch zurueckgenommen, dann englisch: die Meldung ist englisch",
+    (await textVon("#editStatus")) === "Scale withdrawn; it is unclear again.",
+    await textVon("#editStatus"));
+
+  await page.evaluate(() => setLanguage("de"));
+
+  /* --- ein neuer Rahmen raeumt auf ------------------------------------ */
+
+  /*
+   * Der Massstab aendert die Weltkoordinaten, nicht die Rohwerte. Alles, was
+   * Weltkoordinaten haelt, muss mit: die E/N-Felder des gewaehlten Punktes,
+   * die Punktliste der Feature-Navigation, die Vergleichs-Ghosts und eine
+   * laufende Messung.
+   */
+  await load(KARTE_A);
+  await massstabSetzen(EINGABE_1);
+
+  if (await markerKlicken("0:0:1")) {
+    const ost = page.locator("#pointEastInput");
+    const { breite } = ausdehnung(KARTE_A);
+
+    await page.waitForTimeout(250);
+    await openAllFolds(page);
+
+    check("Vorbedingung: das E-Feld zeigt die Ecke im ersten Rahmen",
+      (await ost.inputValue()) === mitZeichen(breite * FAKTOR_1, 2, "de"),
+      await ost.inputValue());
+
+    /* Um eine Einheit verschieben: danach steht ein Ghost an der alten Stelle. */
+    const verschobenWelt = breite * FAKTOR_1 + 1;
+
+    await ost.fill(mitZeichen(verschobenWelt, 2, "de"));
+    await ost.press("Enter");
+    await page.waitForTimeout(250);
+
+    const geisterVorher = await page.locator(
+      "#selectionGhostGroup circle.selection-ghost-point").count();
+
+    check("Vorbedingung: nach dem Verschieben steht ein Ghost", geisterVorher > 0,
+      String(geisterVorher));
+
+    await massstabSetzen(EINGABE_2);
+
+    const verschobenNeu = verschobenWelt / FAKTOR_1 * FAKTOR_2;
+
+    check("neuer Rahmen: das E-Feld rechnet mit dem neuen Massstab",
+      (await ost.inputValue()) === mitZeichen(verschobenNeu, 2, "de"),
+      `${await ost.inputValue()} gegen ${mitZeichen(verschobenNeu, 2, "de")}`);
+    check("neuer Rahmen: die Feature-Navigation ebenso",
+      (await textVon("#featureNavigator")).includes(
+        `${mitZeichen(verschobenNeu, 2, "de")} / ${mitZeichen(0, 2, "de")}`),
+      (await textVon("#featureNavigator")).slice(0, 300));
+    check("neuer Rahmen: kein Ghost steht mehr im alten Rahmen",
+      (await page.locator("#selectionGhostGroup circle.selection-ghost-point").count()) === 0,
+      String(await page.locator("#selectionGhostGroup circle.selection-ghost-point").count()));
+
+    /*
+     * Und zurueck ueber das Undo: ein Ghost, der im neuen Rahmen entstand,
+     * gilt im alten nicht. Zwei Schritte - erst die Verschiebung, dann der
+     * Massstab.
+     */
+    const geister = () => page.locator(
+      "#selectionGhostGroup circle.selection-ghost-point").count();
+
+    await ost.fill(mitZeichen(verschobenNeu + 1, 2, "de"));
+    await ost.press("Enter");
+    await page.waitForTimeout(250);
+
+    check("Vorbedingung: im neuen Rahmen steht wieder ein Ghost",
+      (await geister()) > 0, String(await geister()));
+
+    for (const schritt of ["die Verschiebung", "den Massstab"]) {
+      const frei = await page.locator("#undoBtn").isEnabled();
+
+      check(`Zurueck nimmt ${schritt} zurueck: der Knopf ist frei`, frei);
+      if (!frei) break;
+
+      await page.locator("#undoBtn").click();
+      await page.waitForTimeout(300);
+    }
+
+    check("zurueck im ersten Rahmen: das E-Feld zeigt den Punkt wieder dort",
+      (await ost.inputValue()) === mitZeichen(verschobenWelt, 2, "de"),
+      `${await ost.inputValue()} gegen ${mitZeichen(verschobenWelt, 2, "de")}`);
+    check("zurueck im ersten Rahmen: kein Ghost aus dem anderen Rahmen",
+      (await geister()) === 0, String(await geister()));
+  }
+
+  await load(KARTE_A);
+
+  await page.locator("#measureBtn").click();
+  await page.waitForTimeout(250);
+
+  const messblockSichtbar = () => page.evaluate(() =>
+    getComputedStyle(document.getElementById("inspectorMeasure")).display !== "none");
+
+  check("Vorbedingung: die Messung laeuft, ihr Block steht im Inspektor",
+    await messblockSichtbar());
+
+  await massstabSetzen(EINGABE_2);
+
+  check("laufende Messung: der Massstab beendet sie",
+    !(await messblockSichtbar()), "der Messblock steht weiter da");
+  await abmessungenStimmen("laufende Messung", KARTE_A, FAKTOR_2, "de");
+
+  /* --- je Karte, nicht fuer beide Slots ---------------------------- */
+
+  const KARTE_B = square(0.4, 1);
+  const { breite: breiteA } = ausdehnung(KARTE_A);
+  const { breite: breiteB } = ausdehnung(KARTE_B);
+
+  await massstabSetzen(EINGABE_2);
+
+  await page.locator("#secondFileInput").setInputFiles({
+    name: "zweite.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(KARTE_B),
+  });
+  await page.waitForTimeout(450);
+  await openAllFolds(page);
+
+  /*
+   * Das Zurueckholen eines Ladevorgangs ist kein Rahmenwechsel: Undo und Redo
+   * des Ladens behalten die Ansicht, wie sie war. Eingepasst wird nur, wenn
+   * eine Karte vorher UND nachher geladen ist und ihr Faktor wechselt.
+   */
+  await page.locator("#zoomInBtn").click();
+  await page.waitForTimeout(200);
+
+  const ansicht = () => page.locator("#svg").getAttribute("viewBox");
+  const ansichtVorher = await ansicht();
+
+  for (const knopf of ["#undoBtn", "#redoBtn"]) {
+    const frei = await page.locator(knopf).isEnabled();
+
+    check(`Laden zurueckholen: ${knopf} ist frei`, frei);
+    if (!frei) break;
+
+    await page.locator(knopf).click();
+    await page.waitForTimeout(300);
+  }
+
+  check("Undo und Redo des Ladens behalten die Ansicht",
+    (await ansicht()) === ansichtVorher, `${ansichtVorher} -> ${await ansicht()}`);
+
+  check("Vorbedingung: Karte B ist geladen und aktiv",
+    await page.evaluate(() => activeMapId === "B"));
+  check("Karte B: ihr Hinweis steht da - der Wert von A gilt hier nicht",
+    await notice.isVisible());
+  check("Karte B: ihr Feld ist leer",
+    (await feld.inputValue()) === "", await feld.inputValue());
+  check("Karte B: ihre Abmessungen nennen keine Meter",
+    !(await width()).includes("m"), await width());
+
+  /*
+   * Die passive Karte A wird gedaempft gezeichnet, und zwar mit IHREM
+   * Massstab. Verglichen wird die gezeichnete Breite ihres Perimeters mit der
+   * des aktiven von B; das Verhaeltnis folgt aus Geometrie und Faktor.
+   */
+  const breiten = await page.evaluate(() => {
+    const overlay = document.querySelector(
+      '.other-map-overlay path.other-map-feature[data-layer="perimeter"]');
+    const aktiv = document.querySelector("path.feature.perimeter");
+
+    return {
+      overlay: overlay ? overlay.getBoundingClientRect().width : null,
+      aktiv: aktiv ? aktiv.getBoundingClientRect().width : null,
+    };
+  });
+
+  {
+    const soll = (breiteA * FAKTOR_2) / breiteB;
+    const ist = breiten.overlay / breiten.aktiv;
+
+    check("die passive Karte A wird mit ihrem eigenen Massstab gezeichnet",
+      breiten.overlay > 0 && breiten.aktiv > 0 && Math.abs(ist / soll - 1) < 0.05,
+      `Verhaeltnis ${ist} gegen ${soll}`);
+  }
+
+  await menueBefehl("Karte", "Karten verbinden…");
+  await page.waitForTimeout(300);
+
+  check("verschiedene Massstaebe: das Verbinden nennt den Grund",
+    (await textVon("#mergeStatus")).includes("unterschiedliche erkannte Koordinatenskalierungen"),
+    await textVon("#mergeStatus"));
+  check("verschiedene Massstaebe: und es ist gesperrt",
+    await page.locator("#mergeMapsBtn").isDisabled());
+
+  await massstabSetzen(EINGABE_2);
+
+  check("gleicher Massstab auf B: die Sperre ist weg",
+    !(await textVon("#mergeStatus")).includes("Koordinatenskalierungen"),
+    await textVon("#mergeStatus"));
+  check("gleicher Massstab auf B: und Verbinden ist frei",
+    await page.locator("#mergeMapsBtn").isEnabled());
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  await menueBefehl("Karte", "Karte A");
+  await page.waitForTimeout(350);
+  await openAllFolds(page);
+
+  check("zurueck auf Karte A: ihr Wert steht noch im Feld",
+    (await feld.inputValue()) === EINGABE_2, await feld.inputValue());
+  check("zurueck auf Karte A: ihr Hinweis bleibt weg", await notice.isHidden());
+  await abmessungenStimmen("zurueck auf Karte A", KARTE_A, FAKTOR_2, "de");
+
+  /* --- die Auftrennstelle vergleicht in Metern ---------------------- */
+
+  /*
+   * Mit einem Massstab gibt es Meter, und die gewaehlte Auftrennstelle wird
+   * wie bei jedem bekannten Massstab mit Millimetertoleranz gegen den Ring
+   * gehalten. Ein Rundlauf ueber das E-Feld trifft den Rohwert hier nicht
+   * bitgleich: 0,33 mal 10 steht als 3,30 im Feld, und 3,30 durch 10 ist
+   * 0,32999999999999996.
+   */
+  const KARTE_C = square(0.33, 1);
+  const EINGABE_C = "10";
+  const FAKTOR_C = Number(EINGABE_C);
+  const { breite: seiteC } = ausdehnung(KARTE_C);
+
+  await load(KARTE_C);
+  await massstabSetzen(EINGABE_C);
+
+  /* Die rechte Kante: beide Punkte tragen E = Seitenlaenge. */
+  const kanteGewaehlt = await markerKlicken("0:0:1") &&
+    await markerKlicken("0:0:2", { modifiers: ["Control"] });
+  await page.waitForTimeout(250);
+
+  await menueBefehl("Karte", "Karten verbinden…");
+  await page.waitForTimeout(300);
+
+  const schnittFrei = kanteGewaehlt &&
+    await page.locator("#setMergeCutBtn").isEnabled();
+  check("Auftrennstelle: der Knopf ist bei zwei benachbarten Punkten frei", schnittFrei,
+    await textVon("#mergeCutReason"));
+
+  if (schnittFrei) {
+    await page.locator("#setMergeCutBtn").click();
+    await page.waitForTimeout(350);
+
+    check("Auftrennstelle: gewaehlt",
+      (await textVon("#mergeAInfo")).includes("Auftrennstelle gewählt."),
+      await textVon("#mergeAInfo"));
+
+    /* Fenster zu, Auswahl auf, dann den neuen Startpunkt allein waehlen. */
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(150);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+  }
+
+  if (schnittFrei && await markerKlicken("0:0:0")) {
+    await page.waitForTimeout(250);
+    await openAllFolds(page);
+
+    const ost = page.locator("#pointEastInput");
+    const angezeigt = await ost.inputValue();
+
+    check("Vorbedingung: das E-Feld zeigt Seitenlaenge mal Massstab",
+      angezeigt === mitZeichen(seiteC * FAKTOR_C, 2, "de"), angezeigt);
+
+    await ost.fill(mitZeichen(seiteC * FAKTOR_C + 1, 2, "de"));
+    await ost.press("Enter");
+    await page.waitForTimeout(250);
+
+    check("Vorbedingung: verschoben gilt die Stelle als veraendert",
+      (await textVon("#mergeAInfo")).includes("seit der Wahl verändert"),
+      await textVon("#mergeAInfo"));
+
+    await ost.fill(angezeigt);
+    await ost.press("Enter");
+    await page.waitForTimeout(250);
+
+    check("Vorbedingung: der Rundlauf trifft den Rohwert nicht bitgleich",
+      await page.evaluate((seite) =>
+        data.features[0].geometry.coordinates[0][0][0] !== seite, seiteC));
+    check("zurueckgesetzt gilt sie wieder als gewaehlt - verglichen in Metern",
+      (await textVon("#mergeAInfo")).includes("Auftrennstelle gewählt."),
+      await textVon("#mergeAInfo"));
+  }
+
+  /* --- in die Datei, und beim Wiedereinlesen erkannt --------------- */
+
+  await load(KARTE_A);
+  await massstabSetzen(EINGABE_2);
+
+  {
+    const wartend = page.waitForEvent("download", { timeout: 5000 }).catch(() => null);
+    await menueBefehl("Datei", "GeoJSON speichern");
+    const ereignis = await wartend;
+
+    check("von Hand gesetzt: der Export laeuft", !!ereignis);
+
+    if (ereignis) {
+      const stream = await ereignis.createReadStream();
+      const teile = [];
+      for await (const teil of stream) teile.push(teil);
+      const gespeichert = JSON.parse(Buffer.concat(teile).toString());
+
+      check("von Hand gesetzt: der Massstab steht in der Datei",
+        gespeichert.coordinateScale?.metersPerUnit === FAKTOR_2,
+        JSON.stringify(gespeichert.coordinateScale));
+
+      await load(JSON.stringify(gespeichert));
+
+      check("wieder eingelesen: kein Hinweis", await notice.isHidden());
+      await abmessungenStimmen("wieder eingelesen", KARTE_A, FAKTOR_2, "de");
+      check("wieder eingelesen: das Feld zeigt den Wert der Datei und ist gesperrt",
+        (await feld.inputValue()) === EINGABE_2 && await feld.isDisabled(),
+        await feld.inputValue());
+      check("wieder eingelesen: der Satz darunter sagt, warum",
+        (await textVon("#scaleInputStatus")).startsWith("Der Maßstab dieser Karte ist bekannt"),
+        await textVon("#scaleInputStatus"));
+    }
+  }
+
+  /* --- Gegenprobe: eine metrische Karte bleibt, wie sie ist --------- */
+
+  const METERKARTE = square(200, 1);
+
+  await load(METERKARTE);
+
+  check("metrisch: kein Hinweis", await notice.isHidden());
+  await abmessungenStimmen("metrisch", METERKARTE, 1, "de");
+  check("metrisch: die Statuszeile bleibt bei der Annahme",
+    (await textVon("#scaleStatus")) === "metrisch (angenommen)", await textVon("#scaleStatus"));
+  check("metrisch: das Feld ist gesperrt", await feld.isDisabled());
+  check("metrisch: und Uebernehmen ebenso",
+    await page.locator("#applyScaleBtn").isDisabled());
+  check("metrisch: der Satz darunter sagt, warum",
+    (await textVon("#scaleInputStatus")).startsWith("Der Maßstab dieser Karte ist bekannt"),
+    await textVon("#scaleInputStatus"));
+
+  await page.evaluate(() => setLanguage("en"));
+
+  check("Vorbedingung: metrisch, die Oberflaeche steht auf englisch",
+    (await sprache()) === "en");
+  check("metrisch, dann englisch: der Satz darunter ist englisch",
+    (await textVon("#scaleInputStatus")).startsWith("The scale of this map is known"),
+    await textVon("#scaleInputStatus"));
+  await abmessungenStimmen("metrisch, dann englisch", METERKARTE, 1, "en");
+
+  await page.evaluate(() => setLanguage("de"));
 
   /* ---------------------------------------------------------------- */
   console.log("Rundlauf: der Maßstab übersteht das Speichern");
