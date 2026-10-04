@@ -1198,6 +1198,37 @@
     fill:rgba(120,200,255,.30); stroke:rgba(120,200,255,.9);
     stroke-width:1.2px; vector-effect:non-scaling-stroke;
   }
+
+  /*
+   * Die Vorschau der Glättung: neue Linien und ihre neuen Punkte im
+   * Entwurfston - sie entstehen gerade und gibt es noch nicht. Dieselbe
+   * Sprache wie die Vorschau einer Kreis-Exclusion, aber eigene Klassen:
+   * gezählt und gemessen wird jede Vorschau für sich.
+   */
+  .smooth-preview-line {
+    fill:none; stroke:var(--map-draft); stroke-width:2;
+    stroke-dasharray:7 5; vector-effect:non-scaling-stroke;
+    stroke-linecap:round; stroke-linejoin:round;
+  }
+  .smooth-preview-point {
+    fill:var(--map-draft); stroke:var(--map-draft-dark);
+    stroke-width:1.4; vector-effect:non-scaling-stroke;
+  }
+
+  /* Ergebnis der Glättung unter ihrem Knopf: Zahlen, Gründe, zwei Knöpfe. */
+  .smooth-result { display:flex; flex-direction:column; gap:6px; }
+  .smooth-kept {
+    margin:0; padding-left:18px; color:var(--muted); font-size:12px;
+    line-height:1.45;
+  }
+  .smooth-kept:empty { display:none; }
+  /* Die Klammer setzt CSS: Bezeichnung und Anzahl sind getrennte Elemente,
+     und keine Zahl muss durch ein Übersetzungsmuster. */
+  .smooth-kept-count::before { content:" ("; }
+  .smooth-kept-count::after { content:")"; }
+  .smooth-actions {
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:6px;
+  }
   /*
    * Die Vergleichslinie gehört zur GHOST-Familie, nicht zur Auswahl. Sie war
    * gelb und trug damit dieselbe Farbe wie Auswahlring und Mäher, obwohl sie
@@ -3746,8 +3777,9 @@
           -->
           <div class="hint">
             Die Breite ist zugleich die Arbeitsbreite: sie ist die Schwelle der
-            Korridorprüfung in der Kartenprüfung und geht als Quadrat in die
-            Flächenwarnung beim Reduzieren ein.
+            Korridorprüfung in der Kartenprüfung, geht als Quadrat in die
+            Flächenwarnung beim Reduzieren ein, und ihre Hälfte ist beim
+            Glätten der kleinste Bogenradius, der nicht ausgelassen wird.
           </div>
 
           <div id="mowerSizeInfo" class="orientation-box" aria-live="polite">
@@ -4306,6 +4338,7 @@
             <span id="transformStraightenTag" hidden>Begradigen</span>
             <span id="transformReduceTag" hidden>Reduzieren</span>
             <span id="transformRectifyTag" hidden>Rechtwinklig</span>
+            <span id="transformSmoothTag" hidden>Glätten</span>
           </span>
         </summary>
         <div class="fold-body">
@@ -4402,7 +4435,57 @@
               Punkte kollinear, bleiben sie erhalten – Ausdünnen ist Aufgabe von
               „Punkte reduzieren“.
             </div>
-          
+
+            </div>
+          </details>
+
+          <!--
+            Glätten. Der Knopf rechnet erst nur: das Ergebnis erscheint als
+            Vorschau auf der Karte und darunter in Zahlen, übernommen wird es
+            mit „Anwenden“. Worauf es wirkt - das Feature der Auswahl oder
+            die ganze Karte -, sagt der Satz unter dem Knopf.
+          -->
+          <button id="smoothApplyBtn" type="button" disabled>Glätten</button>
+          <div id="smoothReason" class="tool-reason"></div>
+
+          <div id="smoothResult" class="smooth-result" hidden>
+            <div id="smoothSummary" class="grid-status" aria-live="polite"></div>
+            <div id="smoothKeptHead" class="hint" hidden></div>
+            <ul id="smoothKeptList" class="smooth-kept"></ul>
+            <div id="smoothActions" class="smooth-actions">
+              <button id="smoothConfirmBtn" type="button">Anwenden</button>
+              <button id="smoothCancelBtn" type="button">Abbrechen</button>
+            </div>
+          </div>
+
+          <details class="tool-settings">
+            <summary>Bögen und Grenzen</summary>
+            <div class="tool-settings-body">
+            <label class="field-label" for="smoothSpacingInput">
+              Bogenpunktabstand in Metern
+              <input id="smoothSpacingInput" class="grid-input" type="text" inputmode="decimal"
+                     autocomplete="off" spellcheck="false" aria-describedby="smoothReason">
+            </label>
+
+            <label class="field-label" for="smoothKnickInput">
+              Knick je Bogenpunkt in Grad
+              <input id="smoothKnickInput" class="grid-input" type="text" inputmode="decimal"
+                     autocomplete="off" spellcheck="false" aria-describedby="smoothReason">
+            </label>
+
+            <label class="field-label" for="smoothPerimeterLimitInput">
+              Perimeter höchstens so weit nach außen (m)
+              <input id="smoothPerimeterLimitInput" class="grid-input" type="text" inputmode="decimal"
+                     autocomplete="off" spellcheck="false" aria-describedby="smoothReason">
+            </label>
+
+            <label class="field-label" for="smoothExclusionLimitInput">
+              Exclusion höchstens so weit nach innen (m)
+              <input id="smoothExclusionLimitInput" class="grid-input" type="text" inputmode="decimal"
+                     autocomplete="off" spellcheck="false" aria-describedby="smoothReason">
+            </label>
+
+            <div id="smoothFixedHint" class="hint"></div>
             </div>
           </details>
         </div>
@@ -4651,6 +4734,7 @@
  * 10. Statistik und Ebenen
  * 11. Datei laden / exportieren / zurücksetzen
  * 12. Event-Handler und Initialisierung
+ * 13. Kartenglättung
  * 18. Sprache / Language
  *
  * Zwei Eigenheiten der Nummerierung, die beim Navigieren auffallen:
@@ -4662,9 +4746,9 @@
  *   Messwerkzeug und Kartenprüfung. Sein Titel sagt das seit dem
  *   einundzwanzigsten Durchgang; umnummeriert wird deswegen nicht, denn
  *   gesucht wird hier nach Titeln und Funktionsnamen, nicht nach Nummern.
- * - Nach 12 folgt 18. Die Sprachumschaltung kam in Ausgabe 037 als eigener
- *   Block hinzu und bekam eine freie Nummer; die Abschnitte 13 bis 17 hat es
- *   nie gegeben.
+ * - Nach 13 folgt 18. Die Sprachumschaltung kam in Ausgabe 037 als eigener
+ *   Block hinzu und bekam eine freie Nummer; 13 ist später mit der
+ *   Kartenglättung dazugekommen, die Abschnitte 14 bis 17 hat es nie gegeben.
  *
  * Beides ist rein kosmetisch. Ein Umnummerieren würde jeden Abschnitt
  * anfassen, ohne etwas zu verbessern, und wurde deshalb bewusst unterlassen.
@@ -5506,7 +5590,12 @@ const TRANSFORM_TOOL_HELP = {
   rectifyApplyBtn:
     "Dreht jede Kante des Features auf die nächste Achse seiner eigenen " +
     "Vorzugsrichtung, sofern sie weniger als die Toleranz davon abweicht. " +
-    "Ausgerichtet wird nicht auf East/North, und es wird kein Punkt entfernt."
+    "Ausgerichtet wird nicht auf East/North, und es wird kein Punkt entfernt.",
+  smoothApplyBtn:
+    "Ersetzt scharfe Ecken durch Bögen und Baumringe durch Kreise. " +
+    "Perimeterecken werden nach innen geschnitten, Exclusions wachsen; auf " +
+    "die falsche Seite geht keine Linie weiter als der eingestellte Grenzwert. " +
+    "Erst erscheint eine Vorschau, übernommen wird mit „Anwenden“."
 };
 
 
@@ -5536,7 +5625,8 @@ function transformToolReasons() {
       : reduceReasonText(reduce.reason),
     rectifyReason: rectify.ok
       ? "Richtet die Kanten des ganzen Features rechtwinklig aus."
-      : rectifyReasonText(rectify.reason)
+      : rectifyReasonText(rectify.reason),
+    smoothReason: smoothReasonText(getSmoothTarget(), readSmoothSettings())
   };
 }
 
@@ -5554,7 +5644,8 @@ function updateTransformShortText() {
   const straighten = getSelectedSection().ok;
   const reduce = getReduceTarget().ok;
   const rectify = getWholeFeatureTarget().ok;
-  const any = straighten || reduce || rectify;
+  const smooth = getSmoothTarget().ok && readSmoothSettings().ok;
+  const any = straighten || reduce || rectify || smooth;
 
   const toggle = (id, on) => {
     const tag = document.getElementById(id);
@@ -5564,6 +5655,7 @@ function updateTransformShortText() {
   toggle("transformStraightenTag", straighten);
   toggle("transformReduceTag", reduce);
   toggle("transformRectifyTag", rectify);
+  toggle("transformSmoothTag", smooth);
   toggle("transformNoneTag", !any);
 
   document.getElementById("transformSummary")?.classList.toggle("ok", any);
@@ -5698,6 +5790,7 @@ function updateInspectorBlocks(state) {
    * gebaut wurde.
    */
   updateTransformShortText();
+  updateSmoothUi();
   updateValidationShortText();
   updateStockBlock();
 
@@ -12895,6 +12988,7 @@ function renderSelectionGhost() {
   renderStraightenPreview(worldUnitsPerPixel);
   renderReducePreview(worldUnitsPerPixel);
   renderRectifyPreview(worldUnitsPerPixel);
+  renderSmoothPreview(worldUnitsPerPixel);
 
   /*
    * Der Schalter im Menue "Ansicht" nimmt die VERGANGENHEIT weg, nicht die
@@ -21322,6 +21416,36 @@ document.getElementById("rectifyApplyBtn").addEventListener(
   () => runTransformTool(applyRectify)
 );
 
+/* Glätten: rechnen, dann Vorschau übernehmen oder verwerfen. */
+document.getElementById("smoothApplyBtn").addEventListener(
+  "click",
+  () => runTransformTool(startSmoothing)
+);
+
+document.getElementById("smoothConfirmBtn").addEventListener(
+  "click",
+  () => runTransformTool(applySmoothing)
+);
+
+document.getElementById("smoothCancelBtn").addEventListener(
+  "click",
+  cancelSmoothing
+);
+
+[
+  "smoothSpacingInput",
+  "smoothKnickInput",
+  "smoothPerimeterLimitInput",
+  "smoothExclusionLimitInput"
+].forEach(id => {
+  /*
+   * "change" kommt bei Enter und beim Verlassen des Feldes - gemessen, nicht
+   * angenommen. Ein eigener Enter-Horcher daneben rechnete jede Eingabe
+   * zweimal, und eine Rechnung kostet bei einer großen Karte spürbar Zeit.
+   */
+  document.getElementById(id).addEventListener("change", smoothSettingsChanged);
+});
+
 document.getElementById("applyMowerSizeBtn").addEventListener(
   "click",
   applyMowerDimensions
@@ -21389,6 +21513,2503 @@ const viewerResizeObserver = new ResizeObserver(() => {
 
 viewerResizeObserver.observe(viewer);
 
+
+
+/* ==========================================================================
+   13. KARTENGLÄTTUNG
+   ==========================================================================
+
+   Der Rechenkern ist aus MeinPathplanner_Claude übernommen
+   (tools/kartenglaettung.js, Stand des Arbeitsbaums vom 04.10.2026 07:48,
+   SHA-256 d92382ed…, dort über HEAD 33b3e04 hinaus noch nicht committet).
+   Das Verfahren stammt seinerseits aus MeinSunray (37d9e48).
+
+   Übernommen ist die Rechnung, nicht die Seite: Eckgruppen, erzwungene
+   Ecken, Kennzahlen, Einlesen und Export des Planers fehlen hier. Mit den
+   Vorgaben des Planers (Eckgruppen aus, keine erzwungenen Ecken) liefert
+   dieser Kern Punkt für Punkt dasselbe wie das Original; nachgewiesen ist
+   das auf synthetischen Karten bei der Übernahme, siehe CLAUDE.md.
+
+   Die Bezeichner sind die des Planers, damit sich jede Stelle dort
+   wiederfinden lässt. Umbenannt sind nur fünf, die für eine Datei mit
+   rund 450 globalen Funktionen zu allgemein wären: options →
+   glaettungsOptionen, dist → punktAbstand, bez → bezierPunkt, GRID →
+   BEZIER_KONTROLLANTEILE, ANY → RASTER_WAHL_ALLE.
+
+   Zwei Ergänzungen gegenüber dem Planer, beide für den Editor:
+   - boundTolAusschluss: die Grenze einer Exclusion ist getrennt einstellbar.
+     Der Planer kennt eine Grenztoleranz für beide Linienarten.
+   - nurLinie: nur eine Linie wird geglättet, die übrigen bleiben Punkt für
+     Punkt, wie sie sind, und zählen nur als Nachbarn.
+
+   Gerechnet wird in Metern, in den Weltkoordinaten des Editors.
+   ========================================================================== */
+
+/* Feste Werte des Planers. Eine Stellschraube ist keiner davon. */
+
+/* Wegpunkttoleranz der Firmware (TARGET_REACHED_TOLERANCE, Sunray config.h,
+   im Planer _ZIELTOLERANZ): ein Punkt, der näher als sie an seinem Vorgänger
+   liegt, wird abgehakt, ohne angefahren zu werden. Kein neuer Punkt liegt so
+   nah. */
+const GLAETTUNG_WEGPUNKTTOLERANZ_M = 0.10;
+
+/* Raster, auf das CaSSAndRA die Karte an den Mäher schickt (1 cm). Die neuen
+   Punkte liegen darauf, und alle Regeln gelten für die gerundeten Punkte. */
+const GLAETTUNG_RASTER_M = 0.01;
+
+/* Mindestkorridor zwischen zwei Linien. Er hängt am Mäher, nicht am
+   Glättungswunsch, und ist deshalb nicht einstellbar (Projektinhaber). */
+const GLAETTUNG_MINDESTKORRIDOR_M = 0.01;
+
+/* Wie weit ein Bogen höchstens von der Ecke auf die Nachbarkanten greift:
+   die Stufe „mittel“ des Planers, mit der seine Seite startet. */
+const GLAETTUNG_WEITE_M = 0.25;
+
+/* Kontrollpunkte eines Bogens, als Anteil der Weite. */
+const BEZIER_KONTROLLANTEILE =
+  [0.20, 0.35, 0.50, 0.65, 0.80, 1.00, 1.20, 1.45, 1.70, 2.00, 2.40, 2.90];
+
+/* Die Stellschrauben eines Laufs, geprüft. halbeSpur: unter diesem Radius
+   läuft das innere Rad rückwärts; mit skipTight bleibt eine Ecke, deren
+   bester Bogen darunter läge, wie sie ist - dort dreht der Mäher ohnehin. */
+function glaettungsOptionen(opt) {
+  opt = opt || {};
+
+  if (!(opt.halbeSpur > 0)) throw new Error("Glättung ohne halbe Spurweite.");
+  if (!(opt.reachTol > 0)) throw new Error("Glättung ohne Wegpunkttoleranz.");
+  if (opt.spacing !== undefined && opt.spacing !== null && !(opt.spacing > 0)) {
+    throw new Error("Punktabstand muss größer als 0 sein.");
+  }
+  if (opt.raster !== undefined && opt.raster !== null && !(opt.raster > 0)) {
+    throw new Error("Raster muss größer als 0 sein.");
+  }
+
+  const tolGesetzt = opt.boundTol !== undefined && opt.boundTol !== null;
+  if (tolGesetzt && !(typeof opt.boundTol === "number" && opt.boundTol >= 0 &&
+                      isFinite(opt.boundTol))) {
+    throw new Error("Grenztoleranz muss mindestens 0 sein.");
+  }
+
+  const ausGesetzt =
+    opt.boundTolAusschluss !== undefined && opt.boundTolAusschluss !== null;
+  if (ausGesetzt && !(typeof opt.boundTolAusschluss === "number" &&
+                      opt.boundTolAusschluss >= 0 &&
+                      isFinite(opt.boundTolAusschluss))) {
+    throw new Error("Grenztoleranz der Exclusions muss mindestens 0 sein.");
+  }
+
+  if (!(typeof opt.minCorridor === "number" && isFinite(opt.minCorridor) &&
+        opt.minCorridor > 0)) {
+    throw new Error("Glättung ohne Mindestkorridor.");
+  }
+
+  const nur = opt.nurLinie;
+  if (nur !== undefined && nur !== null &&
+      !(typeof nur === "number" && nur >= 0 && Math.floor(nur) === nur)) {
+    throw new Error("nurLinie muss eine Liniennummer sein.");
+  }
+
+  return {
+    halbeSpur:opt.halbeSpur,
+    skipTight:!!opt.skipTight,
+    reachTol:opt.reachTol,
+    spacing:opt.spacing > 0 ? opt.spacing : null,
+    raster:opt.raster > 0 ? opt.raster : null,
+    boundTol:tolGesetzt ? opt.boundTol : null,
+    /* Fehlt sie, gilt die des Perimeters - so rechnet der Planer. */
+    boundTolAusschluss:
+      ausGesetzt ? opt.boundTolAusschluss : (tolGesetzt ? opt.boundTol : null),
+    minCorridor:opt.minCorridor,
+    nurLinie:nur === undefined ? null : nur,
+    rueckfall:opt.rueckfall !== false
+  };
+}
+
+function punktAbstand(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+
+function signedArea(p) {
+  let s = 0.0;
+  const n = p.length;
+  for (let i = 0; i < n; i++) {
+    const a = p[i], b = p[(i + 1) % n];
+    s += a[0] * b[1] - b[0] * a[1];
+  }
+  return s / 2.0;
+}
+
+/* Drehung an jeder Ecke in Grad, mit Vorzeichen. */
+function turnList(p) {
+  const n = p.length, out = [];
+  for (let i = 0; i < n; i++) {
+    const a = p[(i - 1 + n) % n], b = p[i], c = p[(i + 1) % n];
+    const h1 = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    const h2 = Math.atan2(c[1] - b[1], c[0] - b[0]);
+    let d = (h2 - h1 + Math.PI) % (2 * Math.PI);
+    if (d < 0) d += 2 * Math.PI;
+    out.push((d - Math.PI) * 180.0 / Math.PI);
+  }
+  return out;
+}
+
+function distPointSeg(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+  if (l2 === 0.0) return Math.hypot(px - ax, py - ay);
+  let t = ((px - ax) * dx + (py - ay) * dy) / l2;
+  t = t < 0 ? 0 : (t > 1 ? 1 : t);
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+function pointInPoly(pt, poly) {
+  const x = pt[0], y = pt[1], n = poly.length;
+  let c = false;
+  for (let i = 0; i < n; i++) {
+    const p1 = poly[i], p2 = poly[(i + 1) % n];
+    if ((p1[1] > y) !== (p2[1] > y)) {
+      if (x < p1[0] + (y - p1[1]) * (p2[0] - p1[0]) / (p2[1] - p1[1])) c = !c;
+    }
+  }
+  return c;
+}
+
+function bezierPunkt(p0, p1, p2, p3, t) {
+  const u = 1.0 - t;
+  return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+          u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]];
+}
+
+/* Kleinster Krümmungsradius des Bogens, analytisch abgetastet. */
+function bezMinRadius(p0, p1, p2, p3, n) {
+  n = n || 40;
+  let kmax = 0.0;
+  for (let j = 0; j <= n; j++) {
+    const t = j / n, u = 1.0 - t;
+    const dx = 3 * u * u * (p1[0] - p0[0]) + 6 * u * t * (p2[0] - p1[0]) + 3 * t * t * (p3[0] - p2[0]);
+    const dy = 3 * u * u * (p1[1] - p0[1]) + 6 * u * t * (p2[1] - p1[1]) + 3 * t * t * (p3[1] - p2[1]);
+    const ddx = 6 * u * (p2[0] - 2 * p1[0] + p0[0]) + 6 * t * (p3[0] - 2 * p2[0] + p1[0]);
+    const ddy = 6 * u * (p2[1] - 2 * p1[1] + p0[1]) + 6 * t * (p3[1] - 2 * p2[1] + p1[1]);
+    const s = Math.pow(dx * dx + dy * dy, 1.5);
+    if (s > 1e-12) kmax = Math.max(kmax, Math.abs(dx * ddy - dy * ddx) / s);
+  }
+  return kmax > 1e-9 ? 1.0 / kmax : 1e9;
+}
+
+/* Knick zwischen den Richtungen a->b und b->c, im Bogenmaß. */
+function knickRad(a, b, c) {
+  const h1 = Math.atan2(b[1] - a[1], b[0] - a[0]);
+  const h2 = Math.atan2(c[1] - b[1], c[0] - b[0]);
+  let d = (h2 - h1 + Math.PI) % (2 * Math.PI);
+  if (d < 0) d += 2 * Math.PI;
+  return Math.abs(d - Math.PI);
+}
+
+function knickDeg(a, b, c) { return knickRad(a, b, c) * 180.0 / Math.PI; }
+
+/* Bereits gerechnete Zerlegungen (bezResample). Das Ergebnis hängt nur an den
+   Argumenten; der Speicher ist reine Beschleunigung und wird je Lauf geleert
+   (glaettungsSpeicherLeeren). */
+const ZERLEGT = new Map();
+const ZERLEGT_MAX = 50000;
+
+/* Bogen in Stützpunkte zerlegen. Zwei Grenzen gelten zugleich:
+   - der Knick an jedem neuen Stützpunkt bleibt UNTER tauDeg. Ab diesem Winkel
+     dreht die Firmware auf der Stelle, und sie prüft mit "<" - genau tauDeg
+     dreht also schon;
+   - kein Punktabstand auf dem Bogen liegt über spacing (Meter; null heißt:
+     keine Abstandsgrenze).
+   An jeder Stelle des Bogens gilt die strengere der beiden. kmin: mindestens
+   so viele Teilstücke (das Runden auf das Raster verlangt manchmal mehr).
+   dmin: keine Sehne kürzer als dmin, die Wegpunkttoleranz. Liefert die
+   Zwischenpunkte ohne p0 und p3, oder null, wenn es keine Zerlegung gibt.
+   Gleiche Schritte kommen zuerst, damit jeder Bogen, den sie schon zerlegen,
+   dieselben Punkte behält; sonst sucht bezResampleSuche unter allen. */
+function bezResample(p0, p1, p2, p3, tauDeg, spacing, nfine, kmin, dmin) {
+  const key = [p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], tauDeg, spacing,
+               nfine, kmin, dmin].join(" ");
+  const da = ZERLEGT.get(key);
+  if (da !== undefined) return da;
+
+  let r = bezResampleGleich(p0, p1, p2, p3, tauDeg, spacing, nfine, kmin, dmin);
+  if (!r && dmin > 0) r = bezResampleSuche(p0, p1, p2, p3, tauDeg, spacing, kmin, dmin);
+
+  if (ZERLEGT.size >= ZERLEGT_MAX) ZERLEGT.clear();
+  ZERLEGT.set(key, r);
+  return r;
+}
+
+/* Die Suche: Der Bogen wird alle SUCHE_SCHRITT_M abgetastet, und unter allen
+   Folgen dieser Punkte von p0 bis p3, deren Sehnen zwischen dmin und spacing
+   lang sind, deren Knick (an p0 und p3 gegen die Nachbarkante) überall unter
+   tauDeg bleibt und die mindestens kmin Teilstücke haben, wird die mit dem
+   kleinsten größten Knick genommen - so bleibt dem Runden auf das Raster der
+   meiste Spielraum. Der Knick an einem Punkt hängt nur am Punkt davor und
+   danach; gerechnet wird deshalb über Paare benachbarter Punkte, nach dem
+   zweiten Punkt geordnet. Kein Ergebnis: null. */
+const SUCHE_SCHRITT_M = 0.005;
+
+function bezResampleSuche(p0, p1, p2, p3, tauDeg, spacing, kmin, dmin) {
+  const t0 = [p1[0] - p0[0], p1[1] - p0[1]], t3 = [p3[0] - p2[0], p3[1] - p2[1]];
+  const vor = [p0[0] - t0[0], p0[1] - t0[1]], nach = [p3[0] + t3[0], p3[1] + t3[1]];
+  let lang = 0.0, alt = p0, j;
+  const F = 400;
+  for (j = 1; j <= F; j++) {
+    const q = bezierPunkt(p0, p1, p2, p3, j / F);
+    lang += punktAbstand(alt, q);
+    alt = q;
+  }
+  const n = Math.max(20, Math.min(400, Math.ceil(lang / SUCHE_SCHRITT_M)));
+  const P = [];
+  for (j = 0; j <= n; j++) P.push(bezierPunkt(p0, p1, p2, p3, j / n));
+  const smax = spacing > 0 ? spacing : Infinity, C = Math.max(1, kmin || 1);
+
+  /* Die Länge der Abtastkette bis j: zwei Punkte, zwischen denen sie kürzer
+     als dmin ist, liegen auch gerade näher. */
+  const bis = [0.0];
+  for (j = 1; j <= n; j++) bis.push(bis[j - 1] + punktAbstand(P[j - 1], P[j]));
+
+  /* Liegen die Richtungen der Stücke ab Punkt a innerhalb eines Winkels W
+     unter 180 Grad, ist der gerade Abstand von a zu jedem späteren Punkt
+     mindestens die Kettenlänge mal cos(W/2). Liegt diese Schranke über dem
+     Punktabstand, passt keine Sehne mehr; die Liste der Nachfolger hört dort
+     auf. Ein Mikrometer Rand fängt Rundungsreste ab. */
+  const cosHalb = [];
+  if (smax < Infinity) {
+    const hu = [];
+    let hAlt = null, uAlt = 0.0;
+    for (j = 0; j < n; j++) {
+      if (P[j + 1][0] === P[j][0] && P[j + 1][1] === P[j][1]) { hu.push(null); continue; }
+      const hj = Math.atan2(P[j + 1][1] - P[j][1], P[j + 1][0] - P[j][0]);
+      if (hAlt === null) uAlt = hj;
+      else {
+        let dh = hj - hAlt;
+        while (dh > Math.PI) dh -= 2 * Math.PI;
+        while (dh < -Math.PI) dh += 2 * Math.PI;
+        uAlt += dh;
+      }
+      hAlt = hj;
+      hu.push(uAlt);
+    }
+    let hmin = Infinity, hmax = -Infinity;
+    for (j = n - 1; j >= 0; j--) {
+      if (hu[j] !== null) { hmin = Math.min(hmin, hu[j]); hmax = Math.max(hmax, hu[j]); }
+      cosHalb[j] = hmax >= hmin && hmax - hmin < Math.PI - 1e-6
+        ? Math.cos((hmax - hmin) / 2) : 0.0;
+    }
+  }
+
+  /* Knick aus zwei Richtungen, genau wie knickDeg aus drei Punkten. */
+  function knick(h1, h2) {
+    let d = (h2 - h1 + Math.PI) % (2 * Math.PI);
+    if (d < 0) d += 2 * Math.PI;
+    return Math.abs(d - Math.PI) * 180.0 / Math.PI;
+  }
+  const hVor = Math.atan2(P[0][1] - vor[1], P[0][0] - vor[0]);
+  const hNach = Math.atan2(nach[1] - P[n][1], nach[0] - P[n][0]);
+
+  /* Zustand: die letzten beiden Punkte (i, k) und die Zahl der Teilstücke,
+     bis C. */
+  const N1 = n + 1, wert = new Map(), vorher = new Map(), eimer = [];
+  for (j = 0; j <= n; j++) eimer.push([]);
+  function key(i, k, c) { return (i * N1 + k) * (C + 1) + c; }
+  function passt(a, b) {
+    const d = punktAbstand(P[a], P[b]);
+    return d >= dmin - ABSTAND_EPS && d <= smax + 1e-9;
+  }
+
+  /* Die Punkte hinter a, zu denen eine Sehne passt, aufsteigend - einmal je
+     Punkt gerechnet. */
+  const folge = [], folgeH = [];
+  function nachfolger(a) {
+    if (folge[a]) return folge[a];
+    const out = [], hs = [];
+    let k0 = a + 1;
+    while (k0 <= n && bis[k0] - bis[a] < dmin - ABSTAND_EPS - 1e-12) k0++;
+    for (let k = k0; k <= n; k++) {
+      if (cosHalb[a] > 0 && (bis[k] - bis[a]) * cosHalb[a] > smax + 1e-9 + 1e-6) break;
+      if (passt(a, k)) {
+        out.push(k);
+        hs.push(Math.atan2(P[k][1] - P[a][1], P[k][0] - P[a][0]));
+      }
+    }
+    folgeH[a] = hs;
+    return (folge[a] = out);
+  }
+
+  /* h: die Richtung der Sehne von i nach k. */
+  function nimm(i, k, c, w, von, h) {
+    const kk = key(i, k, c), da = wert.get(kk);
+    if (da !== undefined && w >= da) return;
+    if (da === undefined) eimer[k].push([i, c, h]);
+    wert.set(kk, w);
+    vorher.set(kk, von);
+  }
+
+  nachfolger(0);
+  const h0 = folgeH[0];
+  folge[0].forEach(function (k, z) {
+    const w0 = knick(hVor, h0[z]);
+    if (w0 < tauDeg) nimm(0, k, 1, w0, -1, h0[z]);
+  });
+
+  let ende = -1, endeW = Infinity;
+  for (let b = 1; b <= n; b++) {
+    for (let e = 0; e < eimer[b].length; e++) {
+      const i = eimer[b][e][0], c = eimer[b][e][1], hib = eimer[b][e][2];
+      const kk = key(i, b, c), v = wert.get(kk);
+      if (b === n) {
+        const wE = Math.max(v, knick(hib, hNach));
+        if (c >= C && wE < tauDeg && wE < endeW) { endeW = wE; ende = kk; }
+        continue;
+      }
+      const nb = nachfolger(b), hb = folgeH[b];
+      for (let z2 = 0; z2 < nb.length; z2++) {
+        const k2 = nb[z2], w2 = Math.max(v, knick(hib, hb[z2]));
+        if (w2 < tauDeg) nimm(b, k2, Math.min(C, c + 1), w2, kk, hb[z2]);
+      }
+    }
+  }
+  if (ende < 0) return null;
+
+  const out = [];
+  for (let z = ende; vorher.get(z) !== -1; z = vorher.get(z)) {
+    out.push(P[Math.floor(Math.floor(z / (C + 1)) / N1)]);
+  }
+  return out.reverse();
+}
+
+/* Die Zerlegung in gleichen Schritten eines gemeinsamen Maßes, das dort um
+   die Drehung wächst und dort um die Länge (spacing entspricht tauDeg), je
+   nachdem, was mehr verlangt. Ob beide Grenzen halten, wird nachgerechnet;
+   wo nicht, kommt ein Punkt dazu. */
+function bezResampleGleich(p0, p1, p2, p3, tauDeg, spacing, nfine, kmin, dmin) {
+  /* Bogenmaß je Meter: so viel Maß kostet ein Meter Bogen. */
+  const lang = spacing > 0 ? (tauDeg * Math.PI / 180.0) / spacing : 0.0;
+  const t0 = [p1[0] - p0[0], p1[1] - p0[1]];
+  const t3 = [p3[0] - p2[0], p3[1] - p2[1]];
+  const vor = [p0[0] - t0[0], p0[1] - t0[1]], nach = [p3[0] + t3[0], p3[1] + t3[1]];
+  nfine = nfine || 160;
+  let k = Math.max(1, kmin || 1), raster = null, i, j;
+  if (8 * k > nfine) nfine = 16 * k;
+
+  for (let runde = 0; ; runde++) {
+    if (runde > 200 || nfine > 200000) {
+      throw new Error(`Bogen lässt sich nicht unter ${tauDeg} Grad zerlegen.`);
+    }
+    if (!raster) {
+      /* Das feine Raster und darauf das gemeinsame Maß. */
+      const pts = [], cum = [0.0];
+      let tot = 0.0, schritt = 0.0;
+      for (j = 0; j <= nfine; j++) pts.push(bezierPunkt(p0, p1, p2, p3, j / nfine));
+      for (i = 1; i < pts.length; i++) {
+        const dreh = i < pts.length - 1 ? knickRad(pts[i - 1], pts[i], pts[i + 1]) : 0.0;
+        tot += lang > 0 ? Math.max(dreh, lang * punktAbstand(pts[i - 1], pts[i])) : dreh;
+        cum.push(tot);
+        schritt = Math.max(schritt, punktAbstand(pts[i - 1], pts[i]));
+      }
+      raster = {pts, cum, tot, schritt};
+      k = Math.max(k, Math.ceil((tot * 180.0 / Math.PI) / tauDeg));
+    }
+
+    const out = [], idx = [];
+    let doppelt = false;
+    i = 0;
+    for (j = 1; j < k; j++) {
+      const target = raster.tot * j / k;
+      while (i < raster.cum.length - 1 && raster.cum[i + 1] < target) i++;
+      const ix = Math.min(i + 1, raster.pts.length - 1);
+      /* Zwei Punkte auf derselben Rasterstelle - oder auf dem Endpunkt: das
+         Raster ist für diesen Bogen zu grob. */
+      if ((idx.length && ix <= idx[idx.length - 1]) || ix >= raster.pts.length - 1) {
+        doppelt = true;
+      }
+      idx.push(ix);
+      out.push(raster.pts[ix]);
+    }
+
+    /* Mit Mindestabstand: zwei Punkte im selben Schritt des feinen Rasters
+       lagen näher als dmin - ein feineres Raster rückte sie nur noch enger. */
+    if (doppelt && dmin > 0 && raster.schritt < dmin) return null;
+    if (doppelt) { nfine *= 2; raster = null; continue; }
+
+    const seq = [vor, p0].concat(out, [p3, nach]);
+    let gut = true;
+    if (dmin > 0) {
+      for (j = 1; j < seq.length - 2; j++) {
+        if (punktAbstand(seq[j], seq[j + 1]) < dmin - ABSTAND_EPS) return null;
+      }
+    }
+    for (j = 1; j < seq.length - 1 && gut; j++) {
+      if (knickDeg(seq[j - 1], seq[j], seq[j + 1]) >= tauDeg) gut = false;
+      if (lang > 0 && j < seq.length - 2 && punktAbstand(seq[j], seq[j + 1]) > spacing) gut = false;
+    }
+    if (gut) return out;
+    k++;
+    if (8 * k > nfine) { nfine = 16 * k; raster = null; }
+  }
+}
+
+/* Das Übertragungsraster. Kandidaten eines neuen Punktes sind die vier Ecken
+   der Rasterzelle, in der er liegt; ein aufgenommener Punkt bleibt, wo er
+   ist, und zählt mit dem Ort, auf den CaSSAndRA ihn rundet. */
+function Raster(r) {
+  const inv = Math.round(1.0 / r);
+  const dez = inv >= 1 && Math.abs(inv * r - 1.0) < 1e-9;   /* 0,01 m: durch 100 teilen */
+  function co(i) { return dez ? i / inv : i * r; }
+  function ix(v) { return dez ? v * inv : v / r; }
+  return {
+    r,
+    snap:function (p) { return [co(Math.round(ix(p[0]))), co(Math.round(ix(p[1])))]; },
+    cell:function (p) {
+      const x0 = Math.floor(ix(p[0]) + 1e-9), y0 = Math.floor(ix(p[1]) + 1e-9);
+      const out = [[co(x0), co(y0)], [co(x0 + 1), co(y0)], [co(x0), co(y0 + 1)],
+                   [co(x0 + 1), co(y0 + 1)]];
+      out.sort(function (a, b) { return punktAbstand(a, p) - punktAbstand(b, p); });
+      return out;
+    }
+  };
+}
+
+/* Die aufgenommene Linie als Grenze. keepInside: true beim Perimeter (erlaubt
+   ist das Innere), false bei einer Exclusion (erlaubt ist das Äußere).
+   point(p) und seg(p, q) sagen, wie weit ein Punkt oder eine Strecke auf der
+   falschen Seite liegt - 0, wenn gar nicht. Eine Strecke wird an ihren
+   Schnitten mit der Grenze geteilt; auf einem Stück der falschen Seite ändert
+   sich der Abstand zur Grenze längs der Strecke höchstens um die gefahrene
+   Länge, zwischen zwei gemessenen Stellen fa und fb im Abstand len also
+   höchstens (fa + fb + len) / 2. Geteilt wird, bis diese Schranke unter dem
+   Gefundenen liegt - oder, mit limit, bis feststeht, ob die Strecke die Grenze
+   um mehr als limit verletzt. Die Zahl ist damit nie zu klein. */
+function Boundary(poly, keepInside) {
+  const n = poly.length, ed = [];
+  for (let i = 0; i < n; i++) {
+    const a = poly[i], b = poly[(i + 1) % n];
+    ed.push([a, b, Math.min(a[0], b[0]), Math.min(a[1], b[1]),
+             Math.max(a[0], b[0]), Math.max(a[1], b[1])]);
+  }
+  function dmin(p, box) {
+    let m = Infinity;
+    for (let k = 0; k < ed.length; k++) {
+      const e = ed[k];
+      if (box && (e[2] > box[2] || e[4] < box[0] || e[3] > box[3] || e[5] < box[1])) continue;
+      const d = distPointSeg(p[0], p[1], e[0][0], e[0][1], e[1][0], e[1][1]);
+      if (d < m) m = d;
+    }
+    return m;
+  }
+  function wrong(p) { return pointInPoly(p, poly) !== keepInside; }
+  function point(p) { return wrong(p) ? dmin(p, null) : 0.0; }
+  function seg(p, q, limit) {
+    const dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy);
+    let k;
+    if (L === 0) return point(p);
+    const x0 = Math.min(p[0], q[0]), x1 = Math.max(p[0], q[0]);
+    const y0 = Math.min(p[1], q[1]), y1 = Math.max(p[1], q[1]);
+    const ts = [0.0, 1.0];
+    for (k = 0; k < ed.length; k++) {
+      const e = ed[k];
+      if (e[2] > x1 || e[4] < x0 || e[3] > y1 || e[5] < y0) continue;
+      const ex = e[1][0] - e[0][0], ey = e[1][1] - e[0][1], den = dx * ey - dy * ex;
+      if (Math.abs(den) < 1e-18) continue;      /* parallel */
+      const wx = e[0][0] - p[0], wy = e[0][1] - p[1];
+      const t = (wx * ey - wy * ex) / den, u = (wx * dy - wy * dx) / den;
+      if (t > 0 && t < 1 && u >= -1e-12 && u <= 1 + 1e-12) ts.push(t);
+    }
+    ts.sort(function (a, b) { return a - b; });
+    let worst = 0.0;
+    const eps = 1e-5, check = typeof limit === "number";
+    function at(t) { return [p[0] + t * dx, p[1] + t * dy]; }
+    for (k = 0; k + 1 < ts.length; k++) {
+      const t0 = ts[k], t1 = ts[k + 1];
+      if ((t1 - t0) * L < 1e-9) continue;
+      const mid = at((t0 + t1) / 2);
+      if (!wrong(mid)) continue;
+      const fm = dmin(mid, null);
+      if (fm < 1e-9) continue;                 /* liegt auf der Grenze */
+      const fa = t0 > 0 ? 0.0 : dmin(at(t0), null), fb = t1 < 1 ? 0.0 : dmin(at(t1), null);
+      const ub = (fa + fb + (t1 - t0) * L) / 2 + 1e-9, pa = at(t0), pb = at(t1);
+      const box = [Math.min(pa[0], pb[0]) - ub, Math.min(pa[1], pb[1]) - ub,
+                   Math.max(pa[0], pb[0]) + ub, Math.max(pa[1], pb[1]) + ub];
+      let best = Math.max(worst, fa, fb, fm);
+      if (check && best > limit) return best;
+      const tm = (t0 + t1) / 2;
+      const stack = [[t0, tm, fa, fm], [tm, t1, fm, fb]];
+      while (stack.length) {
+        const iv = stack.pop(), len = (iv[1] - iv[0]) * L;
+        const bound = (iv[2] + iv[3] + len) / 2;
+        if (check ? bound <= limit : bound <= best + eps) continue;
+        if (len < 1e-7) {                      /* nicht weiter teilbar: Schranke nehmen */
+          best = Math.max(best, bound);
+          if (check && best > limit) return best;
+          continue;
+        }
+        const tc = (iv[0] + iv[1]) / 2, fc = dmin(at(tc), box);
+        if (fc > best) best = fc;
+        if (check && best > limit) return best;
+        stack.push([iv[0], tc, iv[2], fc], [tc, iv[1], fc, iv[3]]);
+      }
+      worst = Math.max(worst, best);
+    }
+    return worst;
+  }
+  return {point, seg};
+}
+
+/* Kleinster Abstand einer Strecke zu einer Kantenliste. */
+function segDistToEdges(a, b, edges) {
+  function cr(o, p, q) {
+    return (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+  }
+  let m = Infinity;
+  for (let k = 0; k < edges.length; k++) {
+    const c = edges[k][0], d = edges[k][1];
+    const d1 = cr(c, d, a), d2 = cr(c, d, b), d3 = cr(a, b, c), d4 = cr(a, b, d);
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return 0.0;
+    m = Math.min(m, distPointSeg(a[0], a[1], c[0], c[1], d[0], d[1]),
+                 distPointSeg(b[0], b[1], c[0], c[1], d[0], d[1]),
+                 distPointSeg(c[0], c[1], a[0], a[1], b[0], b[1]),
+                 distPointSeg(d[0], d[1], a[0], a[1], b[0], b[1]));
+  }
+  return m;
+}
+
+/* Die Wahl der Rasterpunkte für eine Kette. ids sind Nummern in der
+   Punktfolge, allow(t) die zulässigen Kandidaten an Stelle t (höchstens vier),
+   cost(t, c) ihre Kosten. knickOK(i, a, b, c) prüft den Knick an Punkt i, wenn
+   sein Vorgänger Kandidat a nimmt, er selbst b und sein Nachfolger c;
+   segOK(i, b, c) die Strecke von i zu seinem Nachfolger. Der Knick an i hängt
+   nur an i-1, i und i+1 - es genügt deshalb, Paare benachbarter Wahlen
+   mitzuführen, und so wird jede zulässige Wahl gefunden, wenn es eine gibt;
+   von ihnen die mit der kleinsten Summe. segCost(t, b, c), wenn gegeben, sind
+   die Kosten der Strecke von Stelle t zu t+1. Liefert {pick, cost} oder
+   {fail: t}, die Stelle, hinter die keine Wahl mehr kam. */
+const RASTER_WAHL_ALLE = [[], [0], [0, 1], [0, 1, 2], [0, 1, 2, 3]];
+
+function chainDP(ids, allow, cost, knickOK, segOK, segCost) {
+  const m = ids.length, K = 4, KK = 16;
+  let a, b, c, key, t;
+  let cur = new Float64Array(KK).fill(Infinity);
+  const A0 = allow(0), A1 = allow(1);
+  for (a = 0; a < A0.length; a++) {
+    for (b = 0; b < A1.length; b++) {
+      if (!segOK(ids[0], A0[a], A1[b])) continue;
+      cur[A0[a] * K + A1[b]] = cost(0, A0[a]) + cost(1, A1[b])
+        + (segCost ? segCost(0, A0[a], A1[b]) : 0.0);
+    }
+  }
+  const backs = [];
+  for (t = 1; t <= m - 2; t++) {
+    const i = ids[t], Aj = allow(t + 1);
+    let any = false;
+    const nxt = new Float64Array(KK).fill(Infinity), back = new Int8Array(KK).fill(-1);
+    for (key = 0; key < KK; key++) {
+      if (cur[key] === Infinity) continue;
+      a = Math.floor(key / K); b = key % K;
+      for (let ci = 0; ci < Aj.length; ci++) {
+        c = Aj[ci];
+        if (!segOK(i, b, c) || !knickOK(i, a, b, c)) continue;
+        const v = cur[key] + cost(t + 1, c) + (segCost ? segCost(t, b, c) : 0.0);
+        const nk = b * K + c;
+        if (v < nxt[nk]) { nxt[nk] = v; back[nk] = a; any = true; }
+      }
+    }
+    if (!any) return {fail:t};
+    backs.push(back);
+    cur = nxt;
+  }
+  let bestKey = -1;
+  for (key = 0; key < KK; key++) {
+    if (cur[key] < Infinity && (bestKey < 0 || cur[key] < cur[bestKey])) bestKey = key;
+  }
+  if (bestKey < 0) return {fail:0};
+  const pick = new Array(m), total = cur[bestKey];
+  key = bestKey;
+  pick[m - 2] = Math.floor(key / K);
+  pick[m - 1] = key % K;
+  for (t = m - 2; t >= 1; t--) {
+    const pa = backs[t - 1][key];
+    pick[t - 1] = pa;
+    key = pa * K + Math.floor(key / K);
+  }
+  return {pick, cost:total};
+}
+
+/* Ein geschlossener Ring, in dem kein Punkt feststeht: an einer Stelle s
+   werden die Wahlen für s-1 und s festgelegt, einmal je Paar, und die Kette
+   läuft einmal herum bis wieder zu ihnen. Die Strecke von s-1 nach s kommt in
+   der Kette zweimal vor und zählt einmal. */
+function cycleDP(C, W, knickOK, segOK, segCost) {
+  const n = C.length;
+  let s = 0, bc = Infinity, i;
+  for (i = 0; i < n; i++) {
+    const v = C[(i - 1 + n) % n].length * C[i].length;
+    if (v < bc) { bc = v; s = i; }
+  }
+  const p = (s - 1 + n) % n, ids = [p];
+  for (i = 0; i <= n; i++) ids.push((s + i) % n);
+  let best = null, weitest = 1;
+  for (let a0 = 0; a0 < C[p].length; a0++) {
+    for (let b0 = 0; b0 < C[s].length; b0++) {
+      const r = chainDP(ids, function (t) {
+        if (t === 0 || t === n) return [a0];
+        if (t === 1 || t === n + 1) return [b0];
+        return RASTER_WAHL_ALLE[C[ids[t]].length];
+      }, function (t, c) { return t >= n ? 0.0 : W[ids[t]][c]; }, knickOK, segOK,
+      segCost ? function (t, b, c) { return t === 0 ? 0.0 : segCost(ids[t], b, c); }
+              : null);
+      if (r.pick) { if (!best || r.cost < best.cost) best = r; }
+      else weitest = Math.max(weitest, r.fail);
+    }
+  }
+  if (!best) return {fails:[ids[weitest]]};
+  const pick = new Array(n);
+  for (i = 0; i < ids.length; i++) pick[ids[i]] = best.pick[i];
+  return {pick};
+}
+
+/* Wie viele Punkte ein Bogen oder Ring für das Raster höchstens zusätzlich
+   bekommt, bevor die Ecke ungeglättet bleibt. */
+const RASTER_MEHR = 12;
+
+/* Rechentoleranz der Grenzprüfung: ein Punkt auf der aufgenommenen Linie darf
+   nicht an einem Rundungsrest von 1e-16 m scheitern. */
+const GRENZ_EPS = 1e-9;
+
+/* Beim Runden gilt die erlaubte Seite der aufgenommenen Linie zuerst - beim
+   Perimeter innen, bei einer Exclusion außen; die andere nur, wo es auf ihr
+   keine zulässige Wahl gibt, und dann innerhalb der Grenztoleranz. Jeder
+   Punkt und jede Strecke auf der falschen Seite kostet FALSCHE_SEITE mal das
+   Quadrat der Rasterweite - mehr als jede Summe quadrierter Verschiebungen
+   eines Abschnitts. */
+const FALSCHE_SEITE = 1e6;
+
+/* Genau die Wegpunkttoleranz ist erlaubt: ABSTAND_EPS fängt nur den
+   Rechenrest ab, mit dem 6 und 8 cm auf dem Raster 0,0999999… ergeben. */
+const ABSTAND_EPS = 1e-9;
+
+function zuNah(a, b, tol) { return punktAbstand(a, b) < tol - ABSTAND_EPS; }
+
+/* Rückfall auf kleinere Weiten: hält ein Bogen mit der Stufenweite eine Regel
+   nicht, wird er in Schritten von 1 cm kleiner versucht, bis 2 cm. Bögen, die
+   mit der Stufenweite gehen, bleiben Punkt für Punkt, wie sie sind. */
+const RUECKFALL_SCHRITT_M = 0.01;
+
+/* Die Kandidaten der Bögen je Linie, Ecke, Weite und Bogenform - samt dem,
+   was nur an der Linie hängt und an ihnen schon geprüft ist. Reine
+   Beschleunigung, je Lauf geleert. */
+const KANDIDATEN = new Map();
+let KANDIDATEN_ZAHL = 0;
+const KANDIDATEN_MAX = 300000;
+
+function kandidatenFuer(poly, shrink) {
+  const key = (shrink ? "P" : "A") +
+    poly.map(function (p) { return p[0] + "," + p[1]; }).join(";");
+  let m = KANDIDATEN.get(key);
+  if (!m) { m = {}; KANDIDATEN.set(key, m); }
+  return m;
+}
+
+function kandidatenGezaehlt(k) {
+  KANDIDATEN_ZAHL += k;
+  if (KANDIDATEN_ZAHL > KANDIDATEN_MAX) { KANDIDATEN.clear(); KANDIDATEN_ZAHL = 0; }
+}
+
+/* Leert die beiden Speicher. Am Ergebnis ändert das nichts. */
+function glaettungsSpeicherLeeren() {
+  ZERLEGT.clear();
+  KANDIDATEN.clear();
+  KANDIDATEN_ZAHL = 0;
+}
+
+/* Kleinster Abstand einer Punktfolge zu einer Kantenliste. */
+function minDistToEdges(pts, edges) {
+  let m = Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    for (let k = 0; k < edges.length; k++) {
+      const d = distPointSeg(pts[i][0], pts[i][1], edges[k][0][0], edges[k][0][1],
+                             edges[k][1][0], edges[k][1][1]);
+      if (d < m) m = d;
+    }
+  }
+  return m;
+}
+
+/* Kanten anderer Linien, die einer Ecke nahe genug kommen, um von ihrem Bogen
+   berührt zu werden. */
+function foreignEdges(V, polys, radius) {
+  const out = [];
+  for (let a = 0; a < polys.length; a++) {
+    const q = polys[a];
+    for (let k = 0; k < q.length; k++) {
+      const e1 = q[k], e2 = q[(k + 1) % q.length];
+      if (distPointSeg(V[0], V[1], e1[0], e1[1], e2[0], e2[1]) < radius) out.push([e1, e2]);
+    }
+  }
+  return out;
+}
+
+/* Auf Millimeter gerundet. Der Radius eines Bogens wird so gespeichert, und
+   mit diesem Wert entscheidet der Kern, ob ein Bogen zu eng ist - wie im
+   Planer. */
+function aufMillimeter(v) { return Math.round(v * 1000) / 1000; }
+
+/* Eine Linie glätten.
+   shrink=true  - das neue Polygon bleibt im alten (Perimeter).
+   shrink=false - das neue Polygon umschließt das alte (Exclusion).
+   avoid   - Polygone, in die kein neuer Punkt fallen darf.
+   keepOut - Polygone, die jeden neuen Punkt enthalten müssen.
+   lcap    - je Ecke eine kleinere Höchstweite (zweiter Anlauf, wenn sich zwei
+             Bögen ins Gehege gekommen sind).
+   forceKeep - je Ecke: true (zu eng, auslassen) oder ein Text (von der
+             Schlussprobe des Korridors gesperrt).
+   others  - die übrigen Linien; ihnen bleibt der Bogen den Korridor fern.
+   rueckMax - je Ecke die Weite, deren Rückfallbogen auf der fertigen Karte
+             den Korridor verletzt hat - der nächste Rückfall beginnt darunter.
+
+   Jede Ecke ab der Schwelle wird durch einen kubischen Bézierbogen ersetzt,
+   der tangential an die Nachbarkanten anschließt. Eine Ecke, die in die
+   erlaubte Fläche zeigt, wird GESCHNITTEN; eine Einbuchtung lässt sich nicht
+   schneiden, ohne auf die falsche Seite zu wandern, und wird deshalb in die
+   erlaubte Fläche hinein AUSGEBAUCHT. Ungerundet bleibt beides auf der
+   erlaubten Seite, gerundet bis auf die Grenztoleranz.
+
+   Woran eine Ecke scheitert, steht in info[i].grund:
+   kante - Nachbarkante zu kurz, abstand - Wegpunkttoleranz, ausschluss -
+   andere Fläche im Weg, korridor - Mindestkorridor, seite - kein Bogen auf
+   der richtigen Seite, raster - Runden auf 1 cm, eng - enger Bogen
+   ausgelassen. */
+function glaettePolygon(poly, lmax, tau, sharp, shrink, avoid, keepOut, lcap,
+                        opt, forceKeep, others, rueckMax) {
+  avoid = avoid || [];
+  keepOut = keepOut || [];
+  lcap = lcap || {};
+  opt = glaettungsOptionen(opt);
+  forceKeep = forceKeep || {};
+  others = others || [];
+  rueckMax = rueckMax || {};
+  /* Die Grenztoleranz dieser Linie. */
+  const grenzTol = shrink ? opt.boundTol : opt.boundTolAusschluss;
+  const n = poly.length;
+  const ccw = signedArea(poly) > 0;
+  const turns = turnList(poly);
+  const el = [];
+  let i;
+  for (i = 0; i < n; i++) el.push(punktAbstand(poly[i], poly[(i + 1) % n]));
+  const need = turns.map(function (t, k) {
+    return Math.abs(t) >= sharp && !forceKeep[k];
+  });
+
+  /* Anteil der Kante, den eine Ecke beanspruchen darf: 0,45, wenn die Ecke am
+     anderen Kantenende ebenfalls geglättet wird, sonst 0,85. Gefragt wird mit
+     dem Index dieser anderen Ecke. */
+  function anteil(andere) { return need[andere] ? 0.45 : 0.85; }
+
+  /* Die Kandidaten je Ecke, Weite und Bogenform, samt dem, was nur an der
+     Linie hängt (EK, für alle Läufe), und dem, was an den anderen Linien
+     hängt (EKc, nur für diesen Lauf). */
+  const EK = kandidatenFuer(poly, shrink), EKc = {};
+
+  /* Die Geometrie einer einzelnen Ecke i und ihre Stufenweite L
+     (Glättungsweite, begrenzt durch lcap, die Kantenanteile und den Platz
+     neben der Wegpunkttoleranz). */
+  function einzelGeometrie(i) {
+    const h = (i - 1 + n) % n, j = (i + 1) % n;
+    const A = poly[h], V = poly[i], B = poly[j], t = turns[i];
+    const convex = (t > 0) === ccw;
+    const cut = shrink ? convex : !convex;
+    const la0 = el[h], lb0 = el[i];
+    const ux = (A[0] - V[0]) / la0, uy = (A[1] - V[1]) / la0;
+    const wx = (B[0] - V[0]) / lb0, wy = (B[1] - V[1]) / lb0;
+    const sg = ccw ? 1.0 : -1.0;
+    /* Mindestabstand: auf jeder Nachbarkante bleibt zwischen dem Bogenende und
+       dem anderen Kantenende mindestens die Wegpunkttoleranz - und wenn dort
+       ebenfalls ein Bogen anfangen kann, je die Hälfte des Rests für beide. */
+    const platz = Math.min(
+      (la0 - opt.reachTol) / (need[h] ? 2.0 : 1.0),
+      (lb0 - opt.reachTol) / (need[j] ? 2.0 : 1.0));
+    const L = Math.min(lmax, (lcap[i] === undefined ? 1e9 : lcap[i]),
+                       anteil(h) * la0, anteil(j) * lb0, platz);
+    const nearby = [];
+    for (let k = 0; k < n; k++) {
+      if (k === h || k === i) continue;
+      const q1 = poly[k], q2 = poly[(k + 1) % n];
+      if (distPointSeg(V[0], V[1], q1[0], q1[1], q2[0], q2[1]) < 3.0) nearby.push([q1, q2]);
+    }
+    /* Fremde Grenzen in Reichweite und die eigenen Kanten außer den beiden
+       der Ecke: ihnen bleibt der Bogen mindestens den Korridor fern. */
+    const fremd = foreignEdges(V, others, 3.0);
+    const pruef = nearby.concat(fremd);
+
+    const insideWedge = function (pt) {
+      const sa = sg * ((V[0] - A[0]) * (pt[1] - A[1]) - (V[1] - A[1]) * (pt[0] - A[0]));
+      const sb = sg * ((B[0] - V[0]) * (pt[1] - V[1]) - (B[1] - V[1]) * (pt[0] - V[0]));
+      const da = sa / Math.hypot(V[0] - A[0], V[1] - A[1]);
+      const db = sb / Math.hypot(B[0] - V[0], B[1] - V[1]);
+      const tol = 2e-4;
+      if (shrink) return convex ? (da > -tol && db > -tol) : (da > -tol || db > -tol);
+      return !convex ? (da < tol && db < tol) : (da < tol || db < tol);
+    };
+    return {i, A, V, B, t, convex, cut, ux, uy, wx, wy, platz, L, pruef, insideWedge};
+  }
+
+  /* Der Bogen der Ecke G mit der Weite L: unter den Kandidaten, nach dem
+     Radius geordnet, der erste, der alle Prüfungen hält - oder keiner, und
+     dann die Stufe, bis zu der der weitestgekommene kam. rmax ist der größte
+     Radius aller Kandidaten (für den Rückfall). vorfilter (nur im Rückfall):
+     vor der teuren Zerlegung eine notwendige Bedingung, die nichts verwirft,
+     was die Zerlegung fände. */
+  function einzelWahl(G, L, vorfilter) {
+    const V = G.V, ux = G.ux, uy = G.uy, wx = G.wx, wy = G.wy;
+    const cut = G.cut;
+    const insideWedge = G.insideWedge, pruef = G.pruef;
+    const korridor = opt.minCorridor;
+    const engPruef = opt.skipTight;
+    let best = null, stufe = -1;
+    const ekey = G.i + "|" + L + "|" + (cut ? 1 : 0);
+    let ek = EK[ekey];
+    if (!ek) {
+      const P0 = [V[0] + ux * L, V[1] + uy * L];
+      const Q0 = [V[0] + wx * L, V[1] + wy * L];
+      const cands0 = [];
+      for (let ai = 0; ai < BEZIER_KONTROLLANTEILE.length; ai++) {
+        for (let bi = 0; bi < BEZIER_KONTROLLANTEILE.length; bi++) {
+          const fa = BEZIER_KONTROLLANTEILE[ai], fb = BEZIER_KONTROLLANTEILE[bi];
+          if (cut && (fa > 1.0 || fb > 1.0)) continue;       /* Bogen bleibt im Keil */
+          if (!cut && (fa < 1.0 || fb < 1.0)) continue;      /* Bogen muss über die Ecke */
+          const C1 = [P0[0] - ux * fa * L, P0[1] - uy * fa * L];
+          const C2 = [Q0[0] - wx * fb * L, Q0[1] - wy * fb * L];
+          cands0.push([bezMinRadius(P0, C1, C2, Q0), C1, C2]);
+        }
+      }
+      cands0.sort(function (a, b) { return b[0] - a[0]; });
+      EK[ekey] = ek = {P:P0, Q:Q0, cands:cands0.map(function (c) {
+        return {r:c[0], C1:c[1], C2:c[2]}; })};
+      kandidatenGezaehlt(cands0.length);
+    }
+    const ec = EKc[ekey] || (EKc[ekey] = {dk:[], drauf:[]});
+    const P = ek.P, Q = ek.Q, cands = ek.cands;
+    let kNoetig = 0;
+    if (vorfilter) {
+      kNoetig = Math.max(1, Math.floor(Math.abs(G.t) / tau - 1e-9));
+      if (opt.spacing) {
+        kNoetig = Math.max(kNoetig,
+                           Math.ceil(punktAbstand(P, Q) / (opt.spacing + 1e-9) - 1e-9));
+      }
+    }
+    for (let ci = 0; ci < Math.min(40, cands.length); ci++) {
+      const cd = cands[ci], r = cd.r, C1b = cd.C1, C2b = cd.C2;
+      let j;
+      if (vorfilter && engPruef && r < opt.halbeSpur) break;
+      const samp = [];
+      for (j = 1; j < 24; j++) samp.push(bezierPunkt(P, C1b, C2b, Q, j / 24));
+      if (cd.keil === undefined) cd.keil = samp.every(insideWedge);
+      if (!cd.keil) continue;
+      if (cd.far === undefined) {
+        cd.far = 0.0;
+        for (j = 0; j < samp.length; j++) cd.far = Math.max(cd.far, punktAbstand(samp[j], V));
+      }
+      if (cd.far > 1.6 * L) continue;
+      stufe = Math.max(stufe, 0);
+      /* Der Korridor zu den anderen Linien bleibt. */
+      if (pruef.length) {
+        if (ec.dk[ci] === undefined) ec.dk[ci] = minDistToEdges(samp.concat([P, Q]), pruef);
+        if (ec.dk[ci] < korridor) continue;
+      }
+      stufe = Math.max(stufe, 1);
+      if (ec.drauf[ci] === undefined) {
+        ec.drauf[ci] = avoid.some(function (o) {
+          return samp.some(function (s) { return pointInPoly(s, o); }); }) ||
+          keepOut.some(function (o) {
+            return samp.some(function (s) { return !pointInPoly(s, o); }); });
+      }
+      if (ec.drauf[ci]) continue;
+      stufe = Math.max(stufe, 2);
+      if (vorfilter && kNoetig * (opt.reachTol - ABSTAND_EPS) >
+          punktAbstand(P, C1b) + punktAbstand(C1b, C2b) + punktAbstand(C2b, Q) + 1e-12) continue;
+      /* Mindestabstand: lässt sich der Bogen mit Knick unter tau so zerlegen,
+         dass keine Sehne kürzer als die Wegpunkttoleranz ist? */
+      if (!bezResample(P, C1b, C2b, Q, tau, opt.spacing, undefined, 0, opt.reachTol)) continue;
+      best = {r, C1:C1b, C2:C2b, P, Q};
+      break;
+    }
+    return {best, stufe, rmax:cands.length ? cands[0].r : 0.0};
+  }
+
+  /* Erst wird jede Ecke für sich entschieden (arcs: der gewählte Bogen je
+     geglätteter Ecke), dann die ganze Linie zusammengesetzt und gemeinsam auf
+     das Raster gelegt (rasterPolygon). */
+  const info = [], arcs = {};
+  for (i = 0; i < n; i++) {
+    const A = poly[(i - 1 + n) % n], V = poly[i], B = poly[(i + 1) % n];
+    const t = turns[i];
+    const rec = {i, turn:t, kind:"unveraendert", L:0.0, r:0.0};
+    const sharpEnough = Math.abs(t) >= sharp;
+    if (!sharpEnough || el[(i - 1 + n) % n] < 1e-6 || el[i] < 1e-6) {
+      if (sharpEnough) { rec.kind = "nicht moeglich"; rec.grund = "kante"; }
+      info.push(rec);
+      continue;
+    }
+    const convex = (t > 0) === ccw;
+    /* "schneiden" heißt: der Bogen liegt im kleineren der beiden Keile. */
+    const cut = shrink ? convex : !convex;
+    rec.dent = !cut;
+    if (typeof forceKeep[i] === "string") {
+      /* Von der Schlussprobe des Korridors gesperrt (korridorVerstoesse). */
+      rec.kind = "nicht moeglich";
+      rec.grund = "korridor";
+      info.push(rec);
+      continue;
+    }
+    if (forceKeep[i]) {
+      rec.kind = "zu eng ausgelassen";
+      rec.grund = "eng";
+      info.push(rec);
+      continue;
+    }
+    const G = einzelGeometrie(i), L = G.L, pruef = G.pruef;
+    const wahl = L >= 0.02 ? einzelWahl(G, L, false) : {best:null, stufe:-1};
+    const best = wahl.best, stufe = wahl.stufe;
+    if (best === null) {
+      /* Woran es lag: an der Regel, an der der weitestgekommene Bogen
+         scheiterte. */
+      rec.kind = "nicht moeglich";
+      if (L < 0.02) rec.grund = "kante";
+      else if (stufe === 2) rec.grund = "abstand";
+      else if (stufe === 1) rec.grund = "ausschluss";
+      else if (stufe === 0) rec.grund = "korridor";
+      else rec.grund = "seite";
+      info.push(rec);
+      continue;
+    }
+    rec.kind = cut ? "Ecke geschnitten" : "Einbuchtung ausgerundet";
+    rec.L = aufMillimeter(L);
+    rec.r = aufMillimeter(best.r);
+    /* Für das Raster: derselbe Korridor, den der Bogen oben gehalten hat, gilt
+       für seine gerundeten Punkte und Sehnen - dort exakt. */
+    arcs[i] = {best, kmin:0, mehr:0, A, V, B, cut, pruef,
+               need:pruef.length ? opt.minCorridor : null};
+    info.push(rec);
+  }
+
+  /* null, wenn der Bogen mit arcs[i].kmin Teilstücken eine Sehne unter der
+     Wegpunkttoleranz bekäme. */
+  function arcOf(i) {
+    const b = arcs[i].best, arc = [[b.P[0], b.P[1]]];
+    const mitte = bezResample(b.P, b.C1, b.C2, b.Q, tau, opt.spacing, undefined,
+                              arcs[i].kmin, opt.reachTol);
+    if (!mitte) return null;
+    mitte.forEach(function (p) { arc.push([p[0], p[1]]); });
+    arc.push([b.Q[0], b.Q[1]]);
+    return arc;
+  }
+  function assemble() {
+    const S0 = {pts:[], own:[], neu:[]};
+    for (let q = 0; q < n; q++) {
+      if (arcs[q]) {
+        arcOf(q).forEach(function (p) { S0.pts.push(p); S0.own.push(q); S0.neu.push(true); });
+      } else {
+        S0.pts.push([poly[q][0], poly[q][1]]); S0.own.push(q); S0.neu.push(false);
+      }
+    }
+    return S0;
+  }
+  const gefallen = [];     /* enge Bögen, die das Raster aufgeben ließ */
+  function dropArc(o, code) {
+    if (arcs[o].best.r < opt.halbeSpur) gefallen.push(o);
+    delete arcs[o];
+    const rc = info[o];
+    rc.kind = "nicht moeglich";
+    rc.grund = code;
+    rc.L = 0.0;
+    rc.r = 0.0;
+  }
+
+  /* Die Wahl der Rasterpunkte für eine Punktfolge pts (siehe Raster und
+     chainDP): neu[i] sagt, ob Punkt i neu ist und auf eine Ecke seiner
+     Rasterzelle darf, own[i], zu welcher Ecke er gehört. Ein Punkt, der nicht
+     neu ist, steht fest; geprüft wird nur, woran ein neuer beteiligt ist.
+     exVorgabe (Rückfall): je fester Stelle der Knick, der dort vorher war -
+     ab tau darf er bleiben, darunter muss er es auch nachher. Liefert
+     {pts, own, neu} oder {fails}, die Stellen, an denen keine Wahl aufging. */
+  let RR = null, BOUND = null, STRAFE = 0.0, rasterFertig = false;
+  function rasterBereit() {
+    if (rasterFertig) return;
+    rasterFertig = true;
+    RR = opt.raster ? Raster(opt.raster) : null;
+    BOUND = grenzTol !== null ? Boundary(poly, shrink) : null;
+    STRAFE = RR && BOUND ? FALSCHE_SEITE * RR.r * RR.r : 0.0;
+  }
+  function pointOK(x, a) {
+    if (avoid.some(function (o) { return pointInPoly(x, o); })) return false;
+    if (keepOut.some(function (o) { return !pointInPoly(x, o); })) return false;
+    if (BOUND && BOUND.point(x) > grenzTol + GRENZ_EPS) return false;
+    if (a.need !== null && minDistToEdges([x], a.pruef) < a.need) return false;
+    return true;
+  }
+  function waehleKette(pts, neu, own, closed, exVorgabe) {
+    const m = pts.length, C = [], W = [], ex = [], memo = [];
+    let k;
+    const R = RR, bound = BOUND, strafe = STRAFE;
+    for (k = 0; k < m; k++) {
+      const p = pts[k];
+      ex.push(exVorgabe && exVorgabe[k] !== undefined ? exVorgabe[k]
+              : closed || (k > 0 && k < m - 1)
+              ? knickDeg(pts[(k - 1 + m) % m], p, pts[(k + 1) % m]) : 0.0);
+      if (!neu[k]) { C.push([R ? R.snap(p) : p]); W.push([0.0]); continue; }
+      const a = arcs[own[k]];
+      const c = (R ? R.cell(p) : [p]).filter(function (x) { return pointOK(x, a); });
+      C.push(c);
+      W.push(c.map(function (x) {
+        return (x[0] - p[0]) * (x[0] - p[0]) + (x[1] - p[1]) * (x[1] - p[1])
+          + (strafe && bound.point(x) > GRENZ_EPS ? strafe : 0.0); }));
+    }
+    const knickOK = function (q, a, b, c) {
+      const h = (q - 1 + m) % m, j = (q + 1) % m;
+      if (!neu[h] && !neu[q] && !neu[j]) return true;
+      if (ex[q] >= tau) return true;      /* war schon vorher eine Drehung */
+      return knickDeg(C[h][a], C[q][b], C[j][c]) < tau;
+    };
+    const segOK = function (q, b, c) {
+      const j = (q + 1) % m;
+      if (!neu[q] && !neu[j]) return true;
+      /* gemerkt: 1 zulässig, 2 unzulässig, 3 zulässig auf der falschen Seite */
+      const mm = memo[q] || (memo[q] = new Int8Array(16)), key = b * 4 + c;
+      if (mm[key]) return mm[key] !== 2;
+      const pb = C[q][b], pc = C[j][c];
+      let gut = !(pb[0] === pc[0] && pb[1] === pc[1]);
+      /* Mindestabstand, auch zum aufgenommenen Nachbarn und über die Naht */
+      if (gut && zuNah(pb, pc, opt.reachTol)) gut = false;
+      const imBogen = neu[q] && neu[j] && own[q] === own[j];
+      if (gut && imBogen && opt.spacing && punktAbstand(pb, pc) > opt.spacing + 1e-9) gut = false;
+      if (gut && imBogen) {
+        const ar = arcs[own[q]];
+        if (ar.need !== null && segDistToEdges(pb, pc, ar.pruef) < ar.need) gut = false;
+      }
+      if (gut && bound &&
+          bound.seg(pb, pc, grenzTol + GRENZ_EPS) > grenzTol + GRENZ_EPS) gut = false;
+      /* 3: zulässig, aber auf der falschen Seite */
+      mm[key] = !gut ? 2 : (strafe && bound.seg(pb, pc, GRENZ_EPS) > GRENZ_EPS ? 3 : 1);
+      return gut;
+    };
+    const segCost = strafe ? function (q, b, c) {
+      if (!segOK(q, b, c) || !memo[q]) return 0.0;
+      return memo[q][b * 4 + c] === 3 ? strafe : 0.0;
+    } : null;
+    if (closed) {
+      const rc = cycleDP(C, W, knickOK, segOK, segCost);
+      if (rc.pick) {
+        return {pts:pts.map(function (p, q) { return neu[q] ? C[q][rc.pick[q]] : p; }),
+                own, neu};
+      }
+      return {fails:rc.fails};
+    }
+    const ids = [];
+    for (k = 0; k < m; k++) ids.push(k);
+    const r = chainDP(ids, function (t) { return RASTER_WAHL_ALLE[C[t].length]; },
+                      function (t, c) { return W[t][c]; }, knickOK, segOK, segCost);
+    if (r.pick) {
+      return {pts:pts.map(function (p, q) { return neu[q] ? C[q][r.pick[q]] : p; }),
+              own, neu};
+    }
+    return {fails:[r.fail]};
+  }
+
+  /* Alle neuen Punkte auf das Raster legen. Der Knick bleibt an jedem Punkt
+     unter tau, an dem er es vor dem Runden war, jede Sehne eines Bogens
+     höchstens spacing lang, jeder Bogen hält seinen Durchlass, kein neuer
+     Punkt fällt in avoid, und keine Strecke verlässt die aufgenommene Linie um
+     mehr als die Grenztoleranz auf der falschen Seite. Zwei aufeinanderfolgende
+     ungeglättete Ecken trennen die Linie in Abschnitte, die jeder für sich
+     gewählt werden. Geht es in einem Abschnitt nicht, bekommt jeder Bogen an
+     der Stelle einen Punkt mehr; nach RASTER_MEHR vergeblichen Punkten bleibt
+     die Ecke ungeglättet. */
+  function rasterPolygon() {
+    rasterBereit();
+    const cache = {};
+    function itemPts(q) {
+      if (!arcs[q]) return [[poly[q][0], poly[q][1]]];
+      const key = q + ":" + arcs[q].kmin;
+      return cache[key] || (cache[key] = arcOf(q));
+    }
+    /* Eine Folge von Ecken qs - offen (ein Abschnitt, vorn und hinten je zwei
+       ungeglättete Ecken) oder geschlossen (die ganze Linie). */
+    function loese(qs, closed) {
+      for (;;) {
+        const pts = [], neu = [], own = [];
+        qs.forEach(function (q) {
+          itemPts(q).forEach(function (p) { pts.push(p); neu.push(!!arcs[q]); own.push(q); });
+        });
+        const m = pts.length, rk = waehleKette(pts, neu, own, closed);
+        if (rk.pts) return rk;
+        /* Jeder Bogen an der Stelle, die nicht aufging, bekommt einen Punkt mehr. */
+        const betroffen = {};
+        rk.fails.forEach(function (f) {
+          [-1, 0, 1].forEach(function (d) {
+            const k = closed ? (f + d + m) % m : f + d;
+            if (k >= 0 && k < m && neu[k]) betroffen[own[k]] = true;
+          });
+        });
+        const keys = Object.keys(betroffen);
+        if (!keys.length) throw new Error("Runden auf das Raster: Stelle ohne neuen Punkt.");
+        keys.forEach(function (key) {
+          const o = Number(key);
+          arcs[o].mehr++;
+          if (arcs[o].mehr > RASTER_MEHR) { dropArc(o, "raster"); return; }
+          arcs[o].kmin = itemPts(o).length;     /* ein Teilstück mehr */
+          if (!itemPts(o)) dropArc(o, "abstand");
+        });
+      }
+    }
+
+    let q, q0 = -1, k;
+    const qs = [];
+    for (q = 0; q < n; q++) qs.push(q);
+    const ni = qs.length;
+    for (k = 0; k < ni; k++) {
+      if (q0 < 0 && !arcs[qs[k]] && !arcs[qs[(k + 1) % ni]]) q0 = k;
+    }
+    if (q0 < 0) return loese(qs, true);
+    const blocks = [];
+    let blk = null;
+    for (k = 0; k < ni + 2; k++) {
+      const kk = (q0 + k) % ni;
+      q = qs[kk];
+      if (arcs[q]) {
+        if (!blk) blk = [qs[(kk - 2 + ni) % ni], qs[(kk - 1 + ni) % ni]];
+        blk.push(q);
+      } else if (blk) {
+        blk.push(q);
+        if (!arcs[blk[blk.length - 2]]) { blocks.push(blk); blk = null; }
+      }
+    }
+    const fertig = {};
+    blocks.forEach(function (b) {
+      const r = loese(b, false);
+      for (let j = 0; j < r.pts.length; j++) {
+        if (r.neu[j]) (fertig[r.own[j]] = fertig[r.own[j]] || []).push(r.pts[j]);
+      }
+    });
+    const S0 = {pts:[], own:[], neu:[]};
+    for (q = 0; q < n; q++) {
+      if (arcs[q]) {
+        fertig[q].forEach(function (p) { S0.pts.push(p); S0.own.push(q); S0.neu.push(true); });
+      } else {
+        S0.pts.push([poly[q][0], poly[q][1]]); S0.own.push(q); S0.neu.push(false);
+      }
+    }
+    return S0;
+  }
+
+  const gerastert = !!opt.raster || grenzTol !== null;
+  let S = gerastert ? rasterPolygon() : assemble();
+
+  /* Rückfall: rueck je geretteter Ecke ihre Weite. */
+  const rueck = {};
+  /* Der Stand der Linie (wie oft sie sich seither geändert hat) und die
+     Ecken, die ein Rückfallbogen schon trägt. */
+  let stand = 0;
+  const abgedeckt = {};
+
+  /* Die Stellen der Ecken ids in S: von s bis e, über das Ende hinweg möglich. */
+  function spanne(ids) {
+    const drin = {}, N = S.pts.length;
+    let s = -1, e = -1;
+    ids.forEach(function (q) { drin[q] = true; });
+    for (let j = 0; j < N; j++) {
+      if (!drin[S.own[j]]) continue;
+      if (!drin[S.own[(j - 1 + N) % N]]) s = j;
+      if (!drin[S.own[(j + 1) % N]]) e = j;
+    }
+    return {s, e, N};
+  }
+  /* Kreuzt die Linie, in der die Stellen s bis e durch neuPts ersetzt sind,
+     sich an einer der neuen Strecken selbst? Dieselbe Prüfung wie
+     crossingOwners. */
+  function kreuzt(neuPts, sp) {
+    const rest = [];
+    for (let k = (sp.e + 1) % sp.N; k !== sp.s; k = (k + 1) % sp.N) rest.push(S.pts[k]);
+    const Q = rest.concat(neuPts), M = Q.length, r0 = rest.length;
+    function cr(o, p, q) {
+      return (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+    }
+    for (let a = r0 - 1; a < M; a++) {
+      const p1 = Q[a], p2 = Q[(a + 1) % M];
+      for (let b = 0; b < M; b++) {
+        const d = (b - a + M) % M;
+        if (d === 0 || d === 1 || d === M - 1) continue;
+        const p3 = Q[b], p4 = Q[(b + 1) % M];
+        if (((cr(p3, p4, p1) > 0) !== (cr(p3, p4, p2) > 0)) &&
+            ((cr(p1, p2, p3) > 0) !== (cr(p1, p2, p4) > 0))) return true;
+      }
+    }
+    return false;
+  }
+  /* Den Bogen arc an die Stelle der Ecken ids setzen und mit den festen
+     Nachbarn auf das Raster legen; geht es nicht, bekommt er wie in
+     rasterPolygon einen Punkt mehr, bis RASTER_MEHR. Liefert seine Punkte
+     oder null. */
+  function platziere(arc, ids) {
+    const o = ids[0], sp = spanne(ids), N = sp.N, frueher = arcs[o];
+    const vor = [(sp.s - 2 + N) % N, (sp.s - 1 + N) % N];
+    const nach = [(sp.e + 1) % N, (sp.e + 2) % N];
+    /* Der Knick, der an den beiden festen Nachbarn vorher war */
+    const exVor = knickDeg(S.pts[vor[0]], S.pts[vor[1]], S.pts[sp.s]);
+    const exNach = knickDeg(S.pts[sp.e], S.pts[nach[0]], S.pts[nach[1]]);
+    arcs[o] = arc;
+    try {
+      for (;;) {
+        const ap = arcOf(o);
+        if (!ap) return null;
+        let neuPts = ap;
+        if (gerastert) {
+          const pts = [], neu = [], own = [], exV = [];
+          vor.forEach(function (k) { pts.push(S.pts[k]); neu.push(false); own.push(S.own[k]); });
+          ap.forEach(function (p) { pts.push(p); neu.push(true); own.push(o); });
+          nach.forEach(function (k) { pts.push(S.pts[k]); neu.push(false); own.push(S.own[k]); });
+          exV[1] = exVor;
+          exV[pts.length - 2] = exNach;
+          rasterBereit();
+          const rk = waehleKette(pts, neu, own, false, exV);
+          if (!rk.pts) {
+            if (++arc.mehr > RASTER_MEHR) return null;
+            arc.kmin = ap.length;          /* ein Teilstück mehr */
+            continue;
+          }
+          neuPts = rk.pts.slice(2, 2 + ap.length);
+        }
+        return kreuzt(neuPts, sp) ? null : neuPts;
+      }
+    } finally {
+      if (frueher) arcs[o] = frueher;
+      else delete arcs[o];
+    }
+  }
+  function schluessel(ids) {
+    let m = null;
+    ids.forEach(function (q) {
+      const p = poly[q];
+      if (!m || p[0] < m[0] || (p[0] === m[0] && p[1] < m[1])) m = p;
+    });
+    return m;
+  }
+  function nahe(a, b) {
+    return a.some(function (p) {
+      return b.some(function (q) {
+        const d = Math.abs(p - q);
+        return Math.min(d, n - d) <= 2;
+      });
+    });
+  }
+
+  /* Rückfall auf kleinere Weiten (siehe RUECKFALL_SCHRITT_M). Er läuft NACH
+     der ganzen Rechnung, und alles, was dabei entstanden ist, steht fest: der
+     Rückfallbogen wird mit seinen festen Nachbarn gerundet, kein anderer Punkt
+     bewegt sich. Liegen zwei Rückfälle so nah, dass der eine den anderen als
+     Nachbarn sieht, kommt der mit der größeren Weite zuerst, bei gleicher der
+     mit dem kleineren Ort - so ist das Ergebnis von der Laufrichtung der Linie
+     unabhängig. */
+  function rueckfall() {
+    function sucheEinzel(i) {
+      const G = einzelGeometrie(i);
+      const start = rueckMax[i] !== undefined ? rueckMax[i] : G.L;
+      for (let k = 1; ; k++) {
+        const L = start - k * RUECKFALL_SCHRITT_M;
+        if (L < 0.02) return null;
+        const w = einzelWahl(G, L, true);
+        /* Ist schon der größte Radius zu eng, sind es bei kleineren alle. */
+        if (opt.skipTight && !(w.rmax >= opt.halbeSpur)) return null;
+        if (!w.best || (opt.skipTight && w.best.r < opt.halbeSpur)) continue;
+        const arc = {best:w.best, kmin:0, mehr:0, A:G.A, V:G.V, B:G.B, cut:G.cut,
+                     pruef:G.pruef, need:G.pruef.length ? opt.minCorridor : null};
+        const pts = platziere(arc, [i]);
+        if (pts) return {ids:[i], L, Lstufe:G.L, arc, pts, stand};
+      }
+    }
+    function vorrang(a, b) {
+      if (Math.abs(a.L - b.L) > 1e-9) return a.L > b.L;
+      const ka = schluessel(a.ids), kb = schluessel(b.ids);
+      return ka[0] !== kb[0] ? ka[0] < kb[0] : ka[1] < kb[1];
+    }
+    function annehmen(c) {
+      const o = c.ids[0], teile = [];
+      let k, q;
+      for (q = 0; q < n; q++) teile.push([]);
+      for (k = 0; k < S.pts.length; k++) teile[S.own[k]].push([S.pts[k], S.neu[k]]);
+      teile[o] = c.pts.map(function (p) { return [p, true]; });
+      c.ids.forEach(function (q2) { abgedeckt[q2] = true; });
+      const T = {pts:[], own:[], neu:[]};
+      for (q = 0; q < n; q++) {
+        teile[q].forEach(function (x) { T.pts.push(x[0]); T.own.push(q); T.neu.push(x[1]); });
+      }
+      S = T;
+      arcs[o] = c.arc;
+      rueck[o] = {L:c.L, Lstufe:c.Lstufe};
+      const r = c.arc.best.r;
+      c.ids.forEach(function (q2) {
+        const rc = info[q2], t = turns[q2], konvex = (t > 0) === ccw;
+        const schnitt = shrink ? konvex : !konvex;
+        if (rc.kind === "nicht moeglich" || rc.kind === "zu eng ausgelassen") {
+          rc.rueck = {Lstufe:aufMillimeter(c.Lstufe), grund:rc.grund};
+        }
+        delete rc.grund;
+        if (Math.abs(t) >= sharp) rc.dent = !schnitt;
+        rc.kind = schnitt ? "Ecke geschnitten" : "Einbuchtung ausgerundet";
+        rc.L = aufMillimeter(c.L);
+        rc.r = aufMillimeter(r);
+      });
+      stand++;
+    }
+    function phase(liste, suche) {
+      const cache = [], fertig = [];
+      let x;
+      for (;;) {
+        let best = -1;
+        for (x = 0; x < liste.length; x++) {
+          if (fertig[x]) continue;
+          if (liste[x].some(function (q) { return abgedeckt[q]; })) { fertig[x] = true; continue; }
+          if (cache[x] === undefined) cache[x] = suche(liste[x]);
+          if (cache[x] && (best < 0 || vorrang(cache[x], cache[best]))) best = x;
+        }
+        if (best < 0) return;
+        const c = cache[best];
+        /* Seit der Suche ist anderswo etwas dazugekommen: kreuzt es jetzt? */
+        if (c.stand !== stand && kreuzt(c.pts, spanne(c.ids))) {
+          cache[best] = suche(liste[best]);
+          continue;
+        }
+        annehmen(c);
+        fertig[best] = true;
+        for (x = 0; x < liste.length; x++) {
+          if (!fertig[x] && nahe(liste[x], c.ids)) cache[x] = undefined;
+        }
+      }
+    }
+    const offen = [];
+    for (let q = 0; q < n; q++) {
+      if (info[q].kind === "nicht moeglich" && info[q].grund !== "kante") offen.push([q]);
+    }
+    phase(offen, function (ids) { return sucheEinzel(ids[0]); });
+  }
+  if (opt.rueckfall) rueckfall();
+
+  let tight = [];
+  info.forEach(function (rec) {
+    if (opt.skipTight && rec.r > 0.0 && rec.r < opt.halbeSpur &&
+        rec.kind !== "unveraendert" && rec.kind !== "nicht moeglich" &&
+        rec.kind !== "zu eng ausgelassen") tight.push(rec.i);
+  });
+  /* Ein enger Bogen, den das Raster aufgeben ließ, wäre in der nächsten Runde
+     ohnehin ausgelassen worden - er gehört zu den engen. */
+  if (opt.skipTight) tight = tight.concat(gefallen);
+  return {pts:S.pts, info, owner:S.own, tight, neu:S.neu, rueck};
+}
+
+/* Welche Ecken sind an einem Selbstschnitt beteiligt? */
+function crossingOwners(pts, owner) {
+  function cr(o, p, q) {
+    return (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+  }
+  const n = pts.length, bad = {};
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
+    for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue;
+      const c = pts[j], d = pts[(j + 1) % n];
+      if (((cr(c, d, a) > 0) !== (cr(c, d, b) > 0)) &&
+          ((cr(a, b, c) > 0) !== (cr(a, b, d) > 0))) {
+        bad[owner[i]] = true;
+        bad[owner[j]] = true;
+      }
+    }
+  }
+  return Object.keys(bad).map(Number);
+}
+
+/* Ausgleichskreis nach Kasa - liefert den Mittelpunkt. */
+function fitCircle(pts) {
+  const n = pts.length;
+  let sx = 0, sy = 0, i;
+  for (i = 0; i < n; i++) { sx += pts[i][0]; sy += pts[i][1]; }
+  sx /= n;
+  sy /= n;
+  let suu = 0, suv = 0, svv = 0, suuu = 0, svvv = 0, suvv = 0, svuu = 0;
+  for (i = 0; i < n; i++) {
+    const u = pts[i][0] - sx, v = pts[i][1] - sy;
+    suu += u * u; svv += v * v; suv += u * v;
+    suuu += u * u * u; svvv += v * v * v;
+    suvv += u * v * v; svuu += v * u * u;
+  }
+  const det = 2.0 * (suu * svv - suv * suv);
+  if (Math.abs(det) < 1e-12) return [sx, sy];
+  const uc = (svv * (suuu + suvv) - suv * (svvv + svuu)) / det;
+  const vc = (suu * (svvv + svuu) - suv * (suuu + suvv)) / det;
+  return [sx + uc, sy + vc];
+}
+
+/* Baumring durch das dem Ausgleichskreis UMSCHRIEBENE Vieleck ersetzen. Ein
+   Acht- oder Neuneck ist die grobe Aufnahme eines Kreises; der Kreis geht
+   durch den äußersten aufgenommenen Punkt und wird dann noch umschrieben -
+   die Fläche wächst also nur nach außen. Kommt er einer anderen Linie näher
+   als der Mindestkorridor, bleibt der Ring, wie er war; ihn stattdessen
+   kleiner zu machen wäre keine Alternative - eine geschrumpfte Exclusion
+   lässt den Mäher an den Baum. Ringe sind immer Exclusions; es gilt deren
+   Grenztoleranz. */
+function ringReplace(poly, tau, opt, others, gesperrt) {
+  opt = glaettungsOptionen(opt);
+  others = others || [];
+  const grenzTol = opt.boundTolAusschluss;
+  const c = fitCircle(poly), cx = c[0], cy = c[1];
+  const rr = poly.map(function (p) { return Math.hypot(p[0] - cx, p[1] - cy); });
+  const R = Math.max.apply(null, rr);
+  const ccw = signedArea(poly) > 0;
+
+  /* UMSCHRIEBEN (Ecken auf R/cos(pi/k)), sonst lägen die aufgenommenen Punkte
+     zwischen zwei Ecken knapp außerhalb. */
+  function vieleck(k) {
+    const Rk = R / Math.cos(Math.PI / k);
+    const a0 = Math.atan2(poly[0][1] - cy, poly[0][0] - cx) + Math.PI / k;
+    const out = [];
+    for (let j = 0; j < k; j++) {
+      const a = a0 + (ccw ? 1 : -1) * 2 * Math.PI * j / k;
+      out.push([cx + Rk * Math.cos(a), cy + Rk * Math.sin(a)]);
+    }
+    return out;
+  }
+  const k0 = ringCorners(R, tau, opt.spacing);
+  const turns = turnList(poly);
+
+  function unveraendert(code) {
+    return {pts:poly.map(function (p) { return [p[0], p[1]]; }),
+            info:poly.map(function (p, i) {
+              return {i, turn:turns[i], kind:"Ring unveraendert", L:0.0, r:0.0, grund:code};
+            }),
+            skipped:true};
+  }
+
+  function versuch() {
+    let k = k0, pts = vieleck(k);
+    /* Mindestabstand: die Kante des umschriebenen Vielecks ist 2 R tan(pi/k);
+       mehr Ecken machen sie nur kürzer. Verlangt der Knick mehr Ecken, als die
+       Wegpunkttoleranz zulässt, bleibt der Ring, wie er war. */
+    const kante = 2.0 * R * Math.tan(Math.PI / k);
+    if (kante < opt.reachTol - ABSTAND_EPS) return unveraendert("abstand");
+
+    /* Lässt der Kreis den Korridor zu den anderen Grenzen? Sonst gar nicht
+       ersetzen. */
+    const fremd = foreignEdges([cx, cy], others, R + 3.0);
+    let need = null;
+    if (fremd.length) {
+      const dNeu = minDistToEdges(pts, fremd);
+      need = opt.minCorridor;
+      if (dNeu < need) return unveraendert("korridor");
+    }
+
+    /* Auf das Raster: dieselben Regeln wie auf den Bögen, hier für einen Ring,
+       in dem jeder Punkt neu ist. Geht es nicht, bekommt der Ring eine Ecke
+       mehr; nach RASTER_MEHR vergeblichen bleibt er, wie er war. */
+    if (opt.raster || grenzTol !== null) {
+      const Rs = opt.raster ? Raster(opt.raster) : null;
+      const bound = grenzTol !== null ? Boundary(poly, false) : null;
+      const strafe = Rs && bound ? FALSCHE_SEITE * Rs.r * Rs.r : 0.0;
+      const tol = grenzTol;
+      let gerundet = null;
+      for (let mehr = 0; mehr <= RASTER_MEHR && !gerundet; mehr++) {
+        /* Eine Ecke mehr, die die Kanten unter die Wegpunkttoleranz brächte,
+           hilft nicht mehr. */
+        if (2.0 * R * Math.tan(Math.PI / (k + mehr)) < opt.reachTol - ABSTAND_EPS) break;
+        const roh = vieleck(k + mehr), N = roh.length;
+        const C = roh.map(function (p) {
+          return (Rs ? Rs.cell(p) : [p]).filter(function (x) {
+            if (bound && bound.point(x) > tol + GRENZ_EPS) return false;
+            return need === null || minDistToEdges([x], fremd) >= need;
+          });
+        });
+        const W = C.map(function (cs, q) {
+          return cs.map(function (x) {
+            return punktAbstand(x, roh[q]) * punktAbstand(x, roh[q])
+              + (strafe && bound.point(x) > GRENZ_EPS ? strafe : 0.0); }); });
+        if (C.some(function (cs) { return !cs.length; })) continue;
+        const res = cycleDP(C, W, function (i, a, b, cc) {
+          return knickDeg(C[(i - 1 + N) % N][a], C[i][b], C[(i + 1) % N][cc]) < tau;
+        }, function (i, b, cc) {
+          const pb = C[i][b], pc = C[(i + 1) % N][cc];
+          if (pb[0] === pc[0] && pb[1] === pc[1]) return false;
+          if (zuNah(pb, pc, opt.reachTol)) return false;
+          if (opt.spacing && punktAbstand(pb, pc) > opt.spacing + 1e-9) return false;
+          if (need !== null && segDistToEdges(pb, pc, fremd) < need) return false;
+          return !(bound && bound.seg(pb, pc, tol + GRENZ_EPS) > tol + GRENZ_EPS);
+        }, strafe ? function (i, b, cc) {
+          const pb = C[i][b], pc = C[(i + 1) % N][cc];
+          return bound.seg(pb, pc, GRENZ_EPS) > GRENZ_EPS ? strafe : 0.0;
+        } : null);
+        if (res.pick) {
+          gerundet = C.map(function (cs, q) { return cs[res.pick[q]]; });
+          k = k + mehr;
+        }
+      }
+      if (!gerundet) return unveraendert("raster");
+      pts = gerundet;
+    }
+
+    const info = poly.map(function (p, i) {
+      return {i, turn:turns[i], kind:"Ring zu Kreis", L:0.0, r:aufMillimeter(R)};
+    });
+    return {pts, info};
+  }
+
+  /* Von der Schlussprobe des Korridors gesperrt (korridorVerstoesse). */
+  return gesperrt ? unveraendert("korridor") : versuch();
+}
+
+/* Eckenzahl des Kreisvielecks. Es gelten dieselben zwei Grenzen wie auf den
+   Bögen, und es gewinnt die, die mehr Ecken verlangt: Knick 360/k UNTER tau,
+   Kante des umschriebenen Vielecks 2 R tan(pi/k) höchstens spacing.
+   Mindestens acht Ecken. */
+function ringCorners(R, tau, spacing) {
+  let k = Math.max(8, Math.floor(360.0 / tau) + 1);
+  if (spacing > 0) {
+    k = Math.max(k, Math.ceil(Math.PI / Math.atan(spacing / (2.0 * R))));
+    while (2.0 * R * Math.tan(Math.PI / k) > spacing) k++;
+  }
+  return k;
+}
+
+/* Ist die Exclusion ein Baumring - ein grob aufgenommener Kreis? */
+function isRing(poly) {
+  if (poly.length < 5) return false;
+  const c = fitCircle(poly);
+  const rr = poly.map(function (p) { return Math.hypot(p[0] - c[0], p[1] - c[1]); });
+  const m = rr.reduce(function (a, b) { return a + b; }, 0) / rr.length;
+  const spread = (Math.max.apply(null, rr) - Math.min.apply(null, rr)) / m;
+  const t = turnList(poly);
+  return m > 0.05 && spread < 0.40 &&
+    (t.every(function (v) { return v > 0; }) || t.every(function (v) { return v < 0; }));
+}
+
+/* Kleinster Abstand der Strecken a-b und c-d, dazu wo er liegt: s auf a-b,
+   t auf c-d (je 0 bis 1). Kreuzen sie sich, ist er 0. */
+function segSeg(a, b, c, d) {
+  function cr(o, p, q) {
+    return (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+  }
+  function lot(p, u, v) {
+    const dx = v[0] - u[0], dy = v[1] - u[1], l2 = dx * dx + dy * dy;
+    if (l2 === 0.0) return 0.0;
+    const t = ((p[0] - u[0]) * dx + (p[1] - u[1]) * dy) / l2;
+    return t < 0 ? 0 : (t > 1 ? 1 : t);
+  }
+  const d1 = cr(c, d, a), d2 = cr(c, d, b), d3 = cr(a, b, c), d4 = cr(a, b, d);
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+      ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+    return {d:0.0, s:d1 / (d1 - d2), t:d3 / (d3 - d4)};
+  }
+  let best = null;
+  function nimm(dd, ss, tt) { if (best === null || dd < best.d) best = {d:dd, s:ss, t:tt}; }
+  let t = lot(a, c, d);
+  nimm(punktAbstand(a, [c[0] + t * (d[0] - c[0]), c[1] + t * (d[1] - c[1])]), 0.0, t);
+  t = lot(b, c, d);
+  nimm(punktAbstand(b, [c[0] + t * (d[0] - c[0]), c[1] + t * (d[1] - c[1])]), 1.0, t);
+  let u = lot(c, a, b);
+  nimm(punktAbstand(c, [a[0] + u * (b[0] - a[0]), a[1] + u * (b[1] - a[1])]), u, 0.0);
+  u = lot(d, a, b);
+  nimm(punktAbstand(d, [a[0] + u * (b[0] - a[0]), a[1] + u * (b[1] - a[1])]), u, 1.0);
+  return best;
+}
+
+/* Die Schlussprobe des Korridors auf der fertigen Karte. linien: je Linie
+   (Perimeter, dann die Exclusions) ihre Punkte, je Punkt ob er neu ist und
+   wem er gehört (der Ecke, oder "ring"). Geprüft wird jede Strecke mit einem
+   neuen Punkt:
+   - gegen jede Strecke einer ANDEREN Linie, exakt (segSeg);
+   - gegen die Gegenseite DERSELBEN Linie: beide Strecken alle 1 cm
+     abgetastet, je Abtastpunkt der exakte Abstand zur anderen Strecke;
+     Gegenseite ist ein Fußpunkt, der auf der Linie mehr als dreimal so weit
+     entfernt ist wie der Abstand plus 10 cm.
+   Zurück kommt je Verstoß, wer ihn verursacht. */
+const KORRIDOR_SCHRITT = 0.01;
+
+function korridorVerstoesse(linien, minK) {
+  const segs = [], laenge = [];
+  linien.forEach(function (L, l) {
+    const P = L.pts, n = P.length;
+    let s0 = 0.0;
+    for (let j = 0; j < n; j++) {
+      const a = P[j], b = P[(j + 1) % n], len = punktAbstand(a, b);
+      const neu = !!(L.neu[j] || L.neu[(j + 1) % n]);
+      segs.push({l, j, a, b, s0, len, neu,
+                 wer:L.neu[j] ? L.wer[j] : L.wer[(j + 1) % n],
+                 x0:Math.min(a[0], b[0]), x1:Math.max(a[0], b[0]),
+                 y0:Math.min(a[1], b[1]), y1:Math.max(a[1], b[1])});
+      s0 += len;
+    }
+    laenge.push(s0);
+  });
+  /* Der kleinste Abstand eines Abtastpunkts von X zur Strecke Y, dessen
+     Fußpunkt auf der Linie Gegenseite ist - oder Infinity. */
+  function gegenseite(X, Y, Lg) {
+    const k = Math.max(1, Math.ceil(X.len / KORRIDOR_SCHRITT));
+    let m = Infinity;
+    const dx = Y.b[0] - Y.a[0], dy = Y.b[1] - Y.a[1], l2 = dx * dx + dy * dy;
+    for (let j = 0; j <= k; j++) {
+      const f = j / k;
+      const px = X.a[0] + f * (X.b[0] - X.a[0]), py = X.a[1] + f * (X.b[1] - X.a[1]);
+      let t = l2 > 0 ? ((px - Y.a[0]) * dx + (py - Y.a[1]) * dy) / l2 : 0.0;
+      t = t < 0 ? 0 : (t > 1 ? 1 : t);
+      const e = Math.hypot(px - (Y.a[0] + t * dx), py - (Y.a[1] + t * dy));
+      if (e >= minK || e >= m) continue;
+      let r = Math.abs((X.s0 + f * X.len) - (Y.s0 + t * Y.len));
+      r = Math.min(r, Lg - r);
+      if (r > 3.0 * e + 0.10) m = e;
+    }
+    return m;
+  }
+  const out = [];
+  segs.forEach(function (A) {
+    if (!A.neu) return;
+    for (let k = 0; k < segs.length; k++) {
+      const B = segs[k];
+      if (B === A) continue;
+      if (B.x0 > A.x1 + minK || B.x1 < A.x0 - minK ||
+          B.y0 > A.y1 + minK || B.y1 < A.y0 - minK) continue;
+      let d;
+      if (B.l !== A.l) {
+        d = segSeg(A.a, A.b, B.a, B.b).d;
+      } else {
+        d = Math.min(gegenseite(A, B, laenge[A.l]), gegenseite(B, A, laenge[A.l]));
+      }
+      if (d >= minK) continue;
+      out.push({l:A.l, wer:A.wer, d, gegen:B.l, gegenNeu:B.neu, gegenWer:B.wer});
+    }
+  });
+  return out;
+}
+
+/* Die ganze Karte glätten: per ist der Perimeter, exc sind die Exclusions,
+   alle als offene Punktfolgen in Metern. lm ist die Weite, tau der Knick,
+   sharp die Schwelle, ab der eine Ecke geglättet wird. Zurück kommen die
+   neuen Linien, je Linie, welche Punkte neu sind, und je Ecke, wie sie
+   dasteht (info, Schlüssel "Linie|Ecke", Linie 0 der Perimeter, k + 1
+   Exclusion k). */
+function smoothAll(per, exc, lm, tau, sharp, opt) {
+  return mitKorridor(per, exc, lm, tau, sharp, glaettungsOptionen(opt));
+}
+
+/* Glätten, dann den Korridor auf der fertigen Karte nachrechnen; wer ihn
+   verletzt, wird gesperrt und bleibt ungeglättet, und alles wird neu
+   zusammengesetzt, bis nichts mehr verletzt. Jede Runde sperrt mindestens
+   eine Ecke oder einen Ring, also endet es. Ein Rückfallbogen, der den
+   Korridor verletzt, versucht es zuerst kleiner - gesperrt wird dafür nichts,
+   und kein Bogen, der schon ging, ändert sich. */
+function mitKorridor(per, exc, lm, tau, sharp, opt) {
+  /* rueck: je Linie die Weiten, unter denen ein Rückfallbogen neu beginnt. */
+  const sperre = {per:{}, exc:exc.map(function () { return {}; }),
+                  rueck:[{}].concat(exc.map(function () { return {}; }))};
+  for (;;) {
+    const erg = glaetteAlle(per, exc, lm, tau, sharp, opt, sperre);
+    const verstoesse = korridorVerstoesse(erg.linien, opt.minCorridor);
+    if (!verstoesse.length) {
+      return {per:erg.per, exc:erg.exc, info:erg.info, linien:erg.linien};
+    }
+    let gekappt = 0;
+    verstoesse.forEach(function (v) {
+      [[v.l, v.wer], v.gegenNeu ? [v.gegen, v.gegenWer] : null].forEach(function (x) {
+        if (!x) return;
+        const rk = erg.linien[x[0]].rueck && erg.linien[x[0]].rueck[x[1]];
+        if (!rk) return;
+        const alt = sperre.rueck[x[0]][x[1]];
+        if (alt === undefined || rk.L < alt) { sperre.rueck[x[0]][x[1]] = rk.L; gekappt++; }
+      });
+    });
+    if (gekappt) continue;
+    const gewaehlt = {};
+    let neu = 0;
+    verstoesse.forEach(function (v) {
+      const key = v.l + "|" + v.wer, gegen = v.gegenNeu ? v.gegen + "|" + v.gegenWer : null;
+      if (gewaehlt[key] || (gegen && gewaehlt[gegen])) return;
+      gewaehlt[key] = true;
+      const grund = "Mindestkorridor";
+      if (v.l === 0) sperre.per[v.wer] = grund;
+      else if (v.wer === "ring") sperre.exc[v.l - 1].ring = grund;
+      else sperre.exc[v.l - 1][v.wer] = grund;
+      neu++;
+    });
+    if (!neu) throw new Error("Korridor: nichts mehr zu sperren - darf nicht sein.");
+  }
+}
+
+/* Eine Runde über alle Linien. Zwei benachbarte Bögen können sich ins Gehege
+   kommen; dann wird an den beteiligten Ecken enger geglättet, bis nichts mehr
+   kreuzt. Und wenn zu enge Bögen ausgelassen werden, bekommen ihre Nachbarn
+   mehr Kantenlänge - deshalb noch eine Runde darum herum, bis die Menge sich
+   nicht mehr ändert.
+   Mit opt.nurLinie wird nur diese Linie geglättet (0 der Perimeter, k + 1
+   Exclusion k); die übrigen bleiben Punkt für Punkt, wie sie sind, und zählen
+   nur als Nachbarn - für die Fläche, in die kein Punkt fallen darf, und für
+   den Korridor. */
+function glaetteAlle(per, exc, lm, tau, sharp, opt, sperre) {
+  const info = {};
+  const nur = opt.nurLinie;
+  function unberuehrt(poly) {
+    return {pts:poly.map(function (p) { return [p[0], p[1]]; }),
+            neu:poly.map(function () { return false; }),
+            wer:poly.map(function (p, k) { return k; })};
+  }
+
+  let perLinie;
+  if (nur === null || nur === 0) {
+    const keep = {};
+    let res = null;
+    Object.keys(sperre.per).forEach(function (k) { keep[k] = sperre.per[k]; });
+    for (let round = 0; round < 4; round++) {
+      res = glaettePolygon(per, lm, tau, sharp, true, exc, [], {}, opt, keep, exc,
+                           sperre.rueck[0]);
+      const lcap = {};
+      for (let pass = 0; pass < 8; pass++) {
+        const bad = crossingOwners(res.pts, res.owner);
+        if (!bad.length) break;
+        bad.forEach(function (b) { lcap[b] = (lcap[b] === undefined ? lm : lcap[b]) * 0.45; });
+        res = glaettePolygon(per, lm, tau, sharp, true, exc, [], lcap, opt, keep, exc,
+                             sperre.rueck[0]);
+      }
+      if (!opt.skipTight || !res.tight.length) break;
+      res.tight.forEach(function (k) { if (!keep[k]) keep[k] = true; });
+    }
+    res.info.forEach(function (rec) { info["0|" + rec.i] = rec; });
+    perLinie = {pts:res.pts, neu:res.neu, wer:res.owner, rueck:res.rueck};
+  } else {
+    perLinie = unberuehrt(per);
+  }
+
+  const nexc = [];
+  const linien = [perLinie];
+  exc.forEach(function (e, k) {
+    if (nur !== null && nur !== k + 1) {
+      const u = unberuehrt(e);
+      linien.push(u);
+      nexc.push(u.pts);
+      return;
+    }
+    const andere = [per];
+    exc.forEach(function (o, j) { if (j !== k) andere.push(o); });
+    const gesperrt = sperre.exc[k];
+    if (isRing(e)) {
+      const rr = ringReplace(e, tau, opt, andere, gesperrt.ring);
+      linien.push({pts:rr.pts, neu:rr.pts.map(function () { return !rr.skipped; }),
+                   wer:rr.pts.map(function () { return "ring"; })});
+      rr.info.forEach(function (rec) { info[(k + 1) + "|" + rec.i] = rec; });
+      nexc.push(rr.pts);
+      return;
+    }
+    const ecken = {};
+    Object.keys(gesperrt).forEach(function (i) { if (i !== "ring") ecken[i] = gesperrt[i]; });
+    const s = glaettePolygon(e, lm, tau, sharp, false, [], [], {}, opt, ecken, andere,
+                             sperre.rueck[k + 1]);
+    linien.push({pts:s.pts, neu:s.neu, wer:s.owner, rueck:s.rueck});
+    s.info.forEach(function (rec) { info[(k + 1) + "|" + rec.i] = rec; });
+    nexc.push(s.pts);
+  });
+  return {per:perLinie.pts, exc:nexc, info, linien};
+}
+
+/* --------------------------------------------------------------------------
+   Kartenglättung: Anbindung an den Editor
+   --------------------------------------------------------------------------
+   Die Regeln stammen vom Projektinhaber und gelten fest:
+   - Die aufgenommenen Punkte sind die echten Grenzen. Der Mäher darf durch
+     die Glättung nicht dorthin fahren, wo er vorher nicht war: nach innen
+     schneiden ist beliebig erlaubt, der Überstand auf der FALSCHEN Seite ist
+     begrenzt - beim Perimeter nach außen, bei einer Exclusion nach innen.
+     Die beiden Grenzwerte sind einstellbar, ihre Richtung nicht.
+   - Perimeter- und Exclusionlinien sind die Bahn der Mähermitte. Durchlässe
+     dürfen enger werden, bis auf den Mindestkorridor.
+   - Bogenpunktabstand und Knick je Bogenpunkt sind einstellbar.
+   Gewirkt wird auf das Feature der Auswahl, ohne Auswahl auf die ganze
+   Karte; das Werkzeug sagt sichtbar, welches von beiden.
+   -------------------------------------------------------------------------- */
+
+/* Die Vorgaben des Planers. PUNKTABSTAND_M und GRENZTOLERANZ_M stehen dort im
+   Werkzeug, der Knick ist turnAngleLimit - die Drehschwelle der Firmware
+   (Sunray), vom Planer als Vorgabe übernommen. */
+const GLAETTUNG_PUNKTABSTAND_VORGABE_M = 0.15;
+const GLAETTUNG_KNICK_VORGABE_GRAD = 25;
+const GLAETTUNG_UEBERSTAND_VORGABE_M = 0.02;
+
+/* Die letzte Rechnung: eine wartende Vorschau oder eine Ablehnung - oder
+   null. Sie gilt nur, solange Karte, Ziel und Einstellungen dieselben sind
+   wie bei ihrer Rechnung (aktuelleGlaettung()). */
+let smoothResult = null;
+
+/** Schreibt die Vorgabewerte in die vier Felder - einmal beim Start. */
+function fillSmoothSettingsDefaults() {
+  const setze = (id, text) => {
+    const input = document.getElementById(id);
+    if (input) input.value = text;
+  };
+
+  setze("smoothSpacingInput", formatMeters(GLAETTUNG_PUNKTABSTAND_VORGABE_M, 2));
+  setze("smoothKnickInput", formatNumber(GLAETTUNG_KNICK_VORGABE_GRAD, 0, 2));
+  setze("smoothPerimeterLimitInput", formatMeters(GLAETTUNG_UEBERSTAND_VORGABE_M, 2));
+  setze("smoothExclusionLimitInput", formatMeters(GLAETTUNG_UEBERSTAND_VORGABE_M, 2));
+}
+
+/**
+ * Liest die vier Felder. Es gibt keine zweite Ablage der Werte: was gilt,
+ * steht im Feld - derselbe einbahnige Weg wie bei den Formmaßen.
+ */
+function readSmoothSettings() {
+  const lies = (id) => {
+    const text = document.getElementById(id)?.value ?? "";
+    /* parseLocaleNumber("") ist 0 - ein leeres Feld ist aber keine 0. */
+    return String(text).trim() ? parseLocaleNumber(text) : null;
+  };
+
+  const spacing = lies("smoothSpacingInput");
+  const knick = lies("smoothKnickInput");
+  const perimeter = lies("smoothPerimeterLimitInput");
+  const exclusion = lies("smoothExclusionLimitInput");
+
+  if (spacing === null || spacing < GLAETTUNG_WEGPUNKTTOLERANZ_M) {
+    return {ok:false, reason:"spacing"};
+  }
+  if (knick === null || !(knick > 0 && knick < 180)) {
+    return {ok:false, reason:"knick"};
+  }
+  /* Die Richtung steht fest: ein negativer Grenzwert hieße, die Linie
+     müsse auf die falsche Seite - abgelehnt. */
+  if (perimeter === null || perimeter < 0) return {ok:false, reason:"perimeter"};
+  if (exclusion === null || exclusion < 0) return {ok:false, reason:"exclusion"};
+
+  return {ok:true, spacing, knick, perimeter, exclusion};
+}
+
+/** Die Punkte einer Linie als offene Folge in Weltkoordinaten. */
+function smoothLineWorld(featureIndex) {
+  const ring = data.features[featureIndex].geometry.coordinates[0];
+  return ring.slice(0, ring.length - 1).map(point => toWorld(point));
+}
+
+/**
+ * Ist das Feature ein einfacher, geschlossener Ring - ein Polygon ohne Loch
+ * mit mindestens drei verschiedenen Punkten? Nur solche glättet der Kern.
+ */
+function isSimpleSmoothRing(feature) {
+  const geometry = feature?.geometry;
+  if (geometry?.type !== "Polygon") return false;
+
+  const rings = geometry.coordinates;
+  if (!Array.isArray(rings) || rings.length !== 1) return false;
+
+  const ring = rings[0];
+  if (!Array.isArray(ring) || ring.length < 4) return false;
+  if (!ring.every(isUsableCoordinate)) return false;
+
+  return coordinatesEqual(ring[0], ring[ring.length - 1]);
+}
+
+/**
+ * Worauf das Glätten wirkt.
+ *
+ * Ohne Auswahl die ganze Karte - Perimeter und alle Exclusions. Mit Auswahl
+ * das Feature, zu dem sie gehört, dieselbe Zuordnung wie beim Reduzieren und
+ * Rechtwinklig (getWholeFeatureTarget()). Search Wire und Docking-Pfad werden
+ * nicht geglättet und zählen auch nicht als Nachbarn: der Planer kennt nur
+ * Perimeter und Ausschlüsse.
+ */
+function getSmoothTarget() {
+  if (!getActiveSlot()?.data) return {ok:false, reason:"no-map"};
+  if (!hasKnownScale()) return {ok:false, reason:"scale"};
+
+  const features = data.features || [];
+  const perimeters = [];
+  const exclusions = [];
+
+  features.forEach((feature, index) => {
+    const type = getFeatureType(feature);
+    if (type === "perimeter") perimeters.push(index);
+    if (type === "exclusion") exclusions.push(index);
+  });
+
+  let mode = "map";
+  let featureIndex = null;
+
+  if (getEffectiveSelectedVertices().length) {
+    const whole = getWholeFeatureTarget();
+
+    if (!whole.ok) {
+      if (whole.reason === "feature" || whole.reason === "ring" ||
+          whole.reason === "unsupported") {
+        return {ok:false, reason:whole.reason};
+      }
+      return {ok:false, reason:"not-simple", featureIndex:getEffectiveSelectedVertices()[0].featureIndex};
+    }
+
+    const type = getFeatureType(features[whole.featureIndex]);
+    if (type !== "perimeter" && type !== "exclusion") return {ok:false, reason:"type"};
+
+    mode = "feature";
+    featureIndex = whole.featureIndex;
+  }
+
+  if (perimeters.length !== 1) return {ok:false, reason:"perimeter-count"};
+
+  const unpassend = [...perimeters, ...exclusions]
+    .find(index => !isSimpleSmoothRing(features[index]));
+
+  if (unpassend !== undefined) {
+    return {ok:false, reason:"not-simple", featureIndex:unpassend};
+  }
+
+  return {
+    ok:true,
+    mode,
+    featureIndex,
+    perimeterIndex:perimeters[0],
+    exclusionIndices:exclusions
+  };
+}
+
+/** Ablehnungsgrund oder Wirkung, als ein Satz unter dem Knopf. */
+function smoothReasonText(target, settings) {
+  if (!target.ok) {
+    switch (target.reason) {
+      case "no-map":
+        return "Glätten: keine Karte geladen.";
+      case "scale":
+        return "Glätten: der Maßstab ist unklar – geglättet wird in Metern.";
+      case "feature":
+        return "Glätten: die Auswahl gehört zu mehreren Features. Ein Feature " +
+               "auswählen oder die Auswahl aufheben – dann wirkt es auf die ganze Karte.";
+      case "ring":
+        return "Glätten: die Auswahl muss zu genau einem Linienzug gehören.";
+      case "unsupported":
+        return unsupportedFeatureText();
+      case "type":
+        return "Glätten: nur Perimeter und Exclusions lassen sich glätten.";
+      case "perimeter-count":
+        return "Glätten: die Karte braucht genau einen Perimeter.";
+      default:
+        return `Glätten: ${describeFeature(data.features[target.featureIndex])} ` +
+               "ist kein einfacher geschlossener Ring.";
+    }
+  }
+
+  if (!settings.ok) {
+    switch (settings.reason) {
+      case "spacing":
+        return "Glätten: der Bogenpunktabstand muss mindestens " +
+               `${formatMeters(GLAETTUNG_WEGPUNKTTOLERANZ_M, 2)} m betragen – ` +
+               "das ist die Wegpunkttoleranz.";
+      case "knick":
+        return "Glätten: der Knick muss größer als 0 und kleiner als 180 Grad sein.";
+      case "perimeter":
+        return "Glätten: der Überstand des Perimeters muss eine Zahl ab 0 sein.";
+      default:
+        return "Glätten: der Überstand der Exclusion muss eine Zahl ab 0 sein.";
+    }
+  }
+
+  if (target.mode === "feature") {
+    return `Glättet nur ${describeFeature(data.features[target.featureIndex])}.`;
+  }
+
+  const count = target.exclusionIndices.length;
+
+  if (!count) return "Glättet die ganze Karte – den Perimeter.";
+
+  return `Glättet die ganze Karte – Perimeter und ${count} ` +
+         `Exclusion${count === 1 ? "" : "s"}.`;
+}
+
+/**
+ * Was eine Rechnung festhält, damit sie erkennbar veraltet: Karte, Maßstab,
+ * Mäherbreite, Ziel und die Rohwerte aller Linien, gegen die gerechnet wurde.
+ * Die Mäherbreite gehört dazu, weil ihre Hälfte als kleinster Bogenradius in
+ * die Rechnung eingeht ("enge Bögen auslassen") - sie wird in einem anderen
+ * Fenster eingestellt und änderte sonst eine wartende Vorschau, ohne dass
+ * diese es merkte.
+ */
+function smoothFingerprint(target) {
+  const indices = [target.perimeterIndex, ...target.exclusionIndices];
+
+  return JSON.stringify([
+    activeMapId,
+    scaleFactor,
+    mowerWidth,
+    target.mode,
+    target.featureIndex,
+    indices,
+    indices.map(index => data.features[index]?.geometry?.coordinates)
+  ]);
+}
+
+/** Kleinster Abstand eines Punktes zu einem geschlossenen Ring. */
+function distanceToRing(point, ring) {
+  let best = Infinity;
+
+  for (let index = 0; index < ring.length; index++) {
+    const a = ring[index], b = ring[(index + 1) % ring.length];
+    best = Math.min(best, distPointSeg(point[0], point[1], a[0], a[1], b[0], b[1]));
+  }
+
+  return best;
+}
+
+/**
+ * Wie weit weicht die neue Linie von der alten ab - in beide Richtungen, als
+ * größter Abstand eines Punktes der einen Linie zur anderen?
+ *
+ * Abgetastet wird jede Strecke, die nur in einer der beiden Linien vorkommt,
+ * im Abstand von höchstens 1 mm; eine Strecke, die beide unverändert tragen,
+ * hat zur anderen Linie den Abstand 0.
+ */
+function smoothDeviation(alt, neu) {
+  const schluessel = (a, b) => `${a[0]},${a[1]};${b[0]},${b[1]}`;
+
+  const strecken = (ring) => {
+    const set = new Set();
+    ring.forEach((a, index) => {
+      const b = ring[(index + 1) % ring.length];
+      set.add(schluessel(a, b));
+      set.add(schluessel(b, a));
+    });
+    return set;
+  };
+
+  const einseitig = (von, zu, zuStrecken) => {
+    let best = 0;
+
+    von.forEach((a, index) => {
+      const b = von[(index + 1) % von.length];
+      if (zuStrecken.has(schluessel(a, b))) return;
+
+      const schritte = Math.max(1, Math.ceil(punktAbstand(a, b) / 0.001));
+
+      for (let k = 0; k <= schritte; k++) {
+        const t = k / schritte;
+        const p = [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+        best = Math.max(best, distanceToRing(p, zu));
+      }
+    });
+
+    return best;
+  };
+
+  return Math.max(einseitig(neu, alt, strecken(alt)), einseitig(alt, neu, strecken(neu)));
+}
+
+/**
+ * Rechnet die Glättung, ohne die Karte zu verändern.
+ *
+ * Zurück kommt, was Vorschau, Meldung und Anwenden brauchen - und zwar als
+ * Rohwerte: die Texte entstehen erst beim Darstellen, mit dem dann gültigen
+ * Zahlenformat.
+ */
+function computeSmoothResult(target, settings) {
+  const linienIndices = [target.perimeterIndex, ...target.exclusionIndices];
+  const per = smoothLineWorld(target.perimeterIndex);
+  const exc = target.exclusionIndices.map(index => smoothLineWorld(index));
+
+  const nurLinie = target.mode === "feature"
+    ? linienIndices.indexOf(target.featureIndex)
+    : null;
+
+  let ergebnis;
+  glaettungsSpeicherLeeren();
+
+  try {
+    ergebnis = smoothAll(per, exc, GLAETTUNG_WEITE_M, settings.knick, settings.knick, {
+      halbeSpur:mowerWidth / 2,
+      skipTight:true,
+      reachTol:GLAETTUNG_WEGPUNKTTOLERANZ_M,
+      spacing:settings.spacing,
+      raster:GLAETTUNG_RASTER_M,
+      boundTol:settings.perimeter,
+      boundTolAusschluss:settings.exclusion,
+      minCorridor:GLAETTUNG_MINDESTKORRIDOR_M,
+      nurLinie
+    });
+  } finally {
+    /* Die Speicher beschleunigen nur; zwischen zwei Läufen halten sie nichts. */
+    glaettungsSpeicherLeeren();
+  }
+
+  const alt = [per, ...exc];
+  const neu = [ergebnis.per, ...ergebnis.exc];
+  const imZiel = (l) => nurLinie === null || nurLinie === l;
+
+  const linien = [];
+  let vorher = 0;
+  let nachher = 0;
+  let abweichung = 0;
+
+  alt.forEach((punkte, l) => {
+    if (!imZiel(l)) return;
+
+    vorher += punkte.length;
+    nachher += neu[l].length;
+
+    const geaendert = JSON.stringify(punkte) !== JSON.stringify(neu[l]);
+    if (geaendert) abweichung = Math.max(abweichung, smoothDeviation(punkte, neu[l]));
+
+    linien.push({
+      featureIndex:linienIndices[l],
+      punkte:neu[l],
+      neu:ergebnis.linien[l].neu,
+      geaendert
+    });
+  });
+
+  /*
+   * Was ab der Schwelle ungeglättet bleibt, je Grund. Ein Baumring, der
+   * bleibt, wie er war, zählt einmal - seine Ecken sind kein eigener Befund.
+   */
+  const offen = {};
+  const ringGezaehlt = new Set();
+
+  Object.keys(ergebnis.info).forEach(key => {
+    const rec = ergebnis.info[key];
+    const l = Number(key.split("|")[0]);
+
+    if (!imZiel(l) || !rec.grund) return;
+
+    if (rec.kind === "Ring unveraendert") {
+      if (ringGezaehlt.has(l)) return;
+      ringGezaehlt.add(l);
+    } else if (Math.abs(rec.turn) < settings.knick) {
+      return;
+    }
+
+    offen[rec.grund] = (offen[rec.grund] || 0) + 1;
+  });
+
+  return {
+    fingerprint:smoothFingerprint(target),
+    target,
+    settings,
+    linien,
+    vorher,
+    nachher,
+    abweichung,
+    offen,
+    geaendert:linien.some(linie => linie.geaendert)
+  };
+}
+
+/**
+ * Die letzte Rechnung, wenn sie noch gilt - sonst null.
+ *
+ * Sie gilt, solange dasselbe Ziel gewählt ist, die Felder dasselbe sagen und
+ * keine der Linien sich geändert hat. Was nicht mehr gilt, fällt weg: eine
+ * Vorschau, die etwas anderes zeigt als das, was Anwenden täte, wäre schlimmer
+ * als keine.
+ */
+function aktuelleGlaettung() {
+  if (!smoothResult) return null;
+
+  const target = getSmoothTarget();
+  const settings = readSmoothSettings();
+  const alt = smoothResult;
+
+  const gleich =
+    target.ok && settings.ok &&
+    target.mode === alt.target.mode &&
+    target.featureIndex === alt.target.featureIndex &&
+    settings.spacing === alt.settings.spacing &&
+    settings.knick === alt.settings.knick &&
+    settings.perimeter === alt.settings.perimeter &&
+    settings.exclusion === alt.settings.exclusion &&
+    smoothFingerprint(target) === alt.fingerprint;
+
+  if (!gleich) smoothResult = null;
+
+  return smoothResult;
+}
+
+/** Bezeichnung eines Grundes, aus dem eine Stelle ungeglättet bleibt. */
+const SMOOTH_GRUENDE = {
+  kante:"Nachbarkante zu kurz",
+  abstand:"Wegpunkttoleranz",
+  ausschluss:"andere Fläche im Weg",
+  korridor:"Mindestkorridor",
+  seite:"kein Bogen auf der richtigen Seite",
+  raster:"Runden auf 1 cm",
+  eng:"enger Bogen ausgelassen"
+};
+
+/**
+ * Hält Knopf, Wirkung, Vorschau-Text und die beiden Knöpfe der Vorschau
+ * aktuell. Alles ist abgeleitet - aus Auswahl, Feldern und der letzten
+ * Rechnung - und wird beim Sprachwechsel neu gebaut.
+ */
+function updateSmoothUi() {
+  const button = document.getElementById("smoothApplyBtn");
+  if (!button) return;
+
+  const target = getSmoothTarget();
+  const settings = readSmoothSettings();
+  const ergebnis = aktuelleGlaettung();
+
+  button.disabled = !target.ok || !settings.ok;
+  button.title = TRANSFORM_TOOL_HELP.smoothApplyBtn;
+
+  /* Was fest steht, aus den Konstanten - nicht ein zweites Mal als Text. */
+  setInspectorText(
+    "smoothFixedHint",
+    `Fest stehen der Mindestkorridor (${formatMeters(GLAETTUNG_MINDESTKORRIDOR_M, 2)} m), ` +
+    `die Wegpunkttoleranz (${formatMeters(GLAETTUNG_WEGPUNKTTOLERANZ_M, 2)} m), ` +
+    `die Bogenweite (${formatMeters(GLAETTUNG_WEITE_M, 2)} m) und das Raster der ` +
+    `neuen Punkte (${formatMeters(GLAETTUNG_RASTER_M, 2)} m).`
+  );
+
+  const box = document.getElementById("smoothResult");
+  const summary = document.getElementById("smoothSummary");
+  const list = document.getElementById("smoothKeptList");
+  const actions = document.getElementById("smoothActions");
+
+  if (!box || !summary || !list || !actions) return;
+
+  box.hidden = !ergebnis;
+  if (!ergebnis) return;
+
+  summary.className = `grid-status${ergebnis.geaendert ? "" : " error"}`;
+  setLocalizedText(
+    summary,
+    ergebnis.geaendert
+      ? `Vorschau: ${ergebnis.vorher} → ${ergebnis.nachher} Punkte, größte ` +
+        `Abweichung ${formatMeters(ergebnis.abweichung, 2)} m.`
+      : "Glätten abgelehnt: dabei ändert sich nichts."
+  );
+
+  /*
+   * Die Gründe als einzelne Elemente: Bezeichnung und Anzahl getrennt, damit
+   * jede Bezeichnung über das Wörterbuch geht und keine Zahl in einem Muster
+   * stehen muss.
+   */
+  list.replaceChildren();
+
+  const gruende = Object.keys(SMOOTH_GRUENDE).filter(code => ergebnis.offen[code]);
+  const summe = gruende.reduce((acc, code) => acc + ergebnis.offen[code], 0);
+
+  const kopf = document.getElementById("smoothKeptHead");
+
+  if (kopf) {
+    kopf.hidden = !summe;
+    if (summe) {
+      setLocalizedText(
+        kopf,
+        summe === 1
+          ? "1 Stelle bleibt ungeglättet:"
+          : `${summe} Stellen bleiben ungeglättet:`
+      );
+    }
+  }
+
+  if (!summe && !ergebnis.geaendert) {
+    const item = document.createElement("li");
+    setLocalizedText(
+      item,
+      `Keine Ecke knickt um ${formatNumber(ergebnis.settings.knick, 0, 2)} Grad oder mehr.`
+    );
+    list.appendChild(item);
+  }
+
+  gruende.forEach(code => {
+    const item = document.createElement("li");
+    const name = document.createElement("span");
+    const anzahl = document.createElement("span");
+
+    name.className = "smooth-kept-name";
+    anzahl.className = "smooth-kept-count";
+    setLocalizedText(name, SMOOTH_GRUENDE[code]);
+    anzahl.textContent = String(ergebnis.offen[code]);
+
+    item.append(name, anzahl);
+    list.appendChild(item);
+  });
+
+  actions.hidden = !ergebnis.geaendert;
+}
+
+/** Glätten: rechnen und als Vorschau zeigen - oder mit Begründung ablehnen. */
+function startSmoothing() {
+  const target = getSmoothTarget();
+  const settings = readSmoothSettings();
+
+  if (!target.ok || !settings.ok) {
+    smoothResult = null;
+    updateSmoothUi();
+    renderGeometry();
+    return;
+  }
+
+  try {
+    smoothResult = computeSmoothResult(target, settings);
+  } catch (error) {
+    /* Eine Rechnung, die scheitert, verändert nichts - und sagt es. */
+    console.warn("Glätten:", error);
+    smoothResult = null;
+    setEditStatus("Glätten: die Rechnung ist gescheitert – die Karte bleibt unverändert.", "error");
+  }
+
+  updateSmoothUi();
+  renderGeometry();
+}
+
+/** Ein Feld wurde geändert: eine wartende Rechnung folgt ihm. */
+function smoothSettingsChanged() {
+  if (smoothResult) {
+    const target = getSmoothTarget();
+    const settings = readSmoothSettings();
+
+    smoothResult = target.ok && settings.ok
+      ? computeSmoothResult(target, settings)
+      : null;
+  }
+
+  updateInspector();
+  renderGeometry();
+}
+
+/** Abbrechen: die Vorschau fällt weg, die Karte bleibt, wie sie ist. */
+function cancelSmoothing() {
+  smoothResult = null;
+  setEditStatus("Glätten abgebrochen – die Karte ist unverändert.");
+  updateSmoothUi();
+  renderGeometry();
+}
+
+/** Anwenden: die Vorschau wird übernommen. Ein Undo-Schritt. */
+function applySmoothing() {
+  const ergebnis = aktuelleGlaettung();
+
+  if (!ergebnis || !ergebnis.geaendert) {
+    setEditStatus("Glätten: die Vorschau gilt nicht mehr – bitte neu glätten.", "error");
+    updateSmoothUi();
+    renderGeometry();
+    return;
+  }
+
+  const ringAus = (punkte) => {
+    const ring = punkte.map(([east, north]) => fromWorld(east, north));
+    ring.push([...ring[0]]);
+    return ring;
+  };
+
+  const preview = structuredClone(data);
+  ergebnis.linien.forEach(linie => {
+    if (!linie.geaendert) return;
+    preview.features[linie.featureIndex].geometry.coordinates = [ringAus(linie.punkte)];
+  });
+
+  /* Dieselbe letzte Instanz wie beim Reduzieren: keine neuen Fehler. */
+  const introduced = newValidationErrors(preview);
+
+  if (introduced.length) {
+    smoothResult = null;
+    setEditStatus(
+      `Glätten abgebrochen: die Kartenprüfung meldet danach ${introduced.length} ` +
+      `neue${introduced.length === 1 ? "n" : ""} Fehler.`,
+      "error"
+    );
+    updateSmoothUi();
+    renderGeometry();
+    return;
+  }
+
+  const historySnapshot = createWorkspaceSnapshot("Glätten");
+
+  ergebnis.linien.forEach(linie => {
+    if (!linie.geaendert) return;
+    data.features[linie.featureIndex].geometry.coordinates =
+      structuredClone(preview.features[linie.featureIndex].geometry.coordinates);
+  });
+
+  smoothResult = null;
+
+  /* Die Punktnummern der Auswahl zeigen nach dem Glätten auf andere Punkte. */
+  clearVertexSelection();
+
+  commitHistorySnapshot(historySnapshot);
+  afterGeometryEdit();
+
+  setEditStatus(
+    `Geglättet: ${ergebnis.vorher} → ${ergebnis.nachher} Punkte, größte Abweichung ` +
+    `${formatMeters(ergebnis.abweichung, 2)} m · mit Zurück rückgängig.`,
+    "ok"
+  );
+
+  updateSmoothUi();
+}
+
+/**
+ * Zeichnet die wartende Vorschau: die neuen Linien gestrichelt im
+ * Entwurfston und ihre neuen Punkte als gefüllte Marker - dieselbe Sprache
+ * wie die Vorschau einer Kreis-Exclusion.
+ */
+function renderSmoothPreview(worldUnitsPerPixel) {
+  const hatte = !!smoothResult;
+  const ergebnis = aktuelleGlaettung();
+
+  /*
+   * Ist die Rechnung beim Zeichnen veraltet - etwa weil im Mäherfenster eine
+   * andere Breite übernommen wurde, das nur neu zeichnet -, verschwindet auch
+   * ihr Kasten. Sonst stünde „Anwenden“ für eine Vorschau da, die es nicht
+   * mehr gibt.
+   */
+  if (hatte && !ergebnis) updateSmoothUi();
+
+  if (!ergebnis || !ergebnis.geaendert) return;
+
+  ergebnis.linien.forEach(linie => {
+    if (!linie.geaendert) return;
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute(
+      "d",
+      [...linie.punkte, linie.punkte[0]]
+        .map(([east, north], index) => `${index ? "L" : "M"} ${east} ${-north}`)
+        .join(" ")
+    );
+    path.setAttribute("class", "smooth-preview-line");
+    path.dataset.featureIndex = String(linie.featureIndex);
+    toolPreviewGroup.appendChild(path);
+
+    linie.punkte.forEach(([east, north], index) => {
+      if (!linie.neu[index]) return;
+
+      const node = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      node.setAttribute("cx", east);
+      node.setAttribute("cy", -north);
+      node.setAttribute("r", worldUnitsPerPixel * 3.6);
+      node.setAttribute("class", "smooth-preview-point");
+      node.dataset.featureIndex = String(linie.featureIndex);
+      toolPreviewGroup.appendChild(node);
+    });
+  });
+}
+
+/**
+ * Formatiert die vier Felder in der laufenden Sprache neu - außer dem, in dem
+ * gerade getippt wird. Ein Feld, das keine Zahl enthält, bleibt, wie es ist:
+ * der Nutzer soll sehen, was er eingegeben hat, und der Grund steht darunter.
+ */
+function reformatSmoothSettings() {
+  const felder = [
+    ["smoothSpacingInput", value => formatMeters(value, 2, 6)],
+    ["smoothKnickInput", value => formatNumber(value, 0, 6)],
+    ["smoothPerimeterLimitInput", value => formatMeters(value, 2, 6)],
+    ["smoothExclusionLimitInput", value => formatMeters(value, 2, 6)]
+  ];
+
+  felder.forEach(([id, format]) => {
+    const input = document.getElementById(id);
+    if (!input || input === document.activeElement) return;
+
+    const text = String(input.value).trim();
+    const value = text ? parseLocaleNumber(text) : null;
+
+    if (value !== null) input.value = format(value);
+  });
+}
 
 
 /* ==========================================================================
@@ -21569,7 +24190,41 @@ const I18N_EN = new Map(Object.entries({
   "von Hand gesetzt":"set by hand",
   /* Massstab aus der Datei zu absoluten Koordinaten - siehe prepareImportedCollection(). */
   "Die Datei bringt einen Maßstab mit, der zu absoluten Koordinaten nicht passt; er wird ignoriert.":"The file carries a scale that does not fit absolute coordinates; it is ignored.",
-"Raster wird nach dem Öffnen einer Karte angezeigt.":"The grid is shown once a map is open.","Eingestellt:":"Set:","Sichtbar dargestellt:":"Shown:","(bei diesem Zoom wäre das feinere Raster kleiner als ein Bildschirmpixel)":"(at this zoom the finer grid would be smaller than one screen pixel)","Exclusion zeichnen: Eckpunkte anklicken.":"Draw exclusion: click the corner points.","Einpassen":"Fit","↶ Zurück":"↶ Undo","↷ Vor":"↷ Redo","Hilfe":"Help","Datei":"File","Ansicht":"View","Strg+O":"Ctrl+O","Strg+Umschalt+O":"Ctrl+Shift+O","Strg+S":"Ctrl+S","Kurzüberblick":"Quick overview","Raster…":"Grid…","Mähroboter-Vorschau…":"Mower preview…","Karten verbinden…":"Merge maps…","Karte A und B zu einem Perimeter verbinden":"Merge map A and B into one perimeter","Fenster schließen":"Close window","Rasterweite einstellen und am Raster einrasten":"Set the grid spacing and snap to grid","Länge und Arbeitsbreite des Mähers einstellen":"Set the mower length and working width","Rasterweite und Schrittweite der Pfeiltasten":"Grid spacing and arrow-key step","Die Breite ist zugleich die Arbeitsbreite: sie ist die Schwelle der Korridorprüfung in der Kartenprüfung und geht als Quadrat in die Flächenwarnung beim Reduzieren ein.":"The width is also the working width: it is the threshold of the corridor check in map validation and enters the area warning when reducing points as its square.","Ausgabe 050":"Release 050","GeoJSON speichern":"Save GeoJSON","Aktive zurücksetzen":"Reset active","Keine Karte geladen":"No map loaded","Keine Karte geladen.":"No map loaded.","Karten":"Maps","Karte A · nicht geladen":"Map A · not loaded","Karte B · nicht geladen":"Map B · not loaded","Karte A":"Map A","Karte B":"Map B","Karte A · aktiv":"Map A · active","Karte B · aktiv":"Map B · active","Karte A öffnen":"Open map A","Karte B öffnen":"Open map B","Karte B schließen":"Close map B","Karten verbinden":"Merge maps","Beide Karten müssen dieselbe RTK-Basis / dasselbe lokale Koordinatensystem verwenden.":"Both maps must use the same RTK base / the same local coordinate system.","Karte A ist nicht geladen.":"Map A is not loaded.","Karte B ist nicht geladen.":"Map B is not loaded.","Verbindungsvorschau anzeigen":"Show merge preview","Auftrennstelle setzen":"Set cut edge","Trennt den Perimeter der aktiven Karte an der Kante zwischen den beiden ausgewählten Punkten auf. Die Geometrie ändert sich dabei nicht, nur die Reihenfolge: der eine Punkt wird Startpunkt, der andere Endpunkt.":"Cuts the perimeter of the active map open at the edge between the two selected points. The geometry does not change, only the order: one point becomes the start point, the other the end point.","Dreht den Ring so, dass der ausgewählte Punkt Punkt 1 wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Endpunkt setzen“ auf dem Punkt davor bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.":"Rotates the ring so that the selected point becomes point 1. Start point and end point are the same rotation: “Set end point” on the preceding point does exactly the same, and the second of the two gestures overwrites the first.","Dreht den Ring so, dass der ausgewählte Punkt letzter Punkt wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Startpunkt setzen“ auf dem Punkt danach bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.":"Rotates the ring so that the selected point becomes the last point. Start point and end point are the same rotation: “Set start point” on the following point does exactly the same, and the second of the two gestures overwrites the first.","Kein gültiger Perimeter.":"No valid perimeter.","Nicht geladen.":"Not loaded.","Auftrennstelle gewählt.":"Cut edge chosen.","Auftrennstelle seit der Wahl verändert.":"Cut edge changed since it was chosen.","Die vorher gewählte Auftrennstelle wurde ersetzt.":"The previously chosen cut edge has been replaced.","Auftrennstelle aus der Datei.":"Cut edge from the file.","Auftrennen: aufgetrennt wird der Perimeter, nicht dieses Feature.":"Cut edge: the perimeter is cut open, not this feature.","Auftrennen: die beiden Punkte müssen benachbart sein – zwischen ihnen liegen weitere.":"Cut edge: the two points must be adjacent – there are further points between them.","Auftrennen: beide Punkte müssen zum selben geschlossenen Ring gehören.":"Cut edge: both points must belong to the same closed ring.","Auftrennen: beide Punkte müssen zum selben Feature gehören.":"Cut edge: both points must belong to the same feature.","Auftrennen: genau zwei benachbarte Punkte des Perimeters auswählen.":"Cut edge: select exactly two adjacent points of the perimeter.","Auftrennstelle gesetzt: Der Perimeter wird an der Kante zwischen den beiden gewählten Punkten aufgetrennt.":"Cut edge set: the perimeter is cut open at the edge between the two selected points.","Beide Karten benötigen einen gültigen Polygon-Perimeter.":"Both maps need a valid polygon perimeter.","Die Karten verwenden unterschiedliche erkannte Koordinatenskalierungen und können nicht sicher verbunden werden.":"The maps use different detected coordinate scalings and cannot be merged safely.","Zweite Karte laden, dann je Karte die Auftrennstelle wählen.":"Load a second map, then choose the cut edge for each map.","Bereit.":"Ready.","Auftrennstelle nicht gewählt – für beide Karten gilt die Reihenfolge aus der Datei.":"No cut edge chosen – both maps use the order from the file.","Auftrennstelle seit der Wahl verändert – verbunden wird dort, wo der Ring heute aufgetrennt ist.":"Cut edge changed since it was chosen – merging uses the place where the ring is cut open today.","Karte A und B":"Map A and B","Auftrennstelle nur für Karte A gewählt – für Karte B gilt die Reihenfolge aus der Datei.":"Cut edge chosen for map A only – map B uses the order from the file.","Auftrennstelle nur für Karte B gewählt – für Karte A gilt die Reihenfolge aus der Datei.":"Cut edge chosen for map B only – map A uses the order from the file.","Neue Kanten:":"New edges:","A Ende → B Start":"A end → B start","B Ende → A Start":"B end → A start","Die beiden neuen Kanten kreuzen sich.":"The two new edges cross each other.","Eine neue Kante kreuzt den Perimeter von Karte A.":"A new edge crosses the perimeter of map A.","Eine neue Kante kreuzt den Perimeter von Karte B.":"A new edge crosses the perimeter of map B.","Eine andere Auftrennstelle vermeidet das.":"A different cut edge avoids this.","Karte A + B verbinden":"Merge map A + B","Feature-Navigation":"Feature navigation","Keine Features vorhanden.":"No features available.","Features erstellen":"Create features","Exclusion zeichnen":"Draw exclusion","Search Wire zeichnen":"Draw Search Wire","Search Wire verlängern":"Extend Search Wire","Search Wire löschen":"Delete Search Wire","Docking-Pfad erstellen":"Create docking path","Docking-Pfad verlängern":"Extend docking path","Docking-Pfad verlängert.":"Docking path extended.","Docking-Pfad gelöscht.":"Docking path deleted.","Kein Docking-Pfad vorhanden.":"No docking path present.","Docking-Pfad: mindestens 2 Punkte anklicken, üblich sind 3.":"Docking path: click at least 2 points; 3 is customary.","Ein Docking-Pfad benötigt mindestens 2 Punkte.":"A docking path requires at least 2 points.","Kein Docking-Pfad zum Verlängern vorhanden.":"No docking path available to extend.","Docking-Pfad ist kein LineString.":"Docking path is not a LineString.","Der Docking-Pfad ist leer. Verwende „Docking-Pfad erstellen“.":"The docking path is empty. Use “Create docking path”.","Es existiert bereits ein Docking-Pfad. Verwende „Docking-Pfad verlängern“ oder lösche ihn zuerst.":"A docking path already exists. Use “Extend docking path” or delete it first.","Es existiert bereits ein Docking-Pfad. Pro Karte ist nur einer erlaubt.":"A docking path already exists. Only one per map is allowed.","Docking-Pfad vollständig löschen?":"Delete the entire docking path?","Docking-Pfad löschen":"Delete docking path","Letzten Punkt entfernen":"Remove last point","Zeichnung abschließen":"Finish drawing","Kreis abschließen":"Finish circle","Rechteck abschließen":"Finish rectangle","Exclusion abschließen":"Finish exclusion","Search Wire abschließen":"Finish search wire","Docking-Pfad abschließen":"Finish docking path","Abbrechen":"Cancel","Kein Zeichenwerkzeug aktiv.":"No drawing tool active.","Exclusion:":"Exclusion:","mindestens 3 Punkte setzen und anschließend schließen.":"set at least 3 points and then close the polygon.","Search Wire:":"Search Wire:","offene Linie mit mindestens 2 Punkten; eine vorhandene Linie kann am Ende verlängert werden.":"open line with at least 2 points; an existing line can be extended at its end.","Docking-Pfad:":"Docking path:","nur einmal existieren; offene Linie mit mindestens 2 Punkten,":"exist only once; an open line with at least 2 points,","üblich sind 3.":"3 being customary.","Ebenen":"Layers","Ausschlussflächen":"Exclusion areas","Dockpoints":"Dock points","Sonstiges":"Other","Punkte anzeigen / bearbeiten":"Show / edit points","Punkteditor":"Point editor","Noch kein Punkt ausgewählt.":"No point selected yet.","Klicke einen weißen Kartenpunkt an.":"Click a white map point.","Davor einfügen":"Insert before","Danach einfügen":"Insert after","Startpunkt setzen":"Set start point","Endpunkt setzen":"Set end point","Punkt löschen":"Delete point","Geschlossene Polygone:":"Closed polygons:","Beim Ziehen am Raster einrasten":"Snap to grid while dragging","Verschiebungen bleiben bis zum Speichern als Vergleich sichtbar.":"Moved original positions remain visible for comparison until saving.","Punkte lassen sich anklicken und anschließend ziehen.":"Points can be clicked and then dragged.","Mähroboter-Vorschau":"Mower preview","Mäher am ausgewählten Punkt anzeigen":"Show mower at selected point","Vorher-Ghosts anzeigen":"Show previous-position ghosts","Länge (m)":"Length (m)","Breite (m)":"Width (m)","Mähergröße übernehmen":"Apply mower size","Punkt auswählen, um die Fahrtrichtung anzuzeigen.":"Select a point to show the travel direction.","Raster":"Grid","Raster anzeigen":"Show grid","Schnellwahl":"Preset","Eigener Wert":"Custom value","Eigener Rasterabstand in Metern":"Custom grid spacing in metres","Übernehmen":"Apply","Rasterabstand:":"Grid spacing:","Messen & Prüfen":"Measure & validate","Distanz messen":"Measure distance","Messung löschen":"Clear measurement","Zwei Positionen auf der Karte wählen.":"Select two positions on the map.","Koordinatenbezug":"Coordinate reference","RTK-Basis Breite (lat)":"RTK base latitude (lat)","RTK-Basis Länge (lon)":"RTK base longitude (lon)","Koordinaten beim Speichern":"Coordinates on save","wie geladen":"as loaded","absolut WGS84 (CaSSAndRA)":"absolute WGS84 (CaSSAndRA)","Kein Bezugspunkt gesetzt.":"No reference point set.","Kein Bezugspunkt gesetzt. Absolute Ausgabe entspricht dann der Relativkarte.":"No reference point set. Absolute output then equals the relative map.","Bezugspunkt gesetzt. Relativkarte kann absolut gespeichert werden.":"Reference point set. The relative map can be saved as absolute coordinates.","Karte wurde aus absolutem WGS84 umgerechnet. Ein geänderter Bezugspunkt rechnet sie automatisch um; die angezeigten East/North-Werte laufen danach gegen den neuen Nullpunkt.":"Map was converted from absolute WGS84. Changing the reference point re-bases it automatically; the displayed East/North values then run against the new origin.","Ungültige Bezugsposition.":"Invalid reference position.","Bezugspunkt aktualisiert.":"Reference point updated.","Karte prüfen":"Validate map","Vor dem Speichern automatisch prüfen":"Validate automatically before saving","Noch keine Prüfung durchgeführt.":"No validation performed yet.","Im Menü „Datei“ Karte A oder Karte B öffnen.":"Open map A or map B in the “File” menu.","Web Map Editor – Kurzüberblick":"Web Map Editor – Quick overview","Hilfe schließen":"Close help","Einsatzbereich":"Scope","Primär für Ardumower / Sunray:":"Primarily for Ardumower / Sunray:","Der Editor wurde mit Blick auf deren GeoJSON-/RTK-Karten und lokale East/North-Koordinaten entwickelt.":"The editor was designed with their GeoJSON/RTK maps and local East/North coordinates in mind.","Er kann auch für andere Anwendungen mit kompatiblen GeoJSON-Strukturen nützlich sein. Eine vollständige Unterstützung beliebiger Fremdformate wird jedoch nicht vorausgesetzt.":"It can also be useful for other applications with compatible GeoJSON structures. Full support for arbitrary third-party formats is not assumed.","Karte A / B öffnen:":"Open map A / B:","lokale GeoJSON-/RTK-Karten laden. Zwischen geladenen Karten kann umgeschaltet und jeweils vollständig bearbeitet werden.":"load local GeoJSON/RTK maps. You can switch between loaded maps and edit each one fully.","Karten verbinden:":"Merge maps:","je Karte die Auftrennstelle wählen – zwei benachbarte Punkte des Perimeters. Der Editor verbindet A Ende → B Start und B Ende → A Start zu einem geschlossenen Perimeter.":"choose the cut edge for each map – two adjacent points of the perimeter. The editor connects A end → B start and B end → A start into one closed perimeter.","Punkte bearbeiten":"Edit points","Punkt auswählen:":"Select point:","anklicken, ziehen oder East/North numerisch ändern.":"click, drag or change East/North numerically.","Start / Ende:":"Start / end:","ausgewählten Polygonpunkt als neuen Start- oder Endpunkt setzen; die Reihenfolge wird neu nummeriert und der Ring bleibt geschlossen. Beide Knöpfe drehen denselben Ring: die zweite Geste ersetzt deshalb die erste, und der Editor sagt es, wenn er dabei eine gewählte Auftrennstelle ersetzt.":"set the selected polygon point as the new start or end point; the order is renumbered and the ring remains closed. Both buttons rotate the same ring: a second gesture therefore replaces the first, and the editor says so when it replaces a chosen cut edge.","Punkte hinzufügen:":"Add points:","vor/nach einem Punkt oder über die Feature-Navigation auf einer bestehenden Kante einfügen.":"insert before/after a point or via feature navigation on an existing edge.","Punkte löschen:":"Delete points:","einzeln oder als Mehrfachauswahl. Mindestpunktzahlen werden automatisch geprüft. Sind alle Eckpunkte einer Exclusion per Rahmen, Lasso oder Strg+Klick ausgewählt, entfernt „Punkt löschen“ die komplette Exclusion.":"individually or as a multi-selection. Minimum point counts are validated automatically. If all vertices of an exclusion are selected by box, lasso or Ctrl+click, “Delete point” removes the entire exclusion.","Exclusions & Features":"Exclusions & features","Exclusion zeichnen:":"Draw exclusion:","mindestens 3 Eckpunkte setzen und das Polygon anschließend schließen.":"set at least 3 vertices and then close the polygon.","offene Linie mit mindestens 2 Punkten neu zeichnen, bestehende Linie am Ende verlängern oder vollständig löschen. Beim Verlängern bleiben die vorhandenen Punkte geschützt.":"draw a new open line with at least 2 points, extend an existing line at its end, or delete it completely. Existing points are protected while extending.","genau ein Docking-Feature pro Karte; offene Linie mit mindestens 2 Punkten, üblich sind 3. Ein vorhandener Pfad kann am Ende verlängert werden.":"exactly one docking feature per map; an open line with at least 2 points, 3 being customary. An existing path can be extended at its end.","Docking-Pfad löschen:":"Delete docking path:","entfernt das komplette 3-Punkte-Feature; einzelne Dock-Punkte können nicht separat gelöscht werden.":"removes the complete 3-point feature; individual docking points cannot be deleted separately.","Exclusion löschen:":"Delete exclusion:","alle Eckpunkte der Exclusion per Rahmen, Lasso oder Strg+Klick auswählen und anschließend „Punkt löschen“ verwenden. Verbleibende Exclusions werden neu nummeriert.":"select all vertices of the exclusion by box, lasso or Ctrl+click, then use “Delete point”. Remaining exclusions are renumbered.","komplette Exclusion entfernen; verbleibende Exclusions werden neu nummeriert.":"remove the complete exclusion; remaining exclusions are renumbered.","Ganzes Feature verschieben:":"Move entire feature:","Exclusion, Search Wire oder Docking-Point über die Feature-Navigation auswählen oder direkt an der Geometrie ziehen. Alle Punkte werden gemeinsam verschoben.":"select an exclusion, Search Wire or docking point via feature navigation or drag it directly on the geometry. All points move together.","Exclusion duplizieren:":"Duplicate exclusion:","erstellt eine identische Kopie und versetzt sie zur besseren Sichtbarkeit um einen Rasterabstand nach East und North. Anschließend ist die Kopie komplett ausgewählt und kann direkt weiter verschoben werden.":"creates an identical copy and offsets it by one grid step in East and North for visibility. The copy is then fully selected and can be moved immediately.","Feature-Navigation:":"Feature navigation:","einklappen/aufklappen und einzelne Features sowie Punkte gezielt auswählen.":"collapse/expand and select individual features and points.","Mehrfachauswahl":"Multi-selection","Strg + Klick:":"Ctrl + click:","einzelne Punkte hinzufügen oder entfernen.":"add or remove individual points.","Rahmen / Lasso:":"Box / lasso:","mehrere Punkte räumlich auswählen. Danach mit dem Zeiger einen markierten Punkt ziehen, um alle gemeinsam zu verschieben.":"select multiple points spatially. Then drag a selected point with the pointer to move them all together.","Entf / Backspace:":"Delete / Backspace:","Auswahl löschen.":"delete selection.","Auswahlwerkzeug abbrechen oder Auswahl aufheben.":"cancel the selection tool or clear the selection.","Pfeiltasten:":"Arrow keys:","ausgewählte Punkte exakt um einen Schritt der aktuell eingestellten Rasterweite verschieben. ←/→ = East, ↑/↓ = North. Funktioniert auch für Mehrfachauswahl.":"move selected points by exactly one step of the current grid spacing. ←/→ = East, ↑/↓ = North. Also works for multi-selection.","Der ausgewählte Punkt kann durch einen maßstäblichen Mäher ersetzt werden. Länge und Breite sind einstellbar. Die Ausrichtung wird aus der Punktfolge abgeleitet.":"The selected point can be replaced by a to-scale mower. Length and width are adjustable. Orientation is derived from the point sequence.","Distanz messen:":"Measure distance:","zwei Positionen wählen. Angezeigt werden Strecke, ΔEast, ΔNorth und Winkel (0° = East, 90° = North).":"select two positions. Distance, ΔEast, ΔNorth and angle are shown (0° = East, 90° = North).","Exclusion-Fläche:":"Exclusion area:","bei einem ausgewählten Punkt einer Exclusion wird deren Fläche angezeigt.":"when a point of an exclusion is selected, its area is shown.","Karte prüfen:":"Validate map:","kontrolliert Perimeter, Exclusions, Docking-Point, leere Features, doppelte Nachbarpunkte, auffällig große Segmente sowie Exclusions außerhalb des Perimeters, Überlappungen, Selbstüberschneidungen und zu enge Korridore.":"checks perimeter, exclusions, docking point, empty features, duplicate adjacent points, unusually large segments as well as exclusions outside the perimeter, overlaps, self-intersections and corridors that are too narrow.","Vergleich & Historie":"Comparison & history","Vorher-Ghosts:":"Previous-position ghosts:","verschobene Ausgangspositionen und alte Mäher bleiben bis zum Speichern sichtbar; im Menü „Ansicht“ lassen sie sich ausblenden.":"moved original positions and previous mower previews remain visible until saving; the View menu can hide them.","Zurück / Vor:":"Undo / Redo:","Änderungen per Button oder Ctrl/Cmd+Z bzw. Ctrl+Y / Ctrl/Cmd+Shift+Z rückgängig machen oder wiederholen.":"undo or redo changes using the buttons or Ctrl/Cmd+Z and Ctrl+Y / Ctrl/Cmd+Shift+Z.","Tablet & Touch":"Tablet & touch","Bedienung:":"Controls:","Zielgeräte sind Desktop und Tablet. Auf einem Bildschirm, der schmaler ist als ein Tablet im Hochformat, stehen Werkzeugleiste, Karte und Inspektor untereinander, und die Seite scrollt. Alle Befehle sind über die Menüleiste oben erreichbar.":"the target devices are desktop and tablet. On a screen narrower than a tablet in portrait, the toolbar, map and inspector are stacked and the page scrolls. All commands are reachable from the menu bar at the top.","Wird mit dem Finger bedient, sind Menüeinträge, Knöpfe und Eingabefelder größer – unabhängig davon, wie breit der Bildschirm ist. Die Kartenfläche bleibt dabei eigenständig touchfähig für Zoom, Pan, Auswahl und Verschieben.":"When operated by finger, menu entries, buttons and input fields are larger - regardless of how wide the screen is. The map area stays independently touch-enabled for zoom, pan, selection and moving.","Ansicht & Speichern":"View & saving","Abmessungen:":"Dimensions:","Kartengröße, Flächen- und Punktzahlen sowie Hinweise zur Koordinatendarstellung stehen im Inspektor, solange nichts ausgewählt ist.":"Map size, area and point counts as well as coordinate-display notes are in the inspector while nothing is selected.","Werkzeuge:":"Tools:","Zeiger, Rahmen und Lasso stehen in der Werkzeugleiste links unter „Auswählen“. „Punkt löschen“ und „Auswahl aufheben“ stehen in der Auswahlleiste, die erscheint, sobald etwas ausgewählt ist; „Linie begradigen“ im Faltblock „Umformen“. Verdeckt die Auswahlleiste einen Punkt, lässt sie sich über den Griff an ihrem Kopf zuklappen. Jeder Knopf erklärt sich im Tooltip.":"pointer, box and lasso are in the toolbar on the left under “Select”. “Delete point” and “Clear selection” are in the selection bar that appears as soon as something is selected; “Straighten line” is in the “Reshape” fold. If the selection bar covers a point, it can be collapsed using the handle at its head. Every button explains itself in its tooltip.","Anordnung:":"Layout:","Menüleiste oben, Werkzeugleiste links, Karte in der Mitte, Inspektor rechts, Legende und Statuszeile unten. Werkzeugleiste und Inspektor lassen sich einklappen.":"Menu bar at the top, toolbar on the left, map in the middle, inspector on the right, legend and status bar at the bottom. The toolbar and the inspector can be collapsed.","Legende:":"Legend:","eine feste Reihe über der Statuszeile, immer sichtbar und nicht einklappbar.":"a fixed row above the status bar, always visible and not collapsible.","Raster:":"Grid:","Schrittweite frei einstellen; Snap-to-Grid kann beim Ziehen verwendet werden.":"set the spacing freely; snap-to-grid can be used while dragging.","Einpassen / Zoom:":"Fit / zoom:","Kartenansicht anpassen.":"adjust the map view.","GeoJSON speichern:":"Save GeoJSON:","aktuelle Karte exportieren. Die Vorher-Ghosts dieser Karte werden gelöscht und der aktuelle Stand wird neuer Vergleichs-/Reset-Checkpoint.":"export the current map. Previous-position ghosts for this map are cleared and the current state becomes the new comparison/reset checkpoint.","0 ausgewählt":"0 selected","Strg + Klick, Rechteck oder Lasso.":"Ctrl + click, rectangle or lasso.","Karteninfo":"Map info","Abmessungen":"Dimensions","Ost–West":"East–West","Nord–Süd":"North–South","Perimeterfläche":"Perimeter area","Editierbare Punkte":"Editable points","Darstellung":"Display","Geladene Rohkoordinaten werden intern unverändert beibehalten. Wenn ein unterstütztes RTK-Relativformat erkannt wird, erfolgt die Anzeige und Bearbeitung in lokalen East/North-Metern. Beim Export bleiben die GeoJSON-Rohwerte im geladenen Koordinatensystem erhalten.":"Loaded raw coordinates are retained unchanged internally. When a supported relative RTK format is detected, display and editing use local East/North metres. On export, the GeoJSON raw values remain in the loaded coordinate system.","Punkt anklicken → Mäher oder Punkt ziehen, E/N ändern oder bei Polygonen Start/Ende neu vergeben → GeoJSON speichern.":"Click a point → drag mower or point, change E/N or reassign polygon start/end → save GeoJSON.","Legende":"Legend","Startpunkt":"Start point","Endpunkt":"End point","Ausgewählter Mäher":"Selected mower","Sprache wechseln / Change language":"Change language / Sprache wechseln","Sprache Deutsch oder Englisch":"Language German or English","Keine Änderung zum Rückgängigmachen":"No change to undo","Keine Änderung zum Wiederholen":"No change to redo","Mauszeiger: Punkte auswählen und markierte Punkte bzw. ganze Features verschieben.":"Pointer: select points and move selected points or entire features.","Rechteckauswahl: Rahmen um Punkte ziehen. Mit Strg wird zur bestehenden Auswahl ergänzt.":"Rectangle selection: drag a box around points. Hold Ctrl to add to the existing selection.","Lasso: freie Form um Punkte ziehen. Mit Strg wird zur bestehenden Auswahl ergänzt.":"Lasso: draw a free shape around points. Hold Ctrl to add to the existing selection.","Auswahl aufheben: entfernt alle Markierungen, ohne Punkte zu löschen.":"Clear selection: removes all selections without deleting points.","Linie begradigen":"Straighten line","Kreis":"Circle","Rechteck":"Rectangle","Radius (m)":"Radius (m)","Eckpunkte":"Vertices","Höhe (m)":"Height (m)","Drehung (Grad, 0 = East)":"Rotation (degrees, 0 = East)","Klickpunkt ist":"Click point is","Mittelpunkt":"Centre","Ecke":"Corner","Kreis-Exclusion setzen":"Place circle exclusion","Rechteck-Exclusion setzen":"Place rectangle exclusion","Kreis-Exclusion: Mittelpunkt anklicken.":"Circle exclusion: click the centre.","Rechteck-Exclusion: Bezugspunkt anklicken.":"Rectangle exclusion: click the reference point.","Für die Form genau einen Bezugspunkt anklicken.":"Click exactly one reference point for the shape.","Der Radius muss größer als 0 sein.":"The radius must be greater than 0.","Breite und Höhe müssen größer als 0 sein.":"Width and height must be greater than 0.","Der Drehwinkel ist ungültig.":"The rotation angle is invalid.","Kreis:":"Circle:","Rechteck:":"Rectangle:","Mittelpunkt auf der Karte anklicken.":"Click the centre on the map.","Ecke auf der Karte anklicken.":"Click the corner on the map.","Maßstab unklar.":"Scale unclear.","Beide Karten enthalten einen Docking-Pfad mit Punkten. Vor dem Verbinden einen davon löschen.":"Both maps contain a docking path with points. Delete one of them before merging.","Beide Karten enthalten eine Search Wire mit Punkten. Vor dem Verbinden eine davon löschen.":"Both maps contain a Search Wire with points. Delete one of them before merging.","Rasterfang nicht möglich: der Maßstab der Karte ist unbekannt.":"Snap to grid not possible: the scale of this map is unknown.","Export in absolutem WGS84 nicht möglich: der Maßstab der Karte ist unbekannt.":"Export in absolute WGS84 is not possible: the scale of this map is unknown.","Perimeterfläche: konnte nicht berechnet werden, Maßstab unbekannt.":"Perimeter area: could not be computed, scale unknown.","Segmentprüfung: nur der relative Anteil wurde angewendet, die absolute Untergrenze von 50 m setzt einen bekannten Maßstab voraus.":"Segment check: only the relative part was applied; the absolute floor of 50 m requires a known scale.","Korridorprüfung: übersprungen, sie setzt einen bekannten Maßstab voraus.":"Corridor check: skipped, it requires a known scale.","Ecken rechtwinklig":"Right-angled corners","Vorzugsrichtung":"Preferred direction","automatisch erkennen":"detect automatically","fester Winkel":"fixed angle","Fester Winkel (Grad, 0 = East)":"Fixed angle (degrees, 0 = East)","Toleranz in Grad":"Tolerance in degrees","Ecken rechtwinklig machen":"Make corners right-angled","Ecken rechtwinklig machen (ganzes Feature).":"Make corners right-angled (whole feature).","Ecken rechtwinklig: einen Punkt des Features auswählen.":"Right-angled corners: select a point of the feature.","Ecken rechtwinklig: die Auswahl muss zu genau einem Feature gehören.":"Right-angled corners: the selection must belong to exactly one feature.","Ecken rechtwinklig: die Auswahl muss zu genau einem Linienzug gehören.":"Right-angled corners: the selection must belong to exactly one line.","Ecken rechtwinklig: dieses Feature hat keinen Linienzug.":"Right-angled corners: this feature has no line.","Ecken rechtwinklig: dieser Linienzug hat zu wenige Punkte.":"Right-angled corners: this line has too few points.","Ecken rechtwinklig: keine Vorzugsrichtung erkennbar.":"Right-angled corners: no preferred direction can be determined.","Ecken rechtwinklig: es ändert sich nichts.":"Right-angled corners: nothing changes.","Ecken rechtwinklig: die Auswahl ist nicht mehr gültig.":"Right-angled corners: the selection is no longer valid.","Ungültige Toleranz. Zulässig sind 0 bis 45 Grad.":"Invalid tolerance. Allowed values are 0 to 45 degrees.","Kanten, die weiter als die Toleranz von einer Achse abweichen, bleiben unangetastet. Es wird kein Punkt entfernt: werden drei Punkte kollinear, bleiben sie erhalten – Ausdünnen ist Aufgabe von „Punkte reduzieren“.":"Edges deviating from an axis by more than the tolerance are left untouched. No point is removed: if three points become collinear they are kept - thinning out is the job of \u201cReduce points\u201d.","Bei geschlossenen Ringen bleibt der Startpunkt immer erhalten, weil er Start und Ende des Rings markiert. Soll er weg, vorher über „Startpunkt setzen“ einen anderen Punkt dazu machen.":"On closed rings the start point is always kept, because it marks both start and end of the ring. To remove it, first use \u201cSet start point\u201d to make another point the start.","Änderung":"Change","Punktkoordinate ändern":"Change point coordinate","Startpunkt neu setzen":"Reassign start point","Endpunkt neu setzen":"Reassign end point","Polygonpunkt einfügen":"Insert polygon point","Polygonpunkt hinzufügen":"Add polygon point","Exclusion duplizieren":"Duplicate exclusion","Bezugspunkt ändern":"Change reference point","Karte A öffnen/ersetzen":"Open/replace map A","Karte B öffnen/ersetzen":"Open/replace map B","Kreis-Exclusion erstellen":"Create circle exclusion","Rechteck-Exclusion erstellen":"Create rectangle exclusion","Exclusion erstellen":"Create exclusion","Search Wire erstellen":"Create Search Wire","Karte":"Map","Maßstab":"Scale","Bezugspunkt":"Reference point","Prüfung":"Validation","Sunray-Relativformat":"Sunray relative format","metrisch (angenommen)":"metric (assumed)","absolutes WGS84":"absolute WGS84","unklar":"unclear","gesetzt":"set","nicht gesetzt":"not set","widersprüchlich":"conflicting","nicht geprüft":"not validated","keine Befunde":"no findings","Auswählen":"Select","Zeichnen":"Draw","Prüfen":"Validate","Zeiger":"Pointer","Rahmen":"Box","Lasso":"Lasso","Exclusion":"Exclusion","Search Wire":"Search Wire","Dockpfad":"Docking path","Messen":"Measure","Kartenansicht einpassen":"Fit map view","Vergrößern":"Zoom in","Verkleinern":"Zoom out","Exclusion zeichnen: mindestens 3 Eckpunkte setzen und das Polygon schließen.":"Draw exclusion: set at least 3 vertices and close the polygon.","Kreis-Exclusion setzen: Mittelpunkt anklicken, Maße stehen im Inspektor.":"Place circle exclusion: click the centre; dimensions are in the inspector.","Rechteck-Exclusion setzen: Bezugspunkt anklicken, Maße stehen im Inspektor.":"Place rectangle exclusion: click the reference point; dimensions are in the inspector.","Search Wire zeichnen: offene Linie mit mindestens 2 Punkten.":"Draw Search Wire: open line with at least 2 points.","Docking-Pfad erstellen: offene Linie mit mindestens 2 Punkten, üblich sind 3.":"Create docking path: open line with at least 2 points, 3 being customary.","Distanz messen: zwei Positionen auf der Karte wählen. Verändert die Karte nicht.":"Measure distance: select two positions on the map. Does not change the map.","Karte prüfen: Geometrie und Struktur kontrollieren. Verändert die Karte nicht.":"Validate map: check geometry and structure. Does not change the map.","Werkzeugleiste einklappen":"Collapse tool bar","Werkzeugleiste ausklappen":"Expand tool bar","Bei dieser Fensterbreite bleibt die Werkzeugleiste eingeklappt.":"At this window width the tool bar stays collapsed.","Es wird bereits gezeichnet. Zuerst abschließen oder abbrechen.":"A drawing is already in progress. Finish or cancel it first.","Es gibt mehrere Search-Wire-Features. Bitte zuerst die Kartenprüfung verwenden.":"There are several Search Wire features. Please use map validation first.","Es gibt mehrere Search-Wire-Features. CaSSAndRA übernimmt beim Laden nur die erste, alle weiteren gehen verloren.":"There are several Search Wire features. CaSSAndRA only adopts the first one on load; all others are lost.","Es gibt mehrere Docking-Features. CaSSAndRA übernimmt beim Laden nur das erste, alle weiteren gehen verloren.":"There are several docking features. CaSSAndRA only adopts the first one on load; all others are lost.","Auswahl":"Selection","Nichts ausgewählt":"Nothing selected","Punkt auf der Karte anklicken":"Click a point on the map","Koordinaten":"Coordinates","Geschlossene Polygone":"Closed polygons","Polygon":"Polygon","Linie":"Line","Punktmenge":"Point set","Punkte reduzieren":"Reduce points","Toleranz":"Tolerance","Eigene Toleranz in Metern":"Custom tolerance in metres","Einen Punkt auswählen (ganzes Feature) oder zwei Punkte (Abschnitt).":"Select one point (whole feature) or two points (section).","Reduzieren: einen Punkt auswählen (ganzes Feature) oder zwei Punkte (Abschnitt).":"Reduce: select one point (whole feature) or two points (section).","Reduzieren: die Auswahl muss zu genau einem Feature gehören.":"Reduce: the selection must belong to exactly one feature.","Reduzieren: die Auswahl muss zu genau einem Linienzug gehören.":"Reduce: the selection must belong to exactly one line.","Reduzieren: dieses Feature hat keinen Linienzug.":"Reduce: this feature has no line.","Reduzieren: dieser Linienzug hat zu wenige Punkte.":"Reduce: this line has too few points.","Reduzieren: die Auswahl ist nicht mehr gültig.":"Reduce: the selection is no longer valid.","Ungültige Toleranz.":"Invalid tolerance.","Bei geschlossenen Ringen bleibt der Startpunkt immer erhalten, weil":"On closed rings the start point is always kept, because","er Start und Ende des Rings markiert. Soll er weg, vorher über":"it marks both start and end of the ring. To remove it, first use","„Startpunkt setzen“ einen anderen Punkt dazu machen.":"“Set start point” to make another point the start.","Nicht bearbeitbar: nur perimeter, exclusion, search wire und dockpoints werden unterstützt.":"Not editable: only perimeter, exclusion, search wire and dockpoints are supported.","Löschen: aktuell sind keine Punkte ausgewählt.":"Delete: no points are currently selected.","Begradigen: genau zwei Punkte desselben Linienzugs auswählen.":"Straighten: select exactly two points of the same line.","Begradigen: beide Punkte müssen zum selben Feature gehören.":"Straighten: both points must belong to the same feature.","Begradigen: beide Punkte müssen zum selben Linienzug gehören.":"Straighten: both points must belong to the same line.","Begradigen: dieses Feature hat keinen Linienzug.":"Straighten: this feature has no line.","Begradigen: die beiden Punkte sind benachbart – dazwischen liegt nichts.":"Straighten: the two points are adjacent - there is nothing in between.","Begradigen: die Auswahl ist nicht mehr gültig.":"Straighten: the selection is no longer valid.","Begradigen: die beiden Punkte liegen aufeinander, es gibt keine Gerade.":"Straighten: the two points coincide, so there is no line.","RTK Karte":"RTK map","Start und Ende sind zwei benachbarte echte Eckpunkte. Danach wiederholt GeoJSON intern den Startpunkt, damit der Ring geschlossen bleibt. Beim Neuvergeben werden die Punkte zyklisch neu nummeriert. Neue Punkte werden zunächst auf einer bestehenden Kante eingesetzt, damit sich die Polygonform beim Einfügen nicht unbeabsichtigt verändert.":"Start and end are two adjacent real vertices. GeoJSON then repeats the start point internally so the ring remains closed. When reassigned, points are renumbered cyclically. New points are initially inserted on an existing edge so the polygon shape does not change unintentionally."}));
+  /* Glätten - siehe 13. KARTENGLÄTTUNG. "Glätten" ist zugleich die
+     Historienmarke. */
+  "Glätten":"Smooth",
+  "Anwenden":"Apply",
+  "Bögen und Grenzen":"Arcs and limits",
+  "Bogenpunktabstand in Metern":"Arc point spacing in metres",
+  "Knick je Bogenpunkt in Grad":"Bend per arc point in degrees",
+  "Perimeter höchstens so weit nach außen (m)":"Perimeter at most this far outwards (m)",
+  "Exclusion höchstens so weit nach innen (m)":"Exclusion at most this far inwards (m)",
+  "Ersetzt scharfe Ecken durch Bögen und Baumringe durch Kreise. Perimeterecken werden nach innen geschnitten, Exclusions wachsen; auf die falsche Seite geht keine Linie weiter als der eingestellte Grenzwert. Erst erscheint eine Vorschau, übernommen wird mit „Anwenden“.":"Replaces sharp corners with arcs and tree rings with circles. Perimeter corners are cut inwards, exclusions grow; no line goes further onto the wrong side than the set limit. A preview comes first; Apply takes it over.",
+  "Glätten: keine Karte geladen.":"Smooth: no map loaded.",
+  "Glätten: der Maßstab ist unklar – geglättet wird in Metern.":"Smooth: the scale is unclear – smoothing works in metres.",
+  "Glätten: die Auswahl gehört zu mehreren Features. Ein Feature auswählen oder die Auswahl aufheben – dann wirkt es auf die ganze Karte.":"Smooth: the selection belongs to several features. Select one feature, or clear the selection – then it applies to the whole map.",
+  "Glätten: die Auswahl muss zu genau einem Linienzug gehören.":"Smooth: the selection must belong to exactly one line.",
+  "Glätten: nur Perimeter und Exclusions lassen sich glätten.":"Smooth: only perimeters and exclusions can be smoothed.",
+  "Glätten: die Karte braucht genau einen Perimeter.":"Smooth: the map needs exactly one perimeter.",
+  "Glätten: der Knick muss größer als 0 und kleiner als 180 Grad sein.":"Smooth: the bend must be greater than 0 and less than 180 degrees.",
+  "Glätten: der Überstand des Perimeters muss eine Zahl ab 0 sein.":"Smooth: the perimeter limit must be a number of at least 0.",
+  "Glätten: der Überstand der Exclusion muss eine Zahl ab 0 sein.":"Smooth: the exclusion limit must be a number of at least 0.",
+  "Glättet die ganze Karte – den Perimeter.":"Smooths the whole map – the perimeter.",
+  "Glättet die ganze Karte – Perimeter und 1 Exclusion.":"Smooths the whole map – perimeter and 1 exclusion.",
+  "Glätten abgelehnt: dabei ändert sich nichts.":"Smoothing rejected: nothing would change.",
+  "1 Stelle bleibt ungeglättet:":"1 place stays unsmoothed:",
+  "Nachbarkante zu kurz":"neighbouring edge too short",
+  "Wegpunkttoleranz":"waypoint tolerance",
+  "andere Fläche im Weg":"another area in the way",
+  "Mindestkorridor":"minimum corridor",
+  "kein Bogen auf der richtigen Seite":"no arc on the correct side",
+  "Runden auf 1 cm":"rounding to 1 cm",
+  "enger Bogen ausgelassen":"tight arc skipped",
+  "Glätten abgebrochen – die Karte ist unverändert.":"Smoothing cancelled – the map is unchanged.",
+  "Glätten: die Vorschau gilt nicht mehr – bitte neu glätten.":"Smooth: the preview is no longer valid – please smooth again.",
+  "Glätten: die Rechnung ist gescheitert – die Karte bleibt unverändert.":"Smooth: the calculation failed – the map stays unchanged.",
+  "Glätten abgebrochen: die Kartenprüfung meldet danach 1 neuen Fehler.":"Smoothing cancelled: map validation then reports 1 new error.",
+"Raster wird nach dem Öffnen einer Karte angezeigt.":"The grid is shown once a map is open.","Eingestellt:":"Set:","Sichtbar dargestellt:":"Shown:","(bei diesem Zoom wäre das feinere Raster kleiner als ein Bildschirmpixel)":"(at this zoom the finer grid would be smaller than one screen pixel)","Exclusion zeichnen: Eckpunkte anklicken.":"Draw exclusion: click the corner points.","Einpassen":"Fit","↶ Zurück":"↶ Undo","↷ Vor":"↷ Redo","Hilfe":"Help","Datei":"File","Ansicht":"View","Strg+O":"Ctrl+O","Strg+Umschalt+O":"Ctrl+Shift+O","Strg+S":"Ctrl+S","Kurzüberblick":"Quick overview","Raster…":"Grid…","Mähroboter-Vorschau…":"Mower preview…","Karten verbinden…":"Merge maps…","Karte A und B zu einem Perimeter verbinden":"Merge map A and B into one perimeter","Fenster schließen":"Close window","Rasterweite einstellen und am Raster einrasten":"Set the grid spacing and snap to grid","Länge und Arbeitsbreite des Mähers einstellen":"Set the mower length and working width","Rasterweite und Schrittweite der Pfeiltasten":"Grid spacing and arrow-key step","Die Breite ist zugleich die Arbeitsbreite: sie ist die Schwelle der Korridorprüfung in der Kartenprüfung, geht als Quadrat in die Flächenwarnung beim Reduzieren ein, und ihre Hälfte ist beim Glätten der kleinste Bogenradius, der nicht ausgelassen wird.":"The width is also the working width: it is the threshold of the corridor check in map validation, enters the area warning when reducing points as its square, and half of it is the smallest arc radius that smoothing does not skip.","Ausgabe 050":"Release 050","GeoJSON speichern":"Save GeoJSON","Aktive zurücksetzen":"Reset active","Keine Karte geladen":"No map loaded","Keine Karte geladen.":"No map loaded.","Karten":"Maps","Karte A · nicht geladen":"Map A · not loaded","Karte B · nicht geladen":"Map B · not loaded","Karte A":"Map A","Karte B":"Map B","Karte A · aktiv":"Map A · active","Karte B · aktiv":"Map B · active","Karte A öffnen":"Open map A","Karte B öffnen":"Open map B","Karte B schließen":"Close map B","Karten verbinden":"Merge maps","Beide Karten müssen dieselbe RTK-Basis / dasselbe lokale Koordinatensystem verwenden.":"Both maps must use the same RTK base / the same local coordinate system.","Karte A ist nicht geladen.":"Map A is not loaded.","Karte B ist nicht geladen.":"Map B is not loaded.","Verbindungsvorschau anzeigen":"Show merge preview","Auftrennstelle setzen":"Set cut edge","Trennt den Perimeter der aktiven Karte an der Kante zwischen den beiden ausgewählten Punkten auf. Die Geometrie ändert sich dabei nicht, nur die Reihenfolge: der eine Punkt wird Startpunkt, der andere Endpunkt.":"Cuts the perimeter of the active map open at the edge between the two selected points. The geometry does not change, only the order: one point becomes the start point, the other the end point.","Dreht den Ring so, dass der ausgewählte Punkt Punkt 1 wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Endpunkt setzen“ auf dem Punkt davor bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.":"Rotates the ring so that the selected point becomes point 1. Start point and end point are the same rotation: “Set end point” on the preceding point does exactly the same, and the second of the two gestures overwrites the first.","Dreht den Ring so, dass der ausgewählte Punkt letzter Punkt wird. Startpunkt und Endpunkt sind dieselbe Drehung: „Startpunkt setzen“ auf dem Punkt danach bewirkt genau dasselbe, und die zweite der beiden Gesten überschreibt die erste.":"Rotates the ring so that the selected point becomes the last point. Start point and end point are the same rotation: “Set start point” on the following point does exactly the same, and the second of the two gestures overwrites the first.","Kein gültiger Perimeter.":"No valid perimeter.","Nicht geladen.":"Not loaded.","Auftrennstelle gewählt.":"Cut edge chosen.","Auftrennstelle seit der Wahl verändert.":"Cut edge changed since it was chosen.","Die vorher gewählte Auftrennstelle wurde ersetzt.":"The previously chosen cut edge has been replaced.","Auftrennstelle aus der Datei.":"Cut edge from the file.","Auftrennen: aufgetrennt wird der Perimeter, nicht dieses Feature.":"Cut edge: the perimeter is cut open, not this feature.","Auftrennen: die beiden Punkte müssen benachbart sein – zwischen ihnen liegen weitere.":"Cut edge: the two points must be adjacent – there are further points between them.","Auftrennen: beide Punkte müssen zum selben geschlossenen Ring gehören.":"Cut edge: both points must belong to the same closed ring.","Auftrennen: beide Punkte müssen zum selben Feature gehören.":"Cut edge: both points must belong to the same feature.","Auftrennen: genau zwei benachbarte Punkte des Perimeters auswählen.":"Cut edge: select exactly two adjacent points of the perimeter.","Auftrennstelle gesetzt: Der Perimeter wird an der Kante zwischen den beiden gewählten Punkten aufgetrennt.":"Cut edge set: the perimeter is cut open at the edge between the two selected points.","Beide Karten benötigen einen gültigen Polygon-Perimeter.":"Both maps need a valid polygon perimeter.","Die Karten verwenden unterschiedliche erkannte Koordinatenskalierungen und können nicht sicher verbunden werden.":"The maps use different detected coordinate scalings and cannot be merged safely.","Zweite Karte laden, dann je Karte die Auftrennstelle wählen.":"Load a second map, then choose the cut edge for each map.","Bereit.":"Ready.","Auftrennstelle nicht gewählt – für beide Karten gilt die Reihenfolge aus der Datei.":"No cut edge chosen – both maps use the order from the file.","Auftrennstelle seit der Wahl verändert – verbunden wird dort, wo der Ring heute aufgetrennt ist.":"Cut edge changed since it was chosen – merging uses the place where the ring is cut open today.","Karte A und B":"Map A and B","Auftrennstelle nur für Karte A gewählt – für Karte B gilt die Reihenfolge aus der Datei.":"Cut edge chosen for map A only – map B uses the order from the file.","Auftrennstelle nur für Karte B gewählt – für Karte A gilt die Reihenfolge aus der Datei.":"Cut edge chosen for map B only – map A uses the order from the file.","Neue Kanten:":"New edges:","A Ende → B Start":"A end → B start","B Ende → A Start":"B end → A start","Die beiden neuen Kanten kreuzen sich.":"The two new edges cross each other.","Eine neue Kante kreuzt den Perimeter von Karte A.":"A new edge crosses the perimeter of map A.","Eine neue Kante kreuzt den Perimeter von Karte B.":"A new edge crosses the perimeter of map B.","Eine andere Auftrennstelle vermeidet das.":"A different cut edge avoids this.","Karte A + B verbinden":"Merge map A + B","Feature-Navigation":"Feature navigation","Keine Features vorhanden.":"No features available.","Features erstellen":"Create features","Exclusion zeichnen":"Draw exclusion","Search Wire zeichnen":"Draw Search Wire","Search Wire verlängern":"Extend Search Wire","Search Wire löschen":"Delete Search Wire","Docking-Pfad erstellen":"Create docking path","Docking-Pfad verlängern":"Extend docking path","Docking-Pfad verlängert.":"Docking path extended.","Docking-Pfad gelöscht.":"Docking path deleted.","Kein Docking-Pfad vorhanden.":"No docking path present.","Docking-Pfad: mindestens 2 Punkte anklicken, üblich sind 3.":"Docking path: click at least 2 points; 3 is customary.","Ein Docking-Pfad benötigt mindestens 2 Punkte.":"A docking path requires at least 2 points.","Kein Docking-Pfad zum Verlängern vorhanden.":"No docking path available to extend.","Docking-Pfad ist kein LineString.":"Docking path is not a LineString.","Der Docking-Pfad ist leer. Verwende „Docking-Pfad erstellen“.":"The docking path is empty. Use “Create docking path”.","Es existiert bereits ein Docking-Pfad. Verwende „Docking-Pfad verlängern“ oder lösche ihn zuerst.":"A docking path already exists. Use “Extend docking path” or delete it first.","Es existiert bereits ein Docking-Pfad. Pro Karte ist nur einer erlaubt.":"A docking path already exists. Only one per map is allowed.","Docking-Pfad vollständig löschen?":"Delete the entire docking path?","Docking-Pfad löschen":"Delete docking path","Letzten Punkt entfernen":"Remove last point","Zeichnung abschließen":"Finish drawing","Kreis abschließen":"Finish circle","Rechteck abschließen":"Finish rectangle","Exclusion abschließen":"Finish exclusion","Search Wire abschließen":"Finish search wire","Docking-Pfad abschließen":"Finish docking path","Abbrechen":"Cancel","Kein Zeichenwerkzeug aktiv.":"No drawing tool active.","Exclusion:":"Exclusion:","mindestens 3 Punkte setzen und anschließend schließen.":"set at least 3 points and then close the polygon.","Search Wire:":"Search Wire:","offene Linie mit mindestens 2 Punkten; eine vorhandene Linie kann am Ende verlängert werden.":"open line with at least 2 points; an existing line can be extended at its end.","Docking-Pfad:":"Docking path:","nur einmal existieren; offene Linie mit mindestens 2 Punkten,":"exist only once; an open line with at least 2 points,","üblich sind 3.":"3 being customary.","Ebenen":"Layers","Ausschlussflächen":"Exclusion areas","Dockpoints":"Dock points","Sonstiges":"Other","Punkte anzeigen / bearbeiten":"Show / edit points","Punkteditor":"Point editor","Noch kein Punkt ausgewählt.":"No point selected yet.","Klicke einen weißen Kartenpunkt an.":"Click a white map point.","Davor einfügen":"Insert before","Danach einfügen":"Insert after","Startpunkt setzen":"Set start point","Endpunkt setzen":"Set end point","Punkt löschen":"Delete point","Geschlossene Polygone:":"Closed polygons:","Beim Ziehen am Raster einrasten":"Snap to grid while dragging","Verschiebungen bleiben bis zum Speichern als Vergleich sichtbar.":"Moved original positions remain visible for comparison until saving.","Punkte lassen sich anklicken und anschließend ziehen.":"Points can be clicked and then dragged.","Mähroboter-Vorschau":"Mower preview","Mäher am ausgewählten Punkt anzeigen":"Show mower at selected point","Vorher-Ghosts anzeigen":"Show previous-position ghosts","Länge (m)":"Length (m)","Breite (m)":"Width (m)","Mähergröße übernehmen":"Apply mower size","Punkt auswählen, um die Fahrtrichtung anzuzeigen.":"Select a point to show the travel direction.","Raster":"Grid","Raster anzeigen":"Show grid","Schnellwahl":"Preset","Eigener Wert":"Custom value","Eigener Rasterabstand in Metern":"Custom grid spacing in metres","Übernehmen":"Apply","Rasterabstand:":"Grid spacing:","Messen & Prüfen":"Measure & validate","Distanz messen":"Measure distance","Messung löschen":"Clear measurement","Zwei Positionen auf der Karte wählen.":"Select two positions on the map.","Koordinatenbezug":"Coordinate reference","RTK-Basis Breite (lat)":"RTK base latitude (lat)","RTK-Basis Länge (lon)":"RTK base longitude (lon)","Koordinaten beim Speichern":"Coordinates on save","wie geladen":"as loaded","absolut WGS84 (CaSSAndRA)":"absolute WGS84 (CaSSAndRA)","Kein Bezugspunkt gesetzt.":"No reference point set.","Kein Bezugspunkt gesetzt. Absolute Ausgabe entspricht dann der Relativkarte.":"No reference point set. Absolute output then equals the relative map.","Bezugspunkt gesetzt. Relativkarte kann absolut gespeichert werden.":"Reference point set. The relative map can be saved as absolute coordinates.","Karte wurde aus absolutem WGS84 umgerechnet. Ein geänderter Bezugspunkt rechnet sie automatisch um; die angezeigten East/North-Werte laufen danach gegen den neuen Nullpunkt.":"Map was converted from absolute WGS84. Changing the reference point re-bases it automatically; the displayed East/North values then run against the new origin.","Ungültige Bezugsposition.":"Invalid reference position.","Bezugspunkt aktualisiert.":"Reference point updated.","Karte prüfen":"Validate map","Vor dem Speichern automatisch prüfen":"Validate automatically before saving","Noch keine Prüfung durchgeführt.":"No validation performed yet.","Im Menü „Datei“ Karte A oder Karte B öffnen.":"Open map A or map B in the “File” menu.","Web Map Editor – Kurzüberblick":"Web Map Editor – Quick overview","Hilfe schließen":"Close help","Einsatzbereich":"Scope","Primär für Ardumower / Sunray:":"Primarily for Ardumower / Sunray:","Der Editor wurde mit Blick auf deren GeoJSON-/RTK-Karten und lokale East/North-Koordinaten entwickelt.":"The editor was designed with their GeoJSON/RTK maps and local East/North coordinates in mind.","Er kann auch für andere Anwendungen mit kompatiblen GeoJSON-Strukturen nützlich sein. Eine vollständige Unterstützung beliebiger Fremdformate wird jedoch nicht vorausgesetzt.":"It can also be useful for other applications with compatible GeoJSON structures. Full support for arbitrary third-party formats is not assumed.","Karte A / B öffnen:":"Open map A / B:","lokale GeoJSON-/RTK-Karten laden. Zwischen geladenen Karten kann umgeschaltet und jeweils vollständig bearbeitet werden.":"load local GeoJSON/RTK maps. You can switch between loaded maps and edit each one fully.","Karten verbinden:":"Merge maps:","je Karte die Auftrennstelle wählen – zwei benachbarte Punkte des Perimeters. Der Editor verbindet A Ende → B Start und B Ende → A Start zu einem geschlossenen Perimeter.":"choose the cut edge for each map – two adjacent points of the perimeter. The editor connects A end → B start and B end → A start into one closed perimeter.","Punkte bearbeiten":"Edit points","Punkt auswählen:":"Select point:","anklicken, ziehen oder East/North numerisch ändern.":"click, drag or change East/North numerically.","Start / Ende:":"Start / end:","ausgewählten Polygonpunkt als neuen Start- oder Endpunkt setzen; die Reihenfolge wird neu nummeriert und der Ring bleibt geschlossen. Beide Knöpfe drehen denselben Ring: die zweite Geste ersetzt deshalb die erste, und der Editor sagt es, wenn er dabei eine gewählte Auftrennstelle ersetzt.":"set the selected polygon point as the new start or end point; the order is renumbered and the ring remains closed. Both buttons rotate the same ring: a second gesture therefore replaces the first, and the editor says so when it replaces a chosen cut edge.","Punkte hinzufügen:":"Add points:","vor/nach einem Punkt oder über die Feature-Navigation auf einer bestehenden Kante einfügen.":"insert before/after a point or via feature navigation on an existing edge.","Punkte löschen:":"Delete points:","einzeln oder als Mehrfachauswahl. Mindestpunktzahlen werden automatisch geprüft. Sind alle Eckpunkte einer Exclusion per Rahmen, Lasso oder Strg+Klick ausgewählt, entfernt „Punkt löschen“ die komplette Exclusion.":"individually or as a multi-selection. Minimum point counts are validated automatically. If all vertices of an exclusion are selected by box, lasso or Ctrl+click, “Delete point” removes the entire exclusion.","Exclusions & Features":"Exclusions & features","Exclusion zeichnen:":"Draw exclusion:","mindestens 3 Eckpunkte setzen und das Polygon anschließend schließen.":"set at least 3 vertices and then close the polygon.","offene Linie mit mindestens 2 Punkten neu zeichnen, bestehende Linie am Ende verlängern oder vollständig löschen. Beim Verlängern bleiben die vorhandenen Punkte geschützt.":"draw a new open line with at least 2 points, extend an existing line at its end, or delete it completely. Existing points are protected while extending.","genau ein Docking-Feature pro Karte; offene Linie mit mindestens 2 Punkten, üblich sind 3. Ein vorhandener Pfad kann am Ende verlängert werden.":"exactly one docking feature per map; an open line with at least 2 points, 3 being customary. An existing path can be extended at its end.","Docking-Pfad löschen:":"Delete docking path:","entfernt das komplette 3-Punkte-Feature; einzelne Dock-Punkte können nicht separat gelöscht werden.":"removes the complete 3-point feature; individual docking points cannot be deleted separately.","Exclusion löschen:":"Delete exclusion:","alle Eckpunkte der Exclusion per Rahmen, Lasso oder Strg+Klick auswählen und anschließend „Punkt löschen“ verwenden. Verbleibende Exclusions werden neu nummeriert.":"select all vertices of the exclusion by box, lasso or Ctrl+click, then use “Delete point”. Remaining exclusions are renumbered.","komplette Exclusion entfernen; verbleibende Exclusions werden neu nummeriert.":"remove the complete exclusion; remaining exclusions are renumbered.","Ganzes Feature verschieben:":"Move entire feature:","Exclusion, Search Wire oder Docking-Point über die Feature-Navigation auswählen oder direkt an der Geometrie ziehen. Alle Punkte werden gemeinsam verschoben.":"select an exclusion, Search Wire or docking point via feature navigation or drag it directly on the geometry. All points move together.","Exclusion duplizieren:":"Duplicate exclusion:","erstellt eine identische Kopie und versetzt sie zur besseren Sichtbarkeit um einen Rasterabstand nach East und North. Anschließend ist die Kopie komplett ausgewählt und kann direkt weiter verschoben werden.":"creates an identical copy and offsets it by one grid step in East and North for visibility. The copy is then fully selected and can be moved immediately.","Feature-Navigation:":"Feature navigation:","einklappen/aufklappen und einzelne Features sowie Punkte gezielt auswählen.":"collapse/expand and select individual features and points.","Mehrfachauswahl":"Multi-selection","Strg + Klick:":"Ctrl + click:","einzelne Punkte hinzufügen oder entfernen.":"add or remove individual points.","Rahmen / Lasso:":"Box / lasso:","mehrere Punkte räumlich auswählen. Danach mit dem Zeiger einen markierten Punkt ziehen, um alle gemeinsam zu verschieben.":"select multiple points spatially. Then drag a selected point with the pointer to move them all together.","Entf / Backspace:":"Delete / Backspace:","Auswahl löschen.":"delete selection.","Auswahlwerkzeug abbrechen oder Auswahl aufheben.":"cancel the selection tool or clear the selection.","Pfeiltasten:":"Arrow keys:","ausgewählte Punkte exakt um einen Schritt der aktuell eingestellten Rasterweite verschieben. ←/→ = East, ↑/↓ = North. Funktioniert auch für Mehrfachauswahl.":"move selected points by exactly one step of the current grid spacing. ←/→ = East, ↑/↓ = North. Also works for multi-selection.","Der ausgewählte Punkt kann durch einen maßstäblichen Mäher ersetzt werden. Länge und Breite sind einstellbar. Die Ausrichtung wird aus der Punktfolge abgeleitet.":"The selected point can be replaced by a to-scale mower. Length and width are adjustable. Orientation is derived from the point sequence.","Distanz messen:":"Measure distance:","zwei Positionen wählen. Angezeigt werden Strecke, ΔEast, ΔNorth und Winkel (0° = East, 90° = North).":"select two positions. Distance, ΔEast, ΔNorth and angle are shown (0° = East, 90° = North).","Exclusion-Fläche:":"Exclusion area:","bei einem ausgewählten Punkt einer Exclusion wird deren Fläche angezeigt.":"when a point of an exclusion is selected, its area is shown.","Karte prüfen:":"Validate map:","kontrolliert Perimeter, Exclusions, Docking-Point, leere Features, doppelte Nachbarpunkte, auffällig große Segmente sowie Exclusions außerhalb des Perimeters, Überlappungen, Selbstüberschneidungen und zu enge Korridore.":"checks perimeter, exclusions, docking point, empty features, duplicate adjacent points, unusually large segments as well as exclusions outside the perimeter, overlaps, self-intersections and corridors that are too narrow.","Vergleich & Historie":"Comparison & history","Vorher-Ghosts:":"Previous-position ghosts:","verschobene Ausgangspositionen und alte Mäher bleiben bis zum Speichern sichtbar; im Menü „Ansicht“ lassen sie sich ausblenden.":"moved original positions and previous mower previews remain visible until saving; the View menu can hide them.","Zurück / Vor:":"Undo / Redo:","Änderungen per Button oder Ctrl/Cmd+Z bzw. Ctrl+Y / Ctrl/Cmd+Shift+Z rückgängig machen oder wiederholen.":"undo or redo changes using the buttons or Ctrl/Cmd+Z and Ctrl+Y / Ctrl/Cmd+Shift+Z.","Tablet & Touch":"Tablet & touch","Bedienung:":"Controls:","Zielgeräte sind Desktop und Tablet. Auf einem Bildschirm, der schmaler ist als ein Tablet im Hochformat, stehen Werkzeugleiste, Karte und Inspektor untereinander, und die Seite scrollt. Alle Befehle sind über die Menüleiste oben erreichbar.":"the target devices are desktop and tablet. On a screen narrower than a tablet in portrait, the toolbar, map and inspector are stacked and the page scrolls. All commands are reachable from the menu bar at the top.","Wird mit dem Finger bedient, sind Menüeinträge, Knöpfe und Eingabefelder größer – unabhängig davon, wie breit der Bildschirm ist. Die Kartenfläche bleibt dabei eigenständig touchfähig für Zoom, Pan, Auswahl und Verschieben.":"When operated by finger, menu entries, buttons and input fields are larger - regardless of how wide the screen is. The map area stays independently touch-enabled for zoom, pan, selection and moving.","Ansicht & Speichern":"View & saving","Abmessungen:":"Dimensions:","Kartengröße, Flächen- und Punktzahlen sowie Hinweise zur Koordinatendarstellung stehen im Inspektor, solange nichts ausgewählt ist.":"Map size, area and point counts as well as coordinate-display notes are in the inspector while nothing is selected.","Werkzeuge:":"Tools:","Zeiger, Rahmen und Lasso stehen in der Werkzeugleiste links unter „Auswählen“. „Punkt löschen“ und „Auswahl aufheben“ stehen in der Auswahlleiste, die erscheint, sobald etwas ausgewählt ist; „Linie begradigen“ im Faltblock „Umformen“. Verdeckt die Auswahlleiste einen Punkt, lässt sie sich über den Griff an ihrem Kopf zuklappen. Jeder Knopf erklärt sich im Tooltip.":"pointer, box and lasso are in the toolbar on the left under “Select”. “Delete point” and “Clear selection” are in the selection bar that appears as soon as something is selected; “Straighten line” is in the “Reshape” fold. If the selection bar covers a point, it can be collapsed using the handle at its head. Every button explains itself in its tooltip.","Anordnung:":"Layout:","Menüleiste oben, Werkzeugleiste links, Karte in der Mitte, Inspektor rechts, Legende und Statuszeile unten. Werkzeugleiste und Inspektor lassen sich einklappen.":"Menu bar at the top, toolbar on the left, map in the middle, inspector on the right, legend and status bar at the bottom. The toolbar and the inspector can be collapsed.","Legende:":"Legend:","eine feste Reihe über der Statuszeile, immer sichtbar und nicht einklappbar.":"a fixed row above the status bar, always visible and not collapsible.","Raster:":"Grid:","Schrittweite frei einstellen; Snap-to-Grid kann beim Ziehen verwendet werden.":"set the spacing freely; snap-to-grid can be used while dragging.","Einpassen / Zoom:":"Fit / zoom:","Kartenansicht anpassen.":"adjust the map view.","GeoJSON speichern:":"Save GeoJSON:","aktuelle Karte exportieren. Die Vorher-Ghosts dieser Karte werden gelöscht und der aktuelle Stand wird neuer Vergleichs-/Reset-Checkpoint.":"export the current map. Previous-position ghosts for this map are cleared and the current state becomes the new comparison/reset checkpoint.","0 ausgewählt":"0 selected","Strg + Klick, Rechteck oder Lasso.":"Ctrl + click, rectangle or lasso.","Karteninfo":"Map info","Abmessungen":"Dimensions","Ost–West":"East–West","Nord–Süd":"North–South","Perimeterfläche":"Perimeter area","Editierbare Punkte":"Editable points","Darstellung":"Display","Geladene Rohkoordinaten werden intern unverändert beibehalten. Wenn ein unterstütztes RTK-Relativformat erkannt wird, erfolgt die Anzeige und Bearbeitung in lokalen East/North-Metern. Beim Export bleiben die GeoJSON-Rohwerte im geladenen Koordinatensystem erhalten.":"Loaded raw coordinates are retained unchanged internally. When a supported relative RTK format is detected, display and editing use local East/North metres. On export, the GeoJSON raw values remain in the loaded coordinate system.","Punkt anklicken → Mäher oder Punkt ziehen, E/N ändern oder bei Polygonen Start/Ende neu vergeben → GeoJSON speichern.":"Click a point → drag mower or point, change E/N or reassign polygon start/end → save GeoJSON.","Legende":"Legend","Startpunkt":"Start point","Endpunkt":"End point","Ausgewählter Mäher":"Selected mower","Sprache wechseln / Change language":"Change language / Sprache wechseln","Sprache Deutsch oder Englisch":"Language German or English","Keine Änderung zum Rückgängigmachen":"No change to undo","Keine Änderung zum Wiederholen":"No change to redo","Mauszeiger: Punkte auswählen und markierte Punkte bzw. ganze Features verschieben.":"Pointer: select points and move selected points or entire features.","Rechteckauswahl: Rahmen um Punkte ziehen. Mit Strg wird zur bestehenden Auswahl ergänzt.":"Rectangle selection: drag a box around points. Hold Ctrl to add to the existing selection.","Lasso: freie Form um Punkte ziehen. Mit Strg wird zur bestehenden Auswahl ergänzt.":"Lasso: draw a free shape around points. Hold Ctrl to add to the existing selection.","Auswahl aufheben: entfernt alle Markierungen, ohne Punkte zu löschen.":"Clear selection: removes all selections without deleting points.","Linie begradigen":"Straighten line","Kreis":"Circle","Rechteck":"Rectangle","Radius (m)":"Radius (m)","Eckpunkte":"Vertices","Höhe (m)":"Height (m)","Drehung (Grad, 0 = East)":"Rotation (degrees, 0 = East)","Klickpunkt ist":"Click point is","Mittelpunkt":"Centre","Ecke":"Corner","Kreis-Exclusion setzen":"Place circle exclusion","Rechteck-Exclusion setzen":"Place rectangle exclusion","Kreis-Exclusion: Mittelpunkt anklicken.":"Circle exclusion: click the centre.","Rechteck-Exclusion: Bezugspunkt anklicken.":"Rectangle exclusion: click the reference point.","Für die Form genau einen Bezugspunkt anklicken.":"Click exactly one reference point for the shape.","Der Radius muss größer als 0 sein.":"The radius must be greater than 0.","Breite und Höhe müssen größer als 0 sein.":"Width and height must be greater than 0.","Der Drehwinkel ist ungültig.":"The rotation angle is invalid.","Kreis:":"Circle:","Rechteck:":"Rectangle:","Mittelpunkt auf der Karte anklicken.":"Click the centre on the map.","Ecke auf der Karte anklicken.":"Click the corner on the map.","Maßstab unklar.":"Scale unclear.","Beide Karten enthalten einen Docking-Pfad mit Punkten. Vor dem Verbinden einen davon löschen.":"Both maps contain a docking path with points. Delete one of them before merging.","Beide Karten enthalten eine Search Wire mit Punkten. Vor dem Verbinden eine davon löschen.":"Both maps contain a Search Wire with points. Delete one of them before merging.","Rasterfang nicht möglich: der Maßstab der Karte ist unbekannt.":"Snap to grid not possible: the scale of this map is unknown.","Export in absolutem WGS84 nicht möglich: der Maßstab der Karte ist unbekannt.":"Export in absolute WGS84 is not possible: the scale of this map is unknown.","Perimeterfläche: konnte nicht berechnet werden, Maßstab unbekannt.":"Perimeter area: could not be computed, scale unknown.","Segmentprüfung: nur der relative Anteil wurde angewendet, die absolute Untergrenze von 50 m setzt einen bekannten Maßstab voraus.":"Segment check: only the relative part was applied; the absolute floor of 50 m requires a known scale.","Korridorprüfung: übersprungen, sie setzt einen bekannten Maßstab voraus.":"Corridor check: skipped, it requires a known scale.","Ecken rechtwinklig":"Right-angled corners","Vorzugsrichtung":"Preferred direction","automatisch erkennen":"detect automatically","fester Winkel":"fixed angle","Fester Winkel (Grad, 0 = East)":"Fixed angle (degrees, 0 = East)","Toleranz in Grad":"Tolerance in degrees","Ecken rechtwinklig machen":"Make corners right-angled","Ecken rechtwinklig machen (ganzes Feature).":"Make corners right-angled (whole feature).","Ecken rechtwinklig: einen Punkt des Features auswählen.":"Right-angled corners: select a point of the feature.","Ecken rechtwinklig: die Auswahl muss zu genau einem Feature gehören.":"Right-angled corners: the selection must belong to exactly one feature.","Ecken rechtwinklig: die Auswahl muss zu genau einem Linienzug gehören.":"Right-angled corners: the selection must belong to exactly one line.","Ecken rechtwinklig: dieses Feature hat keinen Linienzug.":"Right-angled corners: this feature has no line.","Ecken rechtwinklig: dieser Linienzug hat zu wenige Punkte.":"Right-angled corners: this line has too few points.","Ecken rechtwinklig: keine Vorzugsrichtung erkennbar.":"Right-angled corners: no preferred direction can be determined.","Ecken rechtwinklig: es ändert sich nichts.":"Right-angled corners: nothing changes.","Ecken rechtwinklig: die Auswahl ist nicht mehr gültig.":"Right-angled corners: the selection is no longer valid.","Ungültige Toleranz. Zulässig sind 0 bis 45 Grad.":"Invalid tolerance. Allowed values are 0 to 45 degrees.","Kanten, die weiter als die Toleranz von einer Achse abweichen, bleiben unangetastet. Es wird kein Punkt entfernt: werden drei Punkte kollinear, bleiben sie erhalten – Ausdünnen ist Aufgabe von „Punkte reduzieren“.":"Edges deviating from an axis by more than the tolerance are left untouched. No point is removed: if three points become collinear they are kept - thinning out is the job of \u201cReduce points\u201d.","Bei geschlossenen Ringen bleibt der Startpunkt immer erhalten, weil er Start und Ende des Rings markiert. Soll er weg, vorher über „Startpunkt setzen“ einen anderen Punkt dazu machen.":"On closed rings the start point is always kept, because it marks both start and end of the ring. To remove it, first use \u201cSet start point\u201d to make another point the start.","Änderung":"Change","Punktkoordinate ändern":"Change point coordinate","Startpunkt neu setzen":"Reassign start point","Endpunkt neu setzen":"Reassign end point","Polygonpunkt einfügen":"Insert polygon point","Polygonpunkt hinzufügen":"Add polygon point","Exclusion duplizieren":"Duplicate exclusion","Bezugspunkt ändern":"Change reference point","Karte A öffnen/ersetzen":"Open/replace map A","Karte B öffnen/ersetzen":"Open/replace map B","Kreis-Exclusion erstellen":"Create circle exclusion","Rechteck-Exclusion erstellen":"Create rectangle exclusion","Exclusion erstellen":"Create exclusion","Search Wire erstellen":"Create Search Wire","Karte":"Map","Maßstab":"Scale","Bezugspunkt":"Reference point","Prüfung":"Validation","Sunray-Relativformat":"Sunray relative format","metrisch (angenommen)":"metric (assumed)","absolutes WGS84":"absolute WGS84","unklar":"unclear","gesetzt":"set","nicht gesetzt":"not set","widersprüchlich":"conflicting","nicht geprüft":"not validated","keine Befunde":"no findings","Auswählen":"Select","Zeichnen":"Draw","Prüfen":"Validate","Zeiger":"Pointer","Rahmen":"Box","Lasso":"Lasso","Exclusion":"Exclusion","Search Wire":"Search Wire","Dockpfad":"Docking path","Messen":"Measure","Kartenansicht einpassen":"Fit map view","Vergrößern":"Zoom in","Verkleinern":"Zoom out","Exclusion zeichnen: mindestens 3 Eckpunkte setzen und das Polygon schließen.":"Draw exclusion: set at least 3 vertices and close the polygon.","Kreis-Exclusion setzen: Mittelpunkt anklicken, Maße stehen im Inspektor.":"Place circle exclusion: click the centre; dimensions are in the inspector.","Rechteck-Exclusion setzen: Bezugspunkt anklicken, Maße stehen im Inspektor.":"Place rectangle exclusion: click the reference point; dimensions are in the inspector.","Search Wire zeichnen: offene Linie mit mindestens 2 Punkten.":"Draw Search Wire: open line with at least 2 points.","Docking-Pfad erstellen: offene Linie mit mindestens 2 Punkten, üblich sind 3.":"Create docking path: open line with at least 2 points, 3 being customary.","Distanz messen: zwei Positionen auf der Karte wählen. Verändert die Karte nicht.":"Measure distance: select two positions on the map. Does not change the map.","Karte prüfen: Geometrie und Struktur kontrollieren. Verändert die Karte nicht.":"Validate map: check geometry and structure. Does not change the map.","Werkzeugleiste einklappen":"Collapse tool bar","Werkzeugleiste ausklappen":"Expand tool bar","Bei dieser Fensterbreite bleibt die Werkzeugleiste eingeklappt.":"At this window width the tool bar stays collapsed.","Es wird bereits gezeichnet. Zuerst abschließen oder abbrechen.":"A drawing is already in progress. Finish or cancel it first.","Es gibt mehrere Search-Wire-Features. Bitte zuerst die Kartenprüfung verwenden.":"There are several Search Wire features. Please use map validation first.","Es gibt mehrere Search-Wire-Features. CaSSAndRA übernimmt beim Laden nur die erste, alle weiteren gehen verloren.":"There are several Search Wire features. CaSSAndRA only adopts the first one on load; all others are lost.","Es gibt mehrere Docking-Features. CaSSAndRA übernimmt beim Laden nur das erste, alle weiteren gehen verloren.":"There are several docking features. CaSSAndRA only adopts the first one on load; all others are lost.","Auswahl":"Selection","Nichts ausgewählt":"Nothing selected","Punkt auf der Karte anklicken":"Click a point on the map","Koordinaten":"Coordinates","Geschlossene Polygone":"Closed polygons","Polygon":"Polygon","Linie":"Line","Punktmenge":"Point set","Punkte reduzieren":"Reduce points","Toleranz":"Tolerance","Eigene Toleranz in Metern":"Custom tolerance in metres","Einen Punkt auswählen (ganzes Feature) oder zwei Punkte (Abschnitt).":"Select one point (whole feature) or two points (section).","Reduzieren: einen Punkt auswählen (ganzes Feature) oder zwei Punkte (Abschnitt).":"Reduce: select one point (whole feature) or two points (section).","Reduzieren: die Auswahl muss zu genau einem Feature gehören.":"Reduce: the selection must belong to exactly one feature.","Reduzieren: die Auswahl muss zu genau einem Linienzug gehören.":"Reduce: the selection must belong to exactly one line.","Reduzieren: dieses Feature hat keinen Linienzug.":"Reduce: this feature has no line.","Reduzieren: dieser Linienzug hat zu wenige Punkte.":"Reduce: this line has too few points.","Reduzieren: die Auswahl ist nicht mehr gültig.":"Reduce: the selection is no longer valid.","Ungültige Toleranz.":"Invalid tolerance.","Bei geschlossenen Ringen bleibt der Startpunkt immer erhalten, weil":"On closed rings the start point is always kept, because","er Start und Ende des Rings markiert. Soll er weg, vorher über":"it marks both start and end of the ring. To remove it, first use","„Startpunkt setzen“ einen anderen Punkt dazu machen.":"“Set start point” to make another point the start.","Nicht bearbeitbar: nur perimeter, exclusion, search wire und dockpoints werden unterstützt.":"Not editable: only perimeter, exclusion, search wire and dockpoints are supported.","Löschen: aktuell sind keine Punkte ausgewählt.":"Delete: no points are currently selected.","Begradigen: genau zwei Punkte desselben Linienzugs auswählen.":"Straighten: select exactly two points of the same line.","Begradigen: beide Punkte müssen zum selben Feature gehören.":"Straighten: both points must belong to the same feature.","Begradigen: beide Punkte müssen zum selben Linienzug gehören.":"Straighten: both points must belong to the same line.","Begradigen: dieses Feature hat keinen Linienzug.":"Straighten: this feature has no line.","Begradigen: die beiden Punkte sind benachbart – dazwischen liegt nichts.":"Straighten: the two points are adjacent - there is nothing in between.","Begradigen: die Auswahl ist nicht mehr gültig.":"Straighten: the selection is no longer valid.","Begradigen: die beiden Punkte liegen aufeinander, es gibt keine Gerade.":"Straighten: the two points coincide, so there is no line.","RTK Karte":"RTK map","Start und Ende sind zwei benachbarte echte Eckpunkte. Danach wiederholt GeoJSON intern den Startpunkt, damit der Ring geschlossen bleibt. Beim Neuvergeben werden die Punkte zyklisch neu nummeriert. Neue Punkte werden zunächst auf einer bestehenden Kante eingesetzt, damit sich die Polygonform beim Einfügen nicht unbeabsichtigt verändert.":"Start and end are two adjacent real vertices. GeoJSON then repeats the start point internally so the ring remains closed. When reassigned, points are renumbered cyclically. New points are initially inserted on an existing edge so the polygon shape does not change unintentionally."}));
 const I18N_PATTERNS = [
   /*
    * Schritt 1, dritter Durchgang: die zusammengesetzten Texte der Messung
@@ -21971,7 +24626,29 @@ const I18N_PATTERNS = [
     "Reference point updated. $1 converted map(s) re-based."],
   [/^([^·]+\.(?:json|geojson)) als Karte ([AB]) geladen\.$/, "$1 loaded as map $2."],
   [/^([^·]+\.(?:json|geojson)) als Karte ([AB]) geladen\. Karte A bleibt als Referenz sichtbar\.$/,
-    "$1 loaded as map $2. Map A remains visible as a reference."]
+    "$1 loaded as map $2. Map A remains visible as a reference."],
+
+  /* Glätten - siehe 13. KARTENGLÄTTUNG. Der Feature-Name in "Glättet nur …"
+     bleibt als $1 stehen: describeFeature() liefert Sprachneutrales oder ein
+     Label des Nutzers, und ein Label wird nicht übersetzt. */
+  [/^Glätten: der Bogenpunktabstand muss mindestens ([\d.,]+) m betragen – das ist die Wegpunkttoleranz\.$/,
+    "Smooth: the arc point spacing must be at least $1 m – that is the waypoint tolerance."],
+  [/^Glätten: (.+) ist kein einfacher geschlossener Ring\.$/,
+    "Smooth: $1 is not a simple closed ring."],
+  [/^Glättet nur (.+)\.$/, "Smooths $1 only."],
+  [/^Glättet die ganze Karte – Perimeter und (\d+) Exclusions\.$/,
+    "Smooths the whole map – perimeter and $1 exclusions."],
+  [/^Vorschau: (\d+) → (\d+) Punkte, größte Abweichung ([\d.,]+) m\.$/,
+    "Preview: $1 → $2 points, largest deviation $3 m."],
+  [/^(\d+) Stellen bleiben ungeglättet:$/, "$1 places stay unsmoothed:"],
+  [/^Keine Ecke knickt um ([\d.,]+) Grad oder mehr\.$/,
+    "No corner bends by $1 degrees or more."],
+  [/^Geglättet: (\d+) → (\d+) Punkte, größte Abweichung ([\d.,]+) m · mit Zurück rückgängig\.$/,
+    "Smoothed: $1 → $2 points, largest deviation $3 m · use Undo to restore."],
+  [/^Glätten abgebrochen: die Kartenprüfung meldet danach (\d+) neue Fehler\.$/,
+    "Smoothing cancelled: map validation then reports $1 new errors."],
+  [/^Fest stehen der Mindestkorridor \(([\d.,]+) m\), die Wegpunkttoleranz \(([\d.,]+) m\), die Bogenweite \(([\d.,]+) m\) und das Raster der neuen Punkte \(([\d.,]+) m\)\.$/,
+    "Fixed are the minimum corridor ($1 m), the waypoint tolerance ($2 m), the arc reach ($3 m) and the grid of the new points ($4 m)."]
 ];
 
 const i18nTextSnapshot = [];
@@ -22342,6 +25019,12 @@ function refreshDerivedUi() {
   updateFeatureDrawUi();
 
   /*
+   * Die vier Felder der Glättung tragen Zahlen, deren Dezimalzeichen mit der
+   * Sprache wechselt. Ihr Wert bleibt, nur seine Schreibweise folgt.
+   */
+  reformatSmoothSettings();
+
+  /*
    * Abweichung und Eckpunktabstand des Kreises folgen allein aus den beiden
    * Feldern. Bis hierher standen sie nicht auf diesem Weg: updateCircleHint()
    * ersetzt seinen Inhalt bei jeder Eingabe, der Schnappschuss vom
@@ -22427,6 +25110,10 @@ languageToggle.addEventListener(
  * stapelten sich sonst.
  */
 restoreInspectorFolds();
+
+/* Einmalig, wie die Faltblöcke: ein neues Laden setzt die Glättung nicht
+   auf ihre Vorgaben zurück. */
+fillSmoothSettingsDefaults();
 
 initialize();
 

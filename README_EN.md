@@ -241,6 +241,27 @@ Douglas-Peucker algorithm.
 - a notable area change on exclusions is reported
 - one undo step
 
+### Smooth map
+
+Sharp corners are replaced with arcs, roughly recorded tree rings with
+circles. The method comes from the map smoothing of MeinPathplanner.
+
+- works on the selected feature, or on the whole map when nothing is
+  selected – perimeter and exclusions; the tool says visibly which
+- first a preview on the map and in numbers, then Apply or Cancel; one undo
+  step
+- the recorded points are the real boundaries: perimeter corners are cut
+  inwards, exclusions grow; no line goes further onto the wrong side than the
+  set limit (default 0.02 m each, separately for perimeter and exclusion)
+- arc point spacing (default 0.15 m) and bend per arc point (default 25°)
+  are configurable; new points lie on the 1 cm grid and never closer than
+  0.10 m to each other
+- passages may get narrower, but not below 0.01 m
+- whatever cannot keep a rule stays as it was – and the tool names the
+  reason; if nothing changes at all, it refuses with a reason
+- afterwards a message with the point count before/after and the largest
+  deviation
+
 ### Map validation
 
 The active map can be validated before export. Checks include:

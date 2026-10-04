@@ -261,6 +261,27 @@ ausdünnen.
 - bei Exclusions wird eine nennenswerte Flächenänderung gemeldet
 - ein Undo-Schritt
 
+### Karte glätten
+
+Scharfe Ecken werden durch Bögen ersetzt, grob aufgenommene Baumringe durch
+Kreise. Das Verfahren stammt aus der Kartenglättung von MeinPathplanner.
+
+- wirkt auf das ausgewählte Feature, ohne Auswahl auf die ganze Karte –
+  Perimeter und Exclusions; das Werkzeug sagt sichtbar, worauf
+- erst eine Vorschau auf der Karte und in Zahlen, dann „Anwenden“ oder
+  „Abbrechen“; ein Undo-Schritt
+- die aufgenommenen Punkte sind die echten Grenzen: der Perimeter wird an
+  Ecken nach innen geschnitten, Exclusions wachsen; auf der falschen Seite
+  geht keine Linie weiter als der eingestellte Grenzwert (je Vorgabe 0,02 m,
+  getrennt für Perimeter und Exclusion)
+- Bogenpunktabstand (Vorgabe 0,15 m) und Knick je Bogenpunkt (Vorgabe 25°)
+  einstellbar; neue Punkte liegen auf dem 1-cm-Raster und nie näher als
+  0,10 m beieinander
+- Durchlässe dürfen enger werden, aber nicht unter 0,01 m
+- was eine Regel nicht halten kann, bleibt, wie es war – und das Werkzeug
+  nennt den Grund; ändert sich gar nichts, lehnt es mit Begründung ab
+- danach eine Meldung mit Punktzahl vorher/nachher und größter Abweichung
+
 ### Kartenprüfung
 
 Die aktive Karte kann vor dem Export geprüft werden. Unter anderem werden
@@ -587,6 +608,27 @@ Douglas-Peucker algorithm.
   least 2
 - a notable area change on exclusions is reported
 - one undo step
+
+### Smooth map
+
+Sharp corners are replaced with arcs, roughly recorded tree rings with
+circles. The method comes from the map smoothing of MeinPathplanner.
+
+- works on the selected feature, or on the whole map when nothing is
+  selected – perimeter and exclusions; the tool says visibly which
+- first a preview on the map and in numbers, then Apply or Cancel; one undo
+  step
+- the recorded points are the real boundaries: perimeter corners are cut
+  inwards, exclusions grow; no line goes further onto the wrong side than the
+  set limit (default 0.02 m each, separately for perimeter and exclusion)
+- arc point spacing (default 0.15 m) and bend per arc point (default 25°)
+  are configurable; new points lie on the 1 cm grid and never closer than
+  0.10 m to each other
+- passages may get narrower, but not below 0.01 m
+- whatever cannot keep a rule stays as it was – and the tool names the
+  reason; if nothing changes at all, it refuses with a reason
+- afterwards a message with the point count before/after and the largest
+  deviation
 
 ### Map validation
 

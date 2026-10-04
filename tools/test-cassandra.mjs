@@ -85,6 +85,8 @@ const NAMES = [
   "normalizeI18nText",
   "translateHistoryLabel",
   "translateGermanText",
+  /* Die Gründe, aus denen eine Stelle beim Glätten ungeglättet bleibt. */
+  "SMOOTH_GRUENDE",
   "describeFeature",
   "DEGREE_METERS",
   "ABSOLUTE_WGS84_THRESHOLD",
@@ -937,6 +939,41 @@ for (const name of sampleMaps) {
 
 /* -------------------------------------------------------------------- */
 console.log("Uebersetzungsmuster: Reihenfolge");
+
+/*
+ * Jeder Grund, aus dem eine Stelle beim Glätten ungeglättet bleibt, hat eine
+ * englische Fassung. Hier und nicht im Browsertest, weil sich einer der
+ * sieben nicht gezielt herstellen lässt - "kein Bogen auf der richtigen
+ * Seite" kam in 20 000 Zufallskarten nicht vor. "Runden auf 1 cm" kam dort
+ * ebenfalls nicht vor, ist aber gezielt erreichbar: ein Baumring 0,5 cm neben
+ * der Perimeterkante. Der Browsertest misst die übrigen sechs in der
+ * Oberfläche, in beiden Richtungen.
+ */
+console.log("Glaetten: die Gruende ungeglaetteter Stellen");
+{
+  const gruende = Object.values(app.SMOOTH_GRUENDE);
+  check("es sind die sieben Gruende des Kerns", gruende.length === 7, String(gruende.length));
+  gruende.forEach((deutsch) => {
+    const englisch = app.translateGermanText(deutsch);
+    check(`"${deutsch}" hat eine englische Fassung`,
+      englisch !== deutsch && !/[äöüß]/i.test(englisch), englisch);
+  });
+
+  /*
+   * Die Sicherung vor dem Anwenden - die Kartenprüfung meldet danach neue
+   * Fehler - lässt sich in der Oberfläche nicht herstellen: der Kern erzeugt
+   * keine Geometrie, an der die Prüfung einen Fehler fände. Ihre Meldung
+   * steht trotzdem in beiden Sprachen, in Einzahl und Mehrzahl.
+   */
+  check("Glaetten abgebrochen, 1 neuer Fehler: Einzahl auf englisch",
+    app.translateGermanText("Glätten abgebrochen: die Kartenprüfung meldet danach 1 neuen Fehler.") ===
+      "Smoothing cancelled: map validation then reports 1 new error.",
+    app.translateGermanText("Glätten abgebrochen: die Kartenprüfung meldet danach 1 neuen Fehler."));
+  check("Glaetten abgebrochen, 3 neue Fehler: Mehrzahl auf englisch",
+    app.translateGermanText("Glätten abgebrochen: die Kartenprüfung meldet danach 3 neue Fehler.") ===
+      "Smoothing cancelled: map validation then reports 3 new errors.",
+    app.translateGermanText("Glätten abgebrochen: die Kartenprüfung meldet danach 3 neue Fehler."));
+}
 
 /*
  * I18N_PATTERNS wird von oben nach unten durchsucht und beim ERSTEN Treffer

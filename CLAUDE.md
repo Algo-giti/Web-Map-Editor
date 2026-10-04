@@ -38,7 +38,7 @@ Abschnitt 5 (Domänenregeln) und `DISCLAIMER.md`.
 ## 2. Architektur
 
 Das gesamte Projekt ist **eine einzige Datei**: [`index.html`](index.html)
-(rund <!-- bestand: zeilen-index-html +-500 -->22 000 Zeilen: HTML, `<style>`-CSS, ein einziger inline
+(rund <!-- bestand: zeilen-index-html +-500 -->25 000 Zeilen: HTML, `<style>`-CSS, ein einziger inline
 `<script>`-Block). Es gibt bewusst **keine** weiteren Build-Artefakte, kein
 `package.json` für die App selbst, keine externen `<script src>`/`<link>`-
 Referenzen und keine `fetch()`/`XMLHttpRequest`-Aufrufe – die Datei ist
@@ -61,8 +61,9 @@ nachfolgenden Zeilennummern verschiebt.
 Zwei Eigenheiten der Nummerierung sind bekannt und beabsichtigt stehen
 gelassen: Abschnitt `2A` („Auswahlmodell, Undo/Redo, Werkzeuge und
 Kartenprüfung")
-steht physisch vor Abschnitt `2`, und nach `12` folgt `18`. Der Scriptkopf
-erklärt beides.
+steht physisch vor Abschnitt `2`, und nach `13` folgt `18`. Der Scriptkopf
+erklärt beides. Abschnitt `13` („Kartenglättung“) ist mit dem Glätten
+dazugekommen und hat die freie Nummer genommen; `14` bis `17` gibt es nicht.
 
 ### Zentrale Konzepte
 
@@ -137,13 +138,13 @@ erklärt beides.
   Fehler" ein „1 errors" – an der sichtbarsten Stelle der englischen
   Oberfläche. `tools/test-cassandra.mjs` prüft die ganze Liste jetzt
   automatisch darauf: für jedes Muster wird ein Beispieltext erzeugt und
-  gesucht, ob ein früheres, allgemeineres ihn abfängt. 177 der
-  <!-- bestand: i18n-muster -->202 Muster sind so erfassbar; die übrigen 25 sind
+  gesucht, ob ein früheres, allgemeineres ihn abfängt. 186 der
+  <!-- bestand: i18n-muster -->212 Muster sind so erfassbar; die übrigen 26 sind
   lange Meldungen mit eindeutigem Präfix und wurden von Hand durchgesehen.
 
-  **Nur die 202 trägt eine Markierung, die 177 und die 25 nicht.** Sie stammen
+  **Nur die 212 trägt eine Markierung, die 186 und die 26 nicht.** Sie stammen
   aus der Analyse in `tools/test-cassandra.mjs`, das sie bei jedem Lauf selbst
-  ausgibt („177 von 202 Mustern automatisch geprueft"); sie im Bestandsprüfer
+  ausgibt („186 von 212 Mustern automatisch geprueft"); sie im Bestandsprüfer
   ein zweites Mal zu rechnen hieße, dieselbe Analyse an zwei Orten zu führen.
 
   **Zusammengesetzte Texte** kann ein `I18N_PATTERNS`-Muster nicht übersetzen:
@@ -288,7 +289,12 @@ Führt nacheinander aus:
   bei mehreren Breitengraden, Identität bei `lat0 = lon0 = 0`, Import- und
   Export-Pfad – dazu, dass der erzeugte Export auf oberster Ebene nur `type`
   und `features` trägt (Abschnitt 5b). Dazu die Bezugspunkt-Konflikte aus Abschnitt 5b: Toleranz,
-  Adoptionsregel und die Exportsperre in beiden Modi. Liegt lokal eine Karte
+  Adoptionsregel und die Exportsperre in beiden Modi. Dazu die englischen
+  Fassungen der sieben Gründe, aus denen eine Stelle beim Glätten
+  ungeglättet bleibt, und der Abbruchmeldung vor dem Anwenden – der Grund
+  „kein Bogen auf der richtigen Seite“ und diese Meldung lassen sich in der
+  Oberfläche nicht herstellen (Abschnitt 5, „Kartenglättung“).
+  Liegt lokal eine Karte
   unter `test/` (nicht im Repository), wird zusätzlich ein Rundlauf damit
   gefahren; fehlt der Ordner, überspringt das Skript den Fall.
 - **`tools/test-geometry.mjs`** – Unit-Tests der reinen Geometriefunktionen:
@@ -352,6 +358,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-inspector.mjs` | Inspektor: alle sieben Zustände, Behälter, Tastatur |
 | `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster |
 | `test-ghosting.mjs` | Ghosting: wem ein Vorher-Umriss gehört |
+| `test-glaettung.mjs` | Kartenglättung: Vorschau, Anwenden, Abbrechen, Grenzwerte, Auswahl |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -483,7 +490,7 @@ nächsten Mal wie eine Zusicherung. Der Helfer stand seit Etappe 6 b2 im Harness
 Nachricht ihn als Bündelung „der bisher acht Mal kopierten Faltgeste"
 beschrieb – **aufgerufen hat ihn danach kein einziger Test**, alle acht Kopien
 blieben stehen. Damit erreichte die Reparatur der Navigationskarten zunächst
-niemanden. Seit Etappe 7 f rufen <!-- bestand: openallfolds-aufrufer -->**16 Skripte** den Helfer auf, und
+niemanden. Seit Etappe 7 f rufen <!-- bestand: openallfolds-aufrufer -->**17 Skripte** den Helfer auf, und
 `setAttribute("open", …)` steht im ganzen `tools/`-Verzeichnis an genau einer
 Stelle. **Keine neunte Kopie anlegen** – auch nicht unter anderem Namen; drei
 der acht hießen `expand()` statt `expandSidebar()` oder standen inline.
@@ -1160,7 +1167,7 @@ Menüeintrag trotzdem anklickte – gemessen an „Karte B" ohne geladene Datei 
 und Playwright dann dreißig Sekunden auf eine Freigabe wartete, die nicht
 kommt. Es ist derselbe Fall, für den es `klickeFreienKnopf()` gibt, nur eine
 Ebene höher; offen blieb er, weil die Behebung einen gemeinsamen Helfer
-ändert, den <!-- bestand: openallfolds-aufrufer -->16 Skripte benutzen.
+ändert, den <!-- bestand: openallfolds-aufrufer -->17 Skripte benutzen.
 
 Aus `menueBefehl(page, menue, eintrag)` ist deshalb die Fabrik
 `createMenueBefehl(page, check)` geworden, gebaut wie `createKlicker()`: sie
@@ -1173,7 +1180,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->57 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->59 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -1566,7 +1573,7 @@ deshalb steht die Regel oben so scharf da.
 
 ```
    ...die Prüfung hat <!-- bestand: pruefstellen -->49 Fundstellen...
-   ...rund <!-- bestand: zeilen-index-html +-500 -->22 000 Zeilen...
+   ...rund <!-- bestand: zeilen-index-html +-500 -->25 000 Zeilen...
 ```
 
 **Das Beispiel trägt die echten Namen, und das ist eine Zusicherung, keine
@@ -3702,7 +3709,7 @@ Rand eines Startpunktes ist auch eine Farbe, nur nicht die gemeinte.
 | `--map-selection-group` | `#61d8ff` | weitere Punkte derselben Auswahl |
 | `--map-ghost` | `#b9cce1` | Stand seit dem letzten Speichern |
 | `--map-origin` | `#95a7bf` | Ursprungskreuz **und Messwerkzeug** – Hilfsmittel, kein Kartenobjekt |
-| `--map-draft` | `#ffb36b` | **in Arbeit** – Zeichenvorschau und Merge-Brücken: entsteht gerade, gibt es noch nicht |
+| `--map-draft` | `#ffb36b` | **in Arbeit** – Zeichenvorschau, Merge-Brücken und die Vorschau der Glättung: entsteht gerade, gibt es noch nicht |
 
 ### Angleichung an MapmakerBT
 
@@ -4150,6 +4157,283 @@ zwei ausgewählten Punkten oder auf einem ganzen Feature. Die Auswahl kommt aus
 - Unterschreitet das Ergebnis die Mindestpunktzahl (3 im Ring, 2 auf der
   Linie), wird **nicht angewendet**, sondern abgelehnt. Bei 3 Punkten
   anzuhalten wäre eine stille Korrektur der eingegebenen Toleranz.
+
+### Kartenglättung (Umformen → Glätten)
+
+**Scharfe Ecken werden durch Bögen ersetzt, Baumringe durch Kreise.** Das
+Werkzeug steht im Faltblock „Umformen“ neben Begradigen, Reduzieren und
+Rechtwinklig. Der Knopf „Glätten“ rechnet erst nur: das Ergebnis erscheint als
+**Vorschau** auf der Karte (neue Linien gestrichelt, neue Punkte als Marker,
+beides im Entwurfston) und darunter in Zahlen. Übernommen wird es mit
+„Anwenden“, verworfen mit „Abbrechen“. Ein Anwenden ist ein Undo-Schritt.
+
+**Herkunft: der Planer, nicht neu erfunden.** Das Verfahren ist
+`smoothAll()` aus `tools/kartenglaettung.js` in MeinPathplanner_Claude
+(seinerseits aus MeinSunray, `37d9e48`). Übernommen ist der Stand des
+**Arbeitsbaums vom 04.10.2026 07:48, SHA-256 `d92382ed…`** – über HEAD
+`33b3e04` hinaus mit nicht committeten Änderungen. Die Datei hat sich dort
+während der Übernahme verändert; wer später vergleicht, vergleicht gegen
+diesen Stand. Am Planer-Repository ist nichts geändert worden.
+
+**Übernommen ist die Rechnung, nicht die Seite.** Im Abschnitt
+`13. KARTENGLÄTTUNG` von `index.html` steht der Rechenkern in den Bezeichnern
+des Planers, damit sich jede Stelle dort wiederfinden lässt; umbenannt sind
+nur fünf, die für rund 450 globale Funktionen zu allgemein wären (`options`,
+`dist`, `bez`, `GRID`, `ANY`). Nicht mitgenommen sind die Eckgruppen
+(im Planer Vorgabe „aus“), die erzwungenen Ecken (eine Bedienung der
+Planer-Seite), die Kennzahlen der Seite sowie Einlesen und Export – der Editor
+rechnet in seinen Weltkoordinaten über `toWorld()`/`fromWorld()`.
+
+**Gleich gerechnet, und das ist nachgewiesen, nicht angenommen.** Bei der
+Übernahme liefert der Kern in `index.html` Punkt für Punkt dasselbe wie das
+Original, samt dem Grund je ungeglätteter Ecke: in **90 von 90** Fällen auf
+synthetischen Karten (18 Karten, je fünf Einstellungen: Knick, Punktabstand,
+Grenze 0 / 2 / 5 cm) und in **6 von 6** Einstellungen auf der echten Karte des
+Projektinhabers, die im Planer-Repository liegt. Die Karte ist dafür nur
+lokal im Scratchpad gelesen worden; im Repository steht nichts von ihr.
+Gerechnet wurde der Kern dabei im strikten Modus, sodass jede Variable, die
+beim Umschreiben auf `const`/`let` ihren Gültigkeitsbereich verloren hätte,
+einen Fehler geworfen hätte. Die beiden Ergänzungen (unten) sind an 264
+weiteren Fällen nachgemessen, mit eigener Messung statt der des Kerns: der
+Überstand jeder Linie bleibt unter ihrem Grenzwert, auch bei getrennten
+Werten für Perimeter und Exclusion, und mit `nurLinie` bleiben die übrigen
+Linien punktgleich.
+
+**Die Regeln stammen vom Projektinhaber und sind fest:**
+
+- **Der Mäher darf durch die Glättung nicht dorthin fahren, wo er vorher nicht
+  war.** Nach innen schneiden ist beliebig erlaubt – beim Perimeter in die
+  Fläche, bei einer Exclusion von ihr weg. Begrenzt ist allein der Überstand
+  auf der **falschen** Seite: beim Perimeter nach außen, bei einer Exclusion
+  nach innen. Die beiden Grenzwerte sind **einstellbar**, je Vorgabe 0,02 m;
+  ihre **Richtung nicht**, und ein negativer Wert wird abgelehnt.
+- Perimeter- und Exclusionlinien sind die **Bahn der Mähermitte**, nicht des
+  Mäherrands. Durchlässe dürfen deshalb enger werden, bis auf den
+  **Mindestkorridor von 0,01 m** – fest, denn er hängt am Mäher und nicht am
+  Glättungswunsch.
+- **Bogenpunktabstand** (Vorgabe 0,15 m, `PUNKTABSTAND_M` des Planers) und
+  **Knick je Bogenpunkt** (Vorgabe 25°, `turnAngleLimit` des Planers, die
+  Drehschwelle der Firmware) sind einstellbar. Der Knick ist zugleich die
+  Schwelle, ab der eine Ecke geglättet wird – im Planer kommen beide aus
+  `turnAngleLimit`.
+
+**RICHTIGSTELLUNG der Auftragsfassung, damit sie niemand für die Entscheidung
+hält.** Im Auftrag stand „Glätten darf den Perimeter höchstens 2 cm
+VERGRÖSSERN und eine Exclusion höchstens 2 cm VERKLEINERN. Nie andersherum“,
+dazu als Zusicherung „geglätteter Perimeter liegt nie weiter innen als vorher“
+und im Nachtrag „der Perimeter darf nur größer, die Exclusion nur kleiner
+werden“. **Das war falsch formuliert, nicht so gemeint** – der Projektinhaber
+hat es auf Rückfrage richtiggestellt. Der Grund ist geometrisch: einen Bogen um
+eine konvexe Ecke gibt es nur innen. Wörtlich genommen hätte das Werkzeug jede
+konvexe Ecke abgelehnt; eine Einbuchtung von 90° bekäme bei 2 cm höchstens
+einen Bogen von rund 4,8 cm Radius mit Punkten weit unter der
+Wegpunkttoleranz, und Durchlässe könnten nur weiter werden – der
+Mindestkorridor hätte nie etwas zu tun. **Entschieden ist die Richtung des
+Planers**, wie oben beschrieben, und so sind die Zusicherungen gefasst:
+Perimeter höchstens Grenzwert außerhalb der Aufnahme, Exclusion höchstens
+Grenzwert innerhalb, nach innen bzw. außen keine Grenze.
+
+**Fest stehen außerdem, aus dem Planer übernommen:** die Wegpunkttoleranz
+0,10 m (kein neuer Punkt näher an seinem Nachbarn, `TARGET_REACHED_TOLERANCE`),
+das Raster 1 cm (die neuen Punkte liegen darauf, so überträgt CaSSAndRA die
+Karte), die Bogenweite 0,25 m (die Stufe „mittel“, mit der die Seite des
+Planers startet) und „enge Bögen auslassen“ (Planer-Vorgabe). Die halbe
+Spurweite, unter der ein Bogen als zu eng gilt, kommt aus der Mäherbreite des
+Editors. Die Oberfläche nennt die festen Werte unter den vier Feldern, aus den
+Konstanten gebaut und nicht als zweiter Text.
+
+**Worauf es wirkt, steht sichtbar unter dem Knopf.** Ohne Auswahl auf die
+ganze Karte („Glättet die ganze Karte – Perimeter und 1 Exclusion.“), mit
+Auswahl auf das Feature, zu dem sie gehört („Glättet nur Exclusion #0.“) –
+dieselbe Zuordnung wie beim Reduzieren und Rechtwinklig. Geglättet werden nur
+Perimeter und Exclusions; Search Wire und Docking-Pfad bleiben, wie sie sind,
+und zählen auch nicht als Nachbarn, weil der Planer nur Perimeter und
+Ausschlüsse kennt. Mit Auswahl bleiben die übrigen Linien Punkt für Punkt
+gleich und zählen nur als Nachbarn (`nurLinie`, eine der zwei Ergänzungen
+gegenüber dem Planer; die andere ist die getrennte Grenze der Exclusions).
+Abgelehnt wird mit Grund bei unklarem Maßstab, ohne genau einen Perimeter,
+bei einem Ring mit Loch oder Mehrfachpolygon und bei einer Auswahl über
+mehrere Features.
+
+**Abgelehnt wird mit Begründung, nicht still.** Ändert sich nichts, lehnt
+das Werkzeug ab und nennt je Grund, wie viele Stellen bleiben – darunter der
+Mindestkorridor. Ändert sich etwas, aber nicht alles, steht dasselbe unter der
+Vorschau („2 Stellen bleiben ungeglättet:“ und die Gründe): eine Ecke, die
+eine Regel nicht halten kann, bleibt, wie sie war, und der Nutzer sieht es,
+**bevor** er anwendet. Das ist die Lesart von „nicht stillschweigend ein
+schlechteres Ergebnis liefern“ – die Alternative, bei einer einzigen offenen
+Ecke alles abzulehnen, hätte die Karte des Projektinhabers nie geglättet:
+mit den Vorgaben und 0,35 m Mäherbreite bleiben dort 31 Perimeterecken offen,
+gemessen bei der Übernahme mit dem Original des Planers.
+
+**Die Vorschau gilt nur, solange sie stimmt.** Sie hält fest, gegen welche
+Karte, welchen Maßstab, welche Mäherbreite, welches Ziel und welche
+Einstellungen sie gerechnet ist (`smoothFingerprint()`); ändert sich davon
+etwas, fällt sie weg, und „Anwenden“ prüft es noch einmal. Ein geändertes Feld
+rechnet eine wartende Vorschau neu. Vor dem Anwenden läuft wie beim Reduzieren
+`newValidationErrors()` – neue Fehler brechen ab.
+
+**Die Mäherbreite gehört dazu, und das war beim ersten Bau übersehen.** Ihre
+Hälfte geht als kleinster Bogenradius in die Rechnung ein („enge Bögen
+auslassen“), eingestellt wird sie aber im Mäherfenster – und
+`applyMowerDimensions()` zeichnet nur neu und fasst den Inspektor nicht an.
+Ohne sie im Fingerabdruck blieb eine wartende Vorschau nach einer anderen
+Breite stehen, und „Anwenden“ hätte ein Ergebnis übernommen, das zur
+eingestellten Breite nicht passt. Deshalb räumt `renderSmoothPreview()` beim
+Zeichnen auch den Kasten mit „Anwenden“ ab, wenn die Rechnung dabei veraltet
+ist; sonst stünde der Knopf für eine Vorschau da, die es nicht mehr gibt. Der
+Hinweis im Mäherfenster nennt das Glätten seitdem als dritte Wirkung der
+Breite.
+
+**Mit Auswahl zählen die anderen Linien, wie sie dastehen – und das ist
+messbar etwas anderes als „die ganze Karte glätten und nur eine Linie
+behalten“.** Glättet man die ganze Karte, wandern alle Linien zugleich; wo
+zwei neue Bögen einander näher als den Mindestkorridor kommen, bleibt einer
+von beiden stehen. Auf der Testkarte mit zwei Exclusions dicht am Perimeter
+hat der Perimeter dann 19 Punkte, mit Auswahl 23. Gefunden hat den Fall eine
+Suche über rund 6 800 Lagen, nachdem zwei Mutationen am Kern
+(„die anderen Linien werden insgeheim mitgeglättet“) keine Zusicherung
+rissen: eine schlichte Exclusion zeigt den Unterschied nie, erst die
+Korridorkopplung zweier gleichzeitig wandernder Bögen.
+
+**Zwei Sprachen:** Vorschau-Text, Wirkung, Gründe und Felder sind abgeleitet
+und wechseln beim Sprachwechsel mit, Zahlen samt Dezimalzeichen. Die Meldung
+nach dem Anwenden ist eine Einmalmeldung mit Dezimalzahl und wird beim
+Sprachwechsel verworfen, wie jede solche (`discardTransientStatus()`).
+
+**Zugesichert in `tools/test-glaettung.mjs` nach der Wirkung**, über
+sichtbaren Text, `elementGetroffen()` und die gespeicherte Datei. Die
+Geometrie rechnet der Test selbst nach, an den Rohwerten: wie weit eine Linie
+auf der falschen Seite der alten liegt und wie weit beide voneinander
+abweichen, misst er mit eigenem Code, alle 1 mm abgetastet. Belegt sind:
+
+- Datei, Zwischenstand (ein Punkt ist vor dem Glätten verschoben) und Ergebnis
+  sind verschieden; Abbrechen lässt den **Zwischenstand** stehen, nicht die
+  Datei, und ein Undo holt ihn zurück.
+- Ohne Auswahl ändern sich Perimeter und Exclusion, die Search Wire bleibt
+  punktgleich; mit Auswahl ändert sich nur das gewählte Feature – Gegenprobe
+  je Richtung.
+- Mit Auswahl hängt das Ergebnis des gewählten Features **nicht** am
+  Grenzwert der anderen Art, am eigenen sehr wohl – gemessen auf der Karte, auf
+  der die Kopplung beim Glätten der ganzen Karte wirkt, und mit der
+  Vorbedingung, dass dort beide Grenzwerte überhaupt etwas ändern. Das ist
+  eine Beziehung und kein Messwert: sie folgt daraus, dass die anderen Linien
+  nicht geglättet werden, und lässt sich ohne den Rechenkern prüfen.
+- Eine wartende Vorschau fällt weg, wenn im Mäherfenster eine andere Breite
+  übernommen wird – Linie, Marker und der Kasten mit „Anwenden“.
+- Der Perimeter liegt höchstens um den Grenzwert außerhalb, die Exclusion
+  höchstens um ihren innerhalb, gelesen aus den Feldern; nach innen schneidet
+  der Perimeter weiter als den Grenzwert. Je Grenzwert gibt ein zweiter Wert
+  (0 m) ein anderes Ergebnis, und das hält wieder seine Grenze – auch an einem
+  Baumring, der zum Kreis wird. Ebenso je ein zweiter Bogenpunktabstand und
+  Knick; ungültige Werte, darunter negative Grenzwerte, werden mit Grund
+  abgelehnt.
+- Die Vorschau ist Punkt für Punkt das Ergebnis, ihre Marker sind genau die
+  neuen Punkte, und sie fällt weg, wenn sich die Karte darunter ändert – an
+  einem Wiederholen gemessen, das weder Auswahl noch Einstellungen berührt.
+- Die Meldung nennt die Punktzahlen und die größte Abweichung, gegen die eigene
+  Messung gehalten.
+- Eine Exclusion 1,3 cm neben der Perimeterkante wird mit dem Grund
+  „Mindestkorridor“ abgelehnt, einen Meter weiter weg geglättet.
+- Jeder Satz der Oberfläche in beiden Richtungen über `setLanguage()`:
+  Wirkungen, Ablehnungen, Gründe (sechs der sieben sind in der Oberfläche
+  herstellbar), Beschriftungen, die festen Werte, die Erklärung im `title`,
+  der Hinweis im Mäherfenster, die Felder und die Meldungen.
+
+**Die Kurzform „Umformen“ nennt das Glätten auch ohne Auswahl** – es wirkt
+dann auf die ganze Karte. Die Zusicherung „ohne Auswahl sagt die Kopfzeile,
+dass nichts geht“ in `tools/test-inspector.mjs` bleibt trotzdem richtig, und
+zwar aus einem Grund, der hier stehen soll: ihre Karte trägt eine Exclusion
+mit Loch, und dort lehnt das Glätten ab. Wer die Karte dieses Abschnitts
+ändert, sieht an dieser Stelle „Glätten“ – das wäre dann kein Fehler.
+
+**81 Mutationen, je eine Schreibstelle, alle reißen, je 0 Timeouts.** Gefahren
+in drei Arbeitskopien außerhalb des Repositorys, je Probe aus derselben
+Sicherungskopie zurückgespielt; die Prüfsumme vorher und nachher ist in allen
+drei Kopien `12b8e5a1…`, und `index.html` im Repository war nie angefasst.
+Gemessen wurde je Probe die statische Stufe (Syntax, `tools/test-cassandra.mjs`,
+Bestandsprüfer) und `tools/test-glaettung.mjs`.
+
+| Probe | Schreibstelle | gerissen |
+|---|---|---|
+| K1 | `glaettungsOptionen()`: die Grenze der Exclusions fällt auf die des Perimeters zurück | **8** im Browsertest, z. B. „die Exclusion bleibt dabei dieselbe“ |
+| K2 | `glaettePolygon()`: Exclusions rechnen mit der Grenze des Perimeters | **6** im Browsertest, z. B. „die Exclusion bleibt dabei dieselbe“ |
+| K3 | `ringReplace()`: der Baumring rechnet mit der Grenze des Perimeters | **2** im Browsertest, z. B. „ein zweiter Grenzwert gibt einen anderen Kreis“ |
+| K4 | `glaetteAlle()`: der Perimeter wird auch mitgeglättet, wenn eine Exclusion gewählt ist | **1** im Browsertest, z. B. „Exclusion #0 gewaehlt: sein Ergebnis haengt nicht am Grenzwert der anderen“ |
+| K5 | `glaetteAlle()`: die Exclusions werden auch mitgeglättet, wenn der Perimeter gewählt ist | **1** im Browsertest, z. B. „Perimeter gewaehlt: sein Ergebnis haengt nicht am Grenzwert der anderen“ |
+| A1 | `computeSmoothResult()`: mit Auswahl wird trotzdem die ganze Karte gerechnet | **26** im Browsertest, z. B. „Exclusion #0: die Vorschau zeigt nur dieses Feature“ |
+| A2 | der Grenzwert des Perimeters wird nicht aus dem Feld gelesen | **7** im Browsertest, z. B. „ein zweiter Grenzwert des Perimeters gibt einen anderen Perimeter“ |
+| A3 | der Grenzwert der Exclusions wird nicht aus dem Feld gelesen | **6** im Browsertest, z. B. „ein zweiter Grenzwert der Exclusion gibt eine andere Exclusion“ |
+| A4 | der Bogenpunktabstand wird nicht aus dem Feld gelesen | **1** im Browsertest, z. B. „ein zweiter Bogenpunktabstand gibt ein anderes Ergebnis“ |
+| A5 | der Knick wird nicht aus dem Feld gelesen | **1** im Browsertest, z. B. „ein zweiter Knick gibt ein anderes Ergebnis“ |
+| A6 | ein negativer Grenzwert des Perimeters wird angenommen | **7** im Browsertest, z. B. „smoothPerimeterLimitInput: ein negativer Wert wird mit Begruendung abgelehnt“ |
+| A7 | ein negativer Grenzwert der Exclusions wird angenommen | **2** im Browsertest, z. B. „smoothExclusionLimitInput: ein negativer Wert wird mit Begruendung abgelehnt“ |
+| A8 | ein Bogenpunktabstand unter der Wegpunkttoleranz wird angenommen | **4** im Browsertest, z. B. „ein Bogenpunktabstand unter der Wegpunkttoleranz wird abgelehnt“ |
+| A9 | ein Knick außerhalb von 0 bis 180 Grad wird angenommen | **5** im Browsertest, z. B. „ein Knick von 0 Grad wird abgelehnt“ |
+| A10 | `aktuelleGlaettung()`: der Fingerabdruck wird nicht verglichen | **4** im Browsertest, z. B. „nach dem Wiederholen ist die Vorschau weg“ |
+| A11 | `cancelSmoothing()`: die Rechnung bleibt liegen | **1** im Browsertest, z. B. „nach dem Abbrechen ist die Vorschau weg“ |
+| A12 | `renderSelectionGhost()`: die Vorschau wird nicht gezeichnet | **27** im Browsertest, z. B. „ohne Auswahl zeigt die Vorschau Perimeter und Exclusion“; 1 im Bestandsprüfer |
+| A13 | die Marker zeigen auch die alten Punkte | **1** im Browsertest, z. B. „die Marker der Vorschau sind genau die neuen Punkte“ |
+| A14 | `smoothDeviation()` misst nur in einer Richtung | **1** im Browsertest, z. B. „die groesste Abweichung stimmt mit der Geometrie ueberein“ |
+| A15 | `applySmoothing()`: die Auswahl bleibt stehen | **2** im Browsertest, z. B. „Exclusion #0: nach dem Anwenden ist die Auswahl aufgehoben, es wirkt wieder auf die ganze Karte“ |
+| A16 | `applySmoothing()`: die neuen Ringe werden nicht geschrieben | **14** im Browsertest, z. B. „der Perimeter hat sich geaendert“ |
+| A17 | `updateInspectorBlocks()`: der Werkzeugblock wird nicht neu gebaut | **41** im Browsertest, z. B. „der Knopf „Glätten“ ist frei“ |
+| A18 | `refreshDerivedUi()`: die Felder behalten beim Sprachwechsel ihr Zahlenformat | **1** im Browsertest, z. B. „und die Felder schreiben ihre Zahl englisch“; 1 im Bestandsprüfer |
+| A19 | `transformToolReasons()`: kein Satz zur Wirkung unter dem Knopf | **55** im Browsertest, z. B. „der Satz unter dem Knopf nennt die ganze Karte“; 1 im Bestandsprüfer |
+| A20 | ein geändertes Feld rechnet die Vorschau nicht neu | **24** im Browsertest, z. B. „ein zweiter Grenzwert des Perimeters gibt einen anderen Perimeter“; 1 im Bestandsprüfer |
+| A21 | `startSmoothing()`: es wird gar nicht gerechnet | **11** im Browsertest, z. B. „ein zweiter Grenzwert des Perimeters gibt einen anderen Perimeter“ |
+| A22 | die Kurzform „Umformen“ nennt das Glätten nie | **3** im Browsertest, z. B. „ohne Auswahl: die Kurzform nennt das Glaetten: deutsch“ |
+| A23 | die Vorschau vertauscht vorher und nachher | **1** im Browsertest, z. B. „die Vorschau nennt Punkte vorher und nachher und die groesste Abweichung“ |
+| A24 | die Einzahl „1 Stelle“ wird zur Mehrzahl | **9** im Browsertest, z. B. „Baumring am Rand, Korridor: der Ring zaehlt einmal: deutsch“ |
+| A25 | „Anwenden“ steht auch bei einer Ablehnung da | **1** im Browsertest, z. B. „eng: es gibt nichts anzuwenden“ |
+| A26 | ein stehengebliebener Baumring zählt je Ecke | **12** im Browsertest, z. B. „Baumring am Rand, Korridor: deutsch“ |
+| A27 | der geschriebene Ring wird nicht geschlossen | **32** im Browsertest, z. B. „der Perimeter hat sich geaendert“ |
+| A28 | der Bogenpunktabstand bekommt keine Vorgabe | **57** im Browsertest, z. B. „der Satz unter dem Knopf nennt die ganze Karte“ |
+| A29 | der Knopf ist auch bei einer Ablehnung frei | **3** im Browsertest, z. B. „smoothPerimeterLimitInput: und der Knopf ist gesperrt“ |
+| A30 | „Abbrechen“ ist an nichts gebunden | **4** im Browsertest, z. B. „nach dem Abbrechen ist die Vorschau weg“; 1 im Bestandsprüfer |
+| A31 | `applySmoothing()`: kein Undo-Schritt | **23** im Browsertest, z. B. „ein Undo holt den Zwischenstand zurueck“ |
+| A32 | `smoothFingerprint()`: die Mäherbreite fehlt | **2** im Browsertest, z. B. „nach einer anderen Maeherbreite ist die Vorschau weg“ |
+| A33 | `renderSmoothPreview()`: der Kasten bleibt bei veralteter Rechnung stehen | **1** im Browsertest, z. B. „und mit ihr der Kasten mit „Anwenden““ |
+
+**Die 43 Wörterbuchproben** – 33 Einträge in `I18N_EN` und 10 Muster in
+`I18N_PATTERNS`, je einzeln entfernt – reißen 38-mal im Browsertest, mit 1 bis
+4 benannten Zusicherungen. Die übrigen fünf fängt die statische Stufe, und das
+ist kein Rest, sondern ihre Aufgabe: „kein Bogen auf der richtigen Seite“ und
+die Abbruchmeldung vor dem Anwenden (Eintrag und Muster) prüft
+`tools/test-cassandra.mjs`, weil die Oberfläche sie nicht herstellen kann; „die
+Vorschau gilt nicht mehr“ und „die Rechnung ist gescheitert“ fängt die
+Bestandszahl `statustexte-ohne-englisch` – der erste ist hinter dem
+verschwundenen Kasten nicht mehr zu erreichen, der zweite braucht eine
+Ausnahme im Rechenkern.
+
+**Der erste Lauf, mit 78 Proben, ließ drei Mutationen stehen, und keine davon
+war wirkungslos:**
+
+| Probe | warum sie stehen blieb | was jetzt reißt |
+|---|---|---|
+| der Wörterbucheintrag zur abgelehnten Search Wire | der Test las die Ablehnung nur auf Deutsch | sie läuft durch `zweisprachig()` |
+| K4, K5 | auf allen Karten des Tests ergab „die anderen Linien insgeheim mitglätten“ dasselbe Ergebnis wie „sie stehen lassen“ | die Kopplungskarte, siehe „Mit Auswahl zählen die anderen Linien, wie sie dastehen“ |
+
+**K4 und K5 standen zuerst unter Verdacht, wirkungslos zu sein**, denn das
+Ergebnis der nicht gewählten Linien verwirft `computeSmoothResult()` ohnehin.
+Gemessen ist das Gegenteil, und zwar an der einzigen Stelle, an der eine
+Wirkung entstehen kann: am Korridor zwischen zwei gleichzeitig wandernden
+Bögen. Auf 1 740 gezielten Lagen einer Raute an den Perimeterecken trat sie
+nie auf; eine Zufallssuche mit zwei glättbaren Formen hatte nach 6 800 Lagen
+je drei Treffer und wurde dort beendet. Die Testkarte ist aus diesen Treffern
+gebaut. **„Wirkungslos“ wäre die Einordnung
+gewesen, die die Messung erspart hätte** – genau der Fall, vor dem Abschnitt
+4.2 warnt.
+
+**Die Mäherbreite (A32, A33) war beim ersten Lauf gar nicht im Fingerabdruck**
+und ist erst nach ihm dazugekommen; ihre beiden Proben und der Eintrag des
+Mäherhinweises stehen deshalb erst im zweiten Lauf.
+
+**Eine Probe brach beim ersten Anlauf die Syntax, und dann prüft sie nichts.**
+Der neue Eintrag des Mäherhinweises steht in `I18N_EN` in einer Zeile mit
+vielen anderen; die zeilenweise Entfernung nahm sie alle mit, und das Skript
+war kein JavaScript mehr. Ersetzt durch die Entfernung genau dieses einen
+Eintrags – danach reißt sie „der Hinweis im Maeherfenster: dann englisch“.
 
 **Maßstab und Metermaße:** Toleranz, Rasterweite, Begradigen, Messen und die
 Mäher-Vorschau rechnen in Weltkoordinaten. Die sind nur dann Meter, wenn der
@@ -5790,7 +6074,7 @@ damit in die Gruppe „Namen von Symbolknöpfen", die ausdrücklich **nicht** zu
 das ist der Punkt dieser Nachschau: die Liste war nicht zu lang, sondern zu
 kurz.
 
-**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->40 Fundstellen –
+**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->41 Fundstellen –
 und ein genannter Wortlaut steht zur Laufzeit nirgends.** Beides fiel bei der
 Bestandsaufnahme zur Kontext-Knopfleiste an; es ist ein Beifang und wird hier
 richtiggestellt, nicht gelöscht.
@@ -5806,9 +6090,11 @@ deshalb durch:
 | `updateMultiSelectionUi()`, `snapToggle.title =` | den Ablehnungsgrund des Rasterfangs bei unbekanntem Maßstab |
 | `updateMultiSelectionUi()`, `straightenButton.title =` | `TRANSFORM_TOOL_HELP.straightenSelectionBtn` |
 
-**Es sind damit <!-- bestand: title-markup -->24 im Markup und <!-- bestand: title-js -->16 per JS.** Zwei der Markup-Titel sind mit dem
+**Es sind damit <!-- bestand: title-markup -->24 im Markup und <!-- bestand: title-js -->17 per JS.** Zwei der Markup-Titel sind mit dem
 zweiundzwanzigsten Durchgang dazugekommen – die Erklärungen von „Davor
-einfügen" und „Danach einfügen", die vorher gar keine hatten. Dass
+einfügen" und „Danach einfügen", die vorher gar keine hatten. Der siebzehnte
+per JS ist die Erklärung des Knopfes „Glätten“ aus `TRANSFORM_TOOL_HELP`,
+dazugekommen mit der Kartenglättung. Dass
 ausgerechnet das Muster über
 Zeilengrenzen versagte, ist in dieser Datei schon einmal gemessen worden – bei
 der Locator-Suche aus Schritt 11 des vierten Durchgangs, wo der bekannte
@@ -6528,8 +6814,8 @@ dokumentiert, aber im Code konsistent sichtbar):
   Schlüssel in einem Objektliteral (`I18N_EN`).
 
   In `index.html` ist das **wahrscheinlich, nicht unwahrscheinlich**: rund
-  <!-- bestand: zeilen-index-html +-500 -->22 000 Zeilen und rund
-  <!-- bestand: globale-funktionen +-20 -->400 globale Funktionen liegen in einem einzigen
+  <!-- bestand: zeilen-index-html +-500 -->25 000 Zeilen und rund
+  <!-- bestand: globale-funktionen +-20 -->450 globale Funktionen liegen in einem einzigen
   Gültigkeitsbereich, ohne Module, ohne Namensräume. Wer eine Hilfsfunktion
   schreibt, sieht die 9 000 Zeilen weiter unten nicht, und naheliegende Namen
   (`isWholeFeatureSelected`, `describeFeature`, `updateX`) sind genau die, die
@@ -6584,8 +6870,9 @@ ausdrücklich, welche er ist:
 gehört das Wort „offen" ausdrücklich in seine erste Zeile, damit der nächste
 Durchgang ihn von den dreien oben unterscheiden kann.
 
-- **Abschnitt `2A` steht physisch vor Abschnitt `2`, und nach `12` folgt
-  `18` – ENTSCHIEDEN: es bleibt so.** Ein Umnummerieren fasste jeden
+- **Abschnitt `2A` steht physisch vor Abschnitt `2`, und nach `13` folgt
+  `18` – ENTSCHIEDEN: es bleibt so.** (Bis zur Kartenglättung folgte `18` auf
+  `12`; die Glättung hat die freie `13` genommen.) Ein Umnummerieren fasste jeden
   Abschnittsheader, den Scriptkopf und jede Nennung in dieser Datei an, und
   gefunden würde danach nichts schneller: **gesucht wird hier nach Titeln und
   Funktionsnamen, nicht nach Nummern** – so steht es in Abschnitt 2, und
@@ -10194,7 +10481,8 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-i18n-dynamic.mjs` | – | 1 |
   | `tools/test-ghosting.mjs` | – | 3 |
   | `tools/test-scale.mjs` | – | 2 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**63** | <!-- bestand: zusicherungen-herstellend -->**38** |
+  | `tools/test-glaettung.mjs` | – | 1 |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**63** | <!-- bestand: zusicherungen-herstellend -->**39** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -10222,6 +10510,11 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   `tools/test-scale.mjs`: zwei Abschnitte wählen einen Punkt und lesen sein
   E-Feld, und `#pointEastInput` steht dort im Vorlauf. Es ist die elfte Datei
   der Tabelle.
+
+  **Die Kartenglättung hat eine herstellende hinzugefügt**, in
+  `tools/test-glaettung.mjs`: der Zwischenstand vor dem Glätten entsteht über
+  `#pointEastInput`, geprüft wird danach die gespeicherte Datei. Es ist die
+  zwölfte Datei der Tabelle.
 
   **Der dreiundzwanzigste Durchgang hat eine prüfende hinzugefügt**, in
   `tools/test-inspector.mjs`: „nach der Punktauswahl steht die Auswahl wieder
@@ -10798,13 +11091,13 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Anhaltebedingung greift deshalb nicht; die Wahl steht unten mit ihrem Grund.
 
   **Mechanik A – natives `<details>`/`<summary>`.** Im Markup stehen
-  <!-- bestand: details-instanzen -->10 Instanzen in vier Rollen; dazu kommen
+  <!-- bestand: details-instanzen -->11 Instanzen in vier Rollen; dazu kommen
   die Karten der Feature-Navigation, deren Zahl von der geladenen Karte abhängt.
 
   | Rolle | Instanzen | Bezeichner | Zustand in | über die Sitzung hinaus |
   |---|---|---|---|---|
   | `.inspector-fold` | <!-- bestand: details-inspector-fold -->5 | `#featureNavigationSection`, `#inspectorStock`, `#inspectorTransform`, `#inspectorValidation`, `#originSection` | `details.open` | **drei davon** über `INSPECTOR_FOLDS` im `localStorage`; Navigation und Bezugspunkt **nicht** |
-  | `.tool-settings` | <!-- bestand: details-tool-settings -->2 | ohne `id`, in `#inspectorTransform` | `details.open` | nein |
+  | `.tool-settings` | <!-- bestand: details-tool-settings -->3 | ohne `id`, in `#inspectorTransform` – Reduzieren, Rechtwinklig, Glätten | `details.open` | nein |
   | `.inspector-note` | <!-- bestand: details-inspector-note -->2 | ohne `id`, in den Abmessungen und im Mäherblock | `details.open` | nein |
   | `.selection-actions` | <!-- bestand: details-selection-actions -->1 | `#selectionActions` | `details.open` | nein |
   | `.feature-card` | je Feature | aus `renderFeatureNavigator()` | `details.open` | nein – sie werden bei jeder Auswahländerung neu gebaut |
