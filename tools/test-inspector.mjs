@@ -21,7 +21,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-inspector.mjs
 
-import { createChecker, createKlicker, elementGetroffen, freieKartenstelle, indexUrl, launchBrowser, openAllFolds } from "./browser-harness.mjs";
+import { createChecker, createKlicker, createMarkerKlicker, elementGetroffen, freieKartenstelle, indexUrl, launchBrowser, openAllFolds } from "./browser-harness.mjs";
 
 const TOOL = "test-inspector";
 
@@ -164,12 +164,18 @@ try {
    * gesetzt, und nach der Wirkung bestimmt: elementFromPoint auf seine Mitte
    * liefert etwas anderes als ihn selbst. Ein Rechteckvergleich sagte nur,
    * was gemeint ist.
+   *
+   * Und zwar unter der LEISTE: seit die Angaben zur Auswahl unten rechts ueber
+   * der Karte stehen, gibt es eine zweite Ebene, die Marker verdeckt, und
+   * ihren Griff misst ein eigener Test. Ohne die Einschraenkung fand diese
+   * Suche zuerst den Marker unter den Angaben - und "zugeklappt ist er wieder
+   * erreichbar" riss, weil die falsche Ebene zugeklappt wurde.
    */
   const verdeckterMarker = () => page.evaluate(() => {
     for (const m of document.querySelectorAll("circle.vertex")) {
       const r = m.getBoundingClientRect();
       const treffer = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      if (treffer !== m) {
+      if (treffer !== m && treffer?.closest("#selectionActions")) {
         return { key: m.dataset.vertexKey, deckel: treffer ? (treffer.id || treffer.tagName) : "nichts" };
       }
     }
@@ -188,7 +194,8 @@ try {
       .map((m) => {
         const r = m.getBoundingClientRect();
         const treffer = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-        return treffer === m
+        /* Unter der Leiste, nicht unter den Angaben - siehe verdeckterMarker(). */
+        return treffer === m || !treffer?.closest("#selectionActions")
           ? null
           : { key: m.dataset.vertexKey, deckel: treffer ? (treffer.id || treffer.tagName) : "nichts" };
       })
@@ -209,6 +216,35 @@ try {
    * klaren Ablehnung ein stummer Timeout.
    */
   const klickeFreienKnopf = createKlicker(page, check);
+
+  /*
+   * Marker werden ueber den gemeinsamen Helfer geklickt: die Angaben zur
+   * Auswahl stehen unten rechts ueber der Karte und verdecken dort Marker,
+   * sobald etwas ausgewaehlt ist. Der Helfer klappt sie ueber ihren Griff zu
+   * und danach wieder auf - siehe tools/browser-harness.mjs. Die Auswahlleiste
+   * links oben fasst er NICHT an; fuer sie gelten die eigenen Abschnitte
+   * weiter unten.
+   */
+  const markerKlicken = createMarkerKlicker(page, check);
+
+  /*
+   * Die E/N-Felder stehen seit dem Umzug ueber der Karte, in den Angaben zur
+   * Auswahl. Ein fill() auf ein Feld, das dort nicht gezeichnet wird - die
+   * Angaben zugeklappt oder gar nicht da -, wartete dreissig Sekunden und
+   * naehme alles dahinter mit. Der Waechter macht daraus eine benannte
+   * Zusicherung und fuellt dann nicht; dieselbe Regel wie bei
+   * klickeFreienKnopf(). Die Zusicherung steht IMMER da.
+   */
+  const feldFuellen = async (id, wert) => {
+    const treffer = await elementGetroffen(page, `#${id}`, { dy: 10 });
+
+    check(`#${id} ist zum Tippen erreichbar`, treffer.ok, JSON.stringify(treffer));
+
+    if (!treffer.ok) return false;
+
+    await page.fill(`#${id}`, wert);
+    return true;
+  };
 
   /*
    * Ein Klick auf einen Knopf der Auswahlleiste setzt voraus, dass sie da ist.
@@ -271,15 +307,57 @@ try {
     page.evaluate((x) =>
       getComputedStyle(document.getElementById(x)).display !== "none", id);
 
+  /*
+   * Der Kopfblock des Inspektors. Er traegt seinen Text seit dem Umzug der
+   * Angaben zur Auswahl nur noch ohne Auswahl - im leeren Zustand, beim
+   * Zeichnen und beim Messen. Gelesen wird deshalb nur, was GEZEICHNET wird:
+   * ein Text, der nicht dasteht, liefert "" statt seines alten Inhalts.
+   */
   const head = () =>
-    page.evaluate(() => ({
-      titel: document.getElementById("inspectorTitle").textContent.trim(),
-      unter: document.getElementById("inspectorSubtitle").textContent.trim(),
-      hoehe: Math.round(
-        document.querySelector(".inspector-head").getBoundingClientRect().height),
-      oben: Math.round(
-        document.querySelector(".inspector-head").getBoundingClientRect().top),
-    }));
+    page.evaluate(() => {
+      const gezeichnet = (el) => el.getClientRects().length > 0;
+      const zeile = (id) => {
+        const el = document.getElementById(id);
+        return gezeichnet(el) ? el.textContent.trim() : "";
+      };
+      const kopf = document.querySelector(".inspector-head").getBoundingClientRect();
+      const umschalter = document.getElementById("inspectorToggle").getBoundingClientRect();
+
+      /*
+       * Was zuunterst im Kopfblock gezeichnet wird: der Untertitel, und ohne
+       * Text der Umschalter. Der Abstand von dort zur Unterkante sagt, ob der
+       * Kopf ohne Text wirklich schrumpft - siehe die Zusicherung dazu.
+       */
+      const untertitel = document.getElementById("inspectorSubtitle");
+      const zuunterst = gezeichnet(untertitel)
+        ? untertitel.getBoundingClientRect()
+        : umschalter;
+
+      return {
+        titel: zeile("inspectorTitle"),
+        unter: zeile("inspectorSubtitle"),
+        hoehe: Math.round(kopf.height),
+        oben: Math.round(kopf.top),
+        umschalter: [umschalter.left, umschalter.top, umschalter.width, umschalter.height]
+          .map(Math.round).join("/"),
+        darunter: Math.round(kopf.bottom - zuunterst.bottom),
+      };
+    });
+
+  /*
+   * Der Kopf der AUSWAHL - "Punkt 3 von 4", "Perimeter · Polygon". Er steht
+   * seit dem Umzug in den Angaben ueber der Karte. Wie oben zaehlt nur, was
+   * gezeichnet wird.
+   */
+  const auswahlKopf = () =>
+    page.evaluate(() => {
+      const zeile = (id) => {
+        const el = document.getElementById(id);
+        return el.getClientRects().length > 0 ? el.textContent.trim() : "";
+      };
+
+      return { titel: zeile("selectionTitle"), unter: zeile("selectionSubtitle") };
+    });
 
   /* ---------------------------------------------------------------- */
   console.log("Zwei Zustände, genau einer sichtbar");
@@ -308,21 +386,48 @@ try {
     geladen.unter === "Punkt auf der Karte anklicken", geladen.unter);
 
   const marks = page.locator('#vertexGroup circle[data-layer="perimeter"]');
-  await marks.nth(2).click();
+  await markerKlicken(marks.nth(2));
   await page.waitForTimeout(300);
 
   check("nach dem Klick steht der Punktzustand", await visible("inspectorPoint"));
   check("und der leere nicht mehr", !(await visible("inspectorEmpty")));
 
-  const punkt = await head();
+  const punkt = await auswahlKopf();
   check("der Kopf nennt Nummer und Anzahl",
     /^Punkt \d+ von \d+$/.test(punkt.titel), punkt.titel);
 
-  /* Der Anker darf nicht wandern - das ist der Zweck des Kopfblocks. */
+  /*
+   * Der Anker darf nicht wandern - das ist der Zweck des Kopfblocks.
+   *
+   * Bis zum Umzug der Angaben stand hier zusaetzlich "und ist gleich hoch".
+   * Das ist nicht mehr wahr und soll es nicht sein: bei einer Auswahl steht
+   * der Kopf der Auswahl in den Angaben ueber der Karte, und der Kopfblock
+   * laesst seinen Text WEG - er traegt dann nur den Umschalter. Was der Anker
+   * weiter leisten muss, ist der Ort: der Kopfblock oben, und der Umschalter
+   * an genau derselben Stelle, damit man ihn nach einem Klick auf die Karte
+   * nicht suchen muss. Beides ist zugesichert; die Hoehe ist es nicht mehr.
+   */
+  const punktInspektor = await head();
+
   check("der Kopfblock steht an derselben Stelle",
-    punkt.oben === geladen.oben, `${punkt.oben} statt ${geladen.oben}`);
-  check("und ist gleich hoch",
-    punkt.hoehe === geladen.hoehe, `${punkt.hoehe} statt ${geladen.hoehe}`);
+    punktInspektor.oben === geladen.oben, `${punktInspektor.oben} statt ${geladen.oben}`);
+  check("und sein Umschalter ebenfalls",
+    punktInspektor.umschalter === geladen.umschalter,
+    `${punktInspektor.umschalter} statt ${geladen.umschalter}`);
+  check("der Kopfblock nennt den Punkt nicht noch einmal",
+    punktInspektor.titel === "" && punktInspektor.unter === "",
+    `${punktInspektor.titel} | ${punktInspektor.unter}`);
+
+  /*
+   * Und ohne Text haelt er auch keinen leeren Platz: unter dem Umschalter
+   * steht genau der Abstand, der ohne Auswahl unter dem Untertitel steht.
+   * Ein Kopf, der seine Mindesthoehe behielte, stuende als leerer Streifen
+   * ueber dem Inspektor.
+   */
+  check("ohne Text ist der Kopfblock nur so hoch wie sein Umschalter",
+    punktInspektor.darunter === geladen.darunter && punktInspektor.hoehe < geladen.hoehe,
+    `darunter ${punktInspektor.darunter} gegen ${geladen.darunter}, ` +
+    `Hoehe ${punktInspektor.hoehe} gegen ${geladen.hoehe}`);
 
   /* ---------------------------------------------------------------- */
   console.log("Behälter werden nur benannt, wenn es mehrere gibt");
@@ -336,13 +441,13 @@ try {
   check("beide Ringe sind editierbar", (await ringe.count()) === 8,
     String(await ringe.count()));
 
-  await ringe.nth(0).click();
+  await markerKlicken(ringe.nth(0));
   await page.waitForTimeout(250);
-  const ring1 = await head();
+  const ring1 = await auswahlKopf();
 
-  await ringe.nth(5).click();
+  await markerKlicken(ringe.nth(5));
   await page.waitForTimeout(250);
-  const ring2 = await head();
+  const ring2 = await auswahlKopf();
 
   check("der äußere Ring wird benannt",
     ring1.unter.includes("Ring 1 von 2"), ring1.unter);
@@ -353,11 +458,11 @@ try {
 
   await load([ZWEI_LINIEN]);
   const linien = page.locator('#vertexGroup circle[data-layer="searchwire"]');
-  await linien.nth(4).click();
+  await markerKlicken(linien.nth(4));
   await page.waitForTimeout(250);
 
   check("bei mehreren Linien wird die Linie benannt",
-    (await head()).unter.includes("Linie 2 von 2"), (await head()).unter);
+    (await auswahlKopf()).unter.includes("Linie 2 von 2"), (await auswahlKopf()).unter);
 
   /* ---------------------------------------------------------------- */
   console.log("Alle Zustände");
@@ -412,7 +517,7 @@ try {
     (await page.locator(".map-selection-toolbar").count()) === 0);
 
   /* --- ein Punkt ------------------------------------------------- */
-  await marks.nth(0).click();
+  await markerKlicken(marks.nth(0));
   await page.waitForTimeout(250);
 
   check("ein Punkt: Punktzustand plus Auswahlaktionen",
@@ -423,10 +528,10 @@ try {
     !(await page.locator("#clearMultiSelectionBtn").isDisabled()));
 
   /* --- zwei Punkte desselben Features ---------------------------- */
-  await marks.nth(1).click({ modifiers: ["Control"] });
+  await markerKlicken(marks.nth(1), { modifiers: ["Control"] });
   await page.waitForTimeout(250);
 
-  const zwei = await head();
+  const zwei = await auswahlKopf();
 
   check("zwei Punkte: Gruppenzustand statt Punktzustand",
     (await sichtbareBloecke()).join(",") === "inspectorMulti,inspectorSelection",
@@ -448,11 +553,11 @@ try {
     await text("multiSummary"));
 
   /* --- ganzes Feature -------------------------------------------- */
-  await marks.nth(2).click({ modifiers: ["Control"] });
-  await marks.nth(3).click({ modifiers: ["Control"] });
+  await markerKlicken(marks.nth(2), { modifiers: ["Control"] });
+  await markerKlicken(marks.nth(3), { modifiers: ["Control"] });
   await page.waitForTimeout(250);
 
-  const ganz = await head();
+  const ganz = await auswahlKopf();
 
   /*
    * Im Zustand "ganzes Feature" steht der Gruppenblock NICHT mehr daneben.
@@ -511,9 +616,9 @@ try {
   await klickeLeistenknopf("clearMultiSelectionBtn", "Auswahl aufheben");
   await page.waitForTimeout(200);
   /* Beide Ringe: die Exclusion hat ein Loch, das sind acht Punkte. */
-  await ringe.nth(0).click();
+  await markerKlicken(ringe.nth(0));
   for (let i = 1; i < 8; i += 1) {
-    await ringe.nth(i).click({ modifiers: ["Control"] });
+    await markerKlicken(ringe.nth(i), { modifiers: ["Control"] });
   }
   await page.waitForTimeout(300);
 
@@ -528,14 +633,14 @@ try {
 
   await klickeLeistenknopf("clearMultiSelectionBtn", "Auswahl aufheben");
   await page.waitForTimeout(200);
-  await marks.nth(0).click();
+  await markerKlicken(marks.nth(0));
   for (let i = 1; i < 4; i += 1) {
-    await marks.nth(i).click({ modifiers: ["Control"] });
+    await markerKlicken(marks.nth(i), { modifiers: ["Control"] });
   }
   await page.waitForTimeout(250);
 
   /* --- gemischte Auswahl ------------------------------------------ */
-  await ringe.nth(0).click({ modifiers: ["Control"] });
+  await markerKlicken(ringe.nth(0), { modifiers: ["Control"] });
   await page.waitForTimeout(250);
 
   check("Punkte aus zwei Features: gemischter Zustand",
@@ -545,7 +650,7 @@ try {
     (await text("mixedSummary")) === "5 Punkte aus 2 Features.",
     await text("mixedSummary"));
   check("der Kopf nennt die Zahl der Features",
-    (await head()).unter === "aus 2 Features", (await head()).unter);
+    (await auswahlKopf()).unter === "aus 2 Features", (await auswahlKopf()).unter);
 
   /* --- Umformen ist immer da, mit Grund ---------------------------- */
   const gruende = () => page.evaluate(() => ({
@@ -573,8 +678,8 @@ try {
    */
   await klickeLeistenknopf("clearMultiSelectionBtn", "Auswahl aufheben");
   await page.waitForTimeout(200);
-  await marks.nth(0).click();
-  await marks.nth(2).click({ modifiers: ["Control"] });
+  await markerKlicken(marks.nth(0));
+  await markerKlicken(marks.nth(2), { modifiers: ["Control"] });
   await page.waitForTimeout(250);
 
   const frei = await gruende();
@@ -851,7 +956,7 @@ try {
       !lage.sichtbar, JSON.stringify(lage));
   }
 
-  await marks.nth(0).click();
+  await markerKlicken(marks.nth(0));
   await page.waitForTimeout(300);
 
   {
@@ -892,8 +997,7 @@ try {
     freierMarker !== null, String(freierMarker));
 
   if (freierMarker) {
-    await page.locator(`circle.vertex[data-vertex-key="${freierMarker}"]`)
-      .click({ modifiers: ["Control"] });
+    await markerKlicken(freierMarker, { modifiers: ["Control"] });
     await page.waitForTimeout(300);
 
     const lage = await leiste();
@@ -1108,7 +1212,7 @@ try {
     await page.setViewportSize({ width: breite, height: 900 });
     await page.waitForTimeout(250);
     await load();
-    await marks.nth(0).click();
+    await markerKlicken(marks.nth(0));
     await page.waitForTimeout(300);
 
     /* Ausgangszustand bei neuer Auswahl: AUFGEKLAPPT, ohne Zutun. */
@@ -1148,7 +1252,7 @@ try {
      * "wer zuklappt, bekommt bei der naechsten Auswahl die zugeklappte
      * Leiste".
      */
-    await marks.nth(1).click();
+    await markerKlicken(marks.nth(1));
     await page.waitForTimeout(300);
 
     check(`${breite} px: ein anderer Punkt laesst sie zugeklappt`,
@@ -1157,7 +1261,7 @@ try {
 
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);
-    await marks.nth(1).click();
+    await markerKlicken(marks.nth(1));
     await page.waitForTimeout(300);
 
     check(`${breite} px: und die naechste Auswahl bekommt sie ebenfalls zugeklappt`,
@@ -1214,7 +1318,7 @@ try {
     await page.setViewportSize({ width: await schwelle(), height: 900 });
     await page.waitForTimeout(250);
     await load([], VIELE_PUNKTE);
-    await marks.nth(0).click();
+    await markerKlicken(marks.nth(0));
     await page.waitForTimeout(300);
 
     const offenVerdeckt = await alleVerdeckten();
@@ -1370,21 +1474,21 @@ try {
    * und Endpunkt: "Zwischenpunkt" ist der Normalfall und sagt nichts.
    */
   await load();
-  await marks.nth(0).click();
+  await markerKlicken(marks.nth(0));
   await page.waitForTimeout(300);
 
   check("der Startpunkt wird benannt",
     (await visible("pointMeta")) && (await text("pointMeta")) === "Startpunkt",
     await text("pointMeta"));
 
-  await marks.nth(3).click();
+  await markerKlicken(marks.nth(3));
   await page.waitForTimeout(300);
 
   check("der Endpunkt ebenfalls",
     (await visible("pointMeta")) && (await text("pointMeta")) === "Endpunkt",
     await text("pointMeta"));
 
-  await marks.nth(1).click();
+  await markerKlicken(marks.nth(1));
   await page.waitForTimeout(300);
 
   check("ein gewöhnlicher Punkt bekommt keine Zeile",
@@ -1403,15 +1507,15 @@ try {
    * nichts.
    */
   for (const [nr, rolle] of [[0, "Startpunkt"], [3, "Endpunkt"]]) {
-    await marks.nth(nr).click();
+    await markerKlicken(marks.nth(nr));
     await page.waitForTimeout(300);
-    await marks.nth(1).click();
+    await markerKlicken(marks.nth(1));
     await page.waitForTimeout(300);
 
     check(`${rolle}: der Punkt ohne Rolle dazwischen zeigt keine Zeile`,
       !(await visible("pointMeta")), await text("pointMeta"));
 
-    await marks.nth(nr).click();
+    await markerKlicken(marks.nth(nr));
     await page.waitForTimeout(300);
 
     check(`${rolle}: danach steht dieselbe Rolle wieder da`,
@@ -1420,14 +1524,14 @@ try {
   }
 
   /* Zurueck auf den Zwischenpunkt - die naechste Zusicherung misst dort. */
-  await marks.nth(1).click();
+  await markerKlicken(marks.nth(1));
   await page.waitForTimeout(300);
 
   /*
    * Und die Gegenprobe, dass nichts verlorengegangen ist: Punktnummer und
    * Feature stehen weiterhin da - im Kopfblock.
    */
-  const nachKuerzung = await head();
+  const nachKuerzung = await auswahlKopf();
 
   check("Punktnummer und Anzahl stehen weiterhin im Kopf",
     /^Punkt 2 von 4$/.test(nachKuerzung.titel), nachKuerzung.titel);
@@ -1517,7 +1621,7 @@ try {
   await page.waitForTimeout(300);
 
   await load();
-  await marks.nth(0).click();
+  await markerKlicken(marks.nth(0));
   await page.waitForTimeout(300);
 
   /*
@@ -1644,8 +1748,8 @@ try {
   console.log("Leere Felder sagen, warum sie leer sind");
 
   await load();
-  await marks.nth(0).click();
-  await marks.nth(1).click({ modifiers: ["Control"] });
+  await markerKlicken(marks.nth(0));
+  await markerKlicken(marks.nth(1), { modifiers: ["Control"] });
   await page.waitForTimeout(250);
 
   check("bei mehreren Punkten erklären die E/N-Felder ihre Leere",
@@ -1661,7 +1765,7 @@ try {
       "kein Punkt ausgewählt",
     await page.locator("#pointNorthInput").getAttribute("placeholder"));
 
-  await marks.nth(0).click();
+  await markerKlicken(marks.nth(0));
   await page.waitForTimeout(250);
 
   check("mit einem Punkt steht wieder ein Wert statt einer Erklärung",
@@ -1711,8 +1815,8 @@ try {
   check("ohne Auswahl sagt die Kopfzeile, dass nichts geht",
     (await marken()).join(",") === "nichts möglich", (await marken()).join(","));
 
-  await marks.nth(0).click();
-  await marks.nth(2).click({ modifiers: ["Control"] });
+  await markerKlicken(marks.nth(0));
+  await markerKlicken(marks.nth(2), { modifiers: ["Control"] });
   await page.waitForTimeout(300);
 
   /*
@@ -1905,8 +2009,8 @@ try {
     .reduce((summe, ring) => summe + ring.length - 1, 0);
 
   check("und die Auswahl, die sie erzeugt hat, steht wirklich da",
-    (await head()).titel === `${lochPunkte} Punkte ausgewählt`,
-    (await head()).titel);
+    (await auswahlKopf()).titel === `${lochPunkte} Punkte ausgewählt`,
+    (await auswahlKopf()).titel);
 
   /* ---- und der Sprung aus einem Pruefbefund ---- */
 
@@ -1926,7 +2030,7 @@ try {
   check("auch der Sprung aus einem Befund beendet den Messmodus",
     (await messKnopf()).text === "Messen" && !(await visible("inspectorMeasure")));
   check("und das angesprungene Feature ist sichtbar ausgewaehlt",
-    /ausgewählt/.test((await head()).titel), (await head()).titel);
+    /ausgewählt/.test((await auswahlKopf()).titel), (await auswahlKopf()).titel);
 
   /* ---- beide Sprachrichtungen ---- */
 
@@ -2000,7 +2104,7 @@ try {
     return `${el.scrollHeight} in ${el.clientHeight}`;
   });
 
-  await marks.nth(0).click();
+  await markerKlicken(marks.nth(0));
   await page.waitForTimeout(300);
 
   check("Zustand ein Punkt passt ohne Scrollen", await passt(), await hoehen());
@@ -2147,8 +2251,8 @@ try {
    * Ausgewählt wird an der Exclusion, nicht am Perimeter: dessen obere Ecken
    * liegen unter der Zoom-Leiste der Karte, die den Klick abfängt.
    */
-  await ringe.nth(0).click();
-  await ringe.nth(2).click({ modifiers: ["Control"] });
+  await markerKlicken(ringe.nth(0));
+  await markerKlicken(ringe.nth(2), { modifiers: ["Control"] });
   await page.waitForTimeout(300);
 
   check("die Werkzeuge sind jetzt verfügbar",
@@ -2180,7 +2284,7 @@ try {
 
   await page.setViewportSize({ width: 1600, height: 900 });
   await load();
-  await marks.nth(0).click();
+  await markerKlicken(marks.nth(0));
   await page.waitForTimeout(300);
 
   const breite = (id) => page.evaluate((x) =>
@@ -2206,9 +2310,20 @@ try {
   /*
    * Der Inhalt muss wirklich weg sein, nicht nur überlaufen - sonst stünde er
    * weiterhin da und man könnte hineintabben.
+   *
+   * Gemessen wurde hier bis zum Umzug der Angaben am Punktblock. Der steht
+   * seitdem ueber der Karte und gehoert nicht mehr zum Inspektor; an seiner
+   * Stelle steht der erste Faltblock, der bei dieser Auswahl im Inspektor
+   * dasteht. Dass die Angaben beim Einklappen NICHT mitgehen, sichert die
+   * Zusicherung darunter zu.
    */
   check("der Inhalt ist nicht mehr sichtbar",
-    !(await visible("inspectorPoint")) && !(await visible("inspectorTransform")));
+    !(await visible("featureNavigationSection")) && !(await visible("inspectorTransform")));
+
+  const angabenBleiben = await elementGetroffen(page, "#selectionTitle", { dy: 5 });
+
+  check("die Angaben zur Auswahl ueber der Karte bleiben dabei stehen",
+    angabenBleiben.ok, JSON.stringify(angabenBleiben));
   check("aber der Umschalter bleibt erreichbar",
     await visible("inspectorToggle"));
 
@@ -2243,11 +2358,11 @@ try {
   console.log("Tastaturbedienung");
 
   await load();
-  await marks.nth(1).click();
+  await markerKlicken(marks.nth(1));
   await page.waitForTimeout(300);
 
   /* Enter übernimmt - der Handler hängt an der id, nicht am Ort. */
-  await page.fill("#pointEastInput", "12,50");
+  await feldFuellen("pointEastInput", "12,50");
   await page.locator("#pointEastInput").press("Enter");
   await page.waitForTimeout(350);
 
@@ -2256,7 +2371,7 @@ try {
     (await page.locator("#pointEastInput").inputValue()).includes("12,50"),
     `${await page.locator("#editStatus").textContent()} | ${await page.locator("#pointEastInput").inputValue()}`);
 
-  await page.fill("#pointNorthInput", "7,25");
+  await feldFuellen("pointNorthInput", "7,25");
   await page.locator("#pointNorthInput").press("Enter");
   await page.waitForTimeout(350);
 
@@ -2287,7 +2402,7 @@ try {
     (await undoTiefe()) === vorUnveraendert,
     `${vorUnveraendert} -> ${await undoTiefe()}`);
 
-  await page.fill("#pointEastInput", "12,51");
+  await feldFuellen("pointEastInput", "12,51");
   await page.locator("#pointEastInput").press("Enter");
   await page.waitForTimeout(350);
 
@@ -2323,22 +2438,28 @@ try {
    * Seit dem elften Durchgang steht zwischen dem North-Feld und dem ersten
    * Knopf ein Halt mehr: die Knoepfe liegen nicht mehr IM Punktblock, sondern
    * in der Auswahlleiste dahinter, und die Faltzeile des Punktblocks ist ein
-   * Tabstopp. Zugesichert wird deshalb, welcher KNOPF als erster kommt - dass
-   * es ueberhaupt einer aus der Leiste ist, und der richtige.
+   * Tabstopp.
+   *
+   * Seit dem Umzug der Angaben zur Auswahl ist es noch einer mehr: die
+   * Felder stehen ueber der Karte, die Leiste unter der Schwelle im
+   * Inspektor, und dazwischen liegt der Umschalter seines Kopfblocks - die
+   * dokumentierte Reihenfolge Karte vor Inspektor. Zugesichert wird deshalb
+   * die GANZE Kette bis zum ersten Knopf der Leiste, nicht nur ihr Ende: ein
+   * weiterer Halt, der sich spaeter dazwischenschiebt, faellt so auf.
    */
-  const ersterKnopfNachNorth = await (async () => {
+  const ketteNachNorth = await (async () => {
+    const kette = [];
     await page.locator("#pointNorthInput").focus();
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 3; i += 1) {
       await page.keyboard.press("Tab");
-      const treffer = await page.evaluate(() => document.activeElement?.tagName === "BUTTON"
-        ? document.activeElement.id : null);
-      if (treffer) return treffer;
+      kette.push(await page.evaluate(() =>
+        document.activeElement?.id || document.activeElement?.tagName));
     }
-    return "keiner";
+    return kette.join(",");
   })();
 
-  check("von North fuehrt Tab zum ersten Knopf der Auswahlleiste",
-    ersterKnopfNachNorth === "insertPointBeforeBtn", ersterKnopfNachNorth);
+  check("von North fuehrt Tab ueber die Notiz und den Umschalter zum ersten Knopf der Auswahlleiste",
+    ketteNachNorth === "SUMMARY,inspectorToggle,insertPointBeforeBtn", ketteNachNorth);
 
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(300);
@@ -2377,7 +2498,7 @@ try {
    * auch dann, wenn das Feld leer waere.
    */
   const enFeldRundlauf = async (sprache, eingabe, erwartet, weltDanach) => {
-    await page.fill("#pointEastInput", eingabe);
+    await feldFuellen("pointEastInput", eingabe);
     await page.locator("#pointEastInput").press("Enter");
     await page.waitForTimeout(350);
 
@@ -2394,7 +2515,7 @@ try {
      */
     const angezeigt = await page.locator("#pointEastInput").inputValue();
 
-    await page.fill("#pointEastInput", `${angezeigt.slice(0, -1)}6`);
+    await feldFuellen("pointEastInput", `${angezeigt.slice(0, -1)}6`);
     await page.locator("#pointEastInput").press("Enter");
     await page.waitForTimeout(350);
 
@@ -2410,7 +2531,7 @@ try {
   };
 
   await load();
-  await marks.nth(1).click();
+  await markerKlicken(marks.nth(1));
   await page.waitForTimeout(300);
 
   await enFeldRundlauf("deutsch", "1234,5", "1234,50", "1234.56");
@@ -2434,12 +2555,12 @@ try {
    * E/N-Felder haengen dafuer seit Schritt 2 am abgeleiteten Weg
    * (refreshDerivedUi -> updateSelectionPanel).
    */
-  await page.fill("#pointEastInput", "12,5");
+  await feldFuellen("pointEastInput", "12,5");
   await page.locator("#pointEastInput").press("Enter");
   await page.waitForTimeout(350);
   await klickeLeereKarte("Abwaehlen vor dem Sprachwechsel");
   await page.waitForTimeout(200);
-  await marks.nth(1).click();
+  await markerKlicken(marks.nth(1));
   await page.waitForTimeout(300);
 
   check("deutsch steht das Komma im Feld",
@@ -2463,7 +2584,7 @@ try {
    * dort tippt niemand mehr. Der Schutz gilt jedem kuenftigen Aufrufer von
    * refreshDerivedUi(), und heute gibt es genau einen.
    */
-  await page.locator("#pointEastInput").fill("77,7");
+  await feldFuellen("pointEastInput", "77,7");
   await page.evaluate(() => {
     document.getElementById("pointEastInput").focus();
     setLanguage("de");
@@ -2617,7 +2738,7 @@ try {
   });
   await page.waitForTimeout(200);
 
-  await marks.nth(1).click();
+  await markerKlicken(marks.nth(1));
   await page.waitForTimeout(300);
   await page.keyboard.press("ArrowRight");
   await page.waitForTimeout(400);
@@ -2667,7 +2788,7 @@ try {
   const perimeterMarker = page.locator('#vertexGroup circle[data-layer="perimeter"]');
   const vorAuswahl = await perimeterMarker.count();
 
-  await marks.nth(2).click();
+  await markerKlicken(marks.nth(2));
   await page.waitForTimeout(300);
 
   check("mit Maeher bleibt die Markerzahl unveraendert",
@@ -2744,9 +2865,9 @@ try {
    * zusammen und die Karte springt.
    */
   await load();
-  await marks.nth(1).click();
+  await markerKlicken(marks.nth(1));
   await page.waitForTimeout(250);
-  await page.fill("#pointEastInput", "12,50");
+  await feldFuellen("pointEastInput", "12,50");
   await page.locator("#pointEastInput").press("Enter");
   await page.waitForTimeout(400);
 
@@ -2824,18 +2945,18 @@ try {
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.waitForTimeout(250);
   await load();
-  await marks.nth(0).click();
+  await markerKlicken(marks.nth(0));
   await page.waitForTimeout(250);
 
   /* ---------------------------------------------------------------- */
   console.log("Übersetzung");
 
-  await marks.nth(0).click();
+  await markerKlicken(marks.nth(0));
   await page.waitForTimeout(250);
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(400);
 
-  const english = await head();
+  const english = await auswahlKopf();
   check("der Kopf ist übersetzt",
     /^Point \d+ of \d+$/.test(english.titel), english.titel);
   check("auch der Behälter",
@@ -2845,19 +2966,19 @@ try {
   await page.waitForTimeout(400);
 
   check("und kommt zurück",
-    /^Punkt \d+ von \d+$/.test((await head()).titel), (await head()).titel);
+    /^Punkt \d+ von \d+$/.test((await auswahlKopf()).titel), (await auswahlKopf()).titel);
 
   /*
    * Die neuen Zustaende bringen neue Muster mit. Geprueft wird an der Gruppe,
    * weil dort Kopfblock, Zusammenfassung und Blockueberschrift zusammenkommen.
    */
-  await marks.nth(1).click({ modifiers: ["Control"] });
+  await markerKlicken(marks.nth(1), { modifiers: ["Control"] });
   await page.waitForTimeout(250);
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(400);
 
   check("die Gruppe wird übersetzt",
-    (await head()).titel === "2 points selected", (await head()).titel);
+    (await auswahlKopf()).titel === "2 points selected", (await auswahlKopf()).titel);
   check("und ihre Zusammenfassung",
     (await text("multiSummary")) === "2 points in Perimeter.",
     await text("multiSummary"));
@@ -2873,9 +2994,9 @@ try {
   await page.waitForTimeout(400);
 
   check("und alles kommt deutsch zurück",
-    (await head()).titel === "2 Punkte ausgewählt" &&
+    (await auswahlKopf()).titel === "2 Punkte ausgewählt" &&
     (await text("multiSummary")) === "2 Punkte in Perimeter.",
-    `${(await head()).titel} | ${await text("multiSummary")}`);
+    `${(await auswahlKopf()).titel} | ${await text("multiSummary")}`);
 
   /* ---------------------------------------------------------------- */
   console.log("Ein Loeschknopf fuer die ganze Auswahl");
@@ -2936,8 +3057,7 @@ try {
    */
   if (zielSchluessel.every((k) => !!k)) {
     for (const [i, key] of zielSchluessel.entries()) {
-      await page.locator(`circle.vertex[data-vertex-key="${key}"]`)
-        .click(i === 0 ? {} : { modifiers: ["Control"] });
+      await markerKlicken(key, i === 0 ? {} : { modifiers: ["Control"] });
       await page.waitForTimeout(220);
     }
 
@@ -3090,7 +3210,7 @@ try {
    * title-fundstellen: ein wieder eingebauter Markup-title hebt beide, und
    * check-bestandszahlen.mjs meldet es.
    */
-  await marks.nth(0).click();
+  await markerKlicken(marks.nth(0));
   await page.waitForTimeout(250);
   const einDe = await loeschTitel();
   check("deutsch, ein Punkt: das Adjektiv ist mitgebeugt",
@@ -3104,7 +3224,7 @@ try {
     einEnNachWechsel === "Delete: remove 1 selected point. Undo is available.",
     einEnNachWechsel);
 
-  await marks.nth(1).click({ modifiers: ["Control"] });
+  await markerKlicken(marks.nth(1), { modifiers: ["Control"] });
   await page.waitForTimeout(250);
   const zweiEn = await loeschTitel();
   check("auf englisch erzeugt: die Mehrzahl steht englisch da",
@@ -3289,9 +3409,22 @@ try {
     await page.mouse.click(marker.x, marker.y);
     await page.waitForTimeout(300);
 
+    /*
+     * Bis zum Umzug der Angaben zur Auswahl stand hier der Punktblock. Er
+     * steht seitdem ueber der Karte; im Inspektor rueckt unter den Kopfblock
+     * wieder der Block, der ohne eine Antwort dort steht - ueber der Schwelle
+     * die Feature-Navigation, denn die Auswahlleiste liegt dann ebenfalls
+     * ueber der Karte. Und die Auswahl selbst steht sichtbar in den Angaben:
+     * erst beides zusammen sagt, dass der Platz an die naechste Handlung
+     * gegangen ist.
+     */
     const nachAuswahl = await obenImInspektor();
-    check("nach der Punktauswahl steht die Auswahl wieder oben",
-      nachAuswahl === "inspectorPoint", String(nachAuswahl));
+    check("nach der Punktauswahl steht oben wieder der erste eigene Block",
+      nachAuswahl === "featureNavigationSection", String(nachAuswahl));
+
+    const auswahlDa = await elementGetroffen(page, "#selectionTitle", { dy: 5 });
+    check("und die Auswahl steht in den Angaben ueber der Karte",
+      auswahlDa.ok, JSON.stringify(auswahlDa));
 
     const zurueck = await page.evaluate(() => {
       const aside = document.getElementById("inspector");

@@ -21,6 +21,7 @@
 import {
   createChecker,
   createKlicker,
+  createMarkerKlicker,
   createMenueBefehl,
   elementGetroffen,
   indexUrl,
@@ -141,6 +142,14 @@ try {
   /* Der Helfer liegt seit dem vierten Durchgang im Harness - eine Stelle
      statt einer Kopie je Test. Verhalten unveraendert. */
   const klickeFreienKnopf = createKlicker(page, check);
+
+  /*
+   * Marker werden ueber den gemeinsamen Helfer geklickt: die Angaben zur
+   * Auswahl stehen unten rechts ueber der Karte und verdecken dort Marker,
+   * sobald etwas ausgewaehlt ist. Der Helfer klappt sie ueber ihren Griff zu
+   * und danach wieder auf - siehe tools/browser-harness.mjs.
+   */
+  const markerKlicken = createMarkerKlicker(page, check);
 
   const upload = async (selector, name, body) => {
     await page.locator(selector).setInputFiles({
@@ -672,6 +681,13 @@ try {
      *
      * Gemessen bei 1280 x 720: Leiste 180-325 / 60-348, der Marker bei
      * E -60 / N 40 liegt bei 312 / 86 und damit darunter.
+     *
+     * Die Angaben zur Auswahl unten rechts deckt die Reihenfolge NICHT ab -
+     * zwei Ecken lassen sich mit einer Reihenfolge nicht beide bedienen.
+     * Dafuer klickt markerKlicken() (aus dem Harness): verdecken die Angaben
+     * einen Marker, klappt es sie ueber ihren Griff zu und danach wieder auf.
+     * Die Auswahlleiste fasst es nicht an; fuer sie gilt weiter die
+     * Reihenfolge hier.
      */
     const mitLage = [];
 
@@ -703,9 +719,7 @@ try {
          Zusicherung oben wuerde ein Timeout. */
       if (!schluessel) return;
 
-      await page.locator(`circle.vertex[data-vertex-key="${schluessel}"]`).click(
-        ersterKlick ? {} : { modifiers: ["Control"] }
-      );
+      await markerKlicken(schluessel, ersterKlick ? {} : { modifiers: ["Control"] });
       ersterKlick = false;
     }
 

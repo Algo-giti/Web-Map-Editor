@@ -16,6 +16,7 @@
 
 import {
   createChecker,
+  createMarkerKlicker,
   createMenueBefehl,
   elementGetroffen,
   indexUrl,
@@ -312,27 +313,13 @@ try {
    * Klickt einen Punktmarker nur, wenn er an seiner Stelle wirklich getroffen
    * wird. Sonst liefe der Klick dreissig Sekunden in einen Timeout und naehme
    * alles dahinter mit; so sagt eine benannte Zusicherung, was dort liegt.
+   *
+   * Der Helfer stand hier als lokale Fassung und liegt seit dem Umzug der
+   * Angaben zur Auswahl im Harness: dort klappt er die Angaben zusaetzlich
+   * zu, wenn sie den Marker verdecken. Eine zweite Kopie daneben waere die
+   * Fehlerklasse, gegen die openAllFolds() gebuendelt wurde.
    */
-  const markerKlicken = async (schluessel, optionen = {}) => {
-    const treffer = await page.evaluate((k) => {
-      const marker = document.querySelector(`circle.vertex[data-vertex-key="${k}"]`);
-      if (!marker) return { ok: false, grund: "kein Marker" };
-
-      const r = marker.getBoundingClientRect();
-      const oben = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-
-      return {
-        ok: oben === marker,
-        grund: oben ? (oben.id || oben.getAttribute("class") || oben.tagName) : "nichts",
-      };
-    }, schluessel);
-
-    check(`der Marker ${schluessel} ist getroffen`, treffer.ok, treffer.grund);
-    if (!treffer.ok) return false;
-
-    await page.locator(`circle.vertex[data-vertex-key="${schluessel}"]`).click(optionen);
-    return true;
-  };
+  const markerKlicken = createMarkerKlicker(page, check);
 
   const KARTE_A = square(0.5, 1);
 

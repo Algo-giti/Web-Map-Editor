@@ -476,6 +476,94 @@ export function createKlicker(page, check) {
 }
 
 
+/**
+ * Klickt einen Punktmarker - auch dann, wenn die Angaben zur Auswahl ihn
+ * verdecken.
+ *
+ * Die Angaben stehen seit ihrem Umzug unten rechts ueber der Karte und fangen
+ * dort jedes Zeigerereignis ab, sobald etwas ausgewaehlt ist. Ein Strg+Klick
+ * auf einen Marker darunter liefe sonst dreissig Sekunden in "subtree
+ * intercepts pointer events". Der Helfer geht den Weg, den ein Nutzer geht:
+ * er klappt die Angaben ueber ihren GRIFF zu, klickt den Marker und klappt sie
+ * danach wieder auf. Gemessen wird damit im selben Zustand wie ohne Helfer -
+ * aufgeklappt -, und der Griff ist bei jedem solchen Klick mitbelegt.
+ *
+ * NUR die Angaben, nicht die Auswahlleiste links oben: fuer sie gilt die
+ * Entscheidung aus dem einundzwanzigsten Durchgang - ein Test klappt sie nicht
+ * zu, sondern waehlt die Reihenfolge (waehlePunkte() in test-merge.mjs).
+ *
+ * Verdeckt etwas anderes den Marker, wird NICHT geklickt: die Zusicherung
+ * nennt, was dort liegt, und der Aufrufer bekommt false. Dieselbe Regel wie bei
+ * createKlicker(). Die Zusicherung steht IMMER da, nicht nur im Fehlerfall -
+ * eine, die man nur sieht, wenn sie reisst, belegt im Gutfall nichts.
+ *
+ * `ziel` ist ein Locator oder der Schluessel eines Markers (data-vertex-key).
+ * Diese Fassung stand bis zum Umzug der Angaben als lokales markerKlicken() in
+ * test-scale.mjs, ohne das Zuklappen; sie liegt jetzt hier, damit es keine
+ * zweite Kopie gibt.
+ */
+export function createMarkerKlicker(page, check) {
+  const lage = (marker) => marker.evaluate((m) => {
+    const r = m.getBoundingClientRect();
+    const oben = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+
+    return {
+      key: m.dataset.vertexKey || "?",
+      ok: oben === m,
+      grund: oben ? (oben.id || oben.getAttribute("class") || oben.tagName) : "nichts",
+      unterDenAngaben: !!oben && !!oben.closest("#selectionOverlay"),
+    };
+  });
+
+  /* Aufklappen: ueber den Griff, solange er dasteht. Ist die Auswahl nach dem
+     Klick leer, stehen die Angaben gar nicht da - dann wird nur der
+     Ausgangszustand wiederhergestellt, damit die naechste Auswahl ihn hat. */
+  const aufklappen = async () => {
+    const griff = page.locator("#selectionOverlayHandle");
+
+    if (await griff.isVisible()) {
+      await griff.click();
+    } else {
+      await page.evaluate(() => {
+        document.getElementById("selectionOverlay").open = true;
+      });
+    }
+
+    await page.waitForTimeout(150);
+  };
+
+  return async (ziel, optionen = {}) => {
+    const marker = typeof ziel === "string"
+      ? page.locator(`circle.vertex[data-vertex-key="${ziel}"]`)
+      : ziel;
+
+    if ((await marker.count()) !== 1) {
+      check(`der Marker ${typeof ziel === "string" ? ziel : "?"} ist getroffen`,
+        false, `${await marker.count()} Marker statt einem`);
+      return false;
+    }
+
+    let stand = await lage(marker);
+    let zugeklappt = false;
+
+    if (!stand.ok && stand.unterDenAngaben) {
+      await page.locator("#selectionOverlayHandle").click();
+      await page.waitForTimeout(150);
+      zugeklappt = true;
+      stand = await lage(marker);
+    }
+
+    check(`der Marker ${stand.key} ist getroffen`, stand.ok,
+      zugeklappt ? `auch bei zugeklappten Angaben: ${stand.grund}` : stand.grund);
+
+    if (stand.ok) await marker.click(optionen);
+    if (zugeklappt) await aufklappen();
+
+    return stand.ok;
+  };
+}
+
+
 /** Kleiner Zähler für Zusicherungen, gemeinsam von beiden Tests genutzt. */
 export function createChecker(toolName) {
   let failures = 0;

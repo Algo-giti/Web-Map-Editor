@@ -82,6 +82,7 @@
 // Werkzeug kaputt.
 
 import {
+  createMarkerKlicker,
   createMenueBefehl,
   indexUrl,
   launchBrowser,
@@ -246,10 +247,21 @@ page.on("dialog", (dialog) => dialog.accept().catch(() => {}));
  * vollstaendig wie die Zustaende, die sie besucht hat". Deshalb laut melden;
  * den Abbruch besorgt der Helfer anschliessend selbst.
  */
-const menueBefehl = createMenueBefehl(page, (name, bedingung, detail) => {
+const melder = (name, bedingung, detail) => {
   if (bedingung) return;
   console.error(`  NICHT ERREICHT  ${name} - ${detail}`);
-});
+};
+
+const menueBefehl = createMenueBefehl(page, melder);
+
+/*
+ * Dasselbe fuer die Punktmarker: seit die Angaben zur Auswahl unten rechts
+ * ueber der Karte stehen, verdecken sie dort Marker, sobald etwas ausgewaehlt
+ * ist. Der Helfer klappt sie ueber ihren Griff zu und wieder auf; ein Marker,
+ * den er trotzdem nicht erreicht, ist hier derselbe harte Befund wie ein
+ * gesperrter Menueeintrag - der Zustand dahinter wird nicht besucht.
+ */
+const markerKlicken = createMarkerKlicker(page, melder);
 
 const treffer = new Map();
 
@@ -349,7 +361,7 @@ try {
 
   /* Punktzustand mit Vergleichsblock: auswaehlen und verschieben. */
   const perimeterMarken = page.locator('#vertexGroup circle[data-layer="perimeter"]');
-  await perimeterMarken.nth(1).click();
+  await markerKlicken(perimeterMarken.nth(1));
   await page.waitForTimeout(250);
   await page.keyboard.press("ArrowRight");
   await page.waitForTimeout(350);
@@ -392,8 +404,8 @@ try {
    */
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
-  await perimeterMarken.nth(0).click();
-  await perimeterMarken.nth(1).click({ modifiers: ["Control"] });
+  await markerKlicken(perimeterMarken.nth(0));
+  await markerKlicken(perimeterMarken.nth(1), { modifiers: ["Control"] });
   await page.waitForTimeout(250);
   await page.keyboard.press("ArrowRight");
   await page.waitForTimeout(350);
@@ -402,8 +414,8 @@ try {
   /* Begradigen: zwei Punkte desselben Rings. */
   await page.keyboard.press("Escape");
   await page.waitForTimeout(200);
-  await perimeterMarken.nth(0).click();
-  await perimeterMarken.nth(2).click({ modifiers: ["Control"] });
+  await markerKlicken(perimeterMarken.nth(0));
+  await markerKlicken(perimeterMarken.nth(2), { modifiers: ["Control"] });
   await page.waitForTimeout(300);
   await openAllFolds(page);
   if (await page.locator("#straightenSelectionBtn").isEnabled()) {
@@ -498,8 +510,8 @@ try {
 
   await page.keyboard.press("Escape");
   await page.waitForTimeout(250);
-  await perimeterMarken.nth(0).click();
-  await perimeterMarken.nth(1).click({ modifiers: ["Control"] });
+  await markerKlicken(perimeterMarken.nth(0));
+  await markerKlicken(perimeterMarken.nth(1), { modifiers: ["Control"] });
   await page.waitForTimeout(300);
   await menueBefehl("Karte", "Karten verbinden…");
   await page.waitForTimeout(300);

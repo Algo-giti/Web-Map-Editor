@@ -207,6 +207,15 @@ const AUSWAHLBEZEICHNER = [
   "clearMultiSelectionBtn",
   "inspectorTitle",
   "inspectorSubtitle",
+  /*
+   * Die Angaben zur Auswahl ueber der Karte und ihr Kopf. Er steht seit dem
+   * Umzug an der Stelle, an der vorher inspectorTitle/inspectorSubtitle den
+   * Kopf der Auswahl trugen - dieselbe Rolle, ein anderer Ort. Die Bloecke
+   * darin behalten ihre ids und stehen oben schon in der Liste.
+   */
+  "selectionOverlay",
+  "selectionTitle",
+  "selectionSubtitle",
 ];
 
 /**
@@ -465,6 +474,7 @@ const DETAILS_ROLLEN = [
   "tool-settings",
   "inspector-note",
   "selection-actions",
+  "selection-overlay",
 ];
 
 /** Die literalen title-Attribute im Markup. */
@@ -553,7 +563,7 @@ const MESSUNGEN = {
     messen: messeTitleJs,
   },
   "details-instanzen": {
-    was: "<details>-Elemente des Markups in ihren vier Rollen",
+    was: "<details>-Elemente des Markups in ihren fuenf Rollen",
     messen: () => DETAILS_ROLLEN.reduce((summe, rolle) => summe + detailsMitKlasse(rolle), 0),
   },
   "details-inspector-fold": {
@@ -571,6 +581,10 @@ const MESSUNGEN = {
   "details-selection-actions": {
     was: "<details class=\"selection-actions\"> im Markup",
     messen: () => detailsMitKlasse("selection-actions"),
+  },
+  "details-selection-overlay": {
+    was: "<details class=\"selection-overlay\"> im Markup",
+    messen: () => detailsMitKlasse("selection-overlay"),
   },
   "klicks-feste-koordinate": {
     was: "Klicks mit fester Koordinate in tools/, gefunden ueber \"position: { x:\"",

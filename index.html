@@ -31,6 +31,22 @@
      * Groesse der Zoom-Leiste.
      */
     --touch-target:44px;
+
+    /*
+     * Die Kantenlaenge der Kartenknoepfe (Zoom-Leiste, die beiden Griffe).
+     * Eine Variable und keine Zahl am Knopf, weil der untere Stapel der Karte
+     * unter der Zoom-Leiste beginnt und dafuer genau diese Hoehe braucht -
+     * bei grobem Zeiger setzt der `pointer: coarse`-Block sie auf
+     * --touch-target, und der Stapel zieht von selbst mit.
+     */
+    --map-tool-size:36px;
+
+    /*
+     * Die Breite einer Ebene ueber der Karte: der drei Kartenfenster und der
+     * Angaben zur Auswahl. Eine Zahl fuer beide, weil der untere Stapel aus
+     * ihr ableitet, ob beide nebeneinander passen.
+     */
+    --map-layer-width:300px;
     --bg:#0a0f18;
     --bg2:#0c1320;
     --panel:#111927;
@@ -1657,6 +1673,25 @@
 
   .app.inspector-collapsed .inspector-toggle { position:static; }
 
+  /*
+   * Bei einer Auswahl steht der Text des Kopfblocks in den Angaben ueber der
+   * Karte, und hier wird er weggelassen. Uebrig bleibt der Umschalter - an
+   * derselben Stelle oben rechts, nur nicht mehr ueber leerem Platz: ohne
+   * Text gibt es nichts, wofuer der Kopf seine Mindesthoehe halten muesste.
+   * Gelesen wird das hidden-Attribut des Textbehaelters, also derselbe
+   * Zustand, den updateInspector() setzt - keine zweite Klasse dafuer.
+   */
+  .inspector-head:has(> .inspector-head-text[hidden]) {
+    display:flex;
+    justify-content:flex-end;
+    min-height:0;
+    padding-right:0;
+  }
+
+  .inspector-head:has(> .inspector-head-text[hidden]) .inspector-toggle {
+    position:static;
+  }
+
   .inspector-title {
     color:var(--text); font-size:14px; font-weight:700;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -1772,7 +1807,8 @@
     font-size:14px;
   }
 
-  .inspector .coord-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  /* Nur noch in den Angaben zur Auswahl - die Felder sind mit ihnen umgezogen. */
+  .selection-overlay .coord-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 
   /* Die Maßfelder der Formwerkzeuge stehen untereinander wie die übrigen. */
   #drawCircleFields, #drawRectFields {
@@ -2095,20 +2131,25 @@
    * Rest stammt dort von `button {}`, und ein <summary> ist keiner. Genau
    * richtig, denn die Leiste bringt ihren eigenen Rahmen mit.
    */
-  .selection-actions > summary {
+  .selection-actions > summary,
+  .selection-overlay > summary {
     list-style:none;
     cursor:pointer;
     user-select:none;
     color:var(--muted);
   }
 
-  .selection-actions > summary::-webkit-details-marker { display:none; }
+  .selection-actions > summary::-webkit-details-marker,
+  .selection-overlay > summary::-webkit-details-marker { display:none; }
 
   /* Dasselbe Zeichen wie an den Faltblöcken des Inspektors. */
-  .selection-actions > summary::before { content:"▾"; }
-  .selection-actions:not([open]) > summary::before { content:"▸"; }
+  .selection-actions > summary::before,
+  .selection-overlay > summary::before { content:"▾"; }
+  .selection-actions:not([open]) > summary::before,
+  .selection-overlay:not([open]) > summary::before { content:"▸"; }
 
-  .selection-actions > summary:focus-visible {
+  .selection-actions > summary:focus-visible,
+  .selection-overlay > summary:focus-visible {
     outline:2px solid var(--blue);
     outline-offset:2px;
   }
@@ -2177,9 +2218,9 @@
   }
 
   .map-tool-button {
-    width:36px;
-    height:36px;
-    min-width:36px;
+    width:var(--map-tool-size);
+    height:var(--map-tool-size);
+    min-width:var(--map-tool-size);
     padding:7px;
     display:grid;
     place-items:center;
@@ -2239,20 +2280,104 @@
   .map-info-text strong { color:var(--text); }
 
   /*
-   * SCHWEBENDE FENSTER ÜBER DER KARTE
-   * ---------------------------------
-   * Unten links, weil oben rechts die Zoom-Leiste sitzt. Über ihnen liegt
-   * .viewer mit overflow:hidden - die Grenze ist die Kartenfläche, deshalb
-   * begrenzt max-height die Höhe gegen die Fensterhöhe und nicht gegen einen
-   * festen Wert.
+   * DER UNTERE STAPEL DER KARTE
+   * ---------------------------
+   * Ein Raster aus den drei Kartenfenstern (links) und den Angaben zur
+   * Auswahl (rechts). Ob beide nebeneinander oder uebereinander stehen,
+   * entscheidet das Layout:
+   *
+   *  - Die Spalten sind `repeat(auto-fit, ...)` mit der Ebenenbreite als
+   *    Mindestmass. Passen zwei hinein, stehen beide nebeneinander; sonst gibt
+   *    es eine Spalte, und das zweite Kind rueckt in eine zweite Zeile. Leere
+   *    Spalten fallen weg (auto-fit), ein einzelnes Kind bekommt also die
+   *    ganze Breite und richtet sich selbst aus.
+   *  - `direction:rtl` am Raster und NUR dort: die erste Spalte liegt damit
+   *    rechts. Die Angaben stehen im Markup zuerst und landen nebeneinander
+   *    rechts, uebereinander OBEN - das Fenster bleibt also an seinem Ort
+   *    unten links, und die Angaben weichen nach oben, nicht umgekehrt. Ein
+   *    Fenster, das beim Klick auf einen Punkt nach oben springt, waehrend man
+   *    darin arbeitet, waere die schlechtere Wahl. Die Kinder schalten auf ltr
+   *    zurueck.
+   *  - Der Stapel beginnt unter der Zoom-Leiste (--map-tool-size plus beide
+   *    Abstaende), damit keines seiner Kinder sie ueberdeckt.
+   *  - Reicht die Hoehe nicht fuer beide, schrumpft das FENSTER (min-height:0,
+   *    sein Rumpf rollt), die Angaben nicht: sie tragen keine Rollfunktion,
+   *    ihre Mindesthoehe ist ihr Inhalt. Das Fenster hat einen Schliessknopf,
+   *    die Angaben ihren Griff - beide geben die Hoehe mit einem Klick zurueck.
    */
-  .map-window {
+  .map-bottom-stack {
     position:absolute;
     left:12px;
+    right:12px;
     bottom:12px;
+    top:calc(var(--map-tool-size) + 24px);
     z-index:7;
-    width:min(300px, calc(100% - 24px));
-    max-height:calc(100% - 24px);
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(min(100%, var(--map-layer-width)), 1fr));
+    gap:12px;
+    direction:rtl;
+    pointer-events:none;
+  }
+
+  .map-bottom-stack > * {
+    direction:ltr;
+    pointer-events:auto;
+    align-self:end;
+    width:min(var(--map-layer-width), 100%);
+  }
+
+  .map-bottom-stack > .map-window {
+    justify-self:left;
+    min-height:0;
+    max-height:100%;
+  }
+
+  /*
+   * DIE ANGABEN ZUR AUSWAHL
+   *
+   * Durchscheinend: Deckkraft 0,8 statt der 0,96 der Kartenfenster, damit die
+   * Karte darunter sichtbar bleibt. Die Kaesten darin (Vergleich, Richtung)
+   * bringen ihren eigenen halbdurchsichtigen Grund mit; der Text steht also
+   * nie unmittelbar auf einer hellen Kartenlinie.
+   */
+  .selection-overlay {
+    position:relative;
+    justify-self:right;
+    padding:10px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:rgba(10,15,24,.8);
+    box-shadow:0 10px 22px rgba(0,0,0,.22);
+  }
+
+  /*
+   * Zugeklappt bleibt allein der Griff stehen, wie bei der Auswahlleiste: ohne
+   * Polsterung und ohne die Ebenenbreite misst er genau sich selbst.
+   */
+  .selection-overlay:not([open]) { width:auto; padding:0; }
+
+  /*
+   * Aufgeklappt sitzt der Griff in der Ecke oben rechts, neben dem Kopf - eine
+   * eigene Zeile darueber kostete seine ganze Hoehe, und die Angaben decken
+   * ohnehin schon einen Teil der Karte zu.
+   */
+  .selection-overlay[open] > summary { position:absolute; top:6px; right:6px; }
+
+  .selection-overlay-body { display:flex; flex-direction:column; gap:10px; }
+
+  .selection-overlay-head {
+    min-height:calc(var(--map-tool-size) - 4px);
+    padding-right:calc(var(--map-tool-size) + 4px);
+  }
+
+  /*
+   * SCHWEBENDE FENSTER ÜBER DER KARTE
+   * ---------------------------------
+   * Unten links, weil oben rechts die Zoom-Leiste sitzt. Sie stehen im unteren
+   * Stapel (.map-bottom-stack) und tragen deshalb keine eigene Position mehr:
+   * Ort, Breite und Hoehengrenze kommen von dort.
+   */
+  .map-window {
     display:flex;
     flex-direction:column;
     border:1px solid var(--line);
@@ -3078,6 +3203,14 @@
       font-size:16px;
     }
 
+    /*
+     * Die E/N-Felder stehen seit dem Umzug der Auswahlangaben ueber der Karte
+     * und nicht mehr in aside - `aside .coord-input` erreicht sie dort nicht.
+     * Dieselbe Spezifitaetsfrage wie oben: (0,0,2,0) schlaegt `font:inherit`
+     * an `.coord-input`.
+     */
+    .selection-overlay .coord-input { font-size:16px; }
+
     aside button {
       min-height:var(--touch-target);
       display:flex;
@@ -3099,13 +3232,10 @@
       * Ueber der Karte galten bis zum einundzwanzigsten Durchgang 42 px - eine
       * zweite Zahl fuer dieselbe Sache, die niemand entschieden hatte. Sie
       * folgt jetzt derselben Variablen wie Menue, Werkzeugleiste und
-      * Inspektor.
+      * Inspektor - ueber --map-tool-size, das neben dem Knopf auch der untere
+      * Stapel der Karte liest: er beginnt unter der Zoom-Leiste.
       */
-    .map-tool-button {
-      width:var(--touch-target);
-      height:var(--touch-target);
-      min-width:var(--touch-target);
-    }
+    :root { --map-tool-size:var(--touch-target); }
 
     /*
      * Und die Knoepfe der Auswahlleiste ueber der Karte, die bis dahin von
@@ -3688,175 +3818,331 @@
       </div>
 
       <!--
-        Die beiden Einstellfenster. Nicht-modal und bewusst KEIN <dialog>:
-        showModal() sperrte die Karte, und beide Fenster sind genau dafuer da,
-        dass man beim Einstellen die Karte ansieht.
+        DER UNTERE STAPEL DER KARTE: die Angaben zur Auswahl und die drei
+        Kartenfenster.
 
-        Sie liegen unten links. Oben rechts sitzt die Zoom-Leiste; ein Fenster
-        darunter waere nicht anklickbar - im Test meldet Playwright dann
-        "subtree intercepts pointer events".
+        Er ist die Antwort auf eine Ueberdeckung, wie der obere Stapel: die
+        Angaben stehen unten rechts, die Fenster unten links, und auf einer
+        schmalen Karte passt beides nicht nebeneinander - bei 744 px hat die
+        Karte 368 px, ein Fenster allein 300. Statt die Angaben mit einem
+        gerechneten Versatz ueber das Fenster zu schieben, stehen beide in
+        EINEM Raster; ob sie nebeneinander oder uebereinander stehen,
+        entscheidet das Layout und nicht eine Zahl, die jemand nachfuehren
+        muesste, sobald ein Fenster eine Zeile mehr traegt. Die Regeln stehen
+        am Selektor .map-bottom-stack.
 
-        Ueber ihnen sitzt .viewer mit overflow:hidden. Die Grenze ist damit die
-        Kartenflaeche, nicht der Fensterrand - deshalb max-height und die
-        Trefferpruefung im Test.
+        pointer-events:none am Stapel, auto an den Kindern: der Stapel spannt
+        sich ueber die ganze Karte, und die Karte darunter muss anklickbar
+        bleiben.
       -->
-      <div id="gridWindow" class="map-window" role="dialog"
-           aria-labelledby="gridWindowTitle" hidden>
-        <div class="map-window-head">
-          <div id="gridWindowTitle" class="map-window-title">Raster</div>
-          <button id="gridWindowCloseBtn" class="map-window-close" type="button"
-                  aria-label="Fenster schließen">×</button>
-        </div>
-        <div class="map-window-body">
-          <label class="field-label" for="gridPreset">
-            Schnellwahl
-            <select id="gridPreset" class="grid-select">
-              <option value="">Eigener Wert</option>
-              <option value="0.01">0,01 m (1 cm)</option>
-              <option value="0.02">0,02 m (2 cm)</option>
-              <option value="0.05">0,05 m (5 cm)</option>
-              <option value="0.10" selected>0,10 m (10 cm)</option>
-              <option value="0.25">0,25 m</option>
-              <option value="0.50">0,50 m</option>
-              <option value="1.00">1,00 m</option>
-              <option value="2.00">2,00 m</option>
-              <option value="5.00">5,00 m</option>
-            </select>
-          </label>
+      <div id="mapBottomStack" class="map-bottom-stack">
 
-          <label class="field-label" for="gridStepInput">
-            Eigener Rasterabstand in Metern
-            <div class="field-row">
-              <input id="gridStepInput" class="grid-input" type="text" inputmode="decimal"
-                     value="0,10" autocomplete="off" spellcheck="false" aria-describedby="gridStatus">
-              <button id="applyGridBtn" type="button">Übernehmen</button>
+        <!--
+          DIE ANGABEN ZUR AUSWAHL - der Auswahlbereich, der bis dahin im
+          Inspektor stand: Kopf, Koordinaten, Vergleich, Fahrtrichtung, die
+          Notiz zu geschlossenen Polygonen und die Bloecke der uebrigen drei
+          Auswahlzustaende. Verschoben, nicht kopiert: die ids der Bloecke
+          sind unveraendert, und welcher davon sichtbar ist, entscheidet
+          weiter INSPECTOR_BLOCKS.
+
+          Nur die Information zur Auswahl ist umgezogen, keine Bedienung - die
+          Knoepfe stehen in der Auswahlleiste, die Werkzeuge im Inspektor.
+
+          Einklappbar wie die Auswahlleiste und mit derselben Mechanik: ein
+          natives <details>, dessen `open`-Attribut der einzige Zustandshalter
+          ist. Es steht im Markup und wird nirgends zurueckgesetzt - der
+          Ausgangszustand ist aufgeklappt, und wer zuklappt, bekommt bei der
+          naechsten Auswahl die zugeklappten Angaben. Kein localStorage.
+        -->
+        <details id="selectionOverlay" class="selection-overlay" open hidden>
+          <!--
+            Der Griff, quadratisch in der Groesse der Kartenknoepfe und ohne
+            Beschriftung - derselbe wie an der Auswahlleiste, damit beide sich
+            gleich bedienen. Sein title ist sein NAME, kein Erklaertext.
+          -->
+          <summary id="selectionOverlayHandle" class="map-tool-button"
+                   title="Auswahlangaben ein- und ausklappen"
+                   aria-label="Auswahlangaben ein- und ausklappen"></summary>
+
+          <div class="selection-overlay-body">
+            <!--
+              Der Kopf der Auswahl. Er stand im Kopfblock des Inspektors, der
+              seitdem nur noch beschreibt, was ohne Auswahl dort steht: den
+              leeren Zustand, das Zeichnen und das Messen.
+            -->
+            <div class="selection-overlay-head">
+              <div id="selectionTitle" class="inspector-title"></div>
+              <div id="selectionSubtitle" class="inspector-subtitle"></div>
             </div>
-          </label>
+            <div id="inspectorPoint" class="inspector-block" hidden>
+              <div class="inspector-section-title">Koordinaten</div>
 
-          <label class="toggle">
-            <input id="snapPointToGrid" type="checkbox" checked>
-            Beim Ziehen am Raster einrasten
-          </label>
+              <div class="coord-grid">
+                <label class="coord-field" for="pointEastInput">
+                  East / E (m)
+                  <input id="pointEastInput" class="coord-input" type="text"
+                         inputmode="decimal" autocomplete="off" disabled>
+                </label>
+                <label class="coord-field" for="pointNorthInput">
+                  North / N (m)
+                  <input id="pointNorthInput" class="coord-input" type="text"
+                         inputmode="decimal" autocomplete="off" disabled>
+                </label>
+              </div>
 
-          <div id="gridStatus" class="grid-status" aria-live="polite">
-            Rasterabstand: <strong>0,10 m</strong>
+              <div id="selectionDeltaInfo" class="comparison-status" aria-live="polite">
+                Verschiebungen bleiben bis zum Speichern als Vergleich sichtbar.
+              </div>
+
+              <!--
+                Fahrtrichtung des AUSGEWÄHLTEN Punktes - deshalb hier und nicht im
+                Mäherfenster. Die id bleibt bei diesem Teil: sie heisst
+                "OrientationInfo", und die Orientierung ist genau das, was hier
+                steht. Die Grössenangabe war der andere Teil derselben Box und liegt
+                jetzt als #mowerSizeInfo bei den Feldern, die sie einstellen.
+              -->
+              <div id="mowerOrientationInfo" class="orientation-box" aria-live="polite">
+                Punkt auswählen, um die Fahrtrichtung anzuzeigen.
+              </div>
+
+              <details class="inspector-note">
+                <summary>Geschlossene Polygone</summary>
+                <div class="map-info-text">
+                  Start und Ende sind zwei benachbarte echte Eckpunkte. Danach
+                  wiederholt GeoJSON intern den Startpunkt, damit der Ring
+                  geschlossen bleibt. Beim Neuvergeben werden die Punkte zyklisch neu
+                  nummeriert. Neue Punkte werden zunächst auf einer bestehenden Kante
+                  eingesetzt, damit sich die Polygonform beim Einfügen nicht
+                  unbeabsichtigt verändert.
+                </div>
+              </details>
+
+              <!--
+                Seit Etappe 4 nennt der Kopfblock Punktnummer, Feature und Behälter.
+                Dieses Feld sagte dasselbe noch einmal - genau das sollte der feste
+                Kopfblock überflüssig machen. Übrig bleibt die Punktrolle, und die
+                auch nur, wenn es eine gibt: "Zwischenpunkt" ist der Normalfall und
+                sagt nichts. Weglassen statt platzhaltern.
+              -->
+              <div id="pointMeta" class="point-role" hidden></div>
+            </div>
+
+            <!--
+              Mehrere Punkte EINES Features. Der Kopfblock nennt die Anzahl; hier
+              stehen nur die Aktionen, die auf eine Gruppe passen.
+            -->
+            <div id="inspectorMulti" class="inspector-block" hidden>
+              <div class="inspector-section-title">Gruppe</div>
+              <div id="multiSummary" class="editor-meta">Mehrere Punkte ausgewählt.</div>
+              <div class="hint">
+                Einen markierten Punkt ziehen verschiebt die ganze Gruppe.
+              </div>
+            </div>
+
+            <!-- Punkte aus MEHREREN Features. -->
+            <div id="inspectorMixed" class="inspector-block" hidden>
+              <div class="inspector-section-title">Mehrere Features</div>
+              <div id="mixedSummary" class="editor-meta">Punkte aus mehreren Features.</div>
+              <div class="hint">
+                Löschen und gemeinsames Verschieben gehen weiterhin. Alles, was einen
+                einzelnen Linienzug braucht - Koordinaten, Start/Ende, Begradigen,
+                Reduzieren, Rechtwinklig - braucht eine Auswahl innerhalb EINES
+                Features.
+              </div>
+            </div>
+
+            <!-- Alle editierbaren Punkte eines Features. -->
+            <div id="inspectorFeature" class="inspector-block" hidden>
+              <div class="inspector-section-title">Feature</div>
+
+              <!--
+                Typabhaengige Kennzahlen werden WEGGELASSEN, nicht platzhaltert.
+                Ein "-" bei idx behauptete, es gaebe dort einen Wert, den man nur
+                nicht kennt; ein Perimeter hat aber keinen idx. Die Zeilen tragen
+                deshalb eigene ids und werden ueber hidden geschaltet.
+              -->
+              <div class="stat"><span>Typ</span><strong id="featureTypeStat">–</strong></div>
+              <div class="stat"><span>Punkte</span><strong id="featurePointStat">–</strong></div>
+              <div id="featureAreaRow" class="stat" hidden><span>Fläche</span><strong id="featureAreaStat">–</strong></div>
+              <div id="featureIdxRow" class="stat" hidden><span>idx</span><strong id="featureIdxStat">–</strong></div>
+              <div class="hint">
+                Verschieben durch Ziehen an der Geometrie auf der Karte.
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </details>
 
-      <div id="mowerWindow" class="map-window" role="dialog"
-           aria-labelledby="mowerWindowTitle" hidden>
-        <div class="map-window-head">
-          <div id="mowerWindowTitle" class="map-window-title">Mähroboter-Vorschau</div>
-          <button id="mowerWindowCloseBtn" class="map-window-close" type="button"
-                  aria-label="Fenster schließen">×</button>
-        </div>
-        <div class="map-window-body">
-          <div class="robot-dimensions">
-            <label class="coord-field" for="mowerLengthInput">
-              Länge (m)
-              <input id="mowerLengthInput" class="coord-input"
-                     type="text" inputmode="decimal" value="0,65"
-                     autocomplete="off">
+        <!--
+          Die drei Einstellfenster. Nicht-modal und bewusst KEIN <dialog>:
+          showModal() sperrte die Karte, und die Fenster sind genau dafuer da,
+          dass man beim Einstellen die Karte ansieht.
+
+          Sie liegen unten links, im unteren Stapel neben den Angaben zur
+          Auswahl. Oben rechts sitzt die Zoom-Leiste; ein Fenster darunter waere
+          nicht anklickbar - im Test meldet Playwright dann "subtree intercepts
+          pointer events".
+
+          Die Grenze ist der Stapel, und ueber ihm sitzt .viewer mit
+          overflow:hidden - deshalb max-height und die Trefferpruefung im Test.
+        -->
+        <div id="gridWindow" class="map-window" role="dialog"
+             aria-labelledby="gridWindowTitle" hidden>
+          <div class="map-window-head">
+            <div id="gridWindowTitle" class="map-window-title">Raster</div>
+            <button id="gridWindowCloseBtn" class="map-window-close" type="button"
+                    aria-label="Fenster schließen">×</button>
+          </div>
+          <div class="map-window-body">
+            <label class="field-label" for="gridPreset">
+              Schnellwahl
+              <select id="gridPreset" class="grid-select">
+                <option value="">Eigener Wert</option>
+                <option value="0.01">0,01 m (1 cm)</option>
+                <option value="0.02">0,02 m (2 cm)</option>
+                <option value="0.05">0,05 m (5 cm)</option>
+                <option value="0.10" selected>0,10 m (10 cm)</option>
+                <option value="0.25">0,25 m</option>
+                <option value="0.50">0,50 m</option>
+                <option value="1.00">1,00 m</option>
+                <option value="2.00">2,00 m</option>
+                <option value="5.00">5,00 m</option>
+              </select>
             </label>
 
-            <label class="coord-field" for="mowerWidthInput">
-              Breite (m)
-              <input id="mowerWidthInput" class="coord-input"
-                     type="text" inputmode="decimal" value="0,35"
-                     autocomplete="off">
+            <label class="field-label" for="gridStepInput">
+              Eigener Rasterabstand in Metern
+              <div class="field-row">
+                <input id="gridStepInput" class="grid-input" type="text" inputmode="decimal"
+                       value="0,10" autocomplete="off" spellcheck="false" aria-describedby="gridStatus">
+                <button id="applyGridBtn" type="button">Übernehmen</button>
+              </div>
             </label>
-          </div>
 
-          <button id="applyMowerSizeBtn" type="button">Mähergröße übernehmen</button>
+            <label class="toggle">
+              <input id="snapPointToGrid" type="checkbox" checked>
+              Beim Ziehen am Raster einrasten
+            </label>
 
-          <!--
-            Die Breite ist nicht nur Darstellung: sie ist die Schwelle der
-            Korridorpruefung und geht als mowerWidth² in die Flaechenwarnung
-            beim Reduzieren ein. Das stand bisher nirgends in der Oberflaeche.
-          -->
-          <div class="hint">
-            Die Breite ist zugleich die Arbeitsbreite: sie ist die Schwelle der
-            Korridorprüfung in der Kartenprüfung, geht als Quadrat in die
-            Flächenwarnung beim Reduzieren ein, und ihre Hälfte ist beim
-            Glätten der kleinste Bogenradius, der nicht ausgelassen wird.
-          </div>
-
-          <div id="mowerSizeInfo" class="orientation-box" aria-live="polite">
-            Mäher: <strong>0,65 × 0,35 m (65 × 35 cm)</strong>
+            <div id="gridStatus" class="grid-status" aria-live="polite">
+              Rasterabstand: <strong>0,10 m</strong>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!--
-        KARTEN VERBINDEN.
+        <div id="mowerWindow" class="map-window" role="dialog"
+             aria-labelledby="mowerWindowTitle" hidden>
+          <div class="map-window-head">
+            <div id="mowerWindowTitle" class="map-window-title">Mähroboter-Vorschau</div>
+            <button id="mowerWindowCloseBtn" class="map-window-close" type="button"
+                    aria-label="Fenster schließen">×</button>
+          </div>
+          <div class="map-window-body">
+            <div class="robot-dimensions">
+              <label class="coord-field" for="mowerLengthInput">
+                Länge (m)
+                <input id="mowerLengthInput" class="coord-input"
+                       type="text" inputmode="decimal" value="0,65"
+                       autocomplete="off">
+              </label>
 
-        Drittes Kartenfenster, gleiche Machart wie Raster und
-        Mähroboter-Vorschau: nicht-modales div, über hidden gesteuert, kein
-        <dialog>, höchstens eines der drei offen, Escape schließt und gibt den
-        Fokus an den Menüeintrag zurück. Es sitzt wie die beiden anderen unten
-        links - die obere rechte Ecke gehört der Zoom-Leiste.
+              <label class="coord-field" for="mowerWidthInput">
+                Breite (m)
+                <input id="mowerWidthInput" class="coord-input"
+                       type="text" inputmode="decimal" value="0,35"
+                       autocomplete="off">
+              </label>
+            </div>
 
-        Verschoben, nicht kopiert: die fünf ids mergeAInfo, mergeBInfo,
-        showMergePreview, mergeStatus und mergeMapsBtn sind unverändert. Sie
-        standen bis Etappe 7e im letzten Abschnitt der Seitenleiste, und mit
-        ihrem Umzug fällt deren Hülle.
+            <button id="applyMowerSizeBtn" type="button">Mähergröße übernehmen</button>
 
-        Warum hierher und nicht in den Inspektor: ein weiterer Faltblock kostet
-        dort 30 bis 31 px und brächte die Reserve bei 900 px Fensterhöhe von
-        12 px auf rund -19 px - das Höhenziel "bis 900 px scrollfrei" wäre
-        gebrochen. Ein Fenster kostet null Höhe, solange es zu ist.
-      -->
-      <div id="mergeWindow" class="map-window" role="dialog"
-           aria-labelledby="mergeWindowTitle" hidden>
-        <div class="map-window-head">
-          <div id="mergeWindowTitle" class="map-window-title">Karten verbinden</div>
-          <button id="mergeWindowCloseBtn" class="map-window-close" type="button"
-                  aria-label="Fenster schließen">×</button>
+            <!--
+              Die Breite ist nicht nur Darstellung: sie ist die Schwelle der
+              Korridorpruefung und geht als mowerWidth² in die Flaechenwarnung
+              beim Reduzieren ein. Das stand bisher nirgends in der Oberflaeche.
+            -->
+            <div class="hint">
+              Die Breite ist zugleich die Arbeitsbreite: sie ist die Schwelle der
+              Korridorprüfung in der Kartenprüfung, geht als Quadrat in die
+              Flächenwarnung beim Reduzieren ein, und ihre Hälfte ist beim
+              Glätten der kleinste Bogenradius, der nicht ausgelassen wird.
+            </div>
+
+            <div id="mowerSizeInfo" class="orientation-box" aria-live="polite">
+              Mäher: <strong>0,65 × 0,35 m (65 × 35 cm)</strong>
+            </div>
+          </div>
         </div>
-        <div class="map-window-body">
-          <div class="info-box">
-            Beide Karten müssen dieselbe RTK-Basis / dasselbe lokale
-            Koordinatensystem verwenden.
+
+        <!--
+          KARTEN VERBINDEN.
+
+          Drittes Kartenfenster, gleiche Machart wie Raster und
+          Mähroboter-Vorschau: nicht-modales div, über hidden gesteuert, kein
+          <dialog>, höchstens eines der drei offen, Escape schließt und gibt den
+          Fokus an den Menüeintrag zurück. Es sitzt wie die beiden anderen unten
+          links - die obere rechte Ecke gehört der Zoom-Leiste.
+
+          Verschoben, nicht kopiert: die fünf ids mergeAInfo, mergeBInfo,
+          showMergePreview, mergeStatus und mergeMapsBtn sind unverändert. Sie
+          standen bis Etappe 7e im letzten Abschnitt der Seitenleiste, und mit
+          ihrem Umzug fällt deren Hülle.
+
+          Warum hierher und nicht in den Inspektor: ein weiterer Faltblock kostet
+          dort 30 bis 31 px und brächte die Reserve bei 900 px Fensterhöhe von
+          12 px auf rund -19 px - das Höhenziel "bis 900 px scrollfrei" wäre
+          gebrochen. Ein Fenster kostet null Höhe, solange es zu ist.
+        -->
+        <div id="mergeWindow" class="map-window" role="dialog"
+             aria-labelledby="mergeWindowTitle" hidden>
+          <div class="map-window-head">
+            <div id="mergeWindowTitle" class="map-window-title">Karten verbinden</div>
+            <button id="mergeWindowCloseBtn" class="map-window-close" type="button"
+                    aria-label="Fenster schließen">×</button>
           </div>
+          <div class="map-window-body">
+            <div class="info-box">
+              Beide Karten müssen dieselbe RTK-Basis / dasselbe lokale
+              Koordinatensystem verwenden.
+            </div>
 
-          <div class="merge-endpoints">
-            <div id="mergeAInfo" class="merge-map-info">Karte A ist nicht geladen.</div>
-            <div id="mergeBInfo" class="merge-map-info">Karte B ist nicht geladen.</div>
-          </div>
+            <div class="merge-endpoints">
+              <div id="mergeAInfo" class="merge-map-info">Karte A ist nicht geladen.</div>
+              <div id="mergeBInfo" class="merge-map-info">Karte B ist nicht geladen.</div>
+            </div>
 
-          <!--
-            Auftrennstelle. Der Knopf steht HIER und nicht im Inspektor, obwohl
-            er an der Auswahl haengt: ein weiterer Knopf im Inspektor kostete
-            dort rund 40 px, und die verbindliche Reserve bei 900 px
-            Fensterhoehe betraegt 12 px. Genau aus diesem Grund ist das
-            Verbinden mit 7e ein Fenster geworden - ein Fenster kostet null
-            Hoehe, solange es zu ist.
+            <!--
+              Auftrennstelle. Der Knopf steht HIER und nicht im Inspektor, obwohl
+              er an der Auswahl haengt: ein weiterer Knopf im Inspektor kostete
+              dort rund 40 px, und die verbindliche Reserve bei 900 px
+              Fensterhoehe betraegt 12 px. Genau aus diesem Grund ist das
+              Verbinden mit 7e ein Fenster geworden - ein Fenster kostet null
+              Hoehe, solange es zu ist.
 
-            Der Ablehnungsgrund steht SICHTBAR darunter, nicht im Tooltip:
-            dieselbe Entscheidung wie bei den Zeichenknoepfen der
-            Werkzeugleiste (Etappe 3) und den Umformwerkzeugen (Etappe 5).
-          -->
-          <div class="merge-cut">
-            <button id="setMergeCutBtn" type="button" disabled
-                    title="Trennt den Perimeter der aktiven Karte an der Kante zwischen den beiden ausgewählten Punkten auf. Die Geometrie ändert sich dabei nicht, nur die Reihenfolge: der eine Punkt wird Startpunkt, der andere Endpunkt.">
-              Auftrennstelle setzen
+              Der Ablehnungsgrund steht SICHTBAR darunter, nicht im Tooltip:
+              dieselbe Entscheidung wie bei den Zeichenknoepfen der
+              Werkzeugleiste (Etappe 3) und den Umformwerkzeugen (Etappe 5).
+            -->
+            <div class="merge-cut">
+              <button id="setMergeCutBtn" type="button" disabled
+                      title="Trennt den Perimeter der aktiven Karte an der Kante zwischen den beiden ausgewählten Punkten auf. Die Geometrie ändert sich dabei nicht, nur die Reihenfolge: der eine Punkt wird Startpunkt, der andere Endpunkt.">
+                Auftrennstelle setzen
+              </button>
+              <div id="mergeCutReason" class="tool-reason"></div>
+            </div>
+
+            <label class="toggle">
+              <input id="showMergePreview" type="checkbox" checked>
+              Verbindungsvorschau anzeigen
+            </label>
+
+            <div id="mergeStatus" class="merge-status">
+              Zweite Karte laden, dann je Karte die Auftrennstelle wählen.
+            </div>
+
+            <button id="mergeMapsBtn" type="button" disabled>
+              Karte A + B verbinden
             </button>
-            <div id="mergeCutReason" class="tool-reason"></div>
           </div>
-
-          <label class="toggle">
-            <input id="showMergePreview" type="checkbox" checked>
-            Verbindungsvorschau anzeigen
-          </label>
-
-          <div id="mergeStatus" class="merge-status">
-            Zweite Karte laden, dann je Karte die Auftrennstelle wählen.
-          </div>
-
-          <button id="mergeMapsBtn" type="button" disabled>
-            Karte A + B verbinden
-          </button>
         </div>
       </div>
 
@@ -3866,9 +4152,11 @@
     <!--
       Inspektor.
 
-      Zeigt ausschliesslich, was zur aktuellen Auswahl gehört. Das Markup ist
-      FEST und die ids sind stabil; abgeleitet ist nur, welcher Zustandsblock
-      sichtbar ist, und der veränderliche Text darin - siehe CLAUDE.md.
+      Zeigt, was zur aktuellen Auswahl gehört, aber keine Angaben über sie:
+      die stehen seit dem Umzug über der Karte (#selectionOverlay), hier
+      bleiben die Werkzeuge und die Bedienung. Das Markup ist FEST und die ids
+      sind stabil; abgeleitet ist nur, welcher Zustandsblock sichtbar ist, und
+      der veränderliche Text darin - siehe CLAUDE.md.
 
       Ausgeblendet wird über das hidden-Attribut, also display:none. Das ist
       nicht nur Kosmetik: ein Block, der mit visibility oder Deckkraft
@@ -3888,9 +4176,18 @@
                 title="Inspektor einklappen" aria-label="Inspektor einklappen">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
         </button>
-        <div class="status-label">Auswahl</div>
-        <div id="inspectorTitle" class="inspector-title">Nichts ausgewählt</div>
-        <div id="inspectorSubtitle" class="inspector-subtitle">Keine Karte geladen</div>
+        <!--
+          Der Text des Kopfblocks steht in einem eigenen Behaelter, weil er
+          bei einer Auswahl WEGGELASSEN wird: der Kopf der Auswahl steht dann
+          in den Angaben ueber der Karte (#selectionOverlay). Hier bleibt, was
+          ohne Auswahl dasteht - der leere Zustand, das Zeichnen, das Messen.
+          Der Umschalter bleibt in jedem Zustand an seinem Ort.
+        -->
+        <div id="inspectorHeadText" class="inspector-head-text">
+          <div class="status-label">Auswahl</div>
+          <div id="inspectorTitle" class="inspector-title">Nichts ausgewählt</div>
+          <div id="inspectorSubtitle" class="inspector-subtitle">Keine Karte geladen</div>
+        </div>
       </div>
 
       <div id="inspectorEmpty" class="inspector-block">
@@ -3919,102 +4216,6 @@
             GeoJSON speichern.
           </div>
         </details>
-      </div>
-
-      <div id="inspectorPoint" class="inspector-block" hidden>
-        <div class="inspector-section-title">Koordinaten</div>
-
-        <div class="coord-grid">
-          <label class="coord-field" for="pointEastInput">
-            East / E (m)
-            <input id="pointEastInput" class="coord-input" type="text"
-                   inputmode="decimal" autocomplete="off" disabled>
-          </label>
-          <label class="coord-field" for="pointNorthInput">
-            North / N (m)
-            <input id="pointNorthInput" class="coord-input" type="text"
-                   inputmode="decimal" autocomplete="off" disabled>
-          </label>
-        </div>
-
-        <div id="selectionDeltaInfo" class="comparison-status" aria-live="polite">
-          Verschiebungen bleiben bis zum Speichern als Vergleich sichtbar.
-        </div>
-
-        <!--
-          Fahrtrichtung des AUSGEWÄHLTEN Punktes - deshalb hier und nicht im
-          Mäherfenster. Die id bleibt bei diesem Teil: sie heisst
-          "OrientationInfo", und die Orientierung ist genau das, was hier
-          steht. Die Grössenangabe war der andere Teil derselben Box und liegt
-          jetzt als #mowerSizeInfo bei den Feldern, die sie einstellen.
-        -->
-        <div id="mowerOrientationInfo" class="orientation-box" aria-live="polite">
-          Punkt auswählen, um die Fahrtrichtung anzuzeigen.
-        </div>
-
-        <details class="inspector-note">
-          <summary>Geschlossene Polygone</summary>
-          <div class="map-info-text">
-            Start und Ende sind zwei benachbarte echte Eckpunkte. Danach
-            wiederholt GeoJSON intern den Startpunkt, damit der Ring
-            geschlossen bleibt. Beim Neuvergeben werden die Punkte zyklisch neu
-            nummeriert. Neue Punkte werden zunächst auf einer bestehenden Kante
-            eingesetzt, damit sich die Polygonform beim Einfügen nicht
-            unbeabsichtigt verändert.
-          </div>
-        </details>
-
-        <!--
-          Seit Etappe 4 nennt der Kopfblock Punktnummer, Feature und Behälter.
-          Dieses Feld sagte dasselbe noch einmal - genau das sollte der feste
-          Kopfblock überflüssig machen. Übrig bleibt die Punktrolle, und die
-          auch nur, wenn es eine gibt: "Zwischenpunkt" ist der Normalfall und
-          sagt nichts. Weglassen statt platzhaltern.
-        -->
-        <div id="pointMeta" class="point-role" hidden></div>
-      </div>
-
-      <!--
-        Mehrere Punkte EINES Features. Der Kopfblock nennt die Anzahl; hier
-        stehen nur die Aktionen, die auf eine Gruppe passen.
-      -->
-      <div id="inspectorMulti" class="inspector-block" hidden>
-        <div class="inspector-section-title">Gruppe</div>
-        <div id="multiSummary" class="editor-meta">Mehrere Punkte ausgewählt.</div>
-        <div class="hint">
-          Einen markierten Punkt ziehen verschiebt die ganze Gruppe.
-        </div>
-      </div>
-
-      <!-- Punkte aus MEHREREN Features. -->
-      <div id="inspectorMixed" class="inspector-block" hidden>
-        <div class="inspector-section-title">Mehrere Features</div>
-        <div id="mixedSummary" class="editor-meta">Punkte aus mehreren Features.</div>
-        <div class="hint">
-          Löschen und gemeinsames Verschieben gehen weiterhin. Alles, was einen
-          einzelnen Linienzug braucht - Koordinaten, Start/Ende, Begradigen,
-          Reduzieren, Rechtwinklig - braucht eine Auswahl innerhalb EINES
-          Features.
-        </div>
-      </div>
-
-      <!-- Alle editierbaren Punkte eines Features. -->
-      <div id="inspectorFeature" class="inspector-block" hidden>
-        <div class="inspector-section-title">Feature</div>
-
-        <!--
-          Typabhaengige Kennzahlen werden WEGGELASSEN, nicht platzhaltert.
-          Ein "-" bei idx behauptete, es gaebe dort einen Wert, den man nur
-          nicht kennt; ein Perimeter hat aber keinen idx. Die Zeilen tragen
-          deshalb eigene ids und werden ueber hidden geschaltet.
-        -->
-        <div class="stat"><span>Typ</span><strong id="featureTypeStat">–</strong></div>
-        <div class="stat"><span>Punkte</span><strong id="featurePointStat">–</strong></div>
-        <div id="featureAreaRow" class="stat" hidden><span>Fläche</span><strong id="featureAreaStat">–</strong></div>
-        <div id="featureIdxRow" class="stat" hidden><span>idx</span><strong id="featureIdxStat">–</strong></div>
-        <div class="hint">
-          Verschieben durch Ziehen an der Geometrie auf der Karte.
-        </div>
       </div>
 
       <!--
@@ -5142,7 +5343,15 @@ const INSPECTOR_BLOCKS = [
    */
   {id:"selectionActions", states:["single", "multi", "mixed", "feature"]},
   {id:"pointActions", states:["single"]},
-  {id:"featureActions", states:["feature"]}
+  {id:"featureActions", states:["feature"]},
+
+  /*
+   * Die Angaben zur Auswahl ueber der Karte. Wie bei der Auswahlleiste traegt
+   * der Behaelter die Vereinigung der Zustaende seiner Bloecke - ohne Auswahl
+   * stuende sonst ein leerer Kasten auf der Karte. Dieselbe Liste entscheidet
+   * in updateInspector(), wohin der Kopf geschrieben wird.
+   */
+  {id:"selectionOverlay", states:["single", "multi", "mixed", "feature"]}
 ];
 
 /**
@@ -5889,12 +6098,36 @@ function updateInspectorBlocks(state) {
 
 /** Hält Kopfblock und Sichtbarkeit der Zustandsblöcke aktuell. */
 function updateInspector() {
-  const title = document.getElementById("inspectorTitle");
-  const subtitle = document.getElementById("inspectorSubtitle");
+  const headText = document.getElementById("inspectorHeadText");
 
-  if (!title || !subtitle) return;
+  if (!headText) return;
 
   const state = getInspectorState();
+
+  /*
+   * Wohin der Kopf geschrieben wird: bei einer Auswahl in die Angaben ueber
+   * der Karte, sonst in den Kopfblock des Inspektors. Entschieden an
+   * INSPECTOR_BLOCKS und nicht an einer zweiten Aufzaehlung der vier
+   * Auswahlzustaende - dort steht ohnehin schon, wann die Angaben dastehen.
+   *
+   * Der Kopfblock laesst seinen Text dann WEG statt ihn zu leeren: eine Zeile
+   * "Punkt 3 von 4" an zwei Stellen waere eine Tatsache an zwei Orten, und
+   * eine leere Zeile behauptete, es gaebe hier etwas, das gerade fehlt.
+   */
+  const ueberDerKarte = INSPECTOR_BLOCKS.some(
+    ({id, states}) => id === "selectionOverlay" && states.includes(state)
+  );
+
+  headText.hidden = ueberDerKarte;
+
+  const title = document.getElementById(
+    ueberDerKarte ? "selectionTitle" : "inspectorTitle"
+  );
+  const subtitle = document.getElementById(
+    ueberDerKarte ? "selectionSubtitle" : "inspectorSubtitle"
+  );
+
+  if (!title || !subtitle) return;
 
   /*
    * Zuerst: gehoert der Platz unter dem Kopfblock noch einer Antwort, oder
@@ -24143,6 +24376,7 @@ const I18N_EN = new Map(Object.entries({
   "Entfernt Punkte, die weniger als die eingestellte Toleranz von der Linie abweichen (Douglas-Peucker). Die Form bleibt damit innerhalb der Toleranz erhalten. Bei geschlossenen Ringen bleibt der Startpunkt immer.":"Removes points that deviate from the line by less than the configured tolerance (Douglas-Peucker). The shape is therefore preserved within the tolerance. On closed rings the start point is always kept.",
   "Dreht jede Kante des Features auf die nächste Achse seiner eigenen Vorzugsrichtung, sofern sie weniger als die Toleranz davon abweicht. Ausgerichtet wird nicht auf East/North, und es wird kein Punkt entfernt.":"Rotates every edge of the feature onto the nearest axis of its own preferred direction, as long as it deviates from it by less than the tolerance. Alignment is not to East/North, and no point is removed.",
   "Auswahlleiste ein- und ausklappen":"Collapse or expand the selection bar",
+  "Auswahlangaben ein- und ausklappen":"Collapse or expand the selection details",
   "Inspektor einklappen":"Collapse inspector",
   "Inspektor ausklappen":"Expand inspector",
   "Bezugspunkt setzen":"Place reference point",

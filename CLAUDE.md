@@ -359,6 +359,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster |
 | `test-ghosting.mjs` | Ghosting: wem ein Vorher-Umriss gehört |
 | `test-glaettung.mjs` | Kartenglättung: Vorschau, Anwenden, Abbrechen, Grenzwerte, Auswahl |
+| `test-auswahlangaben.mjs` | Angaben zur Auswahl über der Karte: Ort, Felder, Griff, Überdeckung, beide Sprachen |
 
 Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
@@ -1180,7 +1181,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->59 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->60 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -2954,6 +2955,19 @@ Ort.** Er ist der Anker, der beim Auswählen nicht wandert; ohne ihn springt der
 ganze Inspektor bei jedem Klick auf die Karte. Der Test sichert Höhe und
 Position über den Zustandswechsel hinweg zu.
 
+**RICHTIGGESTELLT mit dem Umzug der Angaben zur Auswahl: „gleich hoch" gilt
+nicht mehr, „am selben Ort" schon.** Der Kopf der Auswahl („Punkt 3 von 4“,
+„Exclusion #0 · Polygon“) steht seitdem über der Karte, und bei einer Auswahl
+lässt der Kopfblock seinen Text WEG – er trägt dann nur den Umschalter und ist
+entsprechend niedriger. Seinen Text behält er für die Zustände, die im
+Inspektor geblieben sind: leer, Zeichnen, Messen. Was der Anker weiter
+leistet, ist der Ort – der Kopfblock oben, der Umschalter an genau derselben
+Stelle –, und genau das sichert `tools/test-inspector.mjs` seitdem zu, dazu
+dass der Kopf ohne Text keinen leeren Streifen hält. Die Zusicherung „und ist
+gleich hoch" ist entfallen, weil sie nach der Entscheidung des Projektinhabers
+nicht mehr wahr sein soll, nicht weil sie falsch gemessen hätte. Siehe „Die
+Angaben zur Auswahl stehen über der Karte“.
+
 **Die Punktnummer ist behälterlokal.** `getVertexContainerInfo()` zählt
 innerhalb eines Rings bzw. einer Linie, nicht über das ganze Feature. Deshalb
 nennt die zweite Kopfzeile den Behälter – aber **nur, wenn es mehr als einen
@@ -2991,6 +3005,12 @@ ist die Rangfolge:** ein laufendes Werkzeug schlägt jede Auswahl.
 | `single` | **genau ein** Punkt | `#inspectorPoint` + `#inspectorSelection` |
 | `feature` | alle Punkte genau eines Features | `#inspectorMulti` + `#inspectorFeature` + `#inspectorSelection` |
 | `multi` | mehrere Punkte eines Features | `#inspectorMulti` + `#inspectorSelection` |
+
+**Seit dem Umzug der Angaben zur Auswahl stehen die vier Blöcke `#inspectorPoint`,
+`#inspectorMulti`, `#inspectorMixed` und `#inspectorFeature` über der Karte**,
+in `#selectionOverlay`. Ids, Zustände und `INSPECTOR_BLOCKS` sind dieselben; die
+Tabelle stimmt deshalb weiter, nur liegen diese Blöcke nicht mehr in der
+Spalte.
 
 `#inspectorTransform` (Umformen) und `#inspectorValidation` (Kartenprüfung)
 stehen in **jedem** Zustand. Das ist Absicht: wer die drei Umformwerkzeuge nur
@@ -3215,6 +3235,38 @@ Zum Vergleich der Stand vor 7b und 7c, damit die Kosten der beiden Umzüge
 ablesbar bleiben: Inhalt 739 px, Reserve 120 / **20** / −80 px. Die beiden
 Faltblöcke haben zusammen 8 px mehr gekostet, als die 42-px-Schätzung oben
 erwarten ließ – zwei Blöcke à 20 bzw. 21 px plus zweimal 10 px Lücke.
+
+**Nach dem Umzug der Angaben zur Auswahl – gemessen am 04.10.2026.** Der
+Punktzustand steht nicht mehr im Inspektor; die Frage, ob das Höhenziel bis
+900 px berührt ist, beantwortet die Messung so: **es wird nicht enger, sondern
+weiter**. Gemessen mit derselben Methode (Summe der Blöcke, Lücken,
+Polsterung) am Stand unmittelbar davor und danach, 900 px Fensterhöhe:
+
+| Zustand | 1600 px, fein, vorher | nachher | 959 px, fein, vorher | nachher |
+|---|---|---|---|---|
+| leer | 252 px | 252 px | 258 px | 258 px |
+| Startpunkt | 192 px | **544 px** | 65 px | **411 px** |
+| mehrere Punkte | 397 px | 544 px | 356 px | 497 px |
+| ganze Exclusion | 283 px | 544 px | 196 px | 451 px |
+| gemischt | 345 px | 544 px | 304 px | 497 px |
+| Rechteck zeichnen | 10 px | 10 px | 16 px | 16 px |
+
+Bei grobem Zeiger und 1600 px: Startpunkt 187 → 526 px, Rechteck unverändert
+−13 px – der zugelassene Fall, das Höhenziel gilt dem feinen Zeiger.
+
+**Zwei Dinge daran gehören ausdrücklich dazu.** Erstens war die „verbindliche"
+Reserve von 12 px schon vor diesem Umzug überholt: am Stand davor misst der
+Startpunkt 192 px, weil die Punktknöpfe seit dem elften Durchgang über der
+Karte stehen. Die Zahl oben blieb stehen, weil niemand sie nachgemessen hat –
+dieselbe Klasse wie „repariert, aber nicht ausgetragen“. Zweitens ist der
+knappste Zustand des Inspektors seitdem nicht mehr ein Auswahlzustand,
+sondern das **Rechteckzeichnen mit 10 px** bei 1600 × 900, fein – und das hat
+dieser Umzug nicht angefasst. Die Zahl, die der nächste Block im Inspektor
+schlagen muss, ist damit diese.
+
+**Die 8c-Schwelle berührt der Umzug nicht.** Sie hängt an der Breite der
+Statuszeile, und die ist die Fensterbreite; Inspektor und Karte behalten ihre
+Spaltenbreiten. `tools/test-statusbar.mjs` läuft unverändert grün.
 
 **Gemessen wird als Summe der Blöcke plus Lücken plus Polsterung – nicht über
 `scrollHeight`.** `scrollHeight` wird auf `clientHeight` geklemmt, solange der
@@ -3521,6 +3573,251 @@ Karte, die andere nur den Bildausschnitt – dieselbe Trennung, die in der
 Werkzeugleiste die Gruppen bildet. Dazu verschwindet die Auswahlleiste mit
 Etappe 5 ganz von der Karte; eine Zusammenlegung wäre dann wieder
 aufzutrennen. Sie trägt stattdessen nur noch Symbole.
+
+### Die Angaben zur Auswahl stehen über der Karte
+
+**Der Auswahlbereich hat den Inspektor verlassen und steht als einklappbares
+Feld unten rechts über der Karte (`#selectionOverlay`).** Entschieden vom
+Projektinhaber am 04.10.2026. Umgezogen ist **nur die Information zur
+Auswahl**: der Kopf („Punkt 52 von 85“, „Exclusion #4 · Polygon“), die
+Koordinaten mit den beiden Eingabefeldern, der Ausgangs- und Versatzblock,
+der Richtungsblock, die Notiz „Geschlossene Polygone“ – und mit ihnen die
+Blöcke der drei übrigen Auswahlzustände (Gruppe, mehrere Features, ganzes
+Feature), denn auch sie sind Angaben und keine Bedienung. **Nicht umgezogen**
+sind Feature-Navigation, Bestand, Umformen, Kartenprüfung, Koordinatenbezug,
+die Werkzeugbedienung und die Knöpfe der Auswahlleiste. Verschoben, nicht
+kopiert: die ids sind unverändert, und welcher Block sichtbar ist, entscheidet
+weiter `INSPECTOR_BLOCKS` – der Behälter trägt dort die Vereinigung der vier
+Auswahlzustände.
+
+**Unten rechts und nicht unten links**, weil dort die drei Kartenfenster
+stehen. **Durchscheinend mit Deckkraft 0,8** (die Fenster: 0,96); die Kästen
+darin bringen ihren eigenen halbdurchsichtigen Grund mit, der Text steht also
+nie unmittelbar auf einer hellen Kartenlinie.
+
+**Einklappbar über einen Griff, ausgangs aufgeklappt, Zustand nur in der
+Sitzung** – dieselbe Mechanik wie die Auswahlleiste: ein natives `<details>`,
+dessen `open`-Attribut der einzige Zustandshalter ist; es steht im Markup und
+wird nirgends zurückgesetzt, kein `localStorage`. Aufgeklappt sitzt der Griff
+oben rechts neben dem Kopf (eine eigene Zeile darüber kostete seine ganze
+Höhe), zugeklappt bleibt allein er stehen.
+
+#### Der untere Stapel: das Layout entscheidet, nicht eine Zahl
+
+**Angaben und Kartenfenster passen nicht immer nebeneinander** – bei 744 px hat
+die Karte 368 px, ein Fenster allein 300. Statt die Angaben mit einem
+gerechneten Versatz über das Fenster zu schieben, stehen beide in **einem**
+Raster (`#mapBottomStack`), dieselbe Antwort wie beim oberen Stapel:
+
+- Spalten `repeat(auto-fit, minmax(min(100%, var(--map-layer-width)), 1fr))`:
+  passen zwei hinein, stehen beide nebeneinander, sonst untereinander. Leere
+  Spalten fallen weg, ein einzelnes Kind richtet sich selbst aus.
+- **`direction:rtl` am Raster und nur dort**: die erste Spalte liegt rechts.
+  Die Angaben stehen im Markup zuerst – nebeneinander rechts, untereinander
+  **oben**. Das Fenster bleibt damit an seinem Ort unten links, und die Angaben
+  weichen, nicht umgekehrt: ein Fenster, das beim Klick auf einen Punkt nach
+  oben springt, während man darin arbeitet, wäre die schlechtere Wahl.
+- Der Stapel beginnt **unter der Zoom-Leiste**: `top` rechnet mit
+  `--map-tool-size`, der Kantenlänge der Kartenknöpfe. Sie steht seitdem als
+  Variable an `:root` und wird bei grobem Zeiger auf `--touch-target` gesetzt –
+  der Stapel zieht von selbst mit.
+- **Reicht die Höhe nicht für beide, schrumpft das Fenster** (`min-height:0`,
+  sein Rumpf rollt), die Angaben nicht: sie tragen keine Rollfunktion, ihre
+  Mindesthöhe ist ihr Inhalt. Beide geben die Höhe mit einem Klick zurück –
+  das Fenster über seinen Schließknopf, die Angaben über ihren Griff.
+- `--map-layer-width` (300 px) ist **eine** Zahl für Fenster und Angaben, weil
+  der Stapel aus ihr ableitet, ob beide nebeneinander passen.
+
+**Gemessen bei 900 px Fensterhöhe**, ein Punkt gewählt (Rechtecke im Fenster):
+
+| Breite | Angaben allein | mit Mäherfenster | Fenster |
+|---|---|---|---|
+| 1280 px | 648–948 / 410–795 | dieselbe Lage, nebeneinander | 180–480 / 393–795 |
+| 960 px | 328–628 / 410–795 | 328–628 / 108–493, darüber | 68–368 / 505–795, auf 290 px geschrumpft |
+| 744 px | 112–412 / 410–795 | 112–412 / 108–493, darüber | 68–368 / 505–795, auf 290 px geschrumpft |
+| 744 px, grob | 112–412 / 403–795 | 112–412 / 116–508, darüber | 68–368 / 520–795 |
+
+**Der Preis, und er ist gemessen:** die Fenster beginnen nicht mehr bei 12 px
+unter der Kartenoberkante, sondern unter der Zoom-Leiste – ihre größte Höhe
+sinkt um 48 px (fein) bzw. 56 px (grob). Bei 900 px Fensterhöhe passt jedes
+Fenster weiter ganz hinein; bei 1280 × 720 schrumpft das Verbinden-Fenster von
+524 auf 507 px, sein Rumpf rollt.
+
+#### Der Kopfblock des Inspektors trägt bei einer Auswahl nur den Umschalter
+
+Der Kopf der Auswahl steht in den Angaben; der Kopfblock lässt seinen Text
+dann **weg** (`#inspectorHeadText` bekommt `hidden`), statt ihn zu leeren oder
+zu wiederholen – eine Zeile „Punkt 3 von 4“ an zwei Stellen wäre eine Tatsache
+an zwei Orten. Ohne Text hält er keinen leeren Streifen: eine
+`:has()`-Regel liest dasselbe `hidden` und lässt den Umschalter an seinem Ort
+oben rechts stehen. Die Zustände ohne Auswahl – leer, Zeichnen, Messen –
+behalten ihren Kopftext, und `tools/smoke-test.mjs` liest den Leerzustand
+weiter an `#inspectorSubtitle`. Die Richtigstellung zu „gleich hoch“ steht
+beim Kopfblock in Abschnitt 5.
+
+**Die 16-px-Regel gegen den Formular-Zoom erreicht die E/N-Felder nur mit
+eigener Zeile**: `aside .coord-input` trifft sie über der Karte nicht mehr;
+`.selection-overlay .coord-input` steht deshalb im `pointer: coarse`-Block
+daneben. `tools/test-toolbar.mjs` sichert die 16 px weiter zu.
+
+#### Die Angaben verdecken Marker – und wie die Tests damit umgehen
+
+**Wie die Auswahlleiste links oben verdecken die Angaben unten rechts die
+Marker, die unter ihnen liegen**, sobald etwas ausgewählt ist; bei einer
+eingepassten Karte ist das regelmäßig die rechte untere Ecke der Geometrie.
+Der Griff ist die Antwort, wie dort.
+
+**Für die Tests reicht die Reihenfolge der Klicks hier nicht**, mit der
+`waehlePunkte()` in `tools/test-merge.mjs` die Leiste umgeht: zwei Ecken
+lassen sich mit einer Reihenfolge nicht beide bedienen. Deshalb gibt es
+`createMarkerKlicker()` im Harness: verdecken die Angaben einen Marker, klappt
+er sie über ihren **Griff** zu, klickt und klappt sie wieder auf – der Weg
+eines Nutzers, gemessen wird danach im selben Zustand wie vorher, und der
+Griff ist bei jedem solchen Klick mitbelegt. Verdeckt etwas anderes den
+Marker, klickt er nicht und meldet eine benannte Zusicherung. **Die
+Auswahlleiste fasst er ausdrücklich nicht an**; für sie bleibt die
+Entscheidung des einundzwanzigsten Durchgangs. Benutzt wird er in
+`tools/test-inspector.mjs`, `tools/test-merge.mjs`, `tools/test-map-switch.mjs`,
+`tools/test-straighten.mjs`, `tools/test-dockpath.mjs`,
+`tools/test-glaettung.mjs` und `tools/test-scale.mjs` – dort ersetzt er das
+lokale `markerKlicken()`, das ohne Zuklappen dasselbe tat – und in
+`tools/scan-i18n.mjs`, mit dessen Melder statt eines `check()`. Das Werkzeug
+brach ohne ihn beim ersten Strg+Klick ab; mit ihm besucht es wieder alle 24
+Zustände und meldet NEU 0 bei unverändert 37 bekannten Falschmeldungen. Eine zweite Kopie
+daneben wäre die Fehlerklasse, gegen die `openAllFolds()` gebündelt wurde.
+
+#### Zugesichert
+
+**`tools/test-auswahlangaben.mjs`**, nach der Wirkung – sichtbarer Text
+(`innerText` eines gezeichneten Elements), `elementGetroffen()` und gemessene
+Rechtecke, kein `getComputedStyle`:
+
+- nach der Auswahl eines Punktes steht die Punktangabe in den Angaben und wird
+  dort getroffen, im sichtbaren Text des Inspektors steht sie nicht – mit der
+  Gegenprobe, dass der Inspektor gezeichnet ist und seine Werkzeuge trägt;
+- ein in das East-Feld getippter Wert verschiebt den Punkt: an der neuen
+  Koordinate steht genau ein Marker, an der alten keiner – Punkte werden über
+  ihre Koordinaten gefunden, nie über einen Index;
+- ohne Zutun aufgeklappt; der Griff klappt zu (die Felder werden nicht mehr
+  getroffen, vom Kasten bleibt allein der Griff) und wieder auf; eine andere
+  Auswahl lässt ihn zu, ein Neuladen nicht;
+- ohne Auswahl nicht da, am Anfang und nach dem Aufheben einer Auswahl;
+- unten rechts als Beziehung (näher am rechten und unteren Rand); Griff und
+  Kopf in einer Zeile, ohne einander zu überdecken, auch beim langen
+  Untertitel eines Lochs; East und North nebeneinander;
+- die Karte scheint durch: dieselbe Stelle einmal mit, einmal ohne gezeichnete
+  Karte darunter gibt zwei verschiedene Bilder – mit der Gegenprobe, dass
+  zwei Aufnahmen ohne Änderung gleich sind;
+- bei 1280, 960 und 744 px, dort auch mit grobem Zeiger: die Angaben stehen in
+  der Karte, so breit wie bei 1280 px, und überdecken weder Zoom-Leiste noch
+  Legenden- oder Statuszeile; mit jedem der drei Fenster: keine Überdeckung,
+  beide getroffen, die Angaben rechts und mit ihrer Höhe, das Fenster links und
+  so breit wie die Angaben;
+- beide Sprachrichtungen über `setLanguage()`: Kopf, Felder und Griff.
+
+**In `tools/test-inspector.mjs` haben vier Zusicherungen den Ort gewechselt**,
+jede aus demselben Grund – ihr Gegenstand steht nicht mehr im Inspektor:
+
+| Zusicherung vorher | jetzt | warum |
+|---|---|---|
+| „der Kopfblock steht an derselben Stelle“ + „und ist gleich hoch“ | „… an derselben Stelle“ + „und sein Umschalter ebenfalls“ + „nennt den Punkt nicht noch einmal“ + „ohne Text ist der Kopfblock nur so hoch wie sein Umschalter“ | siehe die Richtigstellung beim Kopfblock |
+| „der Inhalt ist nicht mehr sichtbar“ am Punktblock | am ersten Faltblock, dazu „die Angaben zur Auswahl über der Karte bleiben dabei stehen“ | der Punktblock gehört nicht mehr zum Inspektor |
+| „von North führt Tab zum ersten Knopf der Auswahlleiste“ | die ganze Kette: Notiz, Umschalter des Inspektors, erster Knopf | Karte vor Inspektor in der DOM-Reihenfolge; ein weiterer Halt fiele so auf |
+| „nach der Punktauswahl steht die Auswahl wieder oben“ (`inspectorPoint`) | „… steht oben wieder der erste eigene Block“ (Feature-Navigation) + „und die Auswahl steht in den Angaben über der Karte“ | dasselbe |
+
+Dazu misst die Suche nach dem „verdeckten Marker“ im Abschnitt über das
+Zuklappen der Auswahlleiste seitdem nur noch Marker unter der **Leiste**: sie
+fand zuerst den Marker unter den Angaben, und „zugeklappt ist er wieder
+erreichbar“ riss, weil die falsche Ebene zugeklappt wurde. Die Kopfangaben der
+Auswahlzustände liest der Test über `auswahlKopf()` aus den Angaben, die der
+übrigen Zustände über `head()` aus dem Kopfblock.
+
+#### Offen: der Maßstabshinweis
+
+**BENANNTER BEFUND, nicht behoben.** Bei unklarem Maßstab **und** einer Auswahl
+rückt der Hinweis unter die Auswahlleiste in die Kartenmitte, und die Angaben
+decken sein rechtes Ende ab: gemessen bei 1280 × 900 (Hinweis 362–437, Angaben
+ab 410), 1280 × 720 und 960 × 900; bei 744 px und bei 1600 × 1000 nicht. Der
+Auftrag nannte Zoom-Leiste, Legende, Statuszeile und Kartenfenster, nicht den
+Hinweis; wie er weicht, ist eine eigene Entscheidung.
+
+**Nebenbefund aus den Mutationsproben, ebenfalls nicht behoben:**
+`tools/check-syntax.mjs` benennt seine Zwischendatei nach `Date.now()`. Zwei
+gleichzeitige Läufe in derselben Millisekunde schreiben dieselbe Datei in
+`/tmp` – der eine kann den Skriptblock des anderen prüfen, und der zweite
+`unlink` scheitert mit ENOENT. Aufgefallen beim parallelen Lauf in drei
+Arbeitskopien: „OK“ und danach Exit 1. Einzeln gestartet tritt es nicht auf.
+
+**Und eine Grenze:** die Angaben rollen nicht. Ist die Karte niedriger als ihr
+Inhalt plus der Platz unter der Zoom-Leiste – bei 900 px Fensterhöhe weit
+entfernt, die Angaben messen rund 385 px –, ragen sie über den Stapel hinaus.
+
+#### Die Mutationsproben
+
+**27 Proben, je eine Schreibstelle; 26 reißen, eine ist nachgemessen ohne
+Wirkung; 0 Timeouts.** Gefahren in fünf Arbeitskopien außerhalb des
+Repositorys, je Probe aus derselben Sicherungskopie zurückgespielt; die
+Prüfsumme ist vorher und nachher in allen Kopien `a1fef370…`, und `index.html`
+im Repository war nie angefasst. Gemessen wurde je Probe die Syntaxprüfung,
+der Bestandsprüfer und die drei Browsertests, die die Schreibstellen treffen:
+`tools/test-auswahlangaben.mjs`, `tools/test-inspector.mjs` und
+`tools/test-toolbar.mjs`.
+
+| Probe | Schreibstelle | gerissen |
+|---|---|---|
+| M1 | `INSPECTOR_BLOCKS`: die Angaben haben keinen Zustand | **105** + **59**, z. B. „nach der Auswahl steht die Punktangabe in den Angaben“ |
+| M2 | `updateInspector()`: der Kopfblock lässt seinen Text nicht weg | **2**, z. B. „der Kopfblock nennt den Punkt nicht noch einmal“ |
+| M3 | der Titel geht in den Kopfblock statt in die Angaben | **18** + **11**, z. B. „der Kopf nennt Nummer und Anzahl“ |
+| M3b | ebenso der Untertitel | **2** + **10**, z. B. „ein einfaches Polygon heißt schlicht Polygon“ |
+| M4 | Markup: ohne `open`, die Angaben starten zugeklappt | **43** + **41**, z. B. „die Angaben stehen ohne Zutun ausgeklappt da“ |
+| M4b | Markup: ohne das anfängliche `hidden` | **keine – ohne Wirkung**, nachgemessen: das Skript setzt `hidden` schon vor `DOMContentLoaded`, der Kasten hat dort und nach `load` kein Rechteck |
+| M5 | der Punktblock steht wieder im Inspektor | **8** + **2**, z. B. „die Angaben stehen ohne Zutun ausgeklappt da“ und die Tab-Kette |
+| M6 | der Stapel beginnt bei 12 px statt unter der Zoom-Leiste | **9**, z. B. „960 px, gridWindow: die Angaben bleiben … unter der Zoom-Leiste frei“ |
+| M7 | ohne `direction:rtl` | **6**, z. B. „1280 px, gridWindow: die Angaben stehen weiter rechts“ |
+| M8 | Fenster ohne `min-height:0` – sie schrumpfen nicht | **9**, z. B. „960 px, gridWindow: das Fenster bleibt in der Karte“ |
+| M8b | Fenster ohne `max-height:100%` | **15**, z. B. „Angaben und Fenster überdecken einander nicht“ |
+| M8c | Fenster ohne `justify-self:left` | **9**, z. B. „das Fenster steht weiter links“ |
+| M9 | zugeklappt behalten die Angaben Breite und Polsterung | **1** + **35**, z. B. „zugeklappt ist von den Angaben allein der Griff übrig“ (298 gegen 36) |
+| M10 | grober Zeiger: die 16 px in den E/N-Feldern fehlen | **5** in `tools/test-toolbar.mjs`, „das E/N-Feld trägt 16 px“ |
+| M11 | E und N nicht mehr zweispaltig | **1**, „East und North stehen nebeneinander“ |
+| M12 | der Griff steht in einer eigenen Zeile | **1**, „der Griff steht in der Zeile des Kopfes“ |
+| M13 | der Kopf weicht dem Griff nicht aus | **2**, „und Kopf und Griff überdecken einander nicht“ |
+| M14 | die Kinder des Stapels ohne Ebenenbreite | **19**, z. B. „Fenster und Angaben sind gleich breit“ |
+| M14b | Mindestbreite der Spalten 150 statt 300 px | **6**, „744 px, …: die Angaben behalten ihre Höhe“ |
+| M15 | grober Zeiger setzt `--map-tool-size` nicht | **5** in `tools/test-toolbar.mjs`, z. B. „auch Zoom-Leiste und Auswahlleiste tragen sie“ |
+| M16 | `.map-tool-button` mit fester Zahl statt der Variablen | **5**, dieselben |
+| M17 | die `:has()`-Regel für den Kopfblock ohne Text fehlt | **2**, z. B. „und sein Umschalter ebenfalls“ |
+| M17b | ebenso ihre Regel für den Umschalter | **1**, „ohne Text ist der Kopfblock nur so hoch wie sein Umschalter“ |
+| M18 | der Wörterbucheintrag des Griffs fehlt | **1**, „auf deutsch erzeugt, dann englisch: der Griff ist übersetzt“ |
+| M19 | die Kinder des Stapels ohne `align-self:end` | **9** + **1**, z. B. „die Angaben behalten ihre Höhe“ |
+| M20 | die Angaben ohne `justify-self:right` | **1** + **35**, z. B. „zugeklappt ist von den Angaben allein der Griff übrig“ (766 gegen 36) |
+| M21 | der Grund deckend statt 0,8 | **1**, „die Karte scheint durch die Angaben hindurch“ |
+
+Die Zahl hinter dem „+“ zählt in `tools/test-inspector.mjs`, die davor in
+`tools/test-auswahlangaben.mjs`. Steht nur eine Zahl da, gehört sie zu einer
+Datei: `tools/test-inspector.mjs` bei M2, M17 und M17b, `tools/test-toolbar.mjs`
+wo genannt, sonst `tools/test-auswahlangaben.mjs`.
+
+**Drei Proben brauchten einen zweiten Lauf – M1, M4 und M21 –, und eine
+vierte meldete etwas, das nicht sie betraf:**
+
+- **M1 und M4 endeten zuerst in einem Timeout** – in `tools/test-inspector.mjs`
+  stand ein `page.fill()` auf das E-Feld, das unter der Mutation nicht
+  gezeichnet wird. Seitdem füllt `feldFuellen()` nur nach einer benannten
+  Trefferprüfung; der zweite Lauf hat 0 Timeouts. **Nicht umgestellt** sind die
+  `fill()`-Aufrufe in `tools/test-menu.mjs`, `tools/test-i18n-dynamic.mjs` und
+  `tools/test-glaettung.mjs`: diese Tests liefen in den Proben nicht mit, und
+  unter M1 oder M4 liefen sie in denselben Timeout.
+- **M21 riss zuerst nicht.** Der Bildvergleich nahm den Kasten bis auf einen
+  Pixel Rand, und durch die abgerundeten Ecken scheint die Karte immer – auch
+  bei deckendem Grund. Gemessen wird seitdem im Innern; der Befund war am
+  Messmittel, nicht am Code.
+- **M14b meldete `syntax=1`**, obwohl die Syntaxprüfung „OK“ schrieb – der
+  Nebenbefund zu `tools/check-syntax.mjs` oben.
+
+**Die Prüfungen der statischen Stufe reißen bei keiner Probe außer M17 und
+M17b**: dort meldet der Bestandsprüfer eine verwaiste CSS-Klasse mehr, weil die
+Mutation den Selektor auf eine Klasse umlenkt, die es nicht gibt.
 
 ### Wem ein Ghost gehört
 
@@ -6074,7 +6371,7 @@ damit in die Gruppe „Namen von Symbolknöpfen", die ausdrücklich **nicht** zu
 das ist der Punkt dieser Nachschau: die Liste war nicht zu lang, sondern zu
 kurz.
 
-**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->41 Fundstellen –
+**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->42 Fundstellen –
 und ein genannter Wortlaut steht zur Laufzeit nirgends.** Beides fiel bei der
 Bestandsaufnahme zur Kontext-Knopfleiste an; es ist ein Beifang und wird hier
 richtiggestellt, nicht gelöscht.
@@ -6090,11 +6387,14 @@ deshalb durch:
 | `updateMultiSelectionUi()`, `snapToggle.title =` | den Ablehnungsgrund des Rasterfangs bei unbekanntem Maßstab |
 | `updateMultiSelectionUi()`, `straightenButton.title =` | `TRANSFORM_TOOL_HELP.straightenSelectionBtn` |
 
-**Es sind damit <!-- bestand: title-markup -->24 im Markup und <!-- bestand: title-js -->17 per JS.** Zwei der Markup-Titel sind mit dem
+**Es sind damit <!-- bestand: title-markup -->25 im Markup und <!-- bestand: title-js -->17 per JS.** Zwei der Markup-Titel sind mit dem
 zweiundzwanzigsten Durchgang dazugekommen – die Erklärungen von „Davor
 einfügen" und „Danach einfügen", die vorher gar keine hatten. Der siebzehnte
 per JS ist die Erklärung des Knopfes „Glätten“ aus `TRANSFORM_TOOL_HELP`,
-dazugekommen mit der Kartenglättung. Dass
+dazugekommen mit der Kartenglättung. Der fünfundzwanzigste im Markup ist der
+NAME des Griffs der Angaben zur Auswahl („Auswahlangaben ein- und
+ausklappen“) – ein Knopf ohne Text, derselbe Fall wie der Griff der
+Auswahlleiste und kein Fall für Etappe 8b. Dass
 ausgerechnet das Muster über
 Zeilengrenzen versagte, ist in dieser Datei schon einmal gemessen worden – bei
 der Locator-Suche aus Schritt 11 des vierten Durchgangs, wo der bekannte
@@ -10470,7 +10770,9 @@ Durchgang ihn von den dreien oben unterscheiden kann.
 
   | Datei | prüfend | nur herstellend |
   |---|---|---|
-  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**57** | 15 |
+  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**55** | 17 |
+  | `tools/test-auswahlangaben.mjs` | 1 | 17 |
+  | `tools/browser-harness.mjs` | – | 1 |
   | `tools/test-merge.mjs` | 5 | 5 |
   | `tools/test-map-switch.mjs` | 1 | 2 |
   | `tools/test-dockpath.mjs` | – | 2 |
@@ -10482,7 +10784,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-ghosting.mjs` | – | 3 |
   | `tools/test-scale.mjs` | – | 2 |
   | `tools/test-glaettung.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**63** | <!-- bestand: zusicherungen-herstellend -->**39** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**62** | <!-- bestand: zusicherungen-herstellend -->**59** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -10521,6 +10823,21 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   oben" nennt `inspectorPoint` im `check()`-Aufruf selbst. Die übrigen
   Zusicherungen desselben Abschnitts tragen keinen Auswahlbezeichner – sie
   messen den Prüfbericht und das Umformen.
+
+  **Der Umzug der Angaben zur Auswahl auf die Karte hat die Zahlen auf
+  62 / 59 / 55 verschoben**, und jede Verschiebung hat einen Grund:
+
+  | Datei | vorher | nachher | warum |
+  |---|---|---|---|
+  | `tools/test-inspector.mjs` | 57 / 15 | 55 / 17 | zwei Zusicherungen nannten `inspectorPoint` im Aufruf selbst und mussten den Ort wechseln: „nach der Punktauswahl steht oben wieder der erste eigene Block" erwartet jetzt die Feature-Navigation, und „der Inhalt ist nicht mehr sichtbar" misst am ersten Faltblock. Daneben steht je eine neue, die `#selectionTitle` im Vorlauf liest – zwei herstellende mehr |
+  | `tools/test-auswahlangaben.mjs` | – | 1 / 17 | die neue Datei; fast alles herstellend, weil sie die Angaben über `elementGetroffen()` und Rechtecke im Vorlauf misst |
+  | `tools/browser-harness.mjs` | – | 0 / 1 | `createMarkerKlicker()` fragt im Vorlauf seines `check()`, ob ein Marker unter `#selectionOverlay` liegt |
+
+  **Dazu sind drei Namen in die Bezeichnerliste gekommen**: `selectionOverlay`,
+  `selectionTitle` und `selectionSubtitle`. Der Kopf der Auswahl steht seitdem
+  dort, wo vorher `inspectorTitle`/`inspectorSubtitle` ihn trugen – dieselbe
+  Rolle an einem anderen Ort. Die Blöcke darin haben ihre ids behalten und
+  standen schon in der Liste.
 
   **Seit dem einundzwanzigsten Durchgang steht eine achte Datei in der
   Tabelle, und `tools/test-inspector.mjs` hat zwei prüfende dazubekommen** –
@@ -11091,15 +11408,16 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Anhaltebedingung greift deshalb nicht; die Wahl steht unten mit ihrem Grund.
 
   **Mechanik A – natives `<details>`/`<summary>`.** Im Markup stehen
-  <!-- bestand: details-instanzen -->11 Instanzen in vier Rollen; dazu kommen
+  <!-- bestand: details-instanzen -->12 Instanzen in fünf Rollen; dazu kommen
   die Karten der Feature-Navigation, deren Zahl von der geladenen Karte abhängt.
 
   | Rolle | Instanzen | Bezeichner | Zustand in | über die Sitzung hinaus |
   |---|---|---|---|---|
   | `.inspector-fold` | <!-- bestand: details-inspector-fold -->5 | `#featureNavigationSection`, `#inspectorStock`, `#inspectorTransform`, `#inspectorValidation`, `#originSection` | `details.open` | **drei davon** über `INSPECTOR_FOLDS` im `localStorage`; Navigation und Bezugspunkt **nicht** |
   | `.tool-settings` | <!-- bestand: details-tool-settings -->3 | ohne `id`, in `#inspectorTransform` – Reduzieren, Rechtwinklig, Glätten | `details.open` | nein |
-  | `.inspector-note` | <!-- bestand: details-inspector-note -->2 | ohne `id`, in den Abmessungen und im Mäherblock | `details.open` | nein |
+  | `.inspector-note` | <!-- bestand: details-inspector-note -->2 | ohne `id`, in den Abmessungen und – seit dem Umzug über der Karte – in den Angaben zur Auswahl („Geschlossene Polygone“) | `details.open` | nein |
   | `.selection-actions` | <!-- bestand: details-selection-actions -->1 | `#selectionActions` | `details.open` | nein |
+  | `.selection-overlay` | <!-- bestand: details-selection-overlay -->1 | `#selectionOverlay`, die Angaben zur Auswahl über der Karte | `details.open` | nein – dieselbe Mechanik wie die Auswahlleiste |
   | `.feature-card` | je Feature | aus `renderFeatureNavigator()` | `details.open` | nein – sie werden bei jeder Auswahländerung neu gebaut |
 
   **Die Zählung ist gegenüber dem dreizehnten Durchgang in zwei Dingen

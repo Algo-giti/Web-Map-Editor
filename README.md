@@ -60,7 +60,10 @@ GeoJSON- oder fremder RTK-Formate wird nicht zugesichert.
 ### Punkteditor
 
 - einzelne Punkte auswählen und verschieben
-- East-/North-Werte anzeigen
+- East-/North-Werte anzeigen und eintippen
+- die Angaben zur Auswahl – Punktnummer, Koordinaten, Vergleich und
+  Fahrtrichtung – stehen in einem durchscheinenden Feld über der Karte;
+  sein Griff klappt es zu
 - Punkte vor oder nach einem vorhandenen Punkt einfügen
 - Punkte löschen
 - Polygonringe automatisch geschlossen halten
@@ -414,7 +417,10 @@ third-party RTK formats is not guaranteed.
 ### Point editor
 
 - select and move individual vertices
-- display East/North values
+- display and type East/North values
+- the selection details – point number, coordinates, comparison and
+  heading – appear in a translucent panel over the map; its handle
+  collapses it
 - insert points before or after an existing point
 - delete points
 - keep polygon rings closed automatically

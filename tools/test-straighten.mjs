@@ -19,6 +19,7 @@
 
 import {
   createChecker,
+  createMarkerKlicker,
   createMenueBefehl,
   indexUrl,
   launchBrowser,
@@ -65,6 +66,14 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+
+  /*
+   * Marker werden ueber den gemeinsamen Helfer geklickt: die Angaben zur
+   * Auswahl stehen unten rechts ueber der Karte und verdecken dort Marker,
+   * sobald etwas ausgewaehlt ist. Der Helfer klappt sie ueber ihren Griff zu
+   * und danach wieder auf - siehe tools/browser-harness.mjs.
+   */
+  const markerKlicken = createMarkerKlicker(page, check);
   const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
@@ -140,7 +149,7 @@ try {
 
   check("mit einem Punkt weiterhin gesperrt", await straighten.isDisabled());
 
-  await markers.nth(4).click({ modifiers: ["Control"] });
+  await markerKlicken(markers.nth(4), { modifiers: ["Control"] });
   await page.waitForTimeout(200);
 
   check("Zähler zeigt zwei Punkte",
@@ -315,7 +324,7 @@ try {
   console.log("Bearbeiten eines anderen Features und Speichern");
 
   /* An einer der Exclusions arbeiten - das unbekannte Feature bleibt unberührt. */
-  await page.locator("#vertexGroup circle").nth(0).click();
+  await markerKlicken(page.locator("#vertexGroup circle").nth(0));
   await page.waitForTimeout(150);
   await page.keyboard.press("ArrowRight");
   await page.waitForTimeout(250);

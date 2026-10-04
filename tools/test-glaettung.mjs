@@ -25,6 +25,7 @@
 
 import {
   createChecker,
+  createMarkerKlicker,
   createMenueBefehl,
   elementGetroffen,
   indexUrl,
@@ -215,6 +216,14 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+
+  /*
+   * Marker werden ueber den gemeinsamen Helfer geklickt: die Angaben zur
+   * Auswahl stehen unten rechts ueber der Karte und verdecken dort Marker,
+   * sobald etwas ausgewaehlt ist. Der Helfer klappt sie ueber ihren Griff zu
+   * und danach wieder auf - siehe tools/browser-harness.mjs.
+   */
+  const markerKlicken = createMarkerKlicker(page, check);
   const menueBefehl = createMenueBefehl(page, check);
 
   page.on("console", (message) => {
@@ -1076,8 +1085,8 @@ try {
     "Smooth: Exclusion #0 is not a simple closed ring.");
 
   /* Eine Auswahl über zwei Ringe desselben Features. */
-  await page.locator('circle.vertex[data-vertex-key="1:0:0"]').click();
-  await page.locator('circle.vertex[data-vertex-key="1:1:0"]').click({ modifiers: ["Control"] });
+  await markerKlicken("1:0:0");
+  await markerKlicken("1:1:0", { modifiers: ["Control"] });
   await page.waitForTimeout(300);
   await zweisprachig("Auswahl ueber zwei Ringe", grund,
     "Glätten: die Auswahl muss zu genau einem Linienzug gehören.",
@@ -1085,8 +1094,8 @@ try {
 
   /* Eine Auswahl über zwei Features. */
   await load(karte(EXCLUSION));
-  await page.locator('circle.vertex[data-vertex-key="0:0:0"]').click();
-  await page.locator('circle.vertex[data-vertex-key="1:0:0"]').click({ modifiers: ["Control"] });
+  await markerKlicken("0:0:0");
+  await markerKlicken("1:0:0", { modifiers: ["Control"] });
   await page.waitForTimeout(300);
   await zweisprachig("Auswahl ueber zwei Features", grund,
     "Glätten: die Auswahl gehört zu mehreren Features. Ein Feature auswählen oder die " +

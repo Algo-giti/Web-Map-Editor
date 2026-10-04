@@ -18,6 +18,7 @@
 
 import {
   createChecker,
+  createMarkerKlicker,
   createMenueBefehl,
   indexUrl,
   launchBrowser,
@@ -57,6 +58,14 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+
+  /*
+   * Marker werden ueber den gemeinsamen Helfer geklickt: die Angaben zur
+   * Auswahl stehen unten rechts ueber der Karte und verdecken dort Marker,
+   * sobald etwas ausgewaehlt ist. Der Helfer klappt sie ueber ihren Griff zu
+   * und danach wieder auf - siehe tools/browser-harness.mjs.
+   */
+  const markerKlicken = createMarkerKlicker(page, check);
   const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
@@ -122,11 +131,11 @@ try {
       await page.waitForTimeout(150);
     }
 
-    await marks.nth(indices[0]).click();
+    await markerKlicken(marks.nth(indices[0]));
     await page.waitForTimeout(150);
 
     for (const index of indices.slice(1)) {
-      await marks.nth(index).click({ modifiers: ["Control"] });
+      await markerKlicken(marks.nth(index), { modifiers: ["Control"] });
       await page.waitForTimeout(150);
     }
   };
