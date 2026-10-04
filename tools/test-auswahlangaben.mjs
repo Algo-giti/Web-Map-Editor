@@ -360,6 +360,59 @@ try {
       }
     }
 
+    /*
+     * Die andere Schreibweise wird angenommen, in beiden Sprachen: wer auf
+     * Englisch ein Komma tippt oder auf Deutsch einen Punkt, bekommt kein
+     * abgelehntes Feld, sondern den verschobenen Punkt. Seit die Felder dem
+     * Sprachwechsel folgen, steht im Feld das Zeichen der Sprache - getippt
+     * wird trotzdem, was die Hand gewohnt ist.
+     *
+     * Gefunden wird der Punkt wieder über seine Koordinaten, vorher und
+     * nachher; dazu, dass das Feld danach das Zeichen der Sprache zeigt.
+     *
+     * Jede Richtung nimmt ihren EIGENEN Punkt und hängt damit an keinem
+     * Abschnitt davor: wäre die Annahme kaputt, risse sonst schon die
+     * deutsche Eingabe darüber, und die Zusicherung hier käme gar nicht zum
+     * Zug. Vor der Auswahl wird abgewählt - die Auswahlleiste links oben und
+     * die Angaben unten rechts lägen sonst über der Ecke.
+     */
+    for (const [lang, [altE, altN], eingabe, neu, gezeigt, kopf] of [
+      ["en", [0, 40], "21,5", 21.5, "21.50", /^Point \d+ of \d+$/],
+      ["de", [40, 0], "17.5", 17.5, "17,50", /^Punkt \d+ von \d+$/],
+    ]) {
+      await seite.evaluate((s) => setLanguage(s), lang);
+      await seite.evaluate(() => document.activeElement?.blur());
+      await seite.keyboard.press("Escape");
+      await seite.waitForTimeout(200);
+
+      if (!(await punktWaehlen(seite, altE, altN, `${lang}, andere Schreibweise`))) continue;
+
+      const titel = await sichtbarerText(seite, "#selectionTitle");
+      check(`${lang}: die Angaben stehen in dieser Sprache da`, kopf.test(titel.trim()), titel);
+
+      const feld = await elementGetroffen(seite, "#pointEastInput", { dy: 10 });
+      check(`${lang}: das East-Feld wird getroffen`, feld.ok, JSON.stringify(feld));
+      if (!feld.ok) continue;
+
+      await seite.locator("#pointEastInput").click();
+      await seite.locator("#pointEastInput").fill(eingabe);
+      await seite.locator("#pointEastInput").press("Enter");
+      await seite.waitForTimeout(350);
+
+      check(`${lang}: „${eingabe}“ wird angenommen und verschiebt den Punkt`,
+        (await markerBei(seite, neu, altN)) !== null,
+        String(await markerBei(seite, neu, altN)));
+      check(`${lang}: und an der alten Stelle steht keiner mehr`,
+        (await markerBei(seite, altE, altN)) === null,
+        String(await markerBei(seite, altE, altN)));
+      check(`${lang}: das Feld zeigt den Wert danach mit dem Zeichen der Sprache`,
+        (await seite.locator("#pointEastInput").inputValue()) === gezeigt,
+        await seite.locator("#pointEastInput").inputValue());
+    }
+
+    await seite.evaluate(() => setLanguage("de"));
+    await seite.waitForTimeout(200);
+
     /* ---------------------------------------------------------------- */
     console.log("Der Griff klappt zu und wieder auf");
 

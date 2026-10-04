@@ -225,14 +225,20 @@ try {
    * value wird von translateDynamicElement bewusst NICHT behandelt - dort
    * stehen Zahlen, keine Sprache. Der Test hält das fest, damit es nicht
    * versehentlich ergänzt wird und dann "0,02" zu übersetzen versucht.
+   *
+   * Erwartet war hier bis dahin der deutsche Text, also "0,02" in der
+   * englischen Oberfläche - die Zusicherung schrieb damit genau den Mangel
+   * fest, dass die Felder ihr Dezimalkomma behielten. Seitdem folgt die
+   * Schreibweise der Sprache (reformatNumberInputs()); was diese Zusicherung
+   * schützt, bleibt: dieselbe Zahl, kein Woerterbuch, nur das Zeichen.
    */
-  for (const [id, expected] of [
+  for (const [id, deutsch] of [
     ["reduceToleranceInput", "0,02"],
     ["rectifyToleranceInput", "15"],
     ["circleRadiusInput", "1,00"],
   ]) {
-    check(`#${id} behält seinen Wert`,
-      (await page.locator(`#${id}`).inputValue()) === expected,
+    check(`#${id} behält seine Zahl, nur das Dezimalzeichen folgt der Sprache`,
+      (await page.locator(`#${id}`).inputValue()) === deutsch.replace(",", "."),
       `${id}: ${await page.locator(`#${id}`).inputValue()}`);
   }
 
@@ -781,6 +787,176 @@ try {
     (await hudText()) === hudUnklar, `${hudUnklar} || ${await hudText()}`);
 
   await page.evaluate(() => setLanguage("de"));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Die Zahlenfelder folgen dem Sprachwechsel, beide Richtungen");
+
+  /*
+   * Raster, Maeher, Kreis und Rechteck, Reduzieren, Rechtwinklig und Glaetten
+   * tragen Zahlen in Eingabefeldern. Bis hierher wechselten nur die vier der
+   * Glaettung ihr Dezimalzeichen mit der Sprache; die uebrigen zeigten in der
+   * englischen Oberflaeche weiter "0,35", bis sie sich selbst neu schrieben.
+   *
+   * Gelesen wird der Text, der im Feld steht - und nur, wenn das Feld
+   * gezeichnet ist: ein Feld in einem geschlossenen Fenster liefert seinen
+   * Wert genauso. Die getippten Werte tragen schon die Stellenzahl, mit der
+   * die Felder schreiben (zwei bei Metern, keine vorgegebene bei Grad); die
+   * erwartete Fassung ist damit genau dieselbe Zahl mit dem anderen Zeichen,
+   * und es steht keine zweite Rechnung im Test.
+   *
+   * Je Feld zwei Werte: der erste wird auf Deutsch getippt, der zweite auf
+   * Englisch - mit Punkt, wie ein englischer Nutzer ihn tippt.
+   */
+  await page.locator("#fileInput").setInputFiles({
+    name: "i18n.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(MAP),
+  });
+  await page.waitForTimeout(400);
+  await openAllFolds(page);
+
+  const ZAHLENFELDER = [
+    { name: "Rasterfenster", zeigen: () => menueBefehl("Ansicht", "Raster…"),
+      felder: [["gridStepInput", "0,37", "0,58"]] },
+    { name: "Maeherfenster", zeigen: () => menueBefehl("Ansicht", "Mähroboter-Vorschau…"),
+      felder: [["mowerLengthInput", "0,73", "0,81"], ["mowerWidthInput", "0,41", "0,47"]] },
+    { name: "Kreis", zeigen: () => page.locator("#drawCircleBtn").click(),
+      felder: [["circleRadiusInput", "2,37", "3,14"]] },
+    { name: "Rechteck", zeigen: () => page.locator("#drawRectangleBtn").click(),
+      felder: [["rectWidthInput", "3,25", "4,75"], ["rectHeightInput", "1,75", "2,25"],
+               ["rectAngleInput", "12,5", "33,25"]] },
+    { name: "Umformen", zeigen: () => openAllFolds(page),
+      felder: [["reduceToleranceInput", "0,03", "0,05"], ["rectifyAngleInput", "12,5", "7,25"],
+               ["rectifyToleranceInput", "7,5", "11,5"], ["smoothSpacingInput", "0,25", "0,35"],
+               ["smoothKnickInput", "12,5", "17,5"], ["smoothPerimeterLimitInput", "0,03", "0,01"],
+               ["smoothExclusionLimitInput", "0,04", "0,06"]] },
+  ];
+
+  const sprache = (wert) => page.evaluate((w) => setLanguage(w), wert);
+  const englisch = (deutsch) => deutsch.replace(",", ".");
+
+  /*
+   * Der Text eines Feldes - oder null, wenn es nicht gezeichnet wird. Dann
+   * gaebe es nichts zu lesen, das ein Nutzer saehe.
+   */
+  const feldText = async (id) => {
+    /*
+     * Gerollt wird im Seitenkontext: scrollIntoViewIfNeeded() wartete bei
+     * einem Feld, das nicht gezeichnet wird, selbst dreissig Sekunden.
+     */
+    await page.evaluate((x) =>
+      document.getElementById(x)?.scrollIntoView({ block: "nearest" }), id);
+    const getroffen = await elementGetroffen(page, `#${id}`, { dy: 6 });
+    return getroffen.ok ? page.locator(`#${id}`).inputValue() : null;
+  };
+
+  /* Tippen wie ein Nutzer, dann das Feld verlassen - kein Fokus bleibt stehen. */
+  const tippen = async (id, text) => {
+    await page.locator(`#${id}`).fill(text);
+    await page.evaluate(() => document.activeElement?.blur());
+  };
+
+  for (const gruppe of ZAHLENFELDER) {
+    await sprache("de");
+    await gruppe.zeigen();
+    await page.waitForTimeout(300);
+
+    /*
+     * Getippt wird nur in ein gezeichnetes Feld. Sonst wartete fill() dreissig
+     * Sekunden auf ein Feld, das nie erscheint - gemessen, als ein Kreis unter
+     * einer Mutation gar nicht erst startete -, und aus einer benannten
+     * Zusicherung wuerde ein stummer Abbruch.
+     */
+    let gezeichnet = true;
+    for (const [id] of gruppe.felder) {
+      const steht = (await feldText(id)) !== null;
+      check(`${gruppe.name}: #${id} ist gezeichnet`, steht);
+      gezeichnet = gezeichnet && steht;
+    }
+
+    if (!gezeichnet) {
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(250);
+      continue;
+    }
+
+    for (const [id, erster] of gruppe.felder) await tippen(id, erster);
+
+    for (const [id, erster] of gruppe.felder) {
+      check(`${gruppe.name}, deutsch getippt: #${id} steht sichtbar mit Komma da`,
+        (await feldText(id)) === erster, String(await feldText(id)));
+    }
+
+    await sprache("en");
+
+    for (const [id, erster] of gruppe.felder) {
+      check(`${gruppe.name}, dann englisch, ohne Zutun: #${id} zeigt den Punkt`,
+        (await feldText(id)) === englisch(erster), `${erster} -> ${await feldText(id)}`);
+    }
+
+    await sprache("de");
+
+    for (const [id, erster] of gruppe.felder) {
+      check(`${gruppe.name}, zurueck nach deutsch: #${id} zeigt wieder das Komma`,
+        (await feldText(id)) === erster, `${erster} -> ${await feldText(id)}`);
+    }
+
+    /* Die Gegenrichtung: auf Englisch getippt, mit Punkt. */
+    await sprache("en");
+    for (const [id, , zweiter] of gruppe.felder) await tippen(id, englisch(zweiter));
+    await sprache("de");
+
+    for (const [id, , zweiter] of gruppe.felder) {
+      check(`${gruppe.name}, englisch getippt, dann deutsch: #${id} zeigt das Komma`,
+        (await feldText(id)) === zweiter, `${englisch(zweiter)} -> ${await feldText(id)}`);
+    }
+
+    await sprache("en");
+
+    for (const [id, , zweiter] of gruppe.felder) {
+      check(`${gruppe.name}, wieder englisch: #${id} zeigt den Punkt`,
+        (await feldText(id)) === englisch(zweiter), `${zweiter} -> ${await feldText(id)}`);
+    }
+
+    /* Fenster schliessen bzw. Zeichnung verwerfen, auf Deutsch weiter. */
+    await sprache("de");
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(250);
+  }
+
+  /*
+   * Ein Feld, in dem gerade getippt wird, schreibt der Wechsel nicht um - es
+   * behaelt den Text unter den Fingern. Gemessen ueber setLanguage(), weil ein
+   * Klick auf den Schalter dem Feld vorher den Fokus naehme. Die Gegenprobe
+   * steht im selben Zug: das Nachbarfeld ohne Fokus wechselt sehr wohl.
+   */
+  await openAllFolds(page);
+  await page.locator("#reduceToleranceInput").fill("0,09");
+  await page.locator("#rectifyToleranceInput").fill("9,5");
+  await page.evaluate(() => {
+    document.getElementById("reduceToleranceInput").focus();
+    setLanguage("en");
+  });
+
+  check("im fokussierten Feld bleibt der getippte Text stehen",
+    (await page.locator("#reduceToleranceInput").inputValue()) === "0,09",
+    await page.locator("#reduceToleranceInput").inputValue());
+  check("Gegenprobe: das Nachbarfeld ohne Fokus zeigt den Punkt",
+    (await feldText("rectifyToleranceInput")) === "9.5",
+    String(await feldText("rectifyToleranceInput")));
+
+  /* Verlassen und erneut gewechselt: jetzt folgt auch es. */
+  await page.evaluate(() => {
+    document.activeElement?.blur();
+    setLanguage("de");
+  });
+  await page.evaluate(() => setLanguage("en"));
+
+  check("ohne Fokus folgt das Feld beim naechsten Wechsel",
+    (await feldText("reduceToleranceInput")) === "0.09",
+    String(await feldText("reduceToleranceInput")));
+
+  await sprache("de");
 
   /* ---------------------------------------------------------------- */
   console.log("Die Zusammenfassung vor der ersten Pruefung, beide Richtungen");

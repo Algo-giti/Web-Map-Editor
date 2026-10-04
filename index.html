@@ -24344,30 +24344,6 @@ function renderSmoothPreview(worldUnitsPerPixel) {
   });
 }
 
-/**
- * Formatiert die vier Felder in der laufenden Sprache neu - außer dem, in dem
- * gerade getippt wird. Ein Feld, das keine Zahl enthält, bleibt, wie es ist:
- * der Nutzer soll sehen, was er eingegeben hat, und der Grund steht darunter.
- */
-function reformatSmoothSettings() {
-  const felder = [
-    ["smoothSpacingInput", value => formatMeters(value, 2, 6)],
-    ["smoothKnickInput", value => formatNumber(value, 0, 6)],
-    ["smoothPerimeterLimitInput", value => formatMeters(value, 2, 6)],
-    ["smoothExclusionLimitInput", value => formatMeters(value, 2, 6)]
-  ];
-
-  felder.forEach(([id, format]) => {
-    const input = document.getElementById(id);
-    if (!input || input === document.activeElement) return;
-
-    const text = String(input.value).trim();
-    const value = text ? parseLocaleNumber(text) : null;
-
-    if (value !== null) input.value = format(value);
-  });
-}
-
 
 /* ==========================================================================
    18. SPRACHE / LANGUAGE
@@ -25326,6 +25302,74 @@ function setLanguage(language) {
 
 
 /**
+ * Schreibt die Zahl jedes Eingabefeldes in der laufenden Sprache neu - Komma
+ * auf Deutsch, Punkt auf Englisch. Neu geschrieben, nicht neu gerechnet: die
+ * Zahl kommt aus dem Feld selbst, nicht aus dem Zustand dahinter. Ein noch
+ * nicht übernommener Wert bleibt damit, was er war, und nur seine
+ * Schreibweise folgt.
+ *
+ * Bis hierher taten das nur die vier Felder der Glättung; die übrigen
+ * behielten das Zeichen, mit dem sie entstanden waren, und zeigten in der
+ * englischen Oberfläche "0,35". Gelesen wurden sie trotzdem richtig, denn
+ * parseLocaleNumber() nimmt beide Zeichen an - und dabei bleibt es: wer auf
+ * Englisch ein Komma tippt, bekommt kein abgelehntes Feld.
+ *
+ * DAS FELD, IN DEM GERADE GETIPPT WIRD, BLEIBT STEHEN. Dieselbe Regel wie bei
+ * den E/N-Feldern (keepFocusedInputs), dem Maßstabsfeld und den Feldern des
+ * Bezugspunkts: ein Sprachwechsel schreibt dem Nutzer nichts unter den
+ * Fingern um. Es bekommt das Zeichen der Sprache beim nächsten Sprachwechsel,
+ * Raster- und Mäherfelder schon beim Übernehmen, das sie selbst neu schreibt;
+ * bis dahin gilt es in beiden Schreibweisen.
+ *
+ * Ein Feld ohne Zahl bleibt, wie es ist: der Nutzer soll sehen, was er
+ * eingegeben hat, und der Grund steht darunter.
+ *
+ * Höchstens sechs Nachkommastellen, wie die Glättungsfelder hier schon immer.
+ * Was ein Feld selbst schreibt, hat höchstens vier und kommt damit Zeichen für
+ * Zeichen zurück; eine getippte Zahl verliert erst unter einem Mikrometer
+ * Stellen. Mindestens zwei bei Metern, keine bei Grad - so schreiben die
+ * Felder ihre Zahl auch selbst.
+ *
+ * NICHT hier, mit Grund: die E/N-Felder und das Maßstabsfeld schreibt ihr
+ * eigener abgeleiteter Weg aus dem Zustand (updateSelectionPanel(),
+ * updateScaleField()), die Eckpunktzahl des Kreises ist ganzzahlig, und die
+ * Felder des Bezugspunkts tragen in beiden Sprachen einen Punkt - ein eigener
+ * Befund, siehe CLAUDE.md.
+ */
+function reformatNumberInputs() {
+  const meter = value => formatMeters(value, 2, 6);
+  const grad = value => formatNumber(value, 0, 6);
+
+  const felder = [
+    ["gridStepInput", meter],
+    ["mowerLengthInput", meter],
+    ["mowerWidthInput", meter],
+    ["circleRadiusInput", meter],
+    ["rectWidthInput", meter],
+    ["rectHeightInput", meter],
+    ["rectAngleInput", grad],
+    ["reduceToleranceInput", meter],
+    ["rectifyAngleInput", grad],
+    ["rectifyToleranceInput", grad],
+    ["smoothSpacingInput", meter],
+    ["smoothKnickInput", grad],
+    ["smoothPerimeterLimitInput", meter],
+    ["smoothExclusionLimitInput", meter]
+  ];
+
+  felder.forEach(([id, format]) => {
+    const input = document.getElementById(id);
+    if (!input || input === document.activeElement) return;
+
+    const text = String(input.value).trim();
+    const value = text ? parseLocaleNumber(text) : null;
+
+    if (value !== null) input.value = format(value);
+  });
+}
+
+
+/**
  * Baut die Oberflächen neu auf, die ihren Text zur Laufzeit AUS DEM ZUSTAND
  * erzeugen.
  *
@@ -25377,10 +25421,12 @@ function refreshDerivedUi() {
   updateFeatureDrawUi();
 
   /*
-   * Die vier Felder der Glättung tragen Zahlen, deren Dezimalzeichen mit der
-   * Sprache wechselt. Ihr Wert bleibt, nur seine Schreibweise folgt.
+   * Die Zahlenfelder - Raster, Mäher, Kreis und Rechteck, Reduzieren,
+   * Rechtwinklig, Glätten - tragen Zahlen, deren Dezimalzeichen mit der
+   * Sprache wechselt. Ihr Wert bleibt, nur seine Schreibweise folgt. Bis
+   * hierher taten das nur die vier der Glättung.
    */
-  reformatSmoothSettings();
+  reformatNumberInputs();
 
   /*
    * Abweichung und Eckpunktabstand des Kreises folgen allein aus den beiden

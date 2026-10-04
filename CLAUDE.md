@@ -159,6 +159,10 @@ dazugekommen und hat die freie Nummer genommen; `14` bis `17` gibt es nicht.
   `placeholder` an. Nicht ergänzen – sonst versucht der Mechanismus, „0,02" zu
   übersetzen. `<option>`-Beschriftungen laufen dagegen über den normalen Weg
   und funktionieren; beides ist in `tools/test-i18n-dynamic.mjs` festgehalten.
+  **Das Dezimalzeichen eines Zahlenfeldes folgt der Sprache trotzdem** – nicht
+  über das Wörterbuch, sondern über `reformatNumberInputs()`, das die Zahl aus
+  dem Feld liest und mit `formatMeters()`/`formatNumber()` neu schreibt
+  (Abschnitt 7, „Die Zahlenfelder folgen dem Sprachwechsel“).
 - **Undo/Redo:** History-Snapshots pro abgeschlossener Operation (nicht pro
   `pointermove`-Event). Ein zusammenhängender Drag = ein Undo-Schritt. Der
   Snapshot enthält neben beiden Kartenslots auch den `referenceOrigin`, weil
@@ -351,7 +355,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-validation.mjs` | erweiterte Geometrieprüfung |
 | `test-rectify.mjs` | Ecken rechtwinklig |
 | `test-map-switch.mjs` | Wechsel zwischen Karte A und B |
-| `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten |
+| `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten und den Zahlenfeldern |
 | `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
 | `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen |
 | `test-placeholders.mjs` | was als leerer Platzhalter gilt |
@@ -1181,7 +1185,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->62 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->64 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -8163,7 +8167,9 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   **BENANNTE BEFUNDE, nicht behoben – keiner davon ist der Mangel dieses
   Eintrags, und jeder ist eine eigene Entscheidung:**
 
-  - **Eingabefelder mit Dezimalzahl behalten das Zeichen ihrer Entstehung**:
+  - **ERLEDIGT am 04.10.2026, siehe „Die Zahlenfelder folgen dem
+    Sprachwechsel“ – Eingabefelder mit Dezimalzahl behalten das Zeichen ihrer
+    Entstehung**:
     `#mowerLengthInput`, `#mowerWidthInput`, `#circleRadiusInput`,
     `#rectWidthInput`, `#rectHeightInput`, `#reduceToleranceInput`,
     `#gridStepInput` – „0,35“ in der englischen Oberfläche. Ein falscher Wert
@@ -8236,6 +8242,129 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Zusicherungen ohne Karte sind ergänzt, und alle acht Proben sind danach
   noch einmal gegen den fertigen Test gefahren; die Zahlen oben stammen aus
   diesem zweiten Lauf.
+
+- **Die Zahlenfelder folgen dem Sprachwechsel – ERLEDIGT am 04.10.2026.**
+  Der Befund stand oben unter „Drei Ausgaben folgten dem Sprachwechsel
+  nicht“: sieben Eingabefelder zeigten in der englischen Oberfläche „0,35“,
+  bis sie sich selbst neu schrieben. Nur die vier Felder der Glättung
+  schrieben ihre Zahl beim Wechsel neu, über `reformatSmoothSettings()`.
+
+  **Aus dieser Funktion ist `reformatNumberInputs()` geworden – EINE Stelle
+  für alle Zahlenfelder, keine zweite daneben.** Sie steht in
+  `refreshDerivedUi()`, liest die Zahl aus dem Feld selbst und schreibt sie
+  über `formatMeters()`/`formatNumber()` neu – keine eigene Rechnung, und
+  nicht aus dem Zustand dahinter: ein getippter, noch nicht übernommener
+  Wert bleibt, was er war, und nur seine Schreibweise folgt. Ein Feld ohne
+  Zahl bleibt, wie es ist.
+
+  | Felder | Schreibweise |
+  |---|---|
+  | `#gridStepInput`, `#mowerLengthInput`, `#mowerWidthInput`, `#circleRadiusInput`, `#rectWidthInput`, `#rectHeightInput`, `#reduceToleranceInput` und drei der Glättung | Meter: mindestens 2, höchstens 6 Nachkommastellen |
+  | `#rectAngleInput`, `#rectifyAngleInput`, `#rectifyToleranceInput`, `#smoothKnickInput` | Grad: keine Mindestzahl, höchstens 6 |
+
+  **Die drei Gradfelder standen nicht in der Liste des Befundes, und sie
+  gehören trotzdem hierher.** Ihre Vorgaben „0“ und „15“ tragen kein
+  Dezimalzeichen, deshalb sah die Laufzeitsuche sie nicht; ein getipptes
+  „12,5“ blieb aber genauso stehen. Derselbe Mangel, dieselbe Stelle.
+
+  **Höchstens sechs Nachkommastellen** – so viele, wie die Glättungsfelder
+  schon trugen. Was ein Feld selbst schreibt, hat höchstens vier und kommt
+  damit Zeichen für Zeichen zurück, nur mit dem anderen Zeichen; eine
+  getippte Zahl verliert erst unter einem Mikrometer Stellen.
+
+  **Das Feld, in dem gerade getippt wird, bleibt stehen** – dieselbe Regel
+  wie bei den E/N-Feldern (`keepFocusedInputs`), dem Maßstabsfeld und den
+  Feldern des Bezugspunkts: der Wechsel schreibt dem Nutzer nichts unter den
+  Fingern um. Es bekommt das Zeichen der Sprache beim nächsten Wechsel,
+  Raster- und Mäherfelder schon beim Übernehmen, das sie selbst neu
+  schreibt; bis dahin gilt es in beiden Schreibweisen. Über den Schalter
+  tritt der Fall nicht auf – sein Klick nimmt dem Feld den Fokus vorher –,
+  er gilt jedem Aufrufer von `setLanguage()`.
+
+  **Angenommen wird in beiden Schreibweisen, und daran ist nichts
+  geändert:** `parseLocaleNumber()` und `parseGridStep()` lesen Komma wie
+  Punkt. Wer auf Englisch ein Komma tippt oder auf Deutsch einen Punkt,
+  bekommt kein abgelehntes Feld.
+
+  **NICHT dabei, mit Grund:** die E/N-Felder und das Maßstabsfeld schreibt
+  ihr eigener abgeleiteter Weg aus dem Zustand, die Eckpunktzahl des Kreises
+  ist ganzzahlig. **BENANNTER BEFUND, nicht behoben: die Felder des
+  Bezugspunkts tragen in beiden Sprachen einen Punkt** – `updateOriginUi()`
+  schreibt `String(referenceOrigin.lat)`. Das ist nicht derselbe Mangel
+  (sie behalten kein Zeichen, sie haben nie eines der Sprache), und Breite
+  und Länge brauchen mehr als sechs Nachkommastellen; eine eigene
+  Entscheidung.
+
+  **Eine Zusicherung hat ihren Erwartungswert gewechselt, weil sie den
+  Mangel festschrieb.** `tools/test-i18n-dynamic.mjs` hielt unter
+  „value-Attribute bleiben unangetastet“ fest, dass `#reduceToleranceInput`
+  in der englischen Oberfläche „0,02“ zeigt. Was sie schützt – das
+  Wörterbuch fasst `value` nicht an –, gilt weiter und wird weiter geprüft:
+  dieselbe Zahl, nur das Zeichen der Sprache („0.02“, „15“, „1.00“).
+
+  **Zugesichert nach der Wirkung, über den Text im gezeichneten Feld**
+  (`elementGetroffen()` vor jedem Lesen), Sprachwechsel über `setLanguage()`
+  ohne Zutun dazwischen: in `tools/test-i18n-dynamic.mjs` alle vierzehn
+  Felder, je Gruppe sichtbar gemacht – Raster- und Mäherfenster über das
+  Menü, Kreis und Rechteck über ihr Werkzeug, die übrigen im Faltblock
+  „Umformen“ –, deutsch getippt und englisch gelesen, zurück, englisch mit
+  Punkt getippt und deutsch gelesen, zurück; dazu das fokussierte Feld, das
+  stehen bleibt, mit dem Nachbarfeld als Gegenprobe. In
+  `tools/test-auswahlangaben.mjs` die Annahme: auf Englisch „21,5“ und auf
+  Deutsch „17.5“ ins East-Feld, und der Punkt steht danach an der neuen
+  Koordinate und an der alten keiner mehr – gefunden über seine Koordinaten,
+  nicht über einen Index.
+
+  **21 Mutationsproben, je eine Schreibstelle; alle reißen, 0 Timeouts.**
+  Gefahren in vier Arbeitskopien außerhalb des Repositorys, je Probe aus
+  derselben Sicherungskopie zurückgespielt; die Prüfsumme ist vorher und
+  nachher in allen Kopien `a66681fb…`, und `index.html` im Repository war nie
+  angefasst. Gemessen je Probe: Syntaxprüfung, Bestandsprüfer,
+  `tools/test-i18n-dynamic.mjs`, `tools/test-auswahlangaben.mjs` und
+  `tools/test-glaettung.mjs`. Die statische Stufe reißt nur bei N1: ohne
+  ihren Aufruf hat `reformatNumberInputs()` keinen Aufrufer mehr, und
+  `funktionen-ohne-aufrufer` steigt auf 1.
+
+  | Probe | Schreibstelle | gerissen |
+  |---|---|---|
+  | N1 | der Aufruf in `refreshDerivedUi()` entfernt | **32** + **1** in `tools/test-glaettung.mjs`, z. B. „#reduceToleranceInput behält seine Zahl, nur das Dezimalzeichen folgt der Sprache“ |
+  | N2 | das fokussierte Feld wird nicht mehr übersprungen | **1**, „im fokussierten Feld bleibt der getippte Text stehen“, Detail „0.09“ |
+  | N3 | das Feld wird nicht geschrieben | **32** + **1**, wie N1 |
+  | N4 | Meterfelder schreiben `String(value)` statt `formatMeters()` | **22** + **2**, z. B. „und auch nach dem Zurückschalten“, Detail „0.02“ |
+  | N5 | Gradfelder schreiben `String(value)` statt `formatNumber()` | **8**, z. B. „Rechteck, zurueck nach deutsch: #rectAngleInput zeigt wieder das Komma“ |
+  | N6 | `#gridStepInput` fehlt in der Liste | **2**, „Rasterfenster, dann englisch, ohne Zutun: …“ und „… englisch getippt, dann deutsch: …“ |
+  | N7 | `#mowerLengthInput` fehlt | **2**, dieselben beiden Richtungen |
+  | N8 | `#mowerWidthInput` fehlt | **2**, ebenso |
+  | N9 | `#circleRadiusInput` fehlt | **3**, dazu „behält seine Zahl …“ |
+  | N10 | `#rectWidthInput` fehlt | **2** |
+  | N11 | `#rectHeightInput` fehlt | **2** |
+  | N12 | `#rectAngleInput` fehlt | **2** |
+  | N13 | `#reduceToleranceInput` fehlt | **4**, dazu „behält seine Zahl …“ und „ohne Fokus folgt das Feld beim naechsten Wechsel“ |
+  | N14 | `#rectifyAngleInput` fehlt | **2** |
+  | N15 | `#rectifyToleranceInput` fehlt | **3**, dazu „Gegenprobe: das Nachbarfeld ohne Fokus zeigt den Punkt“ |
+  | N16 | `#smoothSpacingInput` fehlt | **2** + **1** in `tools/test-glaettung.mjs` |
+  | N17 | `#smoothKnickInput` fehlt | **2** |
+  | N18 | `#smoothPerimeterLimitInput` fehlt | **2** + **1** in `tools/test-glaettung.mjs` |
+  | N19 | `#smoothExclusionLimitInput` fehlt | **2** |
+  | A1 | `parseLocaleNumber()` nimmt kein Komma mehr an | **8** in `tools/test-auswahlangaben.mjs`, darunter „en: „21,5“ wird angenommen und verschiebt den Punkt“ |
+  | A2 | `parseLocaleNumber()` nimmt keinen Punkt mehr an | **6** in `tools/test-auswahlangaben.mjs`, darunter „de: „17.5“ wird angenommen und verschiebt den Punkt“ |
+
+  Ohne Angabe zählt die Zahl in `tools/test-i18n-dynamic.mjs`. A1 und A2
+  sind keine Schreibstellen dieser Änderung, sondern die Probe, dass die
+  Annahme in beiden Schreibweisen zugesichert ist; beide reißen dazu in den
+  beiden anderen Tests (Glätten 64 bzw. 24, Zahlenfelder 28 bzw. 25).
+
+  **Zwei Lücken im eigenen Test hat erst die erste Probenrunde gezeigt.**
+  Unter A1 riss die Annahme-Zusicherung nicht selbst: sie hing am Punkt, den
+  der Abschnitt davor mit „33,5“ verschoben hatte, und der riss zuerst. Jede
+  Richtung nimmt seitdem ihren eigenen Punkt. Und unter A1/A2 startete der
+  Kreis gar nicht – sein Vorgabewert war nicht mehr lesbar –, und `fill()`
+  bzw. `scrollIntoViewIfNeeded()` warteten auf ein Feld, das nie erscheint:
+  zwei Timeouts. Getippt wird seitdem nur in ein gezeichnetes Feld, mit
+  benannter Zusicherung davor, und gerollt im Seitenkontext. Alle 21 Proben
+  sind danach gegen den fertigen Test gefahren; A1 und A2 ein drittes Mal,
+  weil die Rollkorrektur erst danach kam – sie betrifft nur Felder, die
+  nicht gezeichnet werden, und das war in keiner anderen Probe der Fall.
 
 - **Acht Texte ohne englische Fassung – ERLEDIGT mit Schritt 7 des vierten
   Durchgangs.** Gefunden hat sie `tools/scan-i18n.mjs`, und zwar erst, als
@@ -11077,7 +11206,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | Datei | prüfend | nur herstellend |
   |---|---|---|
   | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**55** | 17 |
-  | `tools/test-auswahlangaben.mjs` | 1 | 19 |
+  | `tools/test-auswahlangaben.mjs` | 2 | 22 |
   | `tools/browser-harness.mjs` | – | 1 |
   | `tools/test-merge.mjs` | 5 | 5 |
   | `tools/test-map-switch.mjs` | 1 | 2 |
@@ -11090,7 +11219,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-ghosting.mjs` | – | 3 |
   | `tools/test-scale.mjs` | – | 2 |
   | `tools/test-glaettung.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**62** | <!-- bestand: zusicherungen-herstellend -->**61** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**63** | <!-- bestand: zusicherungen-herstellend -->**64** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -11145,6 +11274,13 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Angaben im Vorlauf – sein Messhelfer nennt `#selectionOverlay`, der
   Treffer am Kopf `#selectionTitle`. Prüfend ist keine dazugekommen; der
   Bezeichner steht in keinem der neuen `check()`-Aufrufe selbst.
+
+  **Die Zahlenfelder, die dem Sprachwechsel folgen, haben
+  `tools/test-auswahlangaben.mjs` auf 2 / 22 gebracht**: der Abschnitt über
+  die Eingabe in der anderen Schreibweise trägt eine prüfende – „das Feld
+  zeigt den Wert danach mit dem Zeichen der Sprache“ nennt `#pointEastInput`
+  im Aufruf selbst – und drei herstellende, die den Kopf und das East-Feld im
+  Vorlauf lesen.
 
   **Dazu sind drei Namen in die Bezeichnerliste gekommen**: `selectionOverlay`,
   `selectionTitle` und `selectionSubtitle`. Der Kopf der Auswahl steht seitdem
