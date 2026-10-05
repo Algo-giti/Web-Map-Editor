@@ -1571,9 +1571,11 @@ try {
     await text("searchWireStock"));
   /*
    * Die Kurzform besteht seit Schritt 1 (dritter Durchgang) aus einzelnen
-   * <span>-Marken; das Trennzeichen setzt CSS ueber ::before und steht damit
-   * NICHT in textContent. Gelesen werden deshalb die Marken selbst - und
-   * daneben, dass das Trennzeichen wirklich gezeichnet wird.
+   * <span>-Marken; das Trennzeichen setzt CSS und steht damit NICHT in
+   * textContent. Gelesen werden deshalb die Marken selbst - und daneben, dass
+   * das Trennzeichen wirklich gezeichnet wird. Es haengt seit dem Umbruch der
+   * Kurzformen HINTER der ersten Marke (::after) statt vor der zweiten, damit
+   * keine umgebrochene Zeile mit „·“ beginnt.
    */
   const stockMarken = (id) =>
     page.evaluate((x) =>
@@ -1587,13 +1589,13 @@ try {
   check("und CSS setzt das Trennzeichen zwischen die Marken",
     (await page.evaluate(() =>
       getComputedStyle(
-        document.getElementById("stockSummary").querySelectorAll("span")[1],
-        "::before"
+        document.getElementById("stockSummary").querySelectorAll("span")[0],
+        "::after"
       ).content)).includes("·"),
     await page.evaluate(() =>
       getComputedStyle(
-        document.getElementById("stockSummary").querySelectorAll("span")[1],
-        "::before"
+        document.getElementById("stockSummary").querySelectorAll("span")[0],
+        "::after"
       ).content));
 
   /* Mit einer echten Search Wire aendert sich beides. */
@@ -3561,6 +3563,167 @@ try {
     check("die Kopfzeile des Blocks ist getroffen",
       umformTreffer.ok, umformTreffer.grund);
   }
+
+  /* ---------------------------------------------------------------- */
+  console.log("Die Kurzformen der Kopfzeilen werden nicht gekuerzt");
+
+  /*
+   * Gekuerzt stand hier „Reduzieren · Rechtwinklig · Glätt…“, sobald ein
+   * Punkt gewaehlt war: es fehlten 1,3 px. Bei vier Marken fehlten deutsch 60
+   * und englisch 14 px. Seitdem bricht die Kurzform zwischen zwei Marken um,
+   * statt gekuerzt zu werden.
+   *
+   * Gemessen wird je Textbehaelter der Kopfzeile: scrollWidth > clientWidth am
+   * Behaelter selbst, und ob sein Text ueber den Kasten hinausragt, der ihn
+   * abschneidet. Das zweite in Bruchteilen eines Pixels - scrollWidth und
+   * clientWidth sind ganze Zahlen, und die 1,3 px lagen nahe genug an der
+   * Rundung, um bei etwas anderer Schrift durchzufallen. Bei einer Marke
+   * zaehlt dabei auch ihr Trennzeichen: es steht in ihrem Kasten, nicht in
+   * ihrem Text.
+   */
+  const kopfzeile = (id) => page.evaluate((x) => {
+    const summary = document.querySelector(`#${x} > summary`);
+    const kurz = summary.querySelector(".fold-summary");
+
+    /* Innenkante eines Kastens, genau - ohne Rand und ohne Rollbalken. */
+    const innen = (el) => {
+      const r = el.getBoundingClientRect(), s = getComputedStyle(el);
+      const bl = parseFloat(s.borderLeftWidth) || 0, br = parseFloat(s.borderRightWidth) || 0;
+      const balken = Math.max(0, el.offsetWidth - bl - br - el.clientWidth);
+      return { links: r.left + bl, rechts: r.right - br - balken, oben: r.top, unten: r.bottom };
+    };
+    const textKasten = (el) => {
+      const rg = document.createRange();
+      let l = Infinity, r = -Infinity, t = Infinity, b = -Infinity;
+      for (const n of el.childNodes) {
+        if (n.nodeType !== 3 || !n.textContent.trim()) continue;
+        rg.selectNodeContents(n);
+        for (const q of rg.getClientRects()) {
+          l = Math.min(l, q.left); r = Math.max(r, q.right);
+          t = Math.min(t, q.top); b = Math.max(b, q.bottom);
+        }
+      }
+      return isFinite(l) ? { l, r, t, b } : null;
+    };
+
+    const abgeschnitten = [];
+    for (const el of summary.querySelectorAll("*")) {
+      const tk = textKasten(el);
+      if (!tk || !el.getClientRects().length) continue;
+      const name = el.id || el.className;
+      const inline = getComputedStyle(el).display === "inline";
+      if (!inline && el.scrollWidth > el.clientWidth) {
+        abgeschnitten.push(`${name}: ${el.scrollWidth}/${el.clientWidth}`);
+      }
+      const kasten = el.getBoundingClientRect();
+      const l = inline ? Math.min(tk.l, kasten.left) : tk.l;
+      const r = inline ? Math.max(tk.r, kasten.right) : tk.r;
+      for (let a = el; a; a = a.parentElement) {
+        if (getComputedStyle(a).overflowX === "visible") continue;
+        const k = innen(a);
+        if (r > k.rechts + 0.01 || l < k.links - 0.01) {
+          abgeschnitten.push(`${name}: ${l.toFixed(2)}-${r.toFixed(2)} in ${a.id || a.className} ${k.links.toFixed(2)}-${k.rechts.toFixed(2)}`);
+        }
+        break;
+      }
+    }
+
+    const marken = [...kurz.children].filter((m) => m.getClientRects().length).map((m) => {
+      const b = m.getBoundingClientRect(), tk = textKasten(m);
+      const treffer = document.elementFromPoint((tk.l + tk.r) / 2, (tk.t + tk.b) / 2);
+      return {
+        text: m.textContent.trim(),
+        zeile: Math.round(tk.t),
+        kastenLinks: b.left, kastenRechts: b.right, textLinks: tk.l, textRechts: tk.r,
+        getroffen: !!treffer && m.contains(treffer),
+        grund: treffer ? (treffer.id || treffer.className || treffer.tagName) : "nichts",
+      };
+    });
+
+    /* Je Zeile: steht vorn ein Trennzeichen, endet sie am rechten Rand? */
+    const zeilen = [...new Set(marken.map((m) => m.zeile))].map((z) => {
+      const auf = marken.filter((m) => m.zeile === z);
+      const erste = auf.reduce((a, m) => (m.kastenLinks < a.kastenLinks ? m : a));
+      return {
+        vorn: +(erste.textLinks - erste.kastenLinks).toFixed(2),
+        rechtsFrei: +(innen(kurz).rechts - Math.max(...auf.map((m) => m.kastenRechts))).toFixed(2),
+      };
+    });
+
+    /* Abstand vom Text einer Marke zum Text der naechsten in derselben Zeile. */
+    const abstaende = marken.slice(1)
+      .map((m, i) => (m.zeile === marken[i].zeile ? +(m.textLinks - marken[i].textRechts).toFixed(2) : null))
+      .filter((d) => d !== null);
+
+    return { abgeschnitten, marken, zeilen, abstaende };
+  }, id);
+
+  const ERWARTET = {
+    "ein Punkt": {
+      de: ["Reduzieren", "Rechtwinklig", "Glätten"],
+      en: ["Reduce", "Square up", "Smooth"],
+    },
+    "zwei Punkte": {
+      de: ["Begradigen", "Reduzieren", "Rechtwinklig", "Glätten"],
+      en: ["Straighten", "Reduce", "Square up", "Smooth"],
+    },
+  };
+
+  for (const breite of [1280, 960, 744]) {
+    for (const [von, nach] of [["de", "en"], ["en", "de"]]) {
+      await page.setViewportSize({ width: breite, height: 900 });
+      await load();
+      await page.evaluate((l) => setLanguage(l), von);
+
+      for (const lage of ["ein Punkt", "zwei Punkte"]) {
+        if (lage === "ein Punkt") await markerKlicken(marks.nth(0));
+        else await markerKlicken(marks.nth(2), { modifiers: ["Control"] });
+        await page.waitForTimeout(250);
+
+        for (const sprache of [von, nach]) {
+          if (sprache !== von) await page.evaluate((l) => setLanguage(l), sprache);
+          const wie = sprache === von
+            ? `${breite} px, ${lage}, ${von}`
+            : `${breite} px, ${lage}, ${von} erzeugt, dann ${sprache}`;
+
+          const k = await kopfzeile("inspectorTransform");
+          const texte = k.marken.map((m) => m.text);
+
+          check(`${wie}: die Kurzform nennt die Werkzeuge in dieser Sprache`,
+            JSON.stringify(texte) === JSON.stringify(ERWARTET[lage][sprache]),
+            JSON.stringify(texte));
+          check(`${wie}: kein Textbehaelter der Kopfzeile „Umformen“ ist abgeschnitten`,
+            k.abgeschnitten.length === 0, JSON.stringify(k.abgeschnitten));
+          check(`${wie}: jede Marke wird getroffen`,
+            k.marken.length > 0 && k.marken.every((m) => m.getroffen),
+            JSON.stringify(k.marken.map((m) => `${m.text}:${m.grund}`)));
+          check(`${wie}: keine Zeile beginnt mit dem Trennzeichen`,
+            k.zeilen.every((z) => Math.abs(z.vorn) < 0.5), JSON.stringify(k.zeilen));
+          check(`${wie}: jede Zeile schliesst rechts mit der Kurzform ab`,
+            k.zeilen.every((z) => Math.abs(z.rechtsFrei) <= 1), JSON.stringify(k.zeilen));
+
+          /*
+           * Dasselbe Trennzeichen mit demselben Abstand in beiden Kurzformen:
+           * der Bestand baut seine Marken im Skript, die Kurzform „Umformen“
+           * steht im Markup. Ohne Leerraum zwischen den Marken stand dort
+           * „Search Wire· Dockpfad“ - und es gab keine Stelle zum Umbrechen.
+           */
+          const bestand = await kopfzeile("inspectorStock");
+          check(`${wie}: der Bestand ist nicht abgeschnitten`,
+            bestand.marken.length === 2 && bestand.abgeschnitten.length === 0,
+            JSON.stringify(bestand.abgeschnitten));
+          check(`${wie}: und trennt seine Marken mit demselben Abstand wie „Umformen“`,
+            bestand.abstaende.length > 0 && k.abstaende.length > 0 &&
+            Math.abs(bestand.abstaende[0] - k.abstaende[0]) < 0.5,
+            `Bestand ${JSON.stringify(bestand.abstaende)} gegen Umformen ${JSON.stringify(k.abstaende)}`);
+        }
+
+        await page.evaluate((l) => setLanguage(l), von);
+      }
+    }
+  }
+
+  await page.setViewportSize({ width: 1600, height: 900 });
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

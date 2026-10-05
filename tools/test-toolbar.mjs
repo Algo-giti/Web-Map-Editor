@@ -581,6 +581,124 @@ try {
   }
 
   /* ---------------------------------------------------------------- */
+  console.log("Beim Messen bricht die Beschriftung um, statt gekuerzt zu werden");
+
+  /*
+   * Englisch stand beim Messen „Measurement act…“ in der Leiste: der Text
+   * braucht 135 px, die Leiste gibt 106. Seitdem bricht die Beschriftung um.
+   *
+   * Gemessen wird je Textbehaelter der Leiste: scrollWidth > clientWidth am
+   * Behaelter, und ob sein Text ueber den Kasten hinausragt, der ihn
+   * abschneidet - in Bruchteilen eines Pixels, denn scrollWidth und
+   * clientWidth sind ganze Zahlen. Unter 1000 px ist die Leiste eingeklappt
+   * und zeichnet keine Beschriftung; dort sagt die Zusicherung, dass auch
+   * dann nichts abgeschnitten ist, und daneben, dass wirklich gemessen wird.
+   */
+  const MESSEN_LAEUFT = { de: "Messung läuft…", en: "Measurement active…" };
+
+  const leisteGenau = (seite) => seite.evaluate(() => {
+    const rail = document.getElementById("toolRail");
+    const innen = (el) => {
+      const r = el.getBoundingClientRect(), s = getComputedStyle(el);
+      const bl = parseFloat(s.borderLeftWidth) || 0, br = parseFloat(s.borderRightWidth) || 0;
+      const balken = Math.max(0, el.offsetWidth - bl - br - el.clientWidth);
+      return { links: r.left + bl, rechts: r.right - br - balken };
+    };
+    const abgeschnitten = [];
+    let behaelter = 0;
+    for (const el of rail.querySelectorAll("*")) {
+      const texte = [...el.childNodes].filter((n) => n.nodeType === 3 && n.textContent.trim());
+      if (!texte.length || !el.getClientRects().length) continue;
+      behaelter += 1;
+      const rg = document.createRange();
+      let l = Infinity, r = -Infinity;
+      for (const n of texte) {
+        rg.selectNodeContents(n);
+        for (const q of rg.getClientRects()) { l = Math.min(l, q.left); r = Math.max(r, q.right); }
+      }
+      if (getComputedStyle(el).display !== "inline" && el.scrollWidth > el.clientWidth) {
+        abgeschnitten.push(`${el.textContent.trim()}: ${el.scrollWidth}/${el.clientWidth}`);
+      }
+      for (let a = el; a; a = a.parentElement) {
+        if (getComputedStyle(a).overflowX === "visible") continue;
+        const k = innen(a);
+        if (r > k.rechts + 0.01 || l < k.links - 0.01) {
+          abgeschnitten.push(`${el.textContent.trim()}: ${l.toFixed(2)}-${r.toFixed(2)} in ${a.id || a.className} ${k.links.toFixed(2)}-${k.rechts.toFixed(2)}`);
+        }
+        break;
+      }
+    }
+    const label = document.querySelector("#measureBtn .tool-label");
+    return {
+      abgeschnitten,
+      behaelter,
+      beschriftungen: [...rail.querySelectorAll(".tool-label")]
+        .filter((x) => x.getClientRects().length).length,
+      messText: label.getClientRects().length ? label.innerText.replace(/\s+/g, " ").trim() : null,
+    };
+  });
+
+  for (const zeiger of ["fein", "grob"]) {
+    const kontext = await browser.newContext({
+      viewport: { width: 1280, height: 900 }, hasTouch: zeiger === "grob",
+    });
+    for (const breite of [1280, 960, 744]) {
+      for (const [von, nach] of [["de", "en"], ["en", "de"]]) {
+        const seite = await kontext.newPage();
+        await seite.setViewportSize({ width: breite, height: 900 });
+        await seite.goto(indexUrl(), { waitUntil: "load" });
+        await seite.evaluate(() => localStorage.clear());
+        await seite.reload({ waitUntil: "load" });
+        await seite.locator("#fileInput").setInputFiles({
+          name: "messen.geojson", mimeType: "application/geo+json", buffer: Buffer.from(MAP),
+        });
+        await seite.waitForTimeout(400);
+        await seite.evaluate((l) => setLanguage(l), von);
+
+        const bedienart = await seite.evaluate(() => matchMedia("(pointer: coarse)").matches);
+        check(`${zeiger}, ${breite} px: die Bedienart ist wirklich emuliert`,
+          bedienart === (zeiger === "grob"), String(bedienart));
+
+        await seite.locator("#measureBtn").click();
+        await seite.waitForTimeout(250);
+        const eingeklappt = await seite.evaluate(() =>
+          document.getElementById("toolRail").classList.contains("is-collapsed"));
+
+        for (const sprache of [von, nach]) {
+          if (sprache !== von) await seite.evaluate((l) => setLanguage(l), sprache);
+          const wie = sprache === von
+            ? `${zeiger}, ${breite} px, Messen, ${von}`
+            : `${zeiger}, ${breite} px, Messen, ${von} erzeugt, dann ${sprache}`;
+          const m = await leisteGenau(seite);
+
+          /* Eingeklappt gibt es keinen Textbehaelter - ausgeklappt muss es welche geben. */
+          check(`${wie}: kein Text der Leiste ist abgeschnitten`,
+            (eingeklappt || m.behaelter > 0) && m.abgeschnitten.length === 0,
+            JSON.stringify(m.abgeschnitten));
+
+          const block = await elementGetroffen(seite, "#inspectorMeasure", { dy: 10 });
+          check(`${wie}: es wird wirklich gemessen - der Inspektor zeigt das Messen`,
+            block.ok, block.grund);
+
+          if (eingeklappt) {
+            check(`${wie}: eingeklappt zeichnet die Leiste keine Beschriftung`,
+              m.beschriftungen === 0, String(m.beschriftungen));
+          } else {
+            check(`${wie}: der Knopf sagt, dass gemessen wird - ganz`,
+              m.messText === MESSEN_LAEUFT[sprache], String(m.messText));
+            const knopf = await elementGetroffen(seite, "#measureBtn .tool-label", { dy: 4 });
+            check(`${wie}: und seine Beschriftung wird getroffen`, knopf.ok, knopf.grund);
+            const naechster = await elementGetroffen(seite, "#validateMapBtn", { dy: 10 });
+            check(`${wie}: der Knopf darunter bleibt erreichbar`, naechster.ok, naechster.grund);
+          }
+        }
+        await seite.close();
+      }
+    }
+    await kontext.close();
+  }
+
+  /* ---------------------------------------------------------------- */
   console.log("Zurueck und Vor stehen ueber der Karte");
 
   /*

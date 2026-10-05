@@ -1905,22 +1905,44 @@
 
   .inspector-fold > summary:focus-visible { outline:2px solid var(--blue); }
 
-  /* Die Kurzform darf die Überschrift nicht verdrängen. */
+  /*
+   * Die Kurzform darf die Überschrift nicht verdrängen - und sie wird nicht
+   * gekürzt: reicht die Zeile nicht, bricht sie zwischen zwei Marken um und
+   * nimmt eine zweite. Gekürzt stand hier „Reduzieren · Rechtwinklig · Glätt…“,
+   * sobald ein Punkt gewählt war: gemessen fehlten 1,3 px, bei vier Marken
+   * deutsch 60 und englisch 14 px. Platz in der Breite gibt es nicht - die
+   * Spalte ist fest, und breiter kostete sie die Karte auch bei 744 px -, und
+   * ein paar Pixel aus Abständen hätten nur die Grenze verschoben: wie breit
+   * die Marken laufen, hängt an der Schrift des Systems. Die zweite Zeile kostet
+   * Höhe nur, wenn sie gebraucht wird; ohne Auswahl, also auch beim Zeichnen,
+   * steht die Kurzform weiter in einer.
+   *
+   * Die Überschrift behält dabei ihre ganze Breite. min-width:auto hielt sie
+   * nicht: bei vier Marken stand „Umformen“ in 55 px Kasten bei 71 px Text.
+   */
+  .inspector-fold > summary > .inspector-section-title { flex:none; }
   .fold-summary {
-    margin-left:auto; color:var(--muted); font-size:12px;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;
+    margin-left:auto; color:var(--muted); font-size:12px; text-align:right;
+    overflow:hidden; text-overflow:ellipsis; min-width:0;
   }
+  /* Eine Marke bricht nie in sich um - „Square up“ bleibt beisammen. */
+  .fold-summary > span { white-space:nowrap; }
   .fold-summary.ok { color:var(--green); }
   .fold-summary.warning { color:var(--yellow); }
   .fold-summary.error { color:var(--red); }
 
   /*
-   * Trennzeichen zwischen sichtbaren Marken. Der allgemeine Geschwisterwähler
-   * greift nur, wenn VOR der Marke schon eine sichtbare steht - damit steht
-   * nie ein führendes "·" da.
+   * Trennzeichen zwischen sichtbaren Marken. Es hängt HINTER der Marke und
+   * steht in ihrem Kasten, der nicht umbricht, und nur, wenn NACH ihr noch
+   * eine sichtbare steht - damit steht nie ein führendes "·" da, auch am
+   * Anfang einer umgebrochenen Zeile nicht. Bis zum Umbruch hing es VOR der
+   * Marke; eine zweite Zeile hätte dann mit „· Glätten“ begonnen.
+   *
+   * Der Abstand NACH dem Trennzeichen ist der Leerraum zwischen den Marken,
+   * und er ist zugleich die Stelle, an der die Kurzform umbrechen darf.
    */
-  .fold-summary > span:not([hidden]) ~ span:not([hidden])::before {
-    content:"· ";
+  .fold-summary > span:not([hidden]):has(~ span:not([hidden]))::after {
+    content:" ·";
   }
 
   .fold-body {
@@ -2046,7 +2068,17 @@
     fill:none; stroke:currentColor; stroke-width:1.8;
     stroke-linecap:round; stroke-linejoin:round;
   }
-  .tool-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /*
+   * Die Beschriftung bricht um, statt gekürzt zu werden. Englisch stand beim
+   * Messen „Measurement act…“ da: der Text braucht 135 px, die Leiste gibt
+   * 106. Breiter machen hiesse, der Karte ab 1000 px dauerhaft rund 30 px zu
+   * nehmen, für einen Text, der nur während einer Messung dasteht; die
+   * zweite Zeile kostet den Knopf dann 16 px Höhe, und die Leiste hat sie -
+   * auch bei 600 px Fensterhöhe rollt sie nicht. Die Ellipse bleibt für ein
+   * einzelnes Wort, das allein nicht passt; gemessen gibt es keines.
+   * Ausdrücklich gesetzt: geerbt käme nowrap aus der Regel für alle Knöpfe.
+   */
+  .tool-label { overflow:hidden; text-overflow:ellipsis; white-space:normal; }
 
   /*
    * Die obere Zeile über der Karte: Zurück/Vor in der Mitte, Zoom und
@@ -6153,7 +6185,13 @@ function updateStockBlock() {
    */
   delete kurz.dataset.i18nDe;
   kurz.innerHTML = "";
-  teile.forEach(teil => {
+  /*
+   * Leerraum zwischen den Marken, wie im Markup der Kurzform „Umformen“: er
+   * ist der Abstand nach dem Trennzeichen und die Stelle, an der die Kurzform
+   * umbrechen darf. Ohne ihn stand „Search Wire· Dockpfad“ da.
+   */
+  teile.forEach((teil, index) => {
+    if (index) kurz.append(" ");
     const marke = document.createElement("span");
     marke.textContent = teil;
     kurz.appendChild(marke);

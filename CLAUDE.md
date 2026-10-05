@@ -360,9 +360,9 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-map-switch.mjs` | Wechsel zwischen Karte A und B, Karte schließen |
 | `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten und den Zahlenfeldern |
 | `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
-| `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen, eingeklappt ohne Gruppenüberschriften; Zurück und Vor über der Karte |
+| `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen, eingeklappt ohne Gruppenüberschriften, beim Messen ungekürzt; Zurück und Vor über der Karte |
 | `test-placeholders.mjs` | was als leerer Platzhalter gilt |
-| `test-inspector.mjs` | Inspektor: alle sieben Zustände, Behälter, Tastatur |
+| `test-inspector.mjs` | Inspektor: alle sieben Zustände, Behälter, Tastatur, ungekürzte Kurzformen |
 | `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster |
 | `test-ghosting.mjs` | Ghosting: wem ein Vorher-Umriss gehört |
 | `test-glaettung.mjs` | Kartenglättung: Vorschau, Anwenden, Abbrechen, Grenzwerte, Auswahl |
@@ -3038,7 +3038,10 @@ Fensterhöhe hat – die Spalte musste scrollen, und das ist schlechter als
 beides. Die Regel „in jedem Zustand sichtbar" richtete sich gegen das
 *Verschwinden*, nicht gegen das Einklappen.
 
-Zugeklappt trägt die Kopfzeile das Wichtigste in einer Zeile:
+Zugeklappt trägt die Kopfzeile das Wichtigste in einer Zeile – und reicht
+die nicht, in zwei: die Kurzform bricht zwischen ihren Marken um, statt
+gekürzt zu werden (Abschnitt 7, „Die Kurzformen und die Beschriftung beim
+Messen brechen um, statt gekürzt zu werden“):
 
 | Block | Kopfzeile zugeklappt |
 |---|---|
@@ -3254,8 +3257,11 @@ beim Zurücksetzen erneut aufgerufen.
 zusammengesetzten Satz.** „Begradigen · Reduzieren" als ein Textknoten wäre
 für die Übersetzung ein Ersetzungsmuster mit deutschem `$1`; als eigene
 `<span>`-Elemente wird jede Marke ganz normal übersetzt. Das Trennzeichen setzt
-CSS über den allgemeinen Geschwisterwähler, damit nie ein führendes „·"
-dasteht.
+CSS, und zwar HINTER die Marke, nach der noch eine sichtbare kommt (`::after`
+mit `:has()`), damit nie ein führendes „·" dasteht – auch nicht am Anfang
+einer umgebrochenen Zeile. Bis zum 05.10.2026 stand es über den allgemeinen
+Geschwisterwähler VOR der Marke; solange nichts umbrach, war das
+gleichwertig.
 
 **Gemessen (1600 px breit), Spaltenhöhe gegen Inhalt**, ungünstigster Fall des
 Punktzustands (Startpunkt, Rolle also sichtbar):
@@ -3627,6 +3633,12 @@ schlimmer als einer, der sagt, warum er gerade nicht geht.
 
 **Die Tooltips bleiben in jedem Zustand.** Verschwinden darf der Platz der
 Erklärung, nicht die Erklärung.
+
+**Eine Beschriftung der Leiste bricht um, statt gekürzt zu werden.** Beim
+Messen heißt der Knopf englisch „Measurement active…“ und braucht 135 px,
+die ausgeklappte Leiste gibt 106; er steht dann zweizeilig da. Warum nicht
+die Leiste breiter, steht in Abschnitt 7, „Die Kurzformen und die
+Beschriftung beim Messen brechen um, statt gekürzt zu werden“.
 
 **Zoom und Einpassen liegen bewusst in einer eigenen Leiste** an der Karte, nicht
 zusammen mit Begradigen/Löschen/Auswahl-aufheben: die eine Gruppe ändert die
@@ -8796,7 +8808,9 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Vorfahren, gemessen am Textumriss. Kalibriert an den Überschriften oben:
   sie wurden gefunden, „Validate“ als nur englisch.
 
-  **BENANNTE BEFUNDE, nicht behoben:**
+  **BENANNTE BEFUNDE – beide ERLEDIGT am 05.10.2026**, siehe den Eintrag
+  darunter, „Die Kurzformen und die Beschriftung beim Messen brechen um,
+  statt gekürzt zu werden“:
 
   - **Nur deutsch: die Kurzform von „Umformen“ kürzt „Glätten“ um 1 px.** Bei
     einem gewählten Punkt oder Feature steht dort „Reduzieren · Rechtwinklig ·
@@ -8812,6 +8826,129 @@ Durchgang ihn von den dreien oben unterscheiden kann.
     passt.
 
   Sonst schneidet in keinem der Zustände etwas ab, in keiner Sprache.
+
+  **RICHTIGGESTELLT: dieser Satz galt nur mit einem Pixel Toleranz.** Das
+  Werkzeug meldete einen Befund erst, wenn `scrollWidth` den `clientWidth` um
+  mehr als einen Pixel überstieg bzw. der Text mehr als einen Pixel über den
+  Kasten ragte – und den Zustand mit vier Marken besuchte es nicht. Ohne
+  Toleranz gemessen stand die Überschrift „Umformen“ selbst in einem Kasten,
+  der schmaler war als ihr Text: 71 gegen 70 px. Genau der Fall „nur wenige
+  Pixel“, und er fiel durch die Toleranz, die gegen Rundungsrauschen gedacht
+  war.
+
+- **Die Kurzformen und die Beschriftung beim Messen brechen um, statt
+  gekürzt zu werden – ERLEDIGT am 05.10.2026.** Die beiden benannten
+  Kürzungen aus dem Eintrag darüber sind behoben, und zwar auf demselben Weg:
+  reicht die Zeile nicht, nimmt der Text eine zweite, statt per Ellipse
+  gekürzt zu werden.
+
+  **Gewählt ist Höhe statt Breite.** Beide Stellen liegen in einer Spalte
+  fester Breite, die in der Höhe Platz hat:
+
+  | Stelle | fehlte | Breite schaffen hieße | kostet jetzt |
+  |---|---|---|---|
+  | Kurzform „Umformen“, ein Punkt gewählt | deutsch 1,3 px | den Inspektor verbreitern – auch bei 744 px, wo die Karte 368 px hat | 17 px Höhe der Kopfzeile, solange die Marken nicht in eine Zeile passen |
+  | dieselbe, vier Marken | deutsch 60, englisch 14 px | ebenso | ebenso |
+  | „Measurement active…“, ausgeklappte Leiste | 29 px (135 gegen 106) | die Leiste ab 1000 px um rund 30 px verbreitern – der Karte dauerhaft, für einen Text, der nur während einer Messung dasteht | 16 px Höhe des Knopfes, nur englisch und nur beim Messen; die Leiste rollt dadurch nicht, auch bei 1100 × 600 nicht |
+
+  **Bei 744 px kostet keiner der beiden Wege Kartenbreite**: der Inspektor
+  ist dort so breit wie überall, und die Leiste ist eingeklappt und zeigt
+  keine Beschriftung. Die Anhaltebedingung greift damit nicht.
+
+  **Ein paar Pixel aus Abständen hätten nur die Grenze verschoben.** Die
+  1,3 px sind eine Eigenschaft der Schrift dieses Rechners; auf einem anderen
+  System laufen dieselben Marken einige Pixel breiter oder schmaler. Ein
+  Umbruch hält in jeder Schrift.
+
+  **Der Preis, gemessen:** auf Deutsch steht „Glätten“ bei einem gewählten
+  Punkt in einer zweiten Zeile, und die Blöcke darunter – Kartenprüfung,
+  Koordinatenbezug – rücken um 17 px. Ohne Auswahl, also auch beim Zeichnen,
+  dem knappsten Zustand des Höhenziels, steht die Kurzform weiter in einer
+  Zeile.
+
+  **Drei Dinge gehören dazu, jedes eine eigene Schreibstelle:**
+
+  - **Die Überschrift behält ihre Breite** (`flex:none`). `min-width:auto`
+    hielt sie nicht: mit drei Marken stand „Umformen“ in einem Kasten von
+    70,16 px bei 70,63 px Text, mit vier in 54,91 px; englisch „Reshape“ mit
+    vier Marken in 49,02 bei 52,41 px.
+  - **Das Trennzeichen hängt hinter der Marke** statt vor der nächsten –
+    sonst begänne die zweite Zeile mit „· Glätten“.
+  - **Der Bestand bekommt Leerraum zwischen seine Marken**, wie ihn das Markup
+    der Kurzform „Umformen“ schon hat. Er baut sie im Skript und hängte sie
+    ohne Zwischenraum an: gezeichnet stand dort „Search Wire· Dockpfad“, und
+    eine Stelle zum Umbrechen gab es nicht. Ein Nebenbefund, sichtbar erst
+    durch den Umbau; mitbehoben, weil die Regel für jede Kurzform gilt und das
+    Trennzeichen hinter der Marke ohne den Leerraum „Search Wire ·Dockpfad“
+    gezeichnet hätte.
+
+  **Die Beschriftung der Leiste setzt `white-space:normal` ausdrücklich.**
+  Geerbt käme `nowrap` aus der Regel für alle Knöpfe; der erste Entwurf nahm
+  nur das `nowrap` der Beschriftung weg, und sie blieb gekürzt.
+
+  **Die Suche nach weiteren knappen Kürzungen** lief mit dem Werkzeug des
+  Eintrags darüber, aber **ohne Toleranz** und um vier Lagen erweitert: zwei
+  nicht benachbarte Punkte (vier Marken), Punkte aus zwei Features, unklarer
+  Maßstab mit Auswahl, und 1050 px neben 1280, 960 und 744 – je fein und
+  grob, je deutsch und englisch. Abgeschnitten heißt dort: `scrollWidth >
+  clientWidth`, oder der Textumriss ragt um mehr als 0,01 px über die
+  Innenkante des abschneidenden Kastens. Dazu „knapp“: an jeden nicht
+  umbrechenden Textbehälter wird zur Probe ein 3 px breites Element gehängt –
+  würde der Text gekürzt, liefe er 3 px breiter, etwa in einer anderen
+  Schrift?
+
+  | | vorher | nachher |
+  |---|---|---|
+  | abgeschnitten | „Glätten“, „Smooth“, „Rechtwinklig“ (vier Marken), „Measurement active…“, die Überschrift „Umformen“/„Reshape“ | **nichts** |
+  | knapp, unter 3 px | „Auswahl aufheben“ | „Auswahl aufheben“ |
+
+  **BENANNTER BEFUND, nicht behoben: „Auswahl aufheben“ unter 960 px.** In
+  der Auswahlleiste im Inspektor steht der Knopf in einer Spalte von 139 px;
+  sein Text braucht deutsch 122,09 px, der Inhaltskasten hat 125 – je Seite
+  1,45 px bis zur Polsterung, 7,45 px bis zum Rand. Abgeschnitten ist nichts,
+  der Knopf trägt `overflow:visible` und die Polsterung ist frei; es ist aber
+  der eine Text, dem eine etwas breitere Schrift die Polsterung nähme.
+  Englisch („Clear selection“) bleiben 14,38 px.
+
+  **Zugesichert nach der Wirkung**, je Textbehälter über `scrollWidth >
+  clientWidth` und dazu über den Textumriss in Bruchteilen eines Pixels, bei
+  1280, 960 und 744 px, in beiden Richtungen über `setLanguage()`:
+
+  - `tools/test-inspector.mjs`, ein und zwei gewählte Punkte: kein
+    Textbehälter der Kopfzeile „Umformen“ ist abgeschnitten – die Marke samt
+    ihrem Trennzeichen eingeschlossen –, sie nennt die Werkzeuge in der
+    laufenden Sprache, jede Marke wird getroffen, keine Zeile beginnt mit dem
+    Trennzeichen, jede schließt rechts mit der Kurzform ab; der Bestand ist
+    nicht abgeschnitten und trennt seine Marken mit demselben Abstand wie
+    „Umformen“.
+  - `tools/test-toolbar.mjs`, beim Messen, je fein und grob: kein Text der
+    Leiste ist abgeschnitten, und es wird wirklich gemessen – der Inspektor
+    zeigt das Messen; ausgeklappt steht „Messung läuft…“ bzw. „Measurement
+    active…“ ganz da, wird getroffen, und der Knopf darunter bleibt
+    erreichbar; eingeklappt zeichnet die Leiste keine Beschriftung.
+
+  Die frühere Zusicherung „und CSS setzt das Trennzeichen zwischen die
+  Marken“ liest das Zeichen seitdem am `::after` der ersten Marke statt am
+  `::before` der zweiten – derselbe Gegenstand an seinem neuen Ort.
+
+  **Sieben Mutationsproben, je eine Schreibstelle; sechs reißen, eine ist
+  nachgemessen ohne Wirkung; 0 Timeouts.** Drei Arbeitskopien außerhalb des
+  Repositorys, je Probe aus derselben Sicherungskopie zurückgespielt;
+  Prüfsumme vorher und nachher in allen Kopien `f3f5eecb…`. Gemessen je
+  Probe: Syntaxprüfung, Bestandsprüfer und der Test, der die Stelle trifft;
+  die statische Stufe reißt bei keiner.
+
+  | Probe | Schreibstelle | gerissen |
+  |---|---|---|
+  | W1 | die Beschriftung der Leiste wieder `nowrap` | **4** in `tools/test-toolbar.mjs`, „⟨fein/grob⟩, 1280 px, Messen, en: kein Text der Leiste ist abgeschnitten“ und dasselbe deutsch erzeugt, Detail „Measurement active…: 135/106“ |
+  | W2 | die Überschrift ohne `flex:none` | **18**, „kein Textbehaelter der Kopfzeile „Umformen“ ist abgeschnitten“, Detail „inspector-section-title: 71/70“, mit vier Marken 71/55, englisch 52/49 |
+  | W3 | die Kurzform wieder `nowrap` | **42**: 18 „… ist abgeschnitten“, 18 „jede Zeile schliesst rechts mit der Kurzform ab“ (−1,77 px), 6 „jede Marke wird getroffen“ (an „Glätten“ liegt nichts) |
+  | W4 | die Kurzform ohne `text-align:right` | **18**, „jede Zeile schliesst rechts mit der Kurzform ab“, Detail 152 px frei hinter „Glätten“ |
+  | W5 | die Marken ohne `nowrap` | **keine – ohne Wirkung**, nachgemessen: in allen Lagen des Tests stehen die Marken mit und ohne die Regel in denselben Zeilen. Wirkung hat sie erst, wenn die Marken rund 30 px breiter laufen – dann bricht ohne sie „Square up“ in sich um und „kein Dockpfad“ rückt an „keine Search Wire“. Sie bleibt als Schutz für eine breitere Schrift stehen und wird nicht umformuliert, bis sie reißt |
+  | W6 | das Trennzeichen wieder als `::before` vor der Marke | **19**: 18 „keine Zeile beginnt mit dem Trennzeichen“ (6,34 px vor „Glätten“), dazu „und CSS setzt das Trennzeichen zwischen die Marken“ |
+  | W7 | der Bestand ohne Leerraum zwischen den Marken | **24**, „und trennt seine Marken mit demselben Abstand wie „Umformen““, Detail 6,34 gegen 9,47 px |
+
+  Ohne Angabe zählt die Zahl in `tools/test-inspector.mjs`.
 
 - **Acht Texte ohne englische Fassung – ERLEDIGT mit Schritt 7 des vierten
   Durchgangs.** Gefunden hat sie `tools/scan-i18n.mjs`, und zwar erst, als
