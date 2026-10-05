@@ -19697,16 +19697,34 @@ function updateOriginUi() {
   const status = document.getElementById("originStatus");
   if (!status) return;
 
-  /* Eine laufende Eingabe darf nicht überschrieben werden. */
+  /*
+   * Eine laufende Eingabe darf nicht überschrieben werden.
+   *
+   * Breite und Länge folgen der Sprache wie jedes Zahlenfeld - Komma auf
+   * Deutsch, Punkt auf Englisch - und kommen dafür aus formatNumber(), wie
+   * formatOrigin() in der Meldung darunter. Bis hierher stand String() da, aus
+   * der Zeit, als jede Zahl noch über toFixed() lief: ein Punkt in beiden
+   * Sprachen, ohne dass ihn eine andere Quelle verlangte. Das Feld gibt seinen
+   * Text an niemanden weiter außer applyOriginFromInputs(), und das liest
+   * Komma wie Punkt.
+   *
+   * ZWÖLF Nachkommastellen, nicht sechs wie bei den übrigen Feldern: der Text
+   * des Feldes wird beim nächsten "Übernehmen" zurückgelesen, und ein
+   * Millionstel Grad sind rund 11 cm - mehr als die Toleranz von 1 cm, ab der
+   * ein geänderter Bezugspunkt die Karten umrechnet. Mit zwölf kommt eine
+   * getippte Koordinate mit denselben Ziffern zurück (höchstens 15 gültige
+   * Stellen, also ohne Rauschen der Binärdarstellung), und eine gerechnete -
+   * der erste Punkt einer absoluten Karte - verliert weniger als 0,1 µm.
+   */
   const latInput = document.getElementById("originLatInput");
   const lonInput = document.getElementById("originLonInput");
 
   if (latInput && document.activeElement !== latInput) {
-    latInput.value = String(referenceOrigin.lat);
+    latInput.value = formatNumber(referenceOrigin.lat, 0, 12);
   }
 
   if (lonInput && document.activeElement !== lonInput) {
-    lonInput.value = String(referenceOrigin.lon);
+    lonInput.value = formatNumber(referenceOrigin.lon, 0, 12);
   }
 
   /*
@@ -25347,11 +25365,11 @@ function setLanguage(language) {
  * Stellen. Mindestens zwei bei Metern, keine bei Grad - so schreiben die
  * Felder ihre Zahl auch selbst.
  *
- * NICHT hier, mit Grund: die E/N-Felder und das Maßstabsfeld schreibt ihr
- * eigener abgeleiteter Weg aus dem Zustand (updateSelectionPanel(),
- * updateScaleField()), die Eckpunktzahl des Kreises ist ganzzahlig, und die
- * Felder des Bezugspunkts tragen in beiden Sprachen einen Punkt - ein eigener
- * Befund, siehe CLAUDE.md.
+ * NICHT hier, mit Grund: die E/N-Felder, das Maßstabsfeld und die Felder des
+ * Bezugspunkts schreibt ihr eigener abgeleiteter Weg aus dem Zustand
+ * (updateSelectionPanel(), updateScaleField(), updateOriginUi()) - Breite und
+ * Länge mit zwölf Nachkommastellen, weil sechs dort eine Koordinate
+ * verlören -, und die Eckpunktzahl des Kreises ist ganzzahlig.
  */
 function reformatNumberInputs() {
   const meter = value => formatMeters(value, 2, 6);

@@ -33,6 +33,15 @@ if (!browser) process.exit(2);
 const BASE_A = { lat: 52.5, lon: 13.4 };
 const BASE_B = { lat: 52.51, lon: 13.4 };
 
+/*
+ * So steht eine Koordinate im Feld der deutschen Oberflaeche: mit Komma. Bis
+ * die Felder des Bezugspunkts der Sprache folgten, hiess es hier
+ * String(BASE_A.lat) - die Zusicherung schrieb damit den Punkt fest, den das
+ * Feld in beiden Sprachen trug. Geprueft wird weiter dieselbe Zahl, Zeichen
+ * fuer Zeichen; nur das Dezimalzeichen ist das der Sprache.
+ */
+const imFeld = (zahl) => String(zahl).replace(".", ",");
+
 /** Synthetische 40-m-Quadratkarte um eine gegebene RTK-Basis. */
 function syntheticMap(origin) {
   const step = 40 / 111111;
@@ -98,7 +107,7 @@ try {
   check("erste Karte erzeugt keinen Konflikt", !(await originClass()).includes("error"));
   check(
     "Bezugspunkt der Datei wurde uebernommen",
-    (await page.locator("#originLatInput").inputValue()) === String(BASE_A.lat),
+    (await page.locator("#originLatInput").inputValue()) === imFeld(BASE_A.lat),
     await page.locator("#originLatInput").inputValue()
   );
 
@@ -133,7 +142,7 @@ try {
   );
   check(
     "aktiver Bezugspunkt wurde NICHT ueberschrieben",
-    (await page.locator("#originLatInput").inputValue()) === String(BASE_A.lat),
+    (await page.locator("#originLatInput").inputValue()) === imFeld(BASE_A.lat),
     await page.locator("#originLatInput").inputValue()
   );
   check(

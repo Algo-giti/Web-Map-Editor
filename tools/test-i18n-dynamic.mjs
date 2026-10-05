@@ -959,6 +959,93 @@ try {
   await sprache("de");
 
   /* ---------------------------------------------------------------- */
+  console.log("Die Felder des Bezugspunkts folgen dem Sprachwechsel, beide Richtungen");
+
+  /*
+   * Breite und Länge der RTK-Basis trugen in beiden Sprachen einen Punkt.
+   * Anders als die Felder darueber schreibt sie updateOriginUi() aus dem
+   * Zustand - ein getippter Wert erscheint also erst nach "Uebernehmen" in
+   * der Schreibweise der Sprache, und genau das macht die Annahme sichtbar:
+   * eine abgelehnte Eingabe bliebe so im Feld stehen, wie sie getippt wurde.
+   *
+   * Getippt wird je Richtung in der Schreibweise der ANDEREN Sprache. Die
+   * Breite traegt zwoelf Nachkommastellen - so viele schreibt das Feld, und
+   * mit weniger verloere eine Koordinate beim naechsten Uebernehmen mehr als
+   * die Toleranz von 1 cm.
+   */
+  await openAllFolds(page);
+
+  const BEZUG = ["originLatInput", "originLonInput"];
+  let bezugGezeichnet = true;
+  for (const id of BEZUG) {
+    const steht = (await feldText(id)) !== null;
+    check(`Bezugspunkt: #${id} ist gezeichnet`, steht);
+    bezugGezeichnet = bezugGezeichnet && steht;
+  }
+
+  const bezugUebernehmen = async (lat, lon) => {
+    await page.locator("#originLatInput").fill(lat);
+    await page.locator("#originLonInput").fill(lon);
+    await page.locator("#applyOriginBtn").click();
+    await page.waitForTimeout(250);
+  };
+  const bezugFelder = async () =>
+    `${await feldText("originLatInput")} / ${await feldText("originLonInput")}`;
+
+  if (bezugGezeichnet) {
+    check("Bezugspunkt: vorher steht dort ein anderer Wert",
+      (await bezugFelder()) !== "48,123456789012 / 11,5", await bezugFelder());
+
+    /* Deutsch, mit Punkt getippt. */
+    await bezugUebernehmen("48.123456789012", "11.5");
+    check("deutsch, mit Punkt getippt: angenommen, die Felder zeigen das Komma",
+      (await bezugFelder()) === "48,123456789012 / 11,5", await bezugFelder());
+
+    await sprache("en");
+    check("dann englisch, ohne Zutun: die Felder zeigen den Punkt",
+      (await bezugFelder()) === "48.123456789012 / 11.5", await bezugFelder());
+
+    await sprache("de");
+    check("zurueck nach deutsch: die Felder zeigen wieder das Komma",
+      (await bezugFelder()) === "48,123456789012 / 11,5", await bezugFelder());
+
+    /* Englisch, mit Komma getippt. */
+    await sprache("en");
+    await bezugUebernehmen("47,25", "9,125");
+    check("englisch, mit Komma getippt: angenommen, die Felder zeigen den Punkt",
+      (await bezugFelder()) === "47.25 / 9.125", await bezugFelder());
+
+    await sprache("de");
+    check("dann deutsch, ohne Zutun: die Felder zeigen das Komma",
+      (await bezugFelder()) === "47,25 / 9,125", await bezugFelder());
+
+    await sprache("en");
+    check("zurueck nach englisch: die Felder zeigen wieder den Punkt",
+      (await bezugFelder()) === "47.25 / 9.125", await bezugFelder());
+
+    /*
+     * Wer in der Breite gerade tippt, behaelt seinen Text; die Laenge ohne
+     * Fokus wechselt im selben Zug - die Gegenprobe.
+     */
+    await page.locator("#originLatInput").fill("46.5");
+    await page.evaluate(() => {
+      document.getElementById("originLatInput").focus();
+      setLanguage("de");
+    });
+    check("Bezugspunkt: im fokussierten Feld bleibt der getippte Text stehen",
+      (await page.locator("#originLatInput").inputValue()) === "46.5",
+      await page.locator("#originLatInput").inputValue());
+    check("Bezugspunkt, Gegenprobe: die Laenge ohne Fokus zeigt das Komma",
+      (await feldText("originLonInput")) === "9,125",
+      String(await feldText("originLonInput")));
+
+    /* Aufraeumen: kein Bezugspunkt, wie vorher. */
+    await bezugUebernehmen("0", "0");
+  }
+
+  await sprache("de");
+
+  /* ---------------------------------------------------------------- */
   console.log("Die Zusammenfassung vor der ersten Pruefung, beide Richtungen");
 
   /*

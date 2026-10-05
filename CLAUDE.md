@@ -162,7 +162,10 @@ dazugekommen und hat die freie Nummer genommen; `14` bis `17` gibt es nicht.
   **Das Dezimalzeichen eines Zahlenfeldes folgt der Sprache trotzdem** – nicht
   über das Wörterbuch, sondern über `reformatNumberInputs()`, das die Zahl aus
   dem Feld liest und mit `formatMeters()`/`formatNumber()` neu schreibt
-  (Abschnitt 7, „Die Zahlenfelder folgen dem Sprachwechsel“).
+  (Abschnitt 7, „Die Zahlenfelder folgen dem Sprachwechsel“). Die Felder des
+  Bezugspunkts schreibt `updateOriginUi()` aus dem Zustand, ebenfalls über
+  `formatNumber()` (Abschnitt 7, „Die Felder des Bezugspunkts folgen dem
+  Sprachwechsel“).
 - **Undo/Redo:** History-Snapshots pro abgeschlossener Operation (nicht pro
   `pointermove`-Event). Ein zusammenhängender Drag = ein Undo-Schritt. Der
   Snapshot enthält neben beiden Kartenslots auch den `referenceOrigin`, weil
@@ -8223,7 +8226,8 @@ Durchgang ihn von den dreien oben unterscheiden kann.
     entsteht nicht, `parseLocaleNumber()` liest beide Zeichen. Die E/N-Felder
     und die Felder der Glättung schreiben ihre Zahl beim Wechsel neu; das ist
     das Vorbild, falls sie mitziehen sollen. Die Felder des Bezugspunkts
-    tragen dagegen in beiden Sprachen einen Punkt.
+    tragen dagegen in beiden Sprachen einen Punkt – ERLEDIGT am 05.10.2026,
+    siehe „Die Felder des Bezugspunkts folgen dem Sprachwechsel“.
   - **Die Vorgaben von `#gridPreset` und `#reducePreset`** („0,01 m (1 cm)“)
     stehen fest im Markup und haben keine englische Fassung. `tools/scan-i18n.mjs`
     sieht sie nicht: es filtert Texte ohne drei Buchstaben in Folge, und „cm“
@@ -8337,12 +8341,12 @@ Durchgang ihn von den dreien oben unterscheiden kann.
 
   **NICHT dabei, mit Grund:** die E/N-Felder und das Maßstabsfeld schreibt
   ihr eigener abgeleiteter Weg aus dem Zustand, die Eckpunktzahl des Kreises
-  ist ganzzahlig. **BENANNTER BEFUND, nicht behoben: die Felder des
-  Bezugspunkts tragen in beiden Sprachen einen Punkt** – `updateOriginUi()`
-  schreibt `String(referenceOrigin.lat)`. Das ist nicht derselbe Mangel
-  (sie behalten kein Zeichen, sie haben nie eines der Sprache), und Breite
-  und Länge brauchen mehr als sechs Nachkommastellen; eine eigene
-  Entscheidung.
+  ist ganzzahlig. **Die Felder des Bezugspunkts standen hier als
+  BENANNTER BEFUND, nicht behoben** – sie trugen in beiden Sprachen einen
+  Punkt, weil `updateOriginUi()` `String(referenceOrigin.lat)` schrieb. Das
+  war nicht derselbe Mangel (sie behielten kein Zeichen, sie hatten nie eines
+  der Sprache), und Breite und Länge brauchen mehr als sechs
+  Nachkommastellen; **ERLEDIGT am 05.10.2026** im Eintrag darunter.
 
   **Eine Zusicherung hat ihren Erwartungswert gewechselt, weil sie den
   Mangel festschrieb.** `tools/test-i18n-dynamic.mjs` hielt unter
@@ -8414,6 +8418,79 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   sind danach gegen den fertigen Test gefahren; A1 und A2 ein drittes Mal,
   weil die Rollkorrektur erst danach kam – sie betrifft nur Felder, die
   nicht gezeichnet werden, und das war in keiner anderen Probe der Fall.
+
+- **Die Felder des Bezugspunkts folgen dem Sprachwechsel – ERLEDIGT am
+  05.10.2026.** `#originLatInput` und `#originLonInput` trugen in beiden
+  Sprachen einen Punkt; seitdem steht dort auf Deutsch ein Komma, auf
+  Englisch ein Punkt, wie in jedem anderen Zahlenfeld.
+
+  **Geprüft war zuerst, ob der Punkt Absicht ist** – Grad in WGS84, deren
+  Schreibweise eine andere Quelle vorgibt oder verlangt. **Grad in WGS84 sind
+  es, eine Absicht hinter dem Punkt gibt es nicht**, und das ist nachgesehen,
+  nicht angenommen:
+
+  | Frage | Befund |
+  |---|---|
+  | woher der Punkt stammt | `String(referenceOrigin.lat)` steht seit `fc3d091` (06.09.2026) da, aus der Zeit, als jede Zahl der Oberfläche über `toFixed()` lief und überall einen Punkt trug – ohne Kommentar, der ihn begründet |
+  | ob dieselbe Koordinate anderswo sprachabhängig steht | ja: `formatOrigin()` nennt sie in der Konfliktmeldung unmittelbar darunter seit Schritt 1 des dritten Durchgangs über `formatNumber()`, also mit Komma – derselbe Wert stand im selben Block in zwei Schreibweisen |
+  | wohin der Text des Feldes geht | nur in `applyOriginFromInputs()`, und das liest Komma wie Punkt. `localStorage` und der Export tragen Zahlen, nicht den Text des Feldes |
+  | woher ein Wert kommt | aus der Datei, aus dem `localStorage`, vom ersten Punkt einer absoluten Karte oder getippt – etwa aus CaSSAndRAs „Settings → Robot“, mit Punkt. Getippt wird weiter in beiden Schreibweisen angenommen |
+
+  **Geschrieben wird über `formatNumber()`, mit ZWÖLF Nachkommastellen –
+  nicht sechs wie bei den übrigen Feldern.** Der Text des Feldes wird beim
+  nächsten „Übernehmen“ zurückgelesen, und ein Millionstel Grad sind rund
+  11 cm: mehr als die Toleranz von 1 cm, ab der ein geänderter Bezugspunkt
+  die Karten umrechnet. Wer nur die Länge ändert und übernimmt, hätte mit
+  sechs Stellen eine stille Verschiebung der Breite mitgeschickt. Mit zwölf
+  kommt eine getippte Koordinate mit bis zu zwölf Nachkommastellen mit
+  denselben Ziffern zurück – höchstens 15 gültige Stellen, also ohne
+  Rauschen der Binärdarstellung –, und eine gerechnete, der erste Punkt einer
+  absoluten Karte, verliert weniger als 0,1 µm.
+
+  **Der Fokusschutz stand schon da** („eine laufende Eingabe darf nicht
+  überschrieben werden“) und bleibt: wer in der Breite tippt, behält beim
+  Sprachwechsel seinen Text. **Ein getippter, nicht übernommener Wert fällt
+  beim Sprachwechsel dagegen weg**, sobald das Feld keinen Fokus mehr hat –
+  das Feld ist abgeleitet wie die E/N-Felder, und das war vorher genauso.
+
+  **Zwei Zusicherungen haben ihren Erwartungswert gewechselt, weil sie den
+  Punkt festschrieben.** `tools/test-origin-conflict.mjs` verglich unter
+  „Bezugspunkt der Datei wurde uebernommen“ und „aktiver Bezugspunkt wurde
+  NICHT ueberschrieben“ das Feld der deutschen Oberfläche mit
+  `String(BASE_A.lat)`, also „52.5“. Geprüft wird weiter dieselbe Zahl,
+  Zeichen für Zeichen – „52,5“.
+
+  **Zugesichert nach der Wirkung, über den Text im gezeichneten Feld**, in
+  `tools/test-i18n-dynamic.mjs`: auf Deutsch „48.123456789012“ / „11.5“
+  getippt und übernommen – die Felder zeigen danach die Zahl mit Komma, was
+  eine abgelehnte Eingabe nicht täte, denn dann bliebe der getippte Text
+  stehen –, dann `setLanguage("en")` ohne Zutun: Punkt, zurück: Komma; auf
+  Englisch „47,25“ / „9,125“, ebenso in der Gegenrichtung. Dazu das
+  fokussierte Feld, das stehen bleibt, mit der Länge als Gegenprobe.
+
+  **Sieben Mutationsproben, je eine Schreibstelle; alle reißen, 0 Timeouts.**
+  Gefahren in drei Arbeitskopien außerhalb des Repositorys, je Probe aus
+  derselben Sicherungskopie zurückgespielt; die Prüfsumme ist vorher und
+  nachher in allen Kopien `b09deadb…`, und `index.html` im Repository war nie
+  angefasst. Gemessen je Probe: Syntaxprüfung, Bestandsprüfer,
+  `tools/test-i18n-dynamic.mjs` und `tools/test-origin-conflict.mjs`; die
+  statische Stufe reißt bei keiner.
+
+  | Probe | Schreibstelle | gerissen |
+  |---|---|---|
+  | B1 | die Breite wieder über `String()` | **3** + **2**, z. B. „deutsch, mit Punkt getippt: angenommen, die Felder zeigen das Komma“, Detail „48.123456789012 / 11,5“, und „aktiver Bezugspunkt wurde NICHT ueberschrieben“, Detail „52.5“ |
+  | B2 | die Länge wieder über `String()` | **4**, dieselben drei, dort mit dem Punkt in der Länge, und die Gegenprobe des Fokusschutzes, Detail „9.125“ |
+  | B3 | die Breite mit sechs statt zwölf Nachkommastellen | **3**, z. B. „dann englisch, ohne Zutun: die Felder zeigen den Punkt“, Detail „48.123457 / 11.5“ |
+  | B4 | der Fokusschutz der Breite entfernt | **1**, „Bezugspunkt: im fokussierten Feld bleibt der getippte Text stehen“, Detail „47,25“ |
+  | R1 | `updateOriginUi()` in `refreshDerivedUi()` entfernt | **3** + **2**, z. B. „dann englisch, ohne Zutun: …“, Detail „48,123456789012 / 11,5“, und „englisch: derselbe Konflikt nennt sie mit Punkt“ |
+  | A1 | `applyOriginFromInputs()` liest kein Komma mehr | **4**, darunter „englisch, mit Komma getippt: angenommen, die Felder zeigen den Punkt“, Detail „47,25 / 9,125“ – der getippte Text steht unverändert da |
+  | A2 | `applyOriginFromInputs()` liest keinen Punkt mehr | **3** + **2**, darunter „deutsch, mit Punkt getippt: angenommen, …“ und „Konfliktanzeige verschwindet“ |
+
+  Die Zahl vor dem „+“ zählt in `tools/test-i18n-dynamic.mjs`, die dahinter
+  in `tools/test-origin-conflict.mjs`. R1 ist keine neue Schreibstelle – der
+  Aufruf stand schon da, für die Konfliktmeldung –, sondern die Probe, dass
+  die Felder an genau diesem Weg hängen. A1 und A2 belegen die Annahme in
+  beiden Schreibweisen; an ihr ist nichts geändert.
 
 - **Acht Texte ohne englische Fassung – ERLEDIGT mit Schritt 7 des vierten
   Durchgangs.** Gefunden hat sie `tools/scan-i18n.mjs`, und zwar erst, als
