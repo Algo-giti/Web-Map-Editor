@@ -360,7 +360,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-map-switch.mjs` | Wechsel zwischen Karte A und B |
 | `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten und den Zahlenfeldern |
 | `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
-| `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen, eingeklappt ohne Gruppenüberschriften |
+| `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen, eingeklappt ohne Gruppenüberschriften; Zurück und Vor über der Karte |
 | `test-placeholders.mjs` | was als leerer Platzhalter gilt |
 | `test-inspector.mjs` | Inspektor: alle sieben Zustände, Behälter, Tastatur |
 | `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster |
@@ -1277,7 +1277,9 @@ schon einmal aufgeklappt wurde.
 **Die Zoom-Leiste liegt über der Karte** (`.map-view-toolbar`, oben rechts).
 Ein Punktmarker darunter lässt sich nicht anklicken – Playwright meldet
 "subtree intercepts pointer events". Testpunkte deshalb nicht in die obere
-rechte Ecke der Karte legen.
+rechte Ecke der Karte legen. **Seit dem 05.10.2026 stehen oben in der Mitte
+dazu Zurück und Vor** (`#historyToolbar`) – die obere Mitte gilt damit
+ebenso.
 
 Werte in eingeklappten `<details>`-Bereichen (z. B. `#widthStat`,
 `#originStatus`) müssen mit `textContent` gelesen werden, `innerText` liefert
@@ -3632,6 +3634,14 @@ Karte, die andere nur den Bildausschnitt – dieselbe Trennung, die in der
 Werkzeugleiste die Gruppen bildet. Dazu verschwindet die Auswahlleiste mit
 Etappe 5 ganz von der Karte; eine Zusammenlegung wäre dann wieder
 aufzutrennen. Sie trägt stattdessen nur noch Symbole.
+
+**Zurück und Vor stehen daneben, oben in der Mitte über der Karte** – seit
+dem 05.10.2026, vorher in der Kopfzeile. Dieselbe Machart wie die Zoom-Leiste
+(dieselbe Klasse, also Knopfgröße, Grund und Abstände aus dem Bestand), nur
+die Symbole; was ein Klick zurücknimmt, sagt der Tooltip. Beide Leisten
+stehen in **einer** Rasterzeile (`.map-top-row`), die Zurück/Vor aus der
+Mitte rücken lässt, wenn die Karte zu schmal ist. Befund, Messung und
+Zusicherungen stehen in Abschnitt 7, „Zurück und Vor stehen über der Karte“.
 
 ### Die Angaben zur Auswahl stehen über der Karte
 
@@ -8497,6 +8507,117 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   die Felder an genau diesem Weg hängen. A1 und A2 belegen die Annahme in
   beiden Schreibweisen; an ihr ist nichts geändert.
 
+- **Zurück und Vor stehen über der Karte – ERLEDIGT am 05.10.2026.** Die
+  beiden Knöpfe haben die Kopfzeile verlassen und stehen oben in der Mitte
+  über der Karte, nur mit ihren Symbolen. Die Wörter sind weg; was ein Klick
+  zurücknimmt oder wiederholt, sagt der Tooltip („Rückgängig: Punktkoordinate
+  ändern“), den `updateHistoryButtons()` unverändert aus der Historie
+  schreibt und der über `I18N_LABEL_PREFIXES` in beide Richtungen übersetzt
+  wird.
+
+  **Dieselbe Machart wie die Zoom-Leiste, aus dem Bestand gelesen und nicht
+  wiederholt:** beide tragen die Klasse `.map-view-toolbar`, ihre Knöpfe
+  `.map-tool-button`. Knopfgröße (bei grobem Zeiger `--touch-target`), der
+  halbdurchsichtige Grund und die Lücke zwischen den Knöpfen kommen damit aus
+  denselben Regeln; eigen ist allein die Spalte.
+
+  **Eine Rasterzeile statt zweier frei positionierter Leisten – und das ist
+  gemessen, nicht vorweggenommen.** Die erste Fassung stand mit `left:50%` und
+  `translateX(-50%)` frei in der Mitte. Der Test fand sofort die Überdeckung:
+  bei 744 px und grobem Zeiger hat die Karte 368 px, Zurück/Vor 193–287 und die
+  Zoom-Leiste 268–412 – **19 px übereinander**. Seitdem stehen beide in
+  `.map-top-row`, einem Raster `1fr auto 1fr`: die äußeren Spalten sind gleich
+  breit, solange Platz ist, die rechte gibt nie unter die Breite der
+  Zoom-Leiste nach, und dann rückt Zurück/Vor nach links, bis zur Lücke vor
+  der Zoom-Leiste. Bei 744 px und grobem Zeiger steht die Leiste damit
+  25 px links der Mitte, 6 px vor der Zoom-Leiste. Die Zeile trägt den
+  Abstand zum Kartenrand und die Ebene, die vorher an `.map-view-toolbar`
+  standen; `pointer-events:none` an ihr, `auto` an den Leisten.
+
+  **Die Auswahlleiste links oben steht nicht in dieser Zeile, und sie braucht
+  es nicht – gemessen.** Sie steht nur ab 960 px über der Karte; ihr knappster
+  Fall ist 1001 px – knapp über der Schwelle, unter der die Werkzeugleiste
+  erzwungen einklappt, nimmt sie der Karte wieder 112 px – mit grobem Zeiger,
+  deutsch, eine Exclusion ganz gewählt („Exclusion duplizieren“ ist die
+  breiteste Beschriftung): **11 px** zwischen Leiste und Zurück/Vor. Englisch
+  21 px, bei einem Punkt 26 px, fein 19 px.
+
+  **Das `aria-label` behält die Namen „Zurück“ und „Vor“** (englisch „Undo“,
+  „Redo“). Unter diesen Namen nennen die Statusmeldungen den Knopf – „… · mit
+  Zurück rückgängig.“ an sieben Stellen –, und sie bleiben damit Namen eines
+  vorhandenen Bedienelements. Die Leiste heißt „Bearbeitungsverlauf“ / „Edit
+  history“. Die Wörterbucheinträge „↶ Zurück“ und „↷ Vor“ sind mit den
+  Wörtern entfallen; die Regeln für `.toolbar`, `.toolbar-btn-neutral` und
+  die Kopfzeilenknöpfe in den Blöcken zur schmalen Breite, zur Bedienart und
+  bis 390 px trafen nichts mehr und sind entfernt.
+
+  **Die Menüleiste wird kürzer – die Beschriftungsschwelle bei 1180 px berührt
+  das nicht.** Die Schwelle blendet die Beschriftungen der **Statuszeile**
+  aus (`.status-label`), und die Statuszeile ist so breit wie das Fenster,
+  nicht wie die Kopfzeile. Gemessen vorher und nachher, je 1181 und 1180 px,
+  fein und grob, deutsch und englisch: 6 Beschriftungen bei 1181 px, 0 bei
+  1180 px – unverändert. An der Kopfzeile selbst hängt keine Schwelle außer
+  der Breitengrenze unter 744 px.
+
+  **Was die kürzere Kopfzeile dagegen behebt, war nirgends verzeichnet: bei
+  744 px passte sie nicht.** Eigenbreite der Kinder plus Lücken und
+  Polsterung, gemessen an Klonen mit `width:max-content`:
+
+  | | deutsch, fein | englisch, fein | deutsch, grob | englisch, grob |
+  |---|---|---|---|---|
+  | vorher | 886 px | 847 px | 902 px | 863 px |
+  | nachher | **706 px** | **665 px** | **722 px** | **681 px** |
+
+  Vorher wurde bei 744 px die Marke auf 161 von 245 px gestaucht – ihr Titel
+  lief sichtbar in die Menüleiste – und die beiden Knöpfe auf 111 von 168 px,
+  sie überlagerten einander. Gefunden hat das die Laufzeitsuche aus dem
+  Eintrag darunter **nicht**: der Titel der Marke ist selbst nicht gestaucht,
+  er läuft aus einem gestauchten Behälter in den Nachbarn, und der nächste
+  abschneidende Vorfahr ist die Kopfzeile, in der er bleibt. Zugesichert ist
+  es jetzt nach der Wirkung, je Kind der Kopfzeile: nichts ist gestaucht,
+  nichts ragt über ihren Rand.
+
+  **Zugesichert in `tools/test-toolbar.mjs`**, bei 1280, 1001, 960 und
+  744 px, je mit feinem und grobem Zeiger, eine Exclusion ganz gewählt: beide
+  Knöpfe stehen über der Karte, werden getroffen, stehen nicht mehr in der
+  Kopfzeile und tragen kein Wort; Zurück/Vor steht mittig, soweit die
+  Zoom-Leiste es zulässt (Lücke und Breiten gemessen), auf ihrer Höhe, und
+  zwischen beiden wird die Karte getroffen; Größe, Grund, Rand, Ecken und Lücke
+  gleichen denen der Zoom-Leiste; Zurück/Vor, Zoom-Leiste, Angaben zur Auswahl
+  und – wo sie über der Karte steht – Auswahlleiste überdecken einander nicht,
+  paarweise an gemessenen Rechtecken; die Kopfzeile passt in beiden Sprachen.
+  Dazu bei 1280 px die Wirkung, je deutsch und englisch erzeugt und über
+  `setLanguage()` in der anderen Sprache gelesen: ohne Karte erklären beide,
+  dass es nichts gibt; ein Punkt wird über das East-Feld von E 0 nach E 5
+  verschoben, ein Klick auf Zurück holt ihn zurück, einer auf Vor stellt die
+  Änderung wieder her – gemessen an den Markern über ihre Koordinaten –, und
+  nach jedem Schritt nennen beide Tooltips den richtigen Schritt, Knöpfe und
+  Leiste ihren Namen.
+
+  **Neun Mutationsproben, je eine Schreibstelle; alle reißen, 0 Timeouts.**
+  Arbeitskopie außerhalb des Repositorys, je Probe aus der Sicherungskopie
+  zurückgespielt, Prüfsumme vorher und nachher `a68c7dd6…`; die statische
+  Stufe reißt bei keiner.
+
+  | Probe | Schreibstelle | gerissen |
+  |---|---|---|
+  | Z1 | Zurück/Vor ohne eigene Spalte – sie landen in der der Zoom-Leiste | **24**, z. B. „1280 px: Zurueck/Vor stehen in der Mitte der Karte, soweit die Zoom-Leiste es zulaesst“, Detail „Mitte 909.0, erwartet 564.0“ |
+  | Z2 | die Zeile mit `minmax(0,1fr)` – die Zoom-Spalte darf schrumpfen | **3**, alle bei 744 px und grobem Zeiger, darunter „Zurueck/Vor und Zoom-Leiste ueberdecken einander nicht“ – genau der Befund, den die Zeile behebt |
+  | Z3 | Zurück/Vor wieder in der Kopfzeile | **60**, darunter „#undoBtn steht ueber der Karte“ und „744 px, de: die Kopfzeile passt“, Detail „brand: 245/193“ |
+  | Z4 | das Wort „Zurück“ wieder im Knopf | **8**, „#undoBtn traegt nur das Symbol, kein Wort“ |
+  | Z5 | Zurück mit einer fremden Knopfklasse | **12**, „Zurueck und Vor sind so gross und so durchsichtig wie die Zoom-Knoepfe“ |
+  | Z6 | Wörterbuch: „Zurück“ und „Vor“ ohne englische Fassung | **8**, „…, dann en: Knoepfe und Leiste tragen ihren Namen in dieser Sprache“ |
+  | Z7 | Wörterbuch: „Bearbeitungsverlauf“ ohne englische Fassung | **8**, dieselbe Zusicherung |
+  | Z8 | die Leisten in der Zeile ohne `pointer-events:auto` | **18**, „#undoBtn wird dort getroffen“, Detail `svg` |
+  | Z9 | die Zeile ohne `pointer-events:none` | **8**, „zwischen Zurueck/Vor und der Zoom-Leiste bleibt die Karte anklickbar“, Detail `map-top-row` |
+
+  **Z9 riss im ersten Lauf nichts, und das war eine Lücke im Test, keine
+  wirkungslose Mutation:** ohne die Zeile fängt ihr ganzer Streifen jeden
+  Klick auf die Karte ab, nur klickte kein Test dorthin. Die Zusicherung
+  „zwischen Zurück/Vor und der Zoom-Leiste bleibt die Karte anklickbar“ ist
+  ergänzt, und alle neun Proben sind danach noch einmal gegen den fertigen
+  Test gefahren; die Zahlen oben stammen aus diesem zweiten Lauf.
+
 - **Eingeklappte Werkzeugleiste: die Gruppenüberschriften entfallen –
   ERLEDIGT am 05.10.2026.** Eingeklappt standen „Auswählen“, „Zeichnen“ und
   „Prüfen“ mit 9 px über den Symbolen und passten trotzdem nicht. Gemessen,
@@ -10468,8 +10589,9 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Slot-Radiogruppe** („Karte A anzeigen", „Karte B anzeigen",
   `role="menuitemcheckbox"`). Zwei Felder oben in der Oberfläche waren die
   Alternative und sind verworfen: die Kopfzeile ist seit Etappe 6 auf 880 px
-  Eigenbreite zurückgebaut, und zwei Schalter dort kosteten Platz für einen
-  Zustand, den man einmal einstellt.
+  Eigenbreite zurückgebaut (seit Zurück und Vor auf der Karte stehen, auf
+  706 px), und zwei Schalter dort kosteten Platz für einen Zustand, den man
+  einmal einstellt.
 
   **Drei Zustände brauchen ZWEI Elemente, nicht eines.** „Aktiv" ist eine
   Radiogruppe – genau einer –, „sichtbar" ist es nicht; beides in einen
@@ -11427,13 +11549,13 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-dockpath.mjs` | – | 2 |
   | `tools/test-menu.mjs` | – | 3 |
   | `tools/test-reduce.mjs` | – | 1 |
-  | `tools/test-toolbar.mjs` | – | 1 |
+  | `tools/test-toolbar.mjs` | 1 | 3 |
   | `tools/test-validation.mjs` | – | 3 |
   | `tools/test-i18n-dynamic.mjs` | – | 1 |
   | `tools/test-ghosting.mjs` | – | 3 |
   | `tools/test-scale.mjs` | – | 2 |
   | `tools/test-glaettung.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**63** | <!-- bestand: zusicherungen-herstellend -->**64** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**64** | <!-- bestand: zusicherungen-herstellend -->**66** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -11495,6 +11617,12 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   zeigt den Wert danach mit dem Zeichen der Sprache“ nennt `#pointEastInput`
   im Aufruf selbst – und drei herstellende, die den Kopf und das East-Feld im
   Vorlauf lesen.
+
+  **Zurück und Vor über der Karte haben `tools/test-toolbar.mjs` auf 1 / 3
+  gebracht**: „die Auswahlleiste trägt ihre breiteste Beschriftung“ nennt
+  `#duplicateFeatureBtn` im Aufruf selbst; herstellend sind „alle Ebenen sind
+  gezeichnet“, das Angaben und Leiste im Vorlauf misst, und „die Eingabe hat
+  den Punkt nach E 5 verschoben“, das dafür das East-Feld füllt.
 
   **Dazu sind drei Namen in die Bezeichnerliste gekommen**: `selectionOverlay`,
   `selectionTitle` und `selectionSubtitle`. Der Kopf der Auswahl steht seitdem

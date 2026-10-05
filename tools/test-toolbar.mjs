@@ -581,6 +581,378 @@ try {
   }
 
   /* ---------------------------------------------------------------- */
+  console.log("Zurueck und Vor stehen ueber der Karte");
+
+  /*
+   * Seit dem 05.10.2026 stehen die beiden Knoepfe nicht mehr in der
+   * Kopfzeile, sondern oben in der Mitte ueber der Karte - dieselbe Machart
+   * wie die Zoom-Leiste, nur die Symbole. Zugesichert wird nach der Wirkung:
+   * wo sie gezeichnet und getroffen werden, dass sie wie die Zoom-Leiste
+   * aussehen (gegen die Zoom-Leiste gemessen, nicht gegen eine Zahl), dass
+   * sie nichts ueberdecken, was dort sonst steht, und was ein Klick an der
+   * Geometrie bewirkt.
+   */
+
+  /** Gemessenes Rechteck - oder null, wenn nichts gezeichnet wird. */
+  const rechteck = (seite, selektor) => seite.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el || !el.getClientRects().length) return null;
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom,
+             width: r.width, height: r.height };
+  }, selektor);
+
+  const MIT_EXCLUSION = JSON.stringify({
+    type: "FeatureCollection",
+    features: [
+      { type: "Feature", properties: { name: "perimeter" },
+        geometry: { type: "Polygon", coordinates: [[
+          [0, 0], [40, 0], [40, 40], [0, 40], [0, 0]]] } },
+      { type: "Feature", properties: { name: "exclusion" }, idx: 0,
+        geometry: { type: "Polygon", coordinates: [[
+          [10, 10], [20, 10], [20, 20], [10, 20], [10, 10]]] } },
+    ],
+  });
+
+  const ueberdecken = (a, b) =>
+    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+  /*
+   * Der Marker an einer WELTKOORDINATE, nie ueber seinen Index - dieselbe
+   * Lesart wie in tools/test-auswahlangaben.mjs: cx ist East, cy North mit
+   * umgekehrtem Vorzeichen.
+   */
+  const markerBei = (seite, east, north) => seite.evaluate(([e, n]) => {
+    const treffer = [...document.querySelectorAll("circle.vertex")].filter((m) =>
+      Math.abs(Number(m.getAttribute("cx")) - e) < 1e-6 &&
+      Math.abs(Number(m.getAttribute("cy")) + n) < 1e-6);
+    return treffer.length === 1 ? treffer[0].dataset.vertexKey : null;
+  }, [east, north]);
+
+  /** Waehlt den Punkt an einer Koordinate - nur, wenn sein Marker getroffen wird. */
+  const punktWaehlen = async (seite, east, north, name) => {
+    const schluessel = await markerBei(seite, east, north);
+    check(`${name}: der Marker bei E ${east} / N ${north} ist eindeutig`,
+      schluessel !== null, "kein oder mehr als ein Marker");
+    if (!schluessel) return false;
+    await seite.locator(`circle.vertex[data-vertex-key="${schluessel}"]`).click();
+    await seite.waitForTimeout(250);
+    return true;
+  };
+
+  /*
+   * Dazu die schmalste Karte, ueber der die Auswahlleiste steht: knapp ueber
+   * der Schwelle, unter der die Werkzeugleiste erzwungen einklappt, steht sie
+   * wieder ausgeklappt da und nimmt der Karte 112 px mehr. Die Zahl kommt aus
+   * dem Bestand (TOOL_RAIL_NARROW_QUERY), nicht aus dem Test.
+   */
+  const schmalsteMitLeiste = await page.evaluate(() =>
+    Number(/max-width:\s*(\d+)px/.exec(TOOL_RAIL_NARROW_QUERY)[1]) + 1);
+
+  for (const grob of [false, true]) {
+    for (const breite of [1280, schmalsteMitLeiste, 960, 744]) {
+      const name = `${grob ? "grob" : "fein"}, ${breite} px`;
+      const kontext = await browser.newContext({
+        viewport: { width: breite, height: 900 },
+        ...(grob ? { hasTouch: true } : {}),
+      });
+      const seite = await kontext.newPage();
+      await seite.goto(indexUrl(), { waitUntil: "load" });
+      await seite.evaluate(() => localStorage.clear());
+      await seite.reload({ waitUntil: "load" });
+
+      check(`${name}: die Bedienart ist wirklich emuliert`,
+        (await seite.evaluate(() => matchMedia("(pointer: coarse)").matches)) === grob);
+
+      await seite.locator("#fileInput").setInputFiles({
+        name: "verlauf.geojson",
+        mimeType: "application/geo+json",
+        buffer: Buffer.from(MIT_EXCLUSION),
+      });
+      await seite.waitForTimeout(400);
+
+      /*
+       * Die ganze Exclusion ist gewaehlt: dann stehen auch die Auswahlleiste
+       * (ab der Schwelle ueber der Karte) und die Angaben zur Auswahl da -
+       * genau die Ebenen, die Zurueck und Vor nicht ueberdecken duerfen -,
+       * und die Leiste traegt mit „Exclusion duplizieren“ ihre breiteste
+       * Beschriftung. Gewaehlt wird ueber die Feature-Navigation, wie ein
+       * Nutzer es tut.
+       */
+      await openAllFolds(seite);
+      const ganzes = seite.locator('[data-action="select-whole-feature"][data-feature-index="1"]');
+      const waehlbar = (await ganzes.count()) === 1 && await ganzes.isVisible();
+      check(`${name}: die Exclusion laesst sich ganz waehlen`, waehlbar);
+      if (waehlbar) {
+        await ganzes.click();
+        await seite.waitForTimeout(300);
+      }
+      check(`${name}: die Auswahlleiste traegt ihre breiteste Beschriftung`,
+        await seite.locator("#duplicateFeatureBtn").isVisible());
+
+      for (const id of ["undoBtn", "redoBtn"]) {
+        const ort = await seite.evaluate((x) => {
+          const el = document.getElementById(x);
+          const r = el.getBoundingClientRect();
+          const v = document.getElementById("viewer").getBoundingClientRect();
+          return {
+            inKarte: r.left >= v.left && r.right <= v.right &&
+                     r.top >= v.top && r.bottom <= v.bottom,
+            inKopf: !!el.closest("header"),
+            text: el.innerText.trim(),
+          };
+        }, id);
+        const treffer = await elementGetroffen(seite, `#${id}`, { dy: 8 });
+
+        check(`${name}: #${id} steht ueber der Karte`, ort.inKarte, JSON.stringify(ort));
+        check(`${name}: #${id} wird dort getroffen`, treffer.ok, treffer.grund);
+        check(`${name}: #${id} steht nicht mehr in der Kopfzeile`, !ort.inKopf);
+        check(`${name}: #${id} traegt nur das Symbol, kein Wort`,
+          ort.text === "", JSON.stringify(ort.text));
+      }
+
+      const verlauf = await rechteck(seite, "#historyToolbar");
+      const zoom = await rechteck(seite, ".map-view-toolbar:not(.map-history-toolbar)");
+      const karte = await rechteck(seite, "#viewer");
+
+      check(`${name}: Zurueck/Vor und die Zoom-Leiste sind gezeichnet`,
+        !!verlauf && !!zoom, JSON.stringify({ verlauf, zoom }));
+
+      if (verlauf && zoom && karte) {
+        /*
+         * Mittig, soweit die Zoom-Leiste es zulaesst: ist die Karte zu schmal,
+         * rueckt die Leiste nach links, bis zur Luecke der Zeile vor der
+         * Zoom-Leiste - nicht weiter und nicht darueber. Luecke und Breiten
+         * sind gemessen.
+         */
+        const luecke = await seite.evaluate(() =>
+          parseFloat(getComputedStyle(document.querySelector(".map-top-row")).columnGap));
+        const soll = Math.min((karte.left + karte.right) / 2,
+          zoom.left - luecke - verlauf.width / 2);
+        const ist = (verlauf.left + verlauf.right) / 2;
+        check(`${name}: Zurueck/Vor stehen in der Mitte der Karte, soweit die Zoom-Leiste es zulaesst`,
+          Math.abs(ist - soll) <= 1,
+          `Mitte ${ist.toFixed(1)}, erwartet ${soll.toFixed(1)}, Karte ${((karte.left + karte.right) / 2).toFixed(1)}`);
+        /*
+         * Die Zeile spannt sich ueber die ganze Kartenbreite. Zwischen den
+         * beiden Leisten muss die Karte darunter getroffen werden - sonst
+         * finge die Zeile jeden Klick in ihrem Streifen ab.
+         */
+        const zwischen = await seite.evaluate(([x, y]) => {
+          const treffer = document.elementFromPoint(x, y);
+          return { karte: !!treffer && document.getElementById("svg").contains(treffer),
+                   grund: treffer ? (treffer.id || treffer.className?.baseVal || treffer.className || treffer.tagName) : "nichts" };
+        }, [(verlauf.right + zoom.left) / 2, (verlauf.top + verlauf.bottom) / 2]);
+        check(`${name}: zwischen Zurueck/Vor und der Zoom-Leiste bleibt die Karte anklickbar`,
+          zoom.left - verlauf.right > 1 && zwischen.karte, JSON.stringify(zwischen));
+
+        check(`${name}: und oben, auf der Hoehe der Zoom-Leiste`,
+          Math.abs(verlauf.top - zoom.top) <= 0.5 && Math.abs(verlauf.height - zoom.height) <= 0.5,
+          JSON.stringify({ verlauf: verlauf.top, zoom: zoom.top }));
+      }
+
+      /* Dieselbe Machart: gegen die Zoom-Leiste gemessen, nicht gegen Zahlen. */
+      const machart = await seite.evaluate(() => {
+        const stil = (id) => {
+          const el = document.getElementById(id);
+          const cs = getComputedStyle(el);
+          const r = el.getBoundingClientRect();
+          return { b: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10,
+                   grund: cs.backgroundImage, rand: cs.borderColor, ecke: cs.borderRadius };
+        };
+        const leiste = (el) => getComputedStyle(el).columnGap;
+        return {
+          zurueck: stil("undoBtn"),
+          vor: stil("redoBtn"),
+          zoom: stil("zoomInBtn"),
+          luecke: leiste(document.getElementById("historyToolbar")),
+          zoomLuecke: leiste(document.querySelector(".map-view-toolbar:not(.map-history-toolbar)")),
+        };
+      });
+
+      check(`${name}: Zurueck und Vor sind so gross und so durchsichtig wie die Zoom-Knoepfe`,
+        JSON.stringify(machart.zurueck) === JSON.stringify(machart.zoom) &&
+        JSON.stringify(machart.vor) === JSON.stringify(machart.zoom),
+        JSON.stringify(machart));
+      check(`${name}: und stehen im selben Abstand zueinander`,
+        machart.luecke === machart.zoomLuecke, `${machart.luecke} / ${machart.zoomLuecke}`);
+
+      /*
+       * Was einander nicht ueberdecken darf. Die Auswahlleiste zaehlt nur, wo
+       * sie ueber der Karte steht - unter der Schwelle steht sie im Inspektor.
+       */
+      const leiste = await seite.evaluate(() =>
+        !!document.getElementById("selectionActions").closest("#viewer"));
+      const ebenen = {
+        "Zurueck/Vor": verlauf,
+        "Zoom-Leiste": zoom,
+        "Angaben zur Auswahl": await rechteck(seite, "#selectionOverlay"),
+        ...(leiste ? { "Auswahlleiste": await rechteck(seite, "#selectionActions") } : {}),
+      };
+
+      check(`${name}: alle Ebenen sind gezeichnet`,
+        Object.values(ebenen).every(Boolean),
+        JSON.stringify(Object.fromEntries(Object.entries(ebenen).map(([k, v]) => [k, !!v]))));
+
+      const namen = Object.keys(ebenen);
+      for (let i = 0; i < namen.length; i += 1) {
+        for (let j = i + 1; j < namen.length; j += 1) {
+          const a = ebenen[namen[i]];
+          const b = ebenen[namen[j]];
+          if (!a || !b) continue;
+          check(`${name}: ${namen[i]} und ${namen[j]} ueberdecken einander nicht`,
+            !ueberdecken(a, b), JSON.stringify({ [namen[i]]: a, [namen[j]]: b }));
+        }
+      }
+
+      /*
+       * Die Kopfzeile ist dadurch kuerzer geworden. Gemessen brauchte sie
+       * vorher 886 px (deutsch, fein) und passte bei 744 px nicht: die Marke
+       * wurde gestaucht, ihr Titel lief in die Menueleiste, und die beiden
+       * Knoepfe ueberlagerten einander. Zugesichert ist die Wirkung: kein
+       * Teil der Kopfzeile ist gestaucht, keiner ragt ueber ihren Rand.
+       */
+      for (const sprache of ["de", "en"]) {
+        await seite.evaluate((l) => setLanguage(l), sprache);
+        const kopf = await seite.evaluate(() => {
+          const h = document.querySelector("header");
+          const rechts = h.getBoundingClientRect().right;
+          return [...h.children]
+            .filter((k) => k.getClientRects().length)
+            .filter((k) => k.scrollWidth > k.clientWidth || k.getBoundingClientRect().right > rechts + 0.5)
+            .map((k) => `${k.className}: ${k.scrollWidth}/${k.clientWidth}`);
+        });
+        check(`${name}, ${sprache}: die Kopfzeile passt - kein Teil ist gestaucht`,
+          kopf.length === 0, JSON.stringify(kopf));
+      }
+      await seite.evaluate(() => setLanguage("de"));
+
+      await kontext.close();
+    }
+  }
+
+  /*
+   * Die Wirkung und die Erklaerung beim Ueberfahren, in beiden Richtungen:
+   * einmal deutsch erzeugt und englisch gelesen, einmal umgekehrt. Der
+   * Sprachwechsel laeuft ueber setLanguage(), und gelesen wird unmittelbar
+   * danach.
+   */
+  const ERKLAERUNG = {
+    de: {
+      zurueck: "Rückgängig: Punktkoordinate ändern",
+      vor: "Wiederholen: Punktkoordinate ändern",
+      keinZurueck: "Keine Änderung zum Rückgängigmachen",
+      keinVor: "Keine Änderung zum Wiederholen",
+      geladen: "Rückgängig: Karte A öffnen/ersetzen",
+      namen: ["Zurück", "Vor", "Bearbeitungsverlauf"],
+    },
+    en: {
+      zurueck: "Undo: Change point coordinate",
+      vor: "Redo: Change point coordinate",
+      keinZurueck: "No change to undo",
+      keinVor: "No change to redo",
+      geladen: "Undo: Open/replace map A",
+      namen: ["Undo", "Redo", "Edit history"],
+    },
+  };
+
+  const knopfTexte = (seite) => seite.evaluate(() => ({
+    zurueck: document.getElementById("undoBtn").title,
+    vor: document.getElementById("redoBtn").title,
+    namen: [
+      document.getElementById("undoBtn").getAttribute("aria-label"),
+      document.getElementById("redoBtn").getAttribute("aria-label"),
+      document.getElementById("historyToolbar").getAttribute("aria-label"),
+    ],
+  }));
+
+  for (const sprache of ["de", "en"]) {
+    const andere = sprache === "de" ? "en" : "de";
+    const seite = await browser.newPage();
+    await seite.setViewportSize({ width: 1280, height: 900 });
+    await seite.goto(indexUrl(), { waitUntil: "load" });
+    await seite.evaluate(() => localStorage.clear());
+    await seite.reload({ waitUntil: "load" });
+    await seite.evaluate((l) => setLanguage(l), sprache);
+
+    const lesen = async (lage, erwartet) => {
+      for (const l of [sprache, andere]) {
+        if (l !== sprache) await seite.evaluate((x) => setLanguage(x), l);
+        const t = await knopfTexte(seite);
+        const e = ERKLAERUNG[l];
+        const wie = l === sprache ? `${sprache}, ${lage}` : `${sprache}, ${lage}, dann ${l}`;
+        check(`${wie}: Zurueck erklaert sich beim Ueberfahren`,
+          t.zurueck === e[erwartet.zurueck], JSON.stringify(t.zurueck));
+        check(`${wie}: Vor ebenso`, t.vor === e[erwartet.vor], JSON.stringify(t.vor));
+        check(`${wie}: Knoepfe und Leiste tragen ihren Namen in dieser Sprache`,
+          JSON.stringify(t.namen) === JSON.stringify(e.namen), JSON.stringify(t.namen));
+      }
+      await seite.evaluate((x) => setLanguage(x), sprache);
+    };
+
+    /* Vor dem Laden gibt es nichts zurueckzunehmen - auch das erklaert sich. */
+    await lesen("ohne Karte", { zurueck: "keinZurueck", vor: "keinVor" });
+
+    await seite.locator("#fileInput").setInputFiles({
+      name: "verlauf.geojson",
+      mimeType: "application/geo+json",
+      buffer: Buffer.from(MAP),
+    });
+    await seite.waitForTimeout(400);
+
+    if (!(await punktWaehlen(seite, 0, 0, `${sprache}, Verlauf`))) {
+      await seite.close();
+      continue;
+    }
+
+    await seite.locator("#pointEastInput").fill("5");
+    await seite.locator("#pointEastInput").press("Enter");
+    await seite.waitForTimeout(300);
+
+    check(`${sprache}: die Eingabe hat den Punkt nach E 5 verschoben`,
+      (await markerBei(seite, 5, 0)) !== null && (await markerBei(seite, 0, 0)) === null,
+      `${await markerBei(seite, 5, 0)} / ${await markerBei(seite, 0, 0)}`);
+
+    await lesen("nach der Aenderung", { zurueck: "zurueck", vor: "keinVor" });
+
+    const zurueckGetroffen = await elementGetroffen(seite, "#undoBtn", { dy: 8 });
+    check(`${sprache}: Zurueck ist frei und getroffen`,
+      zurueckGetroffen.ok && await seite.locator("#undoBtn").isEnabled(),
+      zurueckGetroffen.grund);
+    if (!zurueckGetroffen.ok || !(await seite.locator("#undoBtn").isEnabled())) {
+      await seite.close();
+      continue;
+    }
+
+    await seite.locator("#undoBtn").click();
+    await seite.waitForTimeout(300);
+
+    check(`${sprache}: ein Klick auf Zurueck holt den Punkt nach E 0 zurueck`,
+      (await markerBei(seite, 0, 0)) !== null && (await markerBei(seite, 5, 0)) === null,
+      `${await markerBei(seite, 0, 0)} / ${await markerBei(seite, 5, 0)}`);
+
+    /* Das Laden selbst ist ein Schritt - Zurueck nennt jetzt ihn. */
+    await lesen("nach Zurueck", { zurueck: "geladen", vor: "vor" });
+
+    const vorGetroffen = await elementGetroffen(seite, "#redoBtn", { dy: 8 });
+    check(`${sprache}: Vor ist frei und getroffen`,
+      vorGetroffen.ok && await seite.locator("#redoBtn").isEnabled(), vorGetroffen.grund);
+    if (vorGetroffen.ok && await seite.locator("#redoBtn").isEnabled()) {
+      await seite.locator("#redoBtn").click();
+      await seite.waitForTimeout(300);
+
+      check(`${sprache}: ein Klick auf Vor stellt die Aenderung wieder her`,
+        (await markerBei(seite, 5, 0)) !== null && (await markerBei(seite, 0, 0)) === null,
+        `${await markerBei(seite, 5, 0)} / ${await markerBei(seite, 0, 0)}`);
+
+      await lesen("nach Vor", { zurueck: "zurueck", vor: "keinVor" });
+    }
+
+    await seite.close();
+  }
+
+  /* ---------------------------------------------------------------- */
   console.log("Mobil: 400x800, alles erreichbar");
 
   /*
