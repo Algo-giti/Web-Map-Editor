@@ -357,7 +357,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-shapes.mjs` | Kreis- und Rechteck-Exclusions |
 | `test-validation.mjs` | erweiterte Geometrieprüfung |
 | `test-rectify.mjs` | Ecken rechtwinklig |
-| `test-map-switch.mjs` | Wechsel zwischen Karte A und B |
+| `test-map-switch.mjs` | Wechsel zwischen Karte A und B, Karte schließen |
 | `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten und den Zahlenfeldern |
 | `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
 | `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen, eingeklappt ohne Gruppenüberschriften; Zurück und Vor über der Karte |
@@ -6613,7 +6613,7 @@ damit in die Gruppe „Namen von Symbolknöpfen", die ausdrücklich **nicht** zu
 das ist der Punkt dieser Nachschau: die Liste war nicht zu lang, sondern zu
 kurz.
 
-**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->42 Fundstellen –
+**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->44 Fundstellen –
 und ein genannter Wortlaut steht zur Laufzeit nirgends.** Beides fiel bei der
 Bestandsaufnahme zur Kontext-Knopfleiste an; es ist ein Beifang und wird hier
 richtiggestellt, nicht gelöscht.
@@ -6629,14 +6629,16 @@ deshalb durch:
 | `updateMultiSelectionUi()`, `snapToggle.title =` | den Ablehnungsgrund des Rasterfangs bei unbekanntem Maßstab |
 | `updateMultiSelectionUi()`, `straightenButton.title =` | `TRANSFORM_TOOL_HELP.straightenSelectionBtn` |
 
-**Es sind damit <!-- bestand: title-markup -->25 im Markup und <!-- bestand: title-js -->17 per JS.** Zwei der Markup-Titel sind mit dem
+**Es sind damit <!-- bestand: title-markup -->27 im Markup und <!-- bestand: title-js -->17 per JS.** Zwei der Markup-Titel sind mit dem
 zweiundzwanzigsten Durchgang dazugekommen – die Erklärungen von „Davor
 einfügen" und „Danach einfügen", die vorher gar keine hatten. Der siebzehnte
 per JS ist die Erklärung des Knopfes „Glätten“ aus `TRANSFORM_TOOL_HELP`,
 dazugekommen mit der Kartenglättung. Der fünfundzwanzigste im Markup ist der
 NAME des Griffs der Angaben zur Auswahl („Auswahlangaben ein- und
 ausklappen“) – ein Knopf ohne Text, derselbe Fall wie der Griff der
-Auswahlleiste und kein Fall für Etappe 8b. Dass
+Auswahlleiste und kein Fall für Etappe 8b. Der sechsundzwanzigste und
+siebenundzwanzigste sind ebenso Namen: die beiden Zeichen zum Schließen im
+Menü „Karte“ („Karte A schließen“, „Karte B schließen“). Dass
 ausgerechnet das Muster über
 Zeilengrenzen versagte, ist in dieser Datei schon einmal gemessen worden – bei
 der Locator-Suche aus Schritt 11 des vierten Durchgangs, wo der bekannte
@@ -8507,6 +8509,116 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   die Felder an genau diesem Weg hängen. A1 und A2 belegen die Annahme in
   beiden Schreibweisen; an ihr ist nichts geändert.
 
+- **Karte schließen – ERLEDIGT am 05.10.2026.** Jeder der beiden
+  Kartenplätze trägt im Menü „Karte“ ein Zeichen zum Schließen, rechts in
+  seinem Eintrag und keine eigene Menüzeile; es steht nur da, wo eine Karte
+  geladen ist. Ohne ungespeicherte Änderungen schließt die Karte ohne
+  Nachfrage, mit ihnen (der Marke „*“) wird gefragt: Speichern, Verwerfen,
+  Abbrechen. War es die aktive Karte und die andere ist geladen, wird die
+  andere aktiv und die Ansicht auf sie eingepasst; war sie nicht aktiv, bleibt
+  die Ansicht. War es die letzte, steht der Editor im Leerzustand.
+
+  **Ein Weg, und der alte ist darin aufgegangen.** Bis hierher konnte nur
+  Karte B geschlossen werden, über „Karte B schließen“ im Menü „Datei“
+  (`removeSecondMap()`), und das fragte **immer** per `window.confirm()` –
+  zwei Antworten für drei Fälle, und eine Frage auch dann, wenn nichts
+  verloren ging. Der Eintrag steht weiter da und nimmt jetzt denselben Weg wie
+  die beiden Zeichen: `requestCloseMap()` entscheidet, ob gefragt wird,
+  `askUnsavedChanges()` fragt, `closeMapSlot()` schließt – für beide Plätze,
+  mit einem Slot-Literal statt dem früheren für B. Ein Undo-Schritt wie
+  vorher: wer verwirft und es sich anders überlegt, holt die Karte mit
+  Zurück wieder.
+
+  **Das Zeichen ist ein eigener Knopf neben dem Eintrag, nicht in ihm** – ein
+  Knopf in einem Knopf ist kein gültiges HTML. Beide stehen in einer
+  Flex-Zeile; das Zeichen ist so hoch wie der Eintrag, bei grobem Zeiger
+  mindestens `--touch-target` breit. Es trägt `role="menuitem"` und steht
+  damit im Tastaturvertrag der Leiste: die Pfeiltaste erreicht es nach seinem
+  Eintrag, Enter schließt. Ohne geladene Karte ist es ausgeblendet **und**
+  gesperrt; nur so überspringt `menuItemsOf()` es, denn die Funktion filtert
+  gesperrte Einträge, nicht ausgeblendete.
+
+  **Gefragt wird mit einem nativen `<dialog>` über `showModal()`** – anders
+  als bei den drei Kartenfenstern, die bewusst nicht-modal sind: hier soll die
+  Karte gesperrt sein, bis die Frage beantwortet ist. Drei Antworten, deshalb
+  kein `window.confirm()`. Escape gilt als Abbrechen, und der Fokus steht
+  anfangs auf „Abbrechen“, der Antwort, die nichts verliert. **Der globale
+  Tastaturhandler kehrt bei offener Frage sofort zurück**: Strg+Z nähme sonst
+  unter ihr still eine Änderung zurück, und Escape höbe – vor dem
+  Schließen des Dialogs – die Auswahl auf.
+
+  **„Ungespeichert“ ist die Marke, und gelesen wird sie am Slot**, nachdem
+  der aktive Slot aus den globalen Werten nachgezogen ist – dieselbe Quelle,
+  aus der das Menü das „*“ schreibt. **Speichern** macht die Karte aktiv,
+  falls sie es nicht ist, und ruft `exportGeoJson()` unverändert; steht die
+  Marke danach noch, ist das Speichern gescheitert oder abgebrochen (Konflikt
+  des Bezugspunkts, Prüffehler mit „Abbrechen“), und die Karte bleibt mit
+  der Meldung des Speicherns stehen.
+
+  **Der Leerzustand ist derselbe wie beim Start** – `showEmptyEditor()`, und
+  dazu `resetValidationUi()`: ohne sie stünde in der Kartenprüfung weiter
+  „Noch keine Prüfung durchgeführt.“ der geschlossenen Karte statt „Zuerst
+  eine Karte laden.“
+
+  **Zugesichert in `tools/test-map-switch.mjs`**, je deutsch und englisch
+  erzeugt und an jeder Stelle mit Text über `setLanguage()` in der anderen
+  Sprache gelesen, über sichtbaren Text und `elementGetroffen()`: ohne Karte
+  kein Zeichen; mit Karte A ihres, das von B nicht; das Zeichen steht rechts
+  in der Zeile seines Eintrags und erklärt sich beim Überfahren; ohne
+  Änderungen schließt B ohne Frage, und A wird aktiv; mit Änderungen steht
+  die Frage da und wird getroffen – sie nennt die Karte, den Grund und die
+  drei Antworten, der Fokus steht auf Abbrechen; Strg+Z lässt sie offen und
+  nimmt nichts zurück, Escape bricht ab, ohne die Auswahl aufzuheben;
+  Abbrechen lässt die Karte geladen; „Karte B schließen“ im Menü „Datei“
+  fragt ebenso; Verwerfen schließt; Speichern lädt die Karte mit der
+  Änderung herunter – gemessen an der Koordinate in der Datei – und schließt
+  sie dann; war A aktiv und B geladen, ist danach B aktiv, und die
+  Statuszeile sagt es; die Pfeiltaste überspringt den leeren Platz samt
+  Zeichen, und Enter schließt die letzte Karte; danach Leerzustand in Karte,
+  Inspektor, Kartenprüfung und Menü. Dazu bei grobem Zeiger: Zeichen und
+  Antworten tragen die Zielgröße aus `--touch-target`.
+
+  **22 Mutationsproben, je eine Schreibstelle; alle reißen, 0 Timeouts.**
+  Drei Arbeitskopien außerhalb des Repositorys, je Probe aus der
+  Sicherungskopie zurückgespielt, Prüfsumme vorher und nachher `85150a9a…`.
+  Gemessen je Probe: Syntaxprüfung, Bestandsprüfer,
+  `tools/test-map-switch.mjs` und `tools/test-menu.mjs`; die statische Stufe
+  und `tools/test-menu.mjs` reißen bei keiner.
+
+  | Probe | Schreibstelle | gerissen |
+  |---|---|---|
+  | S1 | das Zeichen ist immer sichtbar | **16**, z. B. „ohne Karte steht kein Zeichen zum Schliessen da“ |
+  | S2 | das Zeichen ist ohne Karte nicht gesperrt | **20**, z. B. „die Pfeiltaste ueberspringt den nicht geladenen Platz A samt Zeichen“, Detail `menuMapBtn` – der Fokus bleibt am Titel hängen |
+  | S3 | nie gefragt | **3**, „mit Aenderungen wird gefragt …“ |
+  | S4 | immer gefragt | **2**, „ohne Aenderungen schliesst B ohne Frage“ |
+  | S5 | Abbrechen schließt trotzdem | **6**, z. B. „Escape … hebt die Auswahl darunter nicht auf“ und „B ist weiter geladen …“ |
+  | S6 | Verwerfen schließt nicht | **4**, „Verwerfen schliesst die Karte“ |
+  | S7 | Speichern ohne `exportGeoJson()` | **4**, „Speichern laedt die Karte mit der Aenderung herunter“, Detail „Ring []“ |
+  | S8 | die andere Karte wird nicht aktiv | **24**, z. B. „B war aktiv - jetzt ist A aktiv“ |
+  | S9 | kein Leerzustand nach der letzten | **10**, z. B. „war es die letzte, steht der Editor im Leerzustand“ |
+  | S10 | ohne `resetValidationUi()` | **2**, „und die Kartenpruefung verlangt wieder eine Karte“, Detail „Noch keine Prüfung durchgeführt.“ |
+  | S11 | der Tastaturhandler kehrt bei offener Frage nicht zurück | **8**, z. B. „… hebt die Auswahl darunter nicht auf“ und „… Strg+Z hat nichts zurueckgenommen“ |
+  | S12 | „Datei → Karte B schließen“ schließt ohne Frage | **4**, „… im Menue „Datei“ fragt ebenfalls“ |
+  | S13 | Wörterbuch: „Karte A schließen“ | **2**, „das Zeichen erklaert sich beim Ueberfahren“ |
+  | S14 | Wörterbuch: der Grund der Frage | **2**, „und sagt, warum sie fragt“ |
+  | S15 | Wörterbuch: „Verwerfen“ | **2**, „drei Antworten …“ |
+  | S16 | Wörterbuch: „Karte A wurde … geschlossen.“ | **3**, „die Statuszeile sagt, dass A geschlossen wurde“ |
+  | S17 | die Überschrift der Frage über `textContent` statt `setLocalizedText()` | **2**, „…, dann en: die Frage nennt die Karte“ |
+  | S18 | der Fokus auf „Speichern“ | **2**, „der Fokus steht auf Abbrechen“ |
+  | S19 | Eintrag und Zeichen nicht in einer Zeile | **2**, „das Zeichen steht rechts im Eintrag, in seiner Zeile“ |
+  | S20 | grob: das Zeichen ohne Mindestbreite | **1**, Detail „34 × 53 gegen 44“ |
+  | S21 | grob: die Antworten ohne Mindesthöhe | **1**, Detail „40, 40, 40 gegen 44“ |
+  | S22 | das Zeichen von B folgt dem Platz A | **26**, z. B. „und das von B nicht, B ist nicht geladen“ |
+
+  **Der erste Lauf endete dreimal in einem Timeout statt in einer benannten
+  Zusicherung – S4, S5 und S12.** Der Test klickte dort ein Zeichen, das es
+  unter der Mutation nicht gab, oder eine Seite, die eine unerwartet offene
+  Frage sperrte. Jeder Klick auf ein Zeichen hängt seitdem an einer
+  Trefferprüfung, und der Ablauf bricht nach der benannten Zusicherung ab,
+  wenn der Zustand fehlt, auf dem der nächste Schritt aufbaut. Alle 22 Proben
+  sind danach gegen den fertigen Test gefahren; die Zahlen oben stammen aus
+  diesem zweiten Lauf.
+
 - **Zurück und Vor stehen über der Karte – ERLEDIGT am 05.10.2026.** Die
   beiden Knöpfe haben die Kopfzeile verlassen und stehen oben in der Mitte
   über der Karte, nur mit ihren Symbolen. Die Wörter sind weg; was ein Klick
@@ -9533,7 +9645,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `resetToOriginal()` | Neubefüllung aus `originalData` | `clearCutEdge(slot)` |
   | `mergeMapSlots()`, Literal für A | neues Ergebnis | Feld fehlt |
   | `mergeMapSlots()`, Literal für B | leerer Slot | Feld fehlt |
-  | `removeSecondMap()`, Literal für B | leerer Slot | Feld fehlt |
+  | `removeSecondMap()`, Literal für B – seit dem 05.10.2026 `closeMapSlot()`, für beide Plätze | leerer Slot | Feld fehlt |
   | die beiden Anfangs-Literale in `mapSlots` | Startzustand | Feld fehlt |
   | `restoreWorkspaceSnapshot()` | Kopie aus dem Snapshot | **bleibt** – das ist der Zweck |
 
@@ -11545,7 +11657,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-auswahlangaben.mjs` | 2 | 22 |
   | `tools/browser-harness.mjs` | – | 1 |
   | `tools/test-merge.mjs` | 5 | 5 |
-  | `tools/test-map-switch.mjs` | 1 | 2 |
+  | `tools/test-map-switch.mjs` | 2 | 2 |
   | `tools/test-dockpath.mjs` | – | 2 |
   | `tools/test-menu.mjs` | – | 3 |
   | `tools/test-reduce.mjs` | – | 1 |
@@ -11555,7 +11667,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-ghosting.mjs` | – | 3 |
   | `tools/test-scale.mjs` | – | 2 |
   | `tools/test-glaettung.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**64** | <!-- bestand: zusicherungen-herstellend -->**66** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**65** | <!-- bestand: zusicherungen-herstellend -->**66** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -11623,6 +11735,10 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   `#duplicateFeatureBtn` im Aufruf selbst; herstellend sind „alle Ebenen sind
   gezeichnet“, das Angaben und Leiste im Vorlauf misst, und „die Eingabe hat
   den Punkt nach E 5 verschoben“, das dafür das East-Feld füllt.
+
+  **Karte schließen hat `tools/test-map-switch.mjs` auf 2 / 2 gebracht**: „der
+  Inspektor sagt es ebenso“ liest im Leerzustand `#inspectorSubtitle` im
+  Aufruf selbst.
 
   **Dazu sind drei Namen in die Bezeichnerliste gekommen**: `selectionOverlay`,
   `selectionTitle` und `selectionSubtitle`. Der Kopf der Auswahl steht seitdem
