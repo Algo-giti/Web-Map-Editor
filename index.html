@@ -1966,9 +1966,18 @@
    */
   .tool-rail.is-collapsed { padding:10px 6px; }
   .tool-rail.is-collapsed .tool-label { display:none; }
-  .tool-rail.is-collapsed .tool-group-title {
-    text-align:center; font-size:9px; padding:2px 0 4px;
-  }
+  /*
+   * Eingeklappt entfallen die Gruppenueberschriften ganz. Sie standen hier
+   * mit 9 px und passten trotzdem nicht: gemessen braucht „Auswählen“ 61 px,
+   * „Zeichnen“ 50 und englisch „Validate“ 46, die Leiste hat 43 - abgeschnitten
+   * wurde also in beiden Sprachen, auf Deutsch nur sichtbarer. Die Leiste auf
+   * den Bedarf zu verbreitern kostete die Karte 18 px genau dort, wo sie am
+   * schmalsten ist: unter 1000 px ist die Leiste erzwungen eingeklappt, bei
+   * 744 px hat die Karte 368 px. Die Gliederung bleibt sichtbar - die
+   * Trennlinien zwischen den Gruppen stehen weiter da -, und das Verb traegt
+   * der Tooltip jedes Knopfes.
+   */
+  .tool-rail.is-collapsed .tool-group-title { display:none; }
   .tool-rail.is-collapsed .tool-button { justify-content:center; padding:6px 0; }
   .tool-rail.is-collapsed #toolGroupSelect { flex-direction:column; }
 
@@ -2992,8 +3001,11 @@
       margin-top:0; padding-top:0; border-top:0;
       margin-left:8px; padding-left:8px; border-left:1px solid var(--line);
     }
-    .tool-rail .tool-group-title,
-    .tool-rail.is-collapsed .tool-group-title { padding:2px 4px; }
+    /*
+     * Keine Regel fuer die Gruppenueberschriften mehr: unter 1000 px ist die
+     * Leiste erzwungen eingeklappt, hier also immer, und eingeklappt entfallen
+     * die Ueberschriften. Die Polsterung, die hier stand, traf nichts mehr.
+     */
     .tool-rail-toggle { display:none; }
   }
 

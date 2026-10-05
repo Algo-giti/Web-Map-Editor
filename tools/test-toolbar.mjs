@@ -456,6 +456,131 @@ try {
     english.slice(0, 120));
 
   /* ---------------------------------------------------------------- */
+  console.log("Eingeklappt entfallen die Gruppenueberschriften");
+
+  /*
+   * Eingeklappt standen die Ueberschriften mit 9 px da und passten trotzdem
+   * nicht: „Auswählen“ braucht 61 px, die Leiste hat 43 - abgeschnitten wurde
+   * auf Deutsch sichtbar, auf Englisch („Validate“, 46 px) nur knapp. Sie
+   * entfallen jetzt in diesem Zustand; die Begruendung steht in CLAUDE.md.
+   *
+   * Gemessen wird, was gezeichnet wird: eine Ueberschrift gilt als da, wenn
+   * elementFromPoint() an ihrer Mitte sie selbst liefert. Und weil „nicht
+   * getroffen“ auch dann bestuende, wenn die Ueberschriften nirgends mehr
+   * gezeichnet wuerden, steht die Gegenprobe daneben: ausgeklappt sind sie
+   * wieder da, ganz und getroffen.
+   */
+  const UEBERSCHRIFTEN = {
+    de: ["Auswählen", "Zeichnen", "Prüfen"],
+    en: ["Select", "Draw", "Validate"],
+  };
+
+  const leistenText = (seite) => seite.evaluate(() => {
+    const rail = document.getElementById("toolRail");
+    const kasten = rail.getBoundingClientRect();
+    const links = kasten.left + rail.clientLeft;
+    const rechts = links + rail.clientWidth;
+
+    const titel = [...rail.querySelectorAll(".tool-group-title")];
+    const getroffen = titel.filter((t) => {
+      const r = t.getBoundingClientRect();
+      if (!r.width || !r.height) return false;
+      const treffer = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !!treffer && t.contains(treffer);
+    }).map((t) => t.textContent.trim());
+
+    /* Jeder gezeichnete Textbehaelter der Leiste, nicht nur die erwarteten. */
+    const abgeschnitten = [];
+    let behaelter = 0;
+    for (const el of rail.querySelectorAll("*")) {
+      const eigen = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+      if (!eigen || !el.getClientRects().length) continue;
+      behaelter += 1;
+      const r = el.getBoundingClientRect();
+      if (el.scrollWidth > el.clientWidth || r.left < links - 0.5 || r.right > rechts + 0.5) {
+        abgeschnitten.push(`${el.textContent.trim()}: ${el.scrollWidth}/${el.clientWidth}`);
+      }
+    }
+
+    return {
+      getroffen,
+      abgeschnitten,
+      behaelter,
+      woerter: titel.map((t) => t.textContent.trim()),
+      sichtbar: rail.innerText.toLowerCase(),
+      beschriftungen: [...rail.querySelectorAll(".tool-label")]
+        .filter((l) => l.getClientRects().length).length,
+    };
+  });
+
+  for (const breite of [1280, 960, 744]) {
+    for (const sprache of ["de", "en"]) {
+      const andere = sprache === "de" ? "en" : "de";
+      const seite = await browser.newPage();
+      await seite.setViewportSize({ width: breite, height: 900 });
+      await seite.goto(indexUrl(), { waitUntil: "load" });
+      await seite.evaluate(() => localStorage.clear());
+      await seite.reload({ waitUntil: "load" });
+      await seite.evaluate((l) => setLanguage(l), sprache);
+
+      /* Unter 1000 px ist die Leiste erzwungen eingeklappt, darueber von Hand. */
+      const vonHand = await seite.locator("#toolRailToggle").isEnabled();
+      if (vonHand) {
+        await seite.locator("#toolRailToggle").click();
+        await seite.waitForTimeout(250);
+      }
+
+      const vorher = await leistenText(seite);
+      check(`${breite} px, ${sprache}: die Leiste ist eingeklappt - keine Werkzeugbeschriftung wird gezeichnet`,
+        vorher.beschriftungen === 0, JSON.stringify(vorher.beschriftungen));
+
+      for (const lage of [sprache, andere]) {
+        if (lage !== sprache) await seite.evaluate((l) => setLanguage(l), lage);
+        const wie = lage === sprache
+          ? `${breite} px, ${sprache} eingeklappt`
+          : `${breite} px, ${sprache} eingeklappt, dann ${lage}`;
+        const m = await leistenText(seite);
+
+        check(`${wie}: keine Gruppenueberschrift wird getroffen`,
+          m.getroffen.length === 0, JSON.stringify(m.getroffen));
+        check(`${wie}: und keine steht im sichtbaren Text der Leiste`,
+          !UEBERSCHRIFTEN[lage].some((w) => m.sichtbar.includes(w.toLowerCase())),
+          JSON.stringify(m.sichtbar));
+        check(`${wie}: kein Text der Leiste ist abgeschnitten`,
+          m.abgeschnitten.length === 0, JSON.stringify(m.abgeschnitten));
+        check(`${wie}: die Ueberschriften sind dabei in dieser Sprache gefuehrt`,
+          JSON.stringify(m.woerter) === JSON.stringify(UEBERSCHRIFTEN[lage]),
+          JSON.stringify(m.woerter));
+      }
+
+      /*
+       * Ausklappen geht nur, wo es nicht erzwungen ist. Gemessen wird in der
+       * Sprache, in der zuletzt eingeklappt gelesen wurde, und danach wieder
+       * zurueck - beide Richtungen.
+       */
+      if (vonHand) {
+        await seite.locator("#toolRailToggle").click();
+        await seite.waitForTimeout(250);
+
+        for (const lage of [andere, sprache]) {
+          if (lage === sprache) await seite.evaluate((l) => setLanguage(l), lage);
+          const wie = `${breite} px, ${sprache} eingeklappt, ${lage} ausgeklappt`;
+          const m = await leistenText(seite);
+
+          check(`${wie}: alle drei Ueberschriften sind wieder da und getroffen`,
+            JSON.stringify(m.getroffen) === JSON.stringify(UEBERSCHRIFTEN[lage]),
+            JSON.stringify(m.getroffen));
+          check(`${wie}: und kein Text der Leiste ist abgeschnitten`,
+            m.behaelter > 0 && m.abgeschnitten.length === 0,
+            JSON.stringify(m.abgeschnitten));
+        }
+      }
+
+      await seite.close();
+    }
+  }
+
+  /* ---------------------------------------------------------------- */
   console.log("Mobil: 400x800, alles erreichbar");
 
   /*

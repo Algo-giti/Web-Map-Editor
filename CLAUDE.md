@@ -360,7 +360,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-map-switch.mjs` | Wechsel zwischen Karte A und B |
 | `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten und den Zahlenfeldern |
 | `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
-| `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen |
+| `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen, eingeklappt ohne Gruppenüberschriften |
 | `test-placeholders.mjs` | was als leerer Platzhalter gilt |
 | `test-inspector.mjs` | Inspektor: alle sieben Zustände, Behälter, Tastatur |
 | `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster |
@@ -2850,7 +2850,12 @@ nehmen spart deshalb keine Breite, sondern Höhe. Daraus folgen drei Stufen:
 |---|---|---|
 | 1100 px | alles mit Text | 168 px |
 | 1000 px | Auswahlwerkzeuge als waagerechte Dreierreihe ohne Text | 168 px |
-| darunter | alles nur Symbole | 56 px |
+| darunter | alles nur Symbole, **ohne Gruppenüberschriften** | 56 px |
+
+**Eingeklappt entfallen die Gruppenüberschriften** – von Hand wie erzwungen.
+Die Gliederung tragen dort die Trennlinien zwischen den Gruppen, das Verb der
+Tooltip jedes Knopfes. Warum nicht eine breitere Leiste, steht in Abschnitt 7,
+„Eingeklappte Werkzeugleiste: die Gruppenüberschriften entfallen“.
 
 Die Auswahlwerkzeuge verlieren ihren Text zuerst, weil sie **Modi** sind, die
 man dauerhaft sieht und schnell wechselt – die kennt man nach einer Woche am
@@ -8491,6 +8496,89 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Aufruf stand schon da, für die Konfliktmeldung –, sondern die Probe, dass
   die Felder an genau diesem Weg hängen. A1 und A2 belegen die Annahme in
   beiden Schreibweisen; an ihr ist nichts geändert.
+
+- **Eingeklappte Werkzeugleiste: die Gruppenüberschriften entfallen –
+  ERLEDIGT am 05.10.2026.** Eingeklappt standen „Auswählen“, „Zeichnen“ und
+  „Prüfen“ mit 9 px über den Symbolen und passten trotzdem nicht. Gemessen,
+  Inhaltsbreite der Leiste 43 px:
+
+  | Überschrift | braucht | Urteil |
+  |---|---|---|
+  | „Auswählen“ | 61 px | um 18 px abgeschnitten – „AUSWÄHL…“ |
+  | „Zeichnen“ | 50 px | läuft in die Polsterung, steht bis an den Rand |
+  | „Prüfen“ | 38 px | passt |
+  | „Select“ / „Draw“ | 34 / 29 px | passen |
+  | „Validate“ | **46 px** | **um 3 px abgeschnitten** – Englisch war also auch betroffen, nur unauffälliger |
+
+  **Gewählt ist: die Überschriften entfallen im eingeklappten Zustand.** Die
+  Alternative, die Leiste auf den gemessenen Bedarf zu verbreitern – 61 px
+  Text plus Polsterung und Rand, also rund 74 statt 56 px –, kostete die Karte
+  18 px genau dort, wo sie am schmalsten ist: unter 1000 px ist die Leiste
+  **erzwungen** eingeklappt, und bei 744 px hat die Karte 368 px. Dazu stehen
+  die 9 px schon für eine verkleinerte Überschrift, und verkleinert werden
+  sollte ausdrücklich nicht. Was die Überschriften leisteten, bleibt: die
+  **Trennlinien** zwischen den Gruppen stehen weiter da, und das Verb trägt
+  der Tooltip jedes Knopfes. Eingeklappt stehen ohnehin nur Symbole – eine
+  Überschrift über drei Symbolen ist der Rest einer Beschriftung, die es in
+  diesem Zustand nicht mehr gibt.
+
+  **Unter 744 px gilt dasselbe**, denn dort ist die Leiste immer eingeklappt.
+  Die Polsterungsregel für die Überschriften im Block der schmalen Breite
+  traf damit nichts mehr und ist entfernt.
+
+  **`scrollWidth > clientWidth` allein hätte den Fall nur halb gefunden.** Ab
+  1100 px abwärts ist die erste Überschrift ein Flexelement mit Basis 100 % in
+  einer umbrechenden Zeile und wächst mit ihrem Text: bei 960 und 744 px
+  misst „Auswählen“ 61 von 61 px – kein Überlauf am Behälter selbst –, und
+  abgeschnitten wird sie von der Leiste, die `overflow-x:hidden` trägt. Die
+  Zusicherung prüft deshalb je Textbehälter beides: den eigenen Überlauf und
+  ob sein Kasten in der Leiste liegt.
+
+  **Zugesichert in `tools/test-toolbar.mjs`**, bei 1280, 960 und 744 px, je in
+  beiden Richtungen über `setLanguage()`: eingeklappt wird keine Überschrift
+  getroffen, keine steht im sichtbaren Text der Leiste, kein Textbehälter ist
+  abgeschnitten, und die Überschriften sind dabei in der laufenden Sprache
+  geführt; bei 1280 px – nur dort lässt sich ausklappen – sind danach alle
+  drei wieder da, getroffen und ungekürzt. Kalibriert am Stand davor: die alte
+  9-px-Regel reißt **36** Zusicherungen, darunter „kein Text der Leiste ist
+  abgeschnitten“ mit „Auswählen: 61/43“ bzw. „Validate: 46/43“.
+
+  **Zwei Mutationsproben an der einen Schreibstelle; beide reißen, 0
+  Timeouts.** Arbeitskopie außerhalb des Repositorys, aus der
+  Sicherungskopie zurückgespielt, Prüfsumme vorher und nachher `01abeb53…`;
+  die statische Stufe reißt bei keiner.
+
+  | Probe | Mutation | gerissen |
+  |---|---|---|
+  | T1 | die Regel `.tool-rail.is-collapsed .tool-group-title { display:none }` ohne Wirkung | **36**, z. B. „1280 px, de eingeklappt: keine Gruppenueberschrift wird getroffen“, Detail `["Auswählen","Zeichnen","Prüfen"]` |
+  | T2 | dieselbe Regel ohne `.is-collapsed`, also auch ausgeklappt | **4**, „… ausgeklappt: alle drei Ueberschriften sind wieder da und getroffen“, Detail `[]` |
+
+  **Die Suche nach weiteren Stellen, an denen Deutsch abschneidet und
+  Englisch nicht**, lief zur Laufzeit mit einem Werkzeug außerhalb des
+  Repositorys: 20 Zustände – leer, Beispielkarte, offene Faltblöcke, ein
+  Punkt, ganzes Feature, Zeichnen von Exclusion, Kreis und Rechteck, Messen,
+  Kartenprüfung, die vier Menüs, zweite Karte, die drei Kartenfenster, Hilfe,
+  eingeklappte Leiste – bei 1280, 960 und 744 px, je mit feinem und grobem
+  Zeiger, je Textbehälter über den eigenen Überlauf und den abschneidenden
+  Vorfahren, gemessen am Textumriss. Kalibriert an den Überschriften oben:
+  sie wurden gefunden, „Validate“ als nur englisch.
+
+  **BENANNTE BEFUNDE, nicht behoben:**
+
+  - **Nur deutsch: die Kurzform von „Umformen“ kürzt „Glätten“ um 1 px.** Bei
+    einem gewählten Punkt oder Feature steht dort „Reduzieren · Rechtwinklig ·
+    Glätten“, braucht 195 px und hat 194 – in jeder Breite und Zeigerart, weil
+    die Spalte fest ist. Englisch („Reduce · Square up · Smooth“) braucht
+    162 px. Sind alle vier Werkzeuge frei, kürzen **beide** Sprachen: deutsch
+    270 gegen 210 px, englisch 230 gegen 216 px. Die Kurzform trägt
+    `text-overflow:ellipsis` mit Absicht – sie darf die Überschrift nicht
+    verdrängen –, gekürzt wird also gewollt; dass es auf Deutsch schon bei drei
+    Marken geschieht, ist der Befund.
+  - **Nur englisch: „Measurement active…“ in der ausgeklappten Leiste** bei
+    1280 px, fein wie grob: 135 gegen 106 px, per Ellipse gekürzt. Deutsch
+    passt.
+
+  Sonst schneidet in keinem der Zustände etwas ab, in keiner Sprache.
 
 - **Acht Texte ohne englische Fassung – ERLEDIGT mit Schritt 7 des vierten
   Durchgangs.** Gefunden hat sie `tools/scan-i18n.mjs`, und zwar erst, als
