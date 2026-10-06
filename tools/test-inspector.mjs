@@ -21,7 +21,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-inspector.mjs
 
-import { createChecker, createKlicker, createMarkerKlicker, createMenueBefehl, elementGetroffen, freieKartenstelle, indexUrl, launchBrowser, openAllFolds } from "./browser-harness.mjs";
+import { createChecker, createKlicker, createMarkerKlicker, createMenueBefehl, createUmformwerkzeug, elementGetroffen, freieKartenstelle, indexUrl, launchBrowser, openAllFolds } from "./browser-harness.mjs";
 
 const TOOL = "test-inspector";
 
@@ -217,6 +217,7 @@ try {
    */
   const klickeFreienKnopf = createKlicker(page, check);
   const menueBefehl = createMenueBefehl(page, check);
+  const umformwerkzeug = createUmformwerkzeug(page, check);
 
   /*
    * Marker werden ueber den gemeinsamen Helfer geklickt: die Angaben zur
@@ -840,23 +841,53 @@ try {
     (await auswahlKopf()).unter === "aus 2 Features", (await auswahlKopf()).unter);
 
   /* --- Umformen ist immer da, mit Grund ---------------------------- */
-  const gruende = () => page.evaluate(() => ({
-    begradigen: document.getElementById("straightenReason").textContent.trim(),
-    reduzieren: document.getElementById("reduceReason").textContent.trim(),
-    rechtwinklig: document.getElementById("rectifyReason").textContent.trim(),
-  }));
+
+  /*
+   * Seit dem 06.10.2026 stehen die Umformwerkzeuge als eigene Eintraege in der
+   * Werkzeugleiste, und der Grund steht im Block des gewaehlten Werkzeugs.
+   * Bis dahin stand hier „der Umformblock steht auch bei gemischter Auswahl“
+   * - der Faltblock ist entfallen. Was die Regel meinte, gilt weiter: man
+   * erfaehrt, was man fuer ein Werkzeug tun muesste, auch wenn es gerade
+   * nicht geht. Gelesen wird je Werkzeug der GEZEICHNETE Grund.
+   */
+  const UMFORM_GRUENDE = [
+    ["straighten", "straightenReason", "straightenSelectionBtn"],
+    ["reduce", "reduceReason", "reduceApplyBtn"],
+    ["rectify", "rectifyReason", "rectifyApplyBtn"],
+  ];
+
+  const gruende = async () => {
+    const ergebnis = {};
+    for (const [name, grund, knopf] of UMFORM_GRUENDE) {
+      await umformwerkzeug(name);
+      ergebnis[name] = await page.evaluate(([g, k]) => {
+        const el = document.getElementById(g);
+        return {
+          text: el.checkVisibility() ? el.innerText.trim() : "",
+          gesperrt: document.getElementById(k).disabled,
+        };
+      }, [grund, knopf]);
+    }
+    return ergebnis;
+  };
+
+  {
+    const leiste = await page.evaluate(() =>
+      [...document.querySelectorAll("#toolRail [data-transform-tool]")].map((b) => {
+        const r = b.getBoundingClientRect();
+        const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return { name: b.dataset.transformTool, getroffen: !!t && b.contains(t) };
+      }));
+    check("die Umformwerkzeuge stehen auch bei gemischter Auswahl in der Leiste",
+      leiste.length > 0 && leiste.every((w) => w.getroffen), JSON.stringify(leiste));
+  }
 
   const gemischt = await gruende();
 
-  check("der Umformblock steht auch bei gemischter Auswahl",
-    await visible("inspectorTransform"));
-  check("und jedes Werkzeug nennt seinen Grund",
-    gemischt.begradigen.length > 0 && gemischt.reduzieren.length > 0 &&
-    gemischt.rechtwinklig.length > 0, JSON.stringify(gemischt));
+  check("und jedes Werkzeug nennt gewaehlt seinen Grund",
+    Object.values(gemischt).every((g) => g.text.length > 0), JSON.stringify(gemischt));
   check("die Werkzeuge sind dabei gesperrt",
-    await page.locator("#straightenSelectionBtn").isDisabled() &&
-    await page.locator("#reduceApplyBtn").isDisabled() &&
-    await page.locator("#rectifyApplyBtn").isDisabled());
+    Object.values(gemischt).every((g) => g.gesperrt), JSON.stringify(gemischt));
 
   /*
    * Zwei Punkte EINES Features geben den Abschnitt frei. Vorher aufheben:
@@ -872,11 +903,9 @@ try {
   const frei = await gruende();
 
   check("bei einem gültigen Abschnitt ändert sich der Grund",
-    frei.begradigen !== gemischt.begradigen,
-    `${frei.begradigen} / ${gemischt.begradigen}`);
-  check("und der Knopf wird frei",
-    !(await page.locator("#straightenSelectionBtn").isDisabled()),
-    frei.begradigen);
+    frei.straighten.text !== gemischt.straighten.text,
+    `${frei.straighten.text} / ${gemischt.straighten.text}`);
+  check("und der Knopf wird frei", !frei.straighten.gesperrt, frei.straighten.text);
 
   /* --- Zeichnen ---------------------------------------------------- */
   await load();
@@ -1986,15 +2015,24 @@ try {
     await page.locator("#pointEastInput").inputValue());
 
   /* ---------------------------------------------------------------- */
-  console.log("Umformen und Kartenprüfung sind eingeklappt, nicht weg");
+  console.log("Bestand, Auswahlblock und Kartenprüfung sind eingeklappt, nicht weg");
 
+  /*
+   * Bis zum 06.10.2026 belegte dieser Abschnitt die Faltmechanik am Block
+   * „Umformen“. Der ist entfallen - seine Werkzeuge stehen in der Leiste -,
+   * und dieselben Eigenschaften werden jetzt an den Faltbloecken gemessen,
+   * die es gibt: am Bestand (Gedaechtnis ueber INSPECTOR_FOLDS), am
+   * Auswahlblock im Kopf (er aendert seinen Text bei jedem Zustand und darf
+   * dabei nicht aufspringen) und an der Kartenpruefung (sie klappt auf
+   * Verlangen auf, ohne es zu merken).
+   */
   await load([MIT_LOCH]);
 
   const offen = (id) => page.evaluate((x) => document.getElementById(x).open, id);
 
   /* Sichtbar im Sinne von "der Block steht da" - auch zugeklappt. */
   check("der Bestandsblock steht", await visible("inspectorStock"));
-  check("der Umformblock steht", await visible("inspectorTransform"));
+  check("der Auswahlblock im Kopf steht", await visible("inspectorHeadText"));
   /*
    * Seit dem 06.10.2026 steht der Pruefblock erst nach einer Pruefung da -
    * siehe den Abschnitt „Die Kartenpruefung erscheint erst nach einer
@@ -2003,8 +2041,9 @@ try {
    */
   check("der Prüfblock steht vor der ersten Prüfung nicht da",
     !(await visible("inspectorValidation")));
-  check("beide sind beim ersten Start zu",
-    !(await offen("inspectorTransform")) && !(await offen("inspectorValidation")));
+  check("alle drei sind beim ersten Start zu",
+    !(await offen("inspectorStock")) && !(await offen("inspectorHeadText")) &&
+    !(await offen("inspectorValidation")));
 
   /*
    * Zugeklappt heißt: der Inhalt ist wirklich weg, nicht nur optisch. Sonst
@@ -2020,39 +2059,37 @@ try {
    */
   const blockhoehe = (id) => page.evaluate((x) =>
     Math.round(document.getElementById(x).getBoundingClientRect().height), id);
+  const kopfzeilenhoehe = (id) => page.evaluate((x) =>
+    Math.round(document.querySelector(`#${x} > summary`).getBoundingClientRect().height), id);
 
-  const zu = await blockhoehe("inspectorTransform");
+  const zu = await blockhoehe("inspectorStock");
 
-  check("zugeklappt kostet der Umformblock nur seine Kopfzeile",
-    zu < 40, String(zu));
-
-  const marken = () => page.evaluate(() =>
-    [...document.querySelectorAll("#transformSummary > span")]
-      .filter((el) => getComputedStyle(el).display !== "none")
-      .map((el) => el.textContent.trim()));
-
-  check("ohne Auswahl sagt die Kopfzeile, dass nichts geht",
-    (await marken()).join(",") === "nichts möglich", (await marken()).join(","));
-
-  await markerKlicken(marks.nth(0));
-  await markerKlicken(marks.nth(2), { modifiers: ["Control"] });
-  await page.waitForTimeout(300);
+  check("zugeklappt kostet der Bestandsblock nur seine Kopfzeile",
+    zu === await kopfzeilenhoehe("inspectorStock"),
+    `${zu} gegen ${await kopfzeilenhoehe("inspectorStock")}`);
 
   /*
-   * Alle drei: der Abschnitt gibt Begradigen frei, Reduzieren arbeitet auf ihm
-   * und Rechtwinklig fällt auf das ganze Feature zurück.
+   * DAS ist der Punkt: ein Faltblock klappt NICHT von selbst auf, wenn sich
+   * sein Inhalt aendert. Der Auswahlblock bekommt beim Zeichnen einen neuen
+   * Titel - und bleibt zu. Selbsttaetiges Aufklappen waere genau die Unruhe,
+   * gegen die der feste Kopfblock gebaut wurde. (Bis zum 06.10.2026 stand
+   * hier derselbe Satz fuer „Umformen“, dessen Kurzform zwei ausfuehrbare
+   * Werkzeuge nannte.)
    */
-  check("mit gültigem Abschnitt nennt sie die Werkzeuge",
-    (await marken()).join(" · ") === "Begradigen · Reduzieren · Rechtwinklig",
-    (await marken()).join(" · "));
+  const titelVorher = await page.evaluate(() =>
+    document.getElementById("inspectorTitle").textContent.trim());
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(250);
+  const titelBeimZeichnen = await page.evaluate(() =>
+    document.getElementById("inspectorTitle").textContent.trim());
 
-  /*
-   * DAS ist der Punkt: der Block klappt NICHT von selbst auf, obwohl gerade
-   * zwei Werkzeuge ausführbar geworden sind. Selbsttätiges Aufklappen wäre
-   * genau die Unruhe, gegen die der feste Kopfblock gebaut wurde.
-   */
+  check("Vorbedingung: der Titel des Auswahlblocks hat sich geaendert",
+    titelBeimZeichnen !== titelVorher, `${titelVorher} -> ${titelBeimZeichnen}`);
   check("und der Block bleibt trotzdem zu",
-    !(await offen("inspectorTransform")));
+    !(await offen("inspectorHeadText")));
+
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(250);
 
   await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(500);
@@ -2068,29 +2105,29 @@ try {
    * UMGEKEHRT gegenueber dem Stand bis hierher, und zwar weil die Zusicherung
    * falsch war: sie las "klappt nie von selbst auf" als "klappt auch auf
    * Verlangen nicht auf". Die Regel richtet sich gegen ein Aufklappen aus
-   * einer ABGELEITETEN Aenderung heraus - der Block daneben belegt sie
-   * unveraendert: zwei Werkzeuge sind ausfuehrbar geworden, und "Umformen"
-   * bleibt zu. Ein Klick auf "Karte pruefen" ist dagegen die ausdrueckliche
-   * Bitte um die Ausgabe; sie in der Kurzform zu beantworten hiesse, die
-   * Handlung ins Leere laufen zu lassen.
+   * einer ABGELEITETEN Aenderung heraus - der Auswahlblock darueber belegt sie
+   * unveraendert. Ein Klick auf "Karte pruefen" ist dagegen die
+   * ausdrueckliche Bitte um die Ausgabe; sie in der Kurzform zu beantworten
+   * hiesse, die Handlung ins Leere laufen zu lassen.
    */
   check("und klappt den Pruefblock auf, weil die Ausgabe verlangt wurde",
     await offen("inspectorValidation"));
 
   /* Aufklappen geht - und der Wunsch überlebt den Neuaufbau. */
-  await page.locator("#inspectorTransform > summary").click();
+  await page.locator("#inspectorStock > summary").click();
   await page.waitForTimeout(250);
 
-  check("aufklappen zeigt die Werkzeuge",
-    (await offen("inspectorTransform")) &&
-    (await blockhoehe("inspectorTransform")) > zu + 200,
-    `${await blockhoehe("inspectorTransform")} statt >${zu + 200}`);
+  check("aufklappen zeigt den Bestand",
+    (await offen("inspectorStock")) &&
+    (await blockhoehe("inspectorStock")) > zu &&
+    await page.evaluate(() => document.getElementById("searchWireStock").checkVisibility()),
+    `${await blockhoehe("inspectorStock")} gegen ${zu}`);
 
   await page.reload({ waitUntil: "load" });
   await page.waitForTimeout(400);
 
   check("nach dem Neuladen ist er noch offen",
-    await offen("inspectorTransform"), "Zustand ging verloren");
+    await offen("inspectorStock"), "Zustand ging verloren");
 
   /*
    * Unveraendert - und sie sagt jetzt mehr als vorher: der Pruefblock STAND
@@ -2098,7 +2135,7 @@ try {
    * dem Neuladen wieder zu ist, belegt, dass ein Aufklappen aus einer
    * Handlung NICHT gemerkt wird. Gemerkt wird allein, was der Nutzer am Griff
    * gewaehlt hat - sonst stuende der Block kuenftig in jeder Sitzung offen,
-   * mit "Noch keine Pruefung durchgefuehrt." darin.
+   * sobald er wieder erscheint.
    */
   check("und der Prüfblock weiterhin zu",
     !(await offen("inspectorValidation")));
@@ -2651,8 +2688,21 @@ try {
   const gruendeGesperrt = await gruende();
 
   check("und der Ablehnungsgrund steht sichtbar unter dem Knopf",
-    Object.values(gruendeGesperrt).every((g) => g.length > 0),
+    Object.values(gruendeGesperrt).every((g) => g.text.length > 0),
     JSON.stringify(gruendeGesperrt));
+
+  /*
+   * Die Leistenknoepfe der Umformwerkzeuge (seit dem 06.10.2026) erklaeren
+   * sich mit DEMSELBEN Satz wie der Knopf im Inspektor - eine Quelle,
+   * TRANSFORM_TOOL_HELP. Zwei Saetze fuer dasselbe Werkzeug liefen
+   * auseinander, sobald jemand nur einen anfasst.
+   */
+  const LEISTE = ["straightenToolBtn", "reduceToolBtn", "rectifyToolBtn"];
+  const leistenTipps = () => page.evaluate((ids) => ids.map((id) =>
+    document.getElementById(id).title), LEISTE);
+
+  check("die Leistenknoepfe erklaeren sich mit denselben Saetzen",
+    (await leistenTipps()).join("|") === gesperrt.join("|"), (await leistenTipps()).join(" | "));
 
   /*
    * Der Tooltip ändert sich nicht, wenn das Werkzeug verfügbar wird.
@@ -2680,12 +2730,16 @@ try {
   check("ohne deutschen Rest",
     !englisch.join(" ").match(/[äöüß]|Punkte|Kante|Linie/),
     englisch.join(" | "));
+  check("und in der Leiste derselbe englische Satz",
+    (await leistenTipps()).join("|") === englisch.join("|"), (await leistenTipps()).join(" | "));
 
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(500);
 
   check("und kommt deutsch zurück",
     (await tipps()).join("|") === gesperrt.join("|"), (await tipps()).join(" | "));
+  check("auch in der Leiste",
+    (await leistenTipps()).join("|") === gesperrt.join("|"), (await leistenTipps()).join(" | "));
 
   /* ---------------------------------------------------------------- */
   console.log("Inspektor einklappen");
@@ -2726,7 +2780,7 @@ try {
    * Zusicherung darunter zu.
    */
   check("der Inhalt ist nicht mehr sichtbar",
-    !(await visible("featureNavigationSection")) && !(await visible("inspectorTransform")));
+    !(await visible("featureNavigationSection")) && !(await visible("inspectorStock")));
 
   const angabenBleiben = await elementGetroffen(page, "#selectionTitle", { dy: 5 });
 
@@ -3390,12 +3444,16 @@ try {
   check("und ihre Zusammenfassung",
     (await text("multiSummary")) === "2 points in Perimeter.",
     await text("multiSummary"));
-  check("auch die Überschrift des Umformblocks",
+  /*
+   * Bis zum 06.10.2026: die Ueberschrift des Faltblocks „Umformen“. Seitdem
+   * traegt die Gruppe der Werkzeugleiste diesen Namen.
+   */
+  check("auch die Überschrift der Umformgruppe in der Leiste",
     (await page.evaluate(() =>
-      document.querySelector("#inspectorTransform .inspector-section-title")
+      document.querySelector("#toolGroupTransform .tool-group-title")
         .textContent.trim())) === "Reshape",
     await page.evaluate(() =>
-      document.querySelector("#inspectorTransform .inspector-section-title")
+      document.querySelector("#toolGroupTransform .tool-group-title")
         .textContent.trim()));
 
   await page.locator("#languageToggle").click();
@@ -3845,20 +3903,72 @@ try {
   }
 
   /* ---------------------------------------------------------------- */
-  console.log("Dieselbe Regel fuer das Umformen");
+  console.log("Das gewaehlte Umformwerkzeug steht oben im Inspektor");
+
+  /*
+   * Seit dem 06.10.2026 - entschieden vom Projektinhaber - ist jedes
+   * Umformwerkzeug ein eigener Eintrag der Werkzeugleiste. Waehlt man eines,
+   * erscheinen seine Einstellungen im Inspektor, sonst nicht. Bis dahin stand
+   * hier „Dieselbe Regel fuer das Umformen“: der Faltblock „Umformen“ rueckte
+   * nach dem Anwenden nach oben. Den Faltblock gibt es nicht mehr; der Block
+   * des gewaehlten Werkzeugs steht von vornherein oben.
+   *
+   * Gemessen wird nach der Wirkung: welcher Block der erste GEZEICHNETE unter
+   * dem Kopf ist, ob er ohne Rollen im Blick liegt und getroffen wird, ob der
+   * Leistenknopf getroffen wird und seinen Zustand nennt.
+   */
+  const UMFORM_BLOECKE = ["inspectorStraighten", "inspectorReduce", "inspectorRectify", "inspectorSmooth"];
+  const umformBloecke = () => page.evaluate((ids) =>
+    ids.filter((id) => document.getElementById(id).checkVisibility()), UMFORM_BLOECKE);
+  const gedrueckt = (id) => page.evaluate((x) =>
+    document.getElementById(x).getAttribute("aria-pressed"), id);
 
   await load([], FAST_GERADE);
   await openAllFolds(page);
 
-  const vorUmformen = await obenImInspektor();
-  const umformVor = await imBlick("inspectorTransform");
-  check("vor dem Umformen steht der Block nicht oben",
-    vorUmformen !== "inspectorTransform", String(vorUmformen));
-  check("und er liegt gar nicht im Blick", !umformVor.oben,
-    JSON.stringify(umformVor));
+  check("ohne Wahl steht kein Umformwerkzeug im Inspektor",
+    (await umformBloecke()).length === 0, JSON.stringify(await umformBloecke()));
 
+  {
+    const knopf = await elementGetroffen(page, "#reduceToolBtn", { dy: 10 });
+    check("„Reduzieren“ steht in der Leiste und wird getroffen", knopf.ok, knopf.grund);
+  }
+
+  /*
+   * Die Spalte steht weiter unten - sonst bewiese „liegt ohne Rollen im
+   * Blick“ nichts: ohne das Zurueckrollen bliebe der Block oberhalb des
+   * sichtbaren Teils.
+   */
+  const rollstandVorher = await page.evaluate(() => {
+    const aside = document.getElementById("inspector");
+    aside.scrollTop = 9999;
+    return aside.scrollTop;
+  });
+  check("Vorbedingung: die Spalte steht weiter unten", rollstandVorher > 0, String(rollstandVorher));
+
+  await page.locator("#reduceToolBtn").click();
+  await page.waitForTimeout(300);
+
+  {
+    const oben = await obenImInspektor();
+    check("nach der Wahl steht „Reduzieren“ oben im Inspektor", oben === "inspectorReduce", String(oben));
+    const blick = await imBlick("inspectorReduce");
+    check("und liegt ohne Rollen im Blick", blick.oben && blick.rollstand === 0, JSON.stringify(blick));
+    const feld = await elementGetroffen(page, "#reduceToleranceInput", { dy: 8 });
+    check("seine Einstellungen stehen offen da: das Toleranzfeld wird getroffen", feld.ok, feld.grund);
+    check("kein anderes Umformwerkzeug steht da",
+      JSON.stringify(await umformBloecke()) === JSON.stringify(["inspectorReduce"]),
+      JSON.stringify(await umformBloecke()));
+    check("der Leistenknopf nennt sich gewaehlt", (await gedrueckt("reduceToolBtn")) === "true");
+  }
+
+  /* Eine Auswahl laesst das Werkzeug stehen - man waehlt Punkte, nachdem man das Werkzeug gewaehlt hat. */
+  await openAllFolds(page);
   await page.locator('[data-action="select-whole-feature"]').first().click();
   await page.waitForTimeout(300);
+
+  check("nach der Auswahl steht „Reduzieren“ weiter oben",
+    (await obenImInspektor()) === "inspectorReduce", String(await obenImInspektor()));
 
   const reduziert = await klickeFreienKnopf(
     "#reduceApplyBtn", "Punkte reduzieren ist frei", "#reduceReason"
@@ -3867,19 +3977,149 @@ try {
   if (reduziert) {
     await page.waitForTimeout(400);
 
-    const nachUmformen = await obenImInspektor();
-    check("nach dem Reduzieren steht das Umformen oben im Inspektor",
-      nachUmformen === "inspectorTransform", String(nachUmformen));
+    check("nach dem Reduzieren steht das Werkzeug weiter oben im Inspektor",
+      (await obenImInspektor()) === "inspectorReduce", String(await obenImInspektor()));
+    const titel = await elementGetroffen(page, "#inspectorReduce .inspector-section-title", { dy: 5 });
+    check("und seine Ueberschrift ist getroffen", titel.ok, titel.grund);
+    check("die Antwort steht in der Statuszeile",
+      /entfernt/.test(await page.locator("#editStatus").innerText()),
+      await page.locator("#editStatus").innerText());
+  }
 
-    const umformNach = await imBlick("inspectorTransform");
-    check("und sein Kopf liegt ohne Rollen im Blick",
-      umformNach.oben && umformNach.rollstand === 0, JSON.stringify(umformNach));
+  /* Ein anderes Werkzeug loest es ab; derselbe Knopf noch einmal nimmt die Wahl zurueck. */
+  await page.locator("#rectifyToolBtn").click();
+  await page.waitForTimeout(250);
+  check("„Rechtwinklig“ loest „Reduzieren“ ab",
+    JSON.stringify(await umformBloecke()) === JSON.stringify(["inspectorRectify"]) &&
+    (await gedrueckt("reduceToolBtn")) === "false" && (await gedrueckt("rectifyToolBtn")) === "true",
+    JSON.stringify(await umformBloecke()));
 
-    const umformTreffer = await elementGetroffen(
-      page, "#inspectorTransform > summary", { dy: 10 }
-    );
-    check("die Kopfzeile des Blocks ist getroffen",
-      umformTreffer.ok, umformTreffer.grund);
+  await page.locator("#rectifyToolBtn").click();
+  await page.waitForTimeout(250);
+  check("ein zweiter Klick nimmt die Wahl zurueck",
+    (await umformBloecke()).length === 0 && (await gedrueckt("rectifyToolBtn")) === "false",
+    JSON.stringify(await umformBloecke()));
+
+  /* Zeichnen nimmt dem Werkzeug den Platz - umgekehrt beendet die Wahl das Messen. */
+  await page.locator("#straightenToolBtn").click();
+  await page.waitForTimeout(250);
+  await page.locator("#drawExclusionBtn").click();
+  await page.waitForTimeout(250);
+  check("das Zeichnen nimmt dem Umformwerkzeug den Platz",
+    (await umformBloecke()).length === 0 && (await gedrueckt("straightenToolBtn")) === "false" &&
+    (await visible("inspectorDraw")),
+    JSON.stringify(await umformBloecke()));
+  await page.locator("#cancelDrawBtn").click();
+  await page.waitForTimeout(250);
+
+  await page.locator("#measureBtn").click();
+  await page.waitForTimeout(250);
+  check("Vorbedingung: das Messen laeuft", await visible("inspectorMeasure"));
+  await page.locator("#straightenToolBtn").click();
+  await page.waitForTimeout(250);
+  check("die Wahl eines Umformwerkzeugs beendet das Messen",
+    !(await visible("inspectorMeasure")) &&
+    JSON.stringify(await umformBloecke()) === JSON.stringify(["inspectorStraighten"]),
+    JSON.stringify(await umformBloecke()));
+
+  /* Und umgekehrt: das Messen nimmt dem Umformwerkzeug den Platz. */
+  await page.locator("#measureBtn").click();
+  await page.waitForTimeout(250);
+  check("das Messen nimmt dem Umformwerkzeug den Platz",
+    (await visible("inspectorMeasure")) && (await umformBloecke()).length === 0 &&
+    (await gedrueckt("straightenToolBtn")) === "false",
+    JSON.stringify(await umformBloecke()));
+  await page.locator("#measureBtn").click();
+  await page.waitForTimeout(250);
+
+  /*
+   * Steht der Pruefbericht oben, gibt die Wahl eines Werkzeugs den Platz frei:
+   * sie ist die naechste Handlung, und der Block des Werkzeugs gehoert unter
+   * den Kopf. Gezaehlt wird das Werkzeug deshalb in der Signatur mit, an der
+   * releaseInspectorResult() eine neue Handlung erkennt.
+   */
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  await menueBefehl("Karte", "Karte prüfen");
+  await page.waitForTimeout(400);
+  check("Vorbedingung: nach „Karte prüfen“ steht der Bericht oben",
+    (await obenImInspektor()) === "inspectorValidation", String(await obenImInspektor()));
+  await page.locator("#rectifyToolBtn").click();
+  await page.waitForTimeout(250);
+  check("die Wahl eines Werkzeugs gibt den Platz oben frei",
+    (await obenImInspektor()) === "inspectorRectify", String(await obenImInspektor()));
+
+  /*
+   * Eine wartende Glaettungsvorschau faellt weg, wenn das Glaetten abgewaehlt
+   * wird: ihr Anwenden und Abbrechen stehen in dem Block, der verschwindet.
+   */
+  /*
+   * Ein Fuenfeck mit stumpfen Ecken, wie in tools/test-glaettung.mjs: am
+   * 40-m-Quadrat dieser Datei laesst das Glaetten jede Ecke aus („enger Bogen
+   * ausgelassen“), und es gaebe keine Vorschau, die wegfallen koennte.
+   */
+  const FUENFECK = {
+    type: "Feature", properties: { name: "perimeter" },
+    geometry: { type: "Polygon", coordinates: [[
+      [16.81, 11.41], [10.12, 15.47], [3.09, 10.19], [7.2, 1.51], [14.33, 1.85], [16.81, 11.41],
+    ]] },
+  };
+  await load([], FUENFECK);
+  await umformwerkzeug("smooth");
+  const geglaettet = await klickeFreienKnopf("#smoothApplyBtn", "Glätten ist frei", "#smoothReason");
+
+  if (geglaettet) {
+    await page.waitForTimeout(400);
+    const vorschau = () => page.evaluate(() =>
+      document.querySelectorAll("#toolPreviewGroup .smooth-preview-line").length);
+    check("Vorbedingung: die Glaettung steht als Vorschau auf der Karte", (await vorschau()) > 0,
+      String(await vorschau()));
+
+    await page.locator("#smoothToolBtn").click();
+    await page.waitForTimeout(300);
+    check("abgewaehlt ist die Vorschau weg", (await vorschau()) === 0, String(await vorschau()));
+    check("und die Statuszeile sagt, dass nichts uebernommen wurde",
+      /Glätten abgebrochen/.test(await page.locator("#editStatus").innerText()),
+      await page.locator("#editStatus").innerText());
+  }
+
+  /*
+   * Beide Sprachrichtungen: Ueberschrift des Blocks, Beschriftung des
+   * Leistenknopfes und der Grund unter dem Knopf - der ist ABGELEITET und
+   * entsteht je Richtung einmal neu, durch die Wahl in der jeweiligen
+   * Sprache.
+   */
+  const reduzierenTexte = () => page.evaluate(() => ({
+    titel: document.querySelector("#inspectorReduce .inspector-section-title").textContent.trim(),
+    leiste: document.querySelector("#reduceToolBtn .tool-label").textContent.trim(),
+    grund: document.getElementById("reduceReason").innerText.trim(),
+  }));
+
+  await load([], FAST_GERADE);
+  await umformwerkzeug("reduce");
+  const deErzeugt = await reduzierenTexte();
+  check("deutsch erzeugt: „Reduzieren“, mit Grund",
+    deErzeugt.titel === "Reduzieren" && deErzeugt.leiste === "Reduzieren" && deErzeugt.grund.length > 0,
+    JSON.stringify(deErzeugt));
+  await page.evaluate(() => setLanguage("en"));
+  {
+    const t = await reduzierenTexte();
+    check("deutsch erzeugt, dann englisch: „Reduce“, der Grund ohne deutschen Rest",
+      t.titel === "Reduce" && t.leiste === "Reduce" && t.grund.length > 0 && !/[äöüß]|Punkt/.test(t.grund),
+      JSON.stringify(t));
+  }
+
+  await load([], FAST_GERADE);
+  await page.evaluate(() => setLanguage("en"));
+  await umformwerkzeug("reduce");
+  const enErzeugt = await reduzierenTexte();
+  await page.evaluate(() => setLanguage("de"));
+  {
+    const t = await reduzierenTexte();
+    check("englisch erzeugt, dann deutsch: wieder „Reduzieren“ und derselbe deutsche Grund",
+      enErzeugt.titel === "Reduce" && t.titel === "Reduzieren" && t.leiste === "Reduzieren" &&
+      t.grund === deErzeugt.grund,
+      `${JSON.stringify(enErzeugt)} -> ${JSON.stringify(t)}`);
   }
 
   /* ---------------------------------------------------------------- */
@@ -3890,6 +4130,12 @@ try {
    * Punkt gewaehlt war: es fehlten 1,3 px. Bei vier Marken fehlten deutsch 60
    * und englisch 14 px. Seitdem bricht die Kurzform zwischen zwei Marken um,
    * statt gekuerzt zu werden.
+   *
+   * Die Kurzform „Umformen“ ist am 06.10.2026 mit ihrem Faltblock entfallen.
+   * Gemessen wird seitdem die Kurzform, die bleibt - die des Bestands -, und
+   * ihr Abstand zwischen zwei Marken nicht mehr gegen „Umformen“, sondern
+   * gegen das, woraus er besteht: das Trennzeichen „ ·“ plus ein Leerzeichen,
+   * gemessen in derselben Kurzform.
    *
    * Gemessen wird je Textbehaelter der Kopfzeile: scrollWidth > clientWidth am
    * Behaelter selbst, und ob sein Text ueber den Kasten hinausragt, der ihn
@@ -3973,18 +4219,20 @@ try {
       .map((m, i) => (m.zeile === marken[i].zeile ? +(m.textLinks - marken[i].textRechts).toFixed(2) : null))
       .filter((d) => d !== null);
 
-    return { abgeschnitten, marken, zeilen, abstaende };
+    /* Der Abstand, den Trennzeichen und Leerraum zusammen haben: „ · “ im selben Kasten. */
+    const probe = document.createElement("span");
+    probe.style.cssText = "position:absolute;visibility:hidden;white-space:pre;";
+    probe.textContent = " · ";
+    kurz.appendChild(probe);
+    const sollAbstand = probe.getBoundingClientRect().width;
+    probe.remove();
+
+    return { abgeschnitten, marken, zeilen, abstaende, sollAbstand };
   }, id);
 
   const ERWARTET = {
-    "ein Punkt": {
-      de: ["Reduzieren", "Rechtwinklig", "Glätten"],
-      en: ["Reduce", "Square up", "Smooth"],
-    },
-    "zwei Punkte": {
-      de: ["Begradigen", "Reduzieren", "Rechtwinklig", "Glätten"],
-      en: ["Straighten", "Reduce", "Square up", "Smooth"],
-    },
+    de: ["keine Search Wire", "kein Dockpfad"],
+    en: ["no Search Wire", "no docking path"],
   };
 
   for (const breite of [1280, 960, 744]) {
@@ -3993,50 +4241,35 @@ try {
       await load();
       await page.evaluate((l) => setLanguage(l), von);
 
-      for (const lage of ["ein Punkt", "zwei Punkte"]) {
-        if (lage === "ein Punkt") await markerKlicken(marks.nth(0));
-        else await markerKlicken(marks.nth(2), { modifiers: ["Control"] });
-        await page.waitForTimeout(250);
+      for (const sprache of [von, nach]) {
+        if (sprache !== von) await page.evaluate((l) => setLanguage(l), sprache);
+        const wie = sprache === von
+          ? `${breite} px, ${von}`
+          : `${breite} px, ${von} erzeugt, dann ${sprache}`;
 
-        for (const sprache of [von, nach]) {
-          if (sprache !== von) await page.evaluate((l) => setLanguage(l), sprache);
-          const wie = sprache === von
-            ? `${breite} px, ${lage}, ${von}`
-            : `${breite} px, ${lage}, ${von} erzeugt, dann ${sprache}`;
+        const k = await kopfzeile("inspectorStock");
+        const texte = k.marken.map((m) => m.text);
 
-          const k = await kopfzeile("inspectorTransform");
-          const texte = k.marken.map((m) => m.text);
+        check(`${wie}: die Kurzform des Bestands nennt ihn in dieser Sprache`,
+          JSON.stringify(texte) === JSON.stringify(ERWARTET[sprache]), JSON.stringify(texte));
+        check(`${wie}: kein Textbehaelter der Kopfzeile „Bestand“ ist abgeschnitten`,
+          k.abgeschnitten.length === 0, JSON.stringify(k.abgeschnitten));
+        check(`${wie}: jede Marke wird getroffen`,
+          k.marken.length > 0 && k.marken.every((m) => m.getroffen),
+          JSON.stringify(k.marken.map((m) => `${m.text}:${m.grund}`)));
+        check(`${wie}: keine Zeile beginnt mit dem Trennzeichen`,
+          k.zeilen.every((z) => Math.abs(z.vorn) < 0.5), JSON.stringify(k.zeilen));
+        check(`${wie}: jede Zeile schliesst rechts mit der Kurzform ab`,
+          k.zeilen.every((z) => Math.abs(z.rechtsFrei) <= 1), JSON.stringify(k.zeilen));
 
-          check(`${wie}: die Kurzform nennt die Werkzeuge in dieser Sprache`,
-            JSON.stringify(texte) === JSON.stringify(ERWARTET[lage][sprache]),
-            JSON.stringify(texte));
-          check(`${wie}: kein Textbehaelter der Kopfzeile „Umformen“ ist abgeschnitten`,
-            k.abgeschnitten.length === 0, JSON.stringify(k.abgeschnitten));
-          check(`${wie}: jede Marke wird getroffen`,
-            k.marken.length > 0 && k.marken.every((m) => m.getroffen),
-            JSON.stringify(k.marken.map((m) => `${m.text}:${m.grund}`)));
-          check(`${wie}: keine Zeile beginnt mit dem Trennzeichen`,
-            k.zeilen.every((z) => Math.abs(z.vorn) < 0.5), JSON.stringify(k.zeilen));
-          check(`${wie}: jede Zeile schliesst rechts mit der Kurzform ab`,
-            k.zeilen.every((z) => Math.abs(z.rechtsFrei) <= 1), JSON.stringify(k.zeilen));
-
-          /*
-           * Dasselbe Trennzeichen mit demselben Abstand in beiden Kurzformen:
-           * der Bestand baut seine Marken im Skript, die Kurzform „Umformen“
-           * steht im Markup. Ohne Leerraum zwischen den Marken stand dort
-           * „Search Wire· Dockpfad“ - und es gab keine Stelle zum Umbrechen.
-           */
-          const bestand = await kopfzeile("inspectorStock");
-          check(`${wie}: der Bestand ist nicht abgeschnitten`,
-            bestand.marken.length === 2 && bestand.abgeschnitten.length === 0,
-            JSON.stringify(bestand.abgeschnitten));
-          check(`${wie}: und trennt seine Marken mit demselben Abstand wie „Umformen“`,
-            bestand.abstaende.length > 0 && k.abstaende.length > 0 &&
-            Math.abs(bestand.abstaende[0] - k.abstaende[0]) < 0.5,
-            `Bestand ${JSON.stringify(bestand.abstaende)} gegen Umformen ${JSON.stringify(k.abstaende)}`);
-        }
-
-        await page.evaluate((l) => setLanguage(l), von);
+        /*
+         * Zwischen den Marken steht Trennzeichen UND Leerraum. Ohne den
+         * Leerraum stand dort „Search Wire· Dockpfad“ - und es gab keine
+         * Stelle zum Umbrechen.
+         */
+        check(`${wie}: zwischen den Marken stehen Trennzeichen und Leerraum`,
+          k.abstaende.length > 0 && Math.abs(k.abstaende[0] - k.sollAbstand) < 0.5,
+          `${JSON.stringify(k.abstaende)} gegen ${k.sollAbstand.toFixed(2)}`);
       }
     }
   }

@@ -469,9 +469,14 @@ function detailsMitKlasse(klasse) {
   return zaehle(leseHtml(), new RegExp(`<details[^>]*class="[^"]*\\b${klasse}\\b`, "g"));
 }
 
+/*
+ * Die Rolle "tool-settings" ist am 06.10.2026 entfallen: die Einstellungen der
+ * Umformwerkzeuge stehen seitdem offen in deren eigenem Block. Mit ihr sind
+ * Eintrag und Messbefehl gegangen - ein Messbefehl, der nichts mehr treffen
+ * kann, saehe beim naechsten Lesen wie eine Zusicherung aus.
+ */
 const DETAILS_ROLLEN = [
   "inspector-fold",
-  "tool-settings",
   "inspector-note",
   "selection-actions",
   "selection-overlay",
@@ -563,16 +568,12 @@ const MESSUNGEN = {
     messen: messeTitleJs,
   },
   "details-instanzen": {
-    was: "<details>-Elemente des Markups in ihren fuenf Rollen",
+    was: "<details>-Elemente des Markups in ihren vier Rollen",
     messen: () => DETAILS_ROLLEN.reduce((summe, rolle) => summe + detailsMitKlasse(rolle), 0),
   },
   "details-inspector-fold": {
     was: "<details class=\"... inspector-fold\"> im Markup",
     messen: () => detailsMitKlasse("inspector-fold"),
-  },
-  "details-tool-settings": {
-    was: "<details class=\"tool-settings\"> im Markup",
-    messen: () => detailsMitKlasse("tool-settings"),
   },
   "details-inspector-note": {
     was: "<details class=\"inspector-note\"> im Markup",

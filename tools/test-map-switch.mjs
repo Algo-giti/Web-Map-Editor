@@ -20,6 +20,7 @@ import {
   createChecker,
   createMarkerKlicker,
   createMenueBefehl,
+  createUmformwerkzeug,
   elementGetroffen,
   indexUrl,
   launchBrowser,
@@ -68,6 +69,7 @@ try {
    */
   const markerKlicken = createMarkerKlicker(page, check);
   const menueBefehl = createMenueBefehl(page, check);
+  const umformwerkzeug = createUmformwerkzeug(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -178,6 +180,8 @@ try {
   await switchTo("A");
 
   check("zwei Punkte sind zurück", (await counter()).includes("2"), await counter());
+  /* Der Knopf steht seit dem 06.10.2026 nur da, wenn das Werkzeug gewaehlt ist. */
+  await umformwerkzeug("straighten");
   check("Begradigen ist freigegeben",
     await page.locator("#straightenSelectionBtn").isEnabled(),
     await page.locator("#straightenSelectionBtn").getAttribute("title"));

@@ -219,8 +219,13 @@ try {
         inspektor);
 
       /* Die Gegenprobe zum Ausbleiben: der Inspektor steht wirklich da. */
-      check("Gegenprobe: der Inspektor ist gezeichnet und trägt seine Werkzeuge",
-        /umformen/i.test(inspektor), inspektor);
+      /*
+       * Belegt wurde das bis zum 06.10.2026 an „Umformen“ - der Faltblock ist
+       * entfallen, seine Werkzeuge stehen in der Leiste. Der Bestand steht in
+       * jedem Zustand im Inspektor.
+       */
+      check("Gegenprobe: der Inspektor ist gezeichnet und trägt seine Blöcke",
+        /bestand/i.test(inspektor), inspektor);
 
       /* Ohne Zutun ausgeklappt: die Felder stehen da und werden getroffen. */
       const feld = await elementGetroffen(seite, "#pointEastInput", { dy: 10 });

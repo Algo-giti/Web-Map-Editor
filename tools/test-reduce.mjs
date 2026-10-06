@@ -16,6 +16,7 @@
 import {
   createChecker,
   createMenueBefehl,
+  createUmformwerkzeug,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -112,6 +113,7 @@ const consoleErrors = [];
 try {
   const page = await browser.newPage();
   const menueBefehl = createMenueBefehl(page, check);
+  const umformwerkzeug = createUmformwerkzeug(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -145,6 +147,13 @@ try {
   });
   await page.waitForTimeout(400);
   await openAllFolds(page);
+
+  /*
+   * Reduzieren steht seit dem 06.10.2026 als Werkzeug in der Leiste; Knopf,
+   * Grund und Einstellungen stehen im Inspektor, solange es gewaehlt ist.
+   * Bis dahin oeffnete openAllFolds() dafuer den Faltblock „Umformen“.
+   */
+  await umformwerkzeug("reduce");
 
   const status = () => page.locator("#reduceStatus").textContent();
   const applyButton = page.locator("#reduceApplyBtn");
@@ -390,6 +399,7 @@ try {
   });
   await page.waitForTimeout(400);
   await openAllFolds(page);
+  await umformwerkzeug("reduce");
 
   await page.locator('[data-action="select-whole-feature"][data-feature-index="1"]')
     .click();
@@ -461,6 +471,7 @@ try {
     });
     await page.waitForTimeout(400);
     await openAllFolds(page);
+    await umformwerkzeug("reduce");
 
     await setTolerance(sprache === "en" ? "0.60" : "0,60");
     await openAllFolds(page);

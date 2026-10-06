@@ -84,6 +84,7 @@
 import {
   createMarkerKlicker,
   createMenueBefehl,
+  createUmformwerkzeug,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -255,6 +256,14 @@ const melder = (name, bedingung, detail) => {
 const menueBefehl = createMenueBefehl(page, melder);
 
 /*
+ * Die Umformwerkzeuge stehen seit dem 06.10.2026 in der Werkzeugleiste; ihre
+ * Knoepfe und Felder stehen nur da, solange das Werkzeug gewaehlt ist.
+ * Derselbe Melder: ein Werkzeug, dessen Block nicht erscheint, ist ein
+ * Zustand, den die Suche nicht besucht.
+ */
+const umformwerkzeug = createUmformwerkzeug(page, melder);
+
+/*
  * Dasselbe fuer die Punktmarker: seit die Angaben zur Auswahl unten rechts
  * ueber der Karte stehen, verdecken sie dort Marker, sobald etwas ausgewaehlt
  * ist. Der Helfer klappt sie ueber ihren Griff zu und wieder auf; ein Marker,
@@ -373,6 +382,7 @@ try {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);
     await openAllFolds(page);
+    await umformwerkzeug("reduce");
     await page.fill("#reduceToleranceInput", toleranz);
     await page.locator("#applyReduceToleranceBtn").click();
     await page.waitForTimeout(250);
@@ -418,6 +428,7 @@ try {
   await markerKlicken(perimeterMarken.nth(2), { modifiers: ["Control"] });
   await page.waitForTimeout(300);
   await openAllFolds(page);
+  await umformwerkzeug("straighten");
   if (await page.locator("#straightenSelectionBtn").isEnabled()) {
     await page.locator("#straightenSelectionBtn").click();
     await page.waitForTimeout(400);
@@ -435,6 +446,7 @@ try {
     await page.waitForTimeout(300);
   }
   await openAllFolds(page);
+  await umformwerkzeug("rectify");
   if (await page.locator("#rectifyApplyBtn").isEnabled()) {
     await page.locator("#rectifyApplyBtn").click();
     await page.waitForTimeout(400);

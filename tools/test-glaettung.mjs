@@ -27,6 +27,7 @@ import {
   createChecker,
   createMarkerKlicker,
   createMenueBefehl,
+  createUmformwerkzeug,
   elementGetroffen,
   indexUrl,
   launchBrowser,
@@ -225,6 +226,7 @@ try {
    */
   const markerKlicken = createMarkerKlicker(page, check);
   const menueBefehl = createMenueBefehl(page, check);
+  const umformwerkzeug = createUmformwerkzeug(page, check);
 
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
@@ -247,6 +249,12 @@ try {
     });
     await page.waitForTimeout(400);
     await openAllFolds(page);
+
+    /*
+     * Glätten steht seit dem 06.10.2026 als Werkzeug in der Leiste; Knopf,
+     * Vorschau und Einstellungen stehen im Inspektor, solange es gewaehlt ist.
+     */
+    await umformwerkzeug("smooth");
   };
 
   const herunterladen = async () => {
@@ -967,6 +975,7 @@ try {
   /* Ohne Karte. */
   await page.goto(indexUrl(), { waitUntil: "load" });
   await openAllFolds(page);
+  await umformwerkzeug("smooth");
   await zweisprachig("ohne Karte", grund,
     "Glätten: keine Karte geladen.", "Smooth: no map loaded.");
 
@@ -976,16 +985,15 @@ try {
     const feld = (id) => t(document.querySelector(`label[for="${id}"]`));
     return [
       t(document.getElementById("smoothApplyBtn")),
-      t(document.getElementById("smoothSpacingInput").closest("details").querySelector("summary")),
       feld("smoothSpacingInput"), feld("smoothKnickInput"),
       feld("smoothPerimeterLimitInput"), feld("smoothExclusionLimitInput"),
       t(document.getElementById("smoothConfirmBtn")),
     ].join(" | ");
   });
   await zweisprachig("die Beschriftungen", beschriftung,
-    "Glätten | Bögen und Grenzen | Bogenpunktabstand in Metern | Knick je Bogenpunkt in Grad | " +
+    "Glätten | Bogenpunktabstand in Metern | Knick je Bogenpunkt in Grad | " +
       "Perimeter höchstens so weit nach außen (m) | Exclusion höchstens so weit nach innen (m) | Anwenden",
-    "Smooth | Arcs and limits | Arc point spacing in metres | Bend per arc point in degrees | " +
+    "Smooth | Arc point spacing in metres | Bend per arc point in degrees | " +
       "Perimeter at most this far outwards (m) | Exclusion at most this far inwards (m) | Apply");
   await zweisprachig("die festen Werte", () => text("smoothFixedHint"),
     "Fest stehen der Mindestkorridor (0,01 m), die Wegpunkttoleranz (0,10 m), die Bogenweite " +
@@ -1034,17 +1042,21 @@ try {
     await setzeFeld(id, vorgabe);
   }
 
-  /* Die Kurzform „Umformen“ nennt das Glätten, wo es geht - auch ohne Auswahl. */
-  const marken = () => page.evaluate(() =>
-    [...document.querySelectorAll("#transformSummary > span")]
-      .filter((el) => getComputedStyle(el).display !== "none")
-      .map((el) => el.textContent.trim()).join(" · "));
-
-  await load(sammlung([KLEIN], []));
-  check("unklarer Massstab: die Kurzform nennt das Glaetten nicht",
-    (await marken()) === "nichts möglich", await marken());
+  /*
+   * Bis zum 06.10.2026 stand hier die Kurzform des Faltblocks „Umformen“, die
+   * das Glätten nannte, wo es ging. Der Faltblock ist entfallen; das Glätten
+   * steht seitdem als Werkzeug in der Leiste, und sein Knopf dort erklärt sich
+   * mit demselben Satz wie der Knopf im Inspektor - in beiden Sprachen.
+   */
   await load(sammlung([PERIMETER], []));
-  await zweisprachig("ohne Auswahl: die Kurzform nennt das Glaetten", marken, "Glätten", "Smooth");
+  await zweisprachig("die Erklaerung in der Werkzeugleiste",
+    () => page.locator("#smoothToolBtn").getAttribute("title"),
+    "Ersetzt scharfe Ecken durch Bögen und Baumringe durch Kreise. Perimeterecken werden nach " +
+      "innen geschnitten, Exclusions wachsen; auf die falsche Seite geht keine Linie weiter als " +
+      "der eingestellte Grenzwert. Erst erscheint eine Vorschau, übernommen wird mit „Anwenden“.",
+    "Replaces sharp corners with arcs and tree rings with circles. Perimeter corners are cut " +
+      "inwards, exclusions grow; no line goes further onto the wrong side than the set limit. " +
+      "A preview comes first; Apply takes it over.");
 
   /* Die Wirkung, je nach Karte. */
   await load(sammlung([PERIMETER], []));

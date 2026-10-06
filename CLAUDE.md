@@ -360,9 +360,9 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-map-switch.mjs` | Wechsel zwischen Karte A und B, Karte schließen |
 | `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten und den Zahlenfeldern |
 | `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
-| `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen, eingeklappt ohne Gruppenüberschriften, beim Messen ungekürzt; Zurück und Vor über der Karte |
+| `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen, Messen bei „Zeichnen“, die Umformwerkzeuge mit eigenen Glyphen, eingeklappt ohne Gruppenüberschriften, beim Messen ungekürzt; Zurück und Vor über der Karte |
 | `test-placeholders.mjs` | was als leerer Platzhalter gilt |
-| `test-inspector.mjs` | Inspektor: alle sieben Zustände, der einklappbare Auswahlblock im Kopf, Behälter, Tastatur, ungekürzte Kurzformen |
+| `test-inspector.mjs` | Inspektor: alle sieben Zustände, der einklappbare Auswahlblock im Kopf, die Kartenprüfung erst nach einer Prüfung, das gewählte Umformwerkzeug oben, Behälter, Tastatur, ungekürzte Kurzformen |
 | `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster, „Karte prüfen“ oben im Menü „Karte“ |
 | `test-ghosting.mjs` | Ghosting: wem ein Vorher-Umriss gehört |
 | `test-glaettung.mjs` | Kartenglättung: Vorschau, Anwenden, Abbrechen, Grenzwerte, Auswahl |
@@ -1195,7 +1195,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->93 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->94 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -1650,9 +1650,9 @@ Dazu drei Regeln, jede mit ihrem Anlass:
 | `title-js` | 1 | per Skript gesetzte, **umgebrochene Zuweisungen eingeschlossen** |
 | `details-instanzen` | 1 | `<details>` des Markups in seinen vier Rollen |
 | `details-inspector-fold` | 1 | davon `.inspector-fold` |
-| `details-tool-settings` | 1 | davon `.tool-settings` |
 | `details-inspector-note` | 1 | davon `.inspector-note` |
 | `details-selection-actions` | 1 | davon `.selection-actions` |
+| `details-selection-overlay` | 1 | davon `.selection-overlay` – nachgetragen am 06.10.2026: die Marke wurde seit dem Umzug der Angaben zur Auswahl gemessen, stand aber nicht in dieser Liste |
 | `klicks-feste-koordinate` | 1 | `position: { x:` in `tools/` |
 | `funktionen-ohne-aufrufer` | 1 | globale Funktionen ohne Aufruf, **gemessen über `tools/check-dom-ids.mjs` selbst** |
 | `verwaiste-css-klassen` | 1 | Klassenselektoren ohne Verwendung, **gemessen über `tools/check-css-classes.mjs` selbst** |
@@ -2859,6 +2859,7 @@ siehe die beiden Absätze „GEÄNDERT“ unter der Tabelle.)
 | Auswählen | Zeiger, Rahmen, Lasso |
 | Zeichnen | Exclusion, Kreis, Rechteck, Search Wire, Dockpfad, **Messen** |
 | ~~Prüfen~~ | **entfallen am 06.10.2026** – „Karte prüfen“ ist der oberste Eintrag im Menü „Karte“ |
+| Umformen | Begradigen, Reduzieren, Rechtwinklig, Glätten – **seit dem 06.10.2026** |
 
 „Prüfen" bleibt eine eigene Gruppe, auch mit nur zwei Einträgen – Messen gehört
 nicht zu „Zeichnen", weil es die Karte nicht anfasst. Die Gruppe füllt sich,
@@ -2955,6 +2956,14 @@ bleiben.
 der Auswahl und gehören in den Inspektor. Bis Etappe 5 liegen die drei
 vorhandenen Knöpfe weiter auf der Karte – ein Zwischenstand muss benutzbar
 bleiben.
+
+**GEÄNDERT am 06.10.2026: die Umformwerkzeuge stehen IN der Leiste**, als
+dritte Gruppe „Umformen“ – Begradigen, Reduzieren, Rechtwinklig und Glätten,
+je mit eigener Glyphe. Entschieden vom Projektinhaber; der Faltblock
+„Umformen“ des Inspektors ist entfallen. Ausgeführt wird weiterhin im
+Inspektor: die Leiste wählt das Werkzeug, und dessen Einstellungen, Knopf und
+Ablehnungsgrund erscheinen dort. Siehe „Die Umformwerkzeuge stehen in der
+Werkzeugleiste“ in diesem Abschnitt.
 
 **Breitenstufen, und warum sie so aussehen:** Eine senkrechte Leiste ist immer
 so breit wie ihre **längste Beschriftung**. Einer einzelnen Gruppe den Text zu
@@ -3204,8 +3213,14 @@ deshalb seinen Grund in einem eigenen `.tool-reason`-Feld unter sich.
 
 **GEÄNDERT am 06.10.2026 für die Kartenprüfung:** sie steht nicht mehr in
 jedem Zustand, sondern erst, wenn die Karte tatsächlich geprüft wurde –
-entschieden vom Projektinhaber. Für die Umformwerkzeuge gilt der Satz
-unverändert. Siehe „Die Kartenprüfung erscheint erst nach einer Prüfung“.
+entschieden vom Projektinhaber. Siehe „Die Kartenprüfung erscheint erst nach
+einer Prüfung“.
+
+**GEÄNDERT am selben Tag für die Umformwerkzeuge:** `#inspectorTransform` ist
+entfallen. Was der Satz darüber sicherte, gilt weiter, an anderem Ort: die
+Werkzeuge stehen in jedem Zustand in der **Werkzeugleiste**, und gewählt
+nennt jedes seinen Grund im `.tool-reason`-Feld unter seinem Knopf. Siehe „Die
+Umformwerkzeuge stehen in der Werkzeugleiste“.
 
 **Vorhanden zu sein und ausgeklappt zu sein sind zwei verschiedene Dinge.**
 Beide Blöcke sind `<details>` und **standardmäßig zu**. Dauerhaft offen
@@ -3221,7 +3236,7 @@ Messen brechen um, statt gekürzt zu werden“):
 
 | Block | Kopfzeile zugeklappt |
 |---|---|
-| Umformen | welche der drei Werkzeuge gerade gehen (`updateTransformShortText()`) |
+| Umformen | welche der drei Werkzeuge gerade gehen (`updateTransformShortText()`) – **entfallen am 06.10.2026** mit dem Faltblock |
 | Kartenprüfung | die Kurzform aus `validationShortText()`, dieselbe Quelle wie die Statuszeile |
 
 **Sie klappen NIE von selbst auf.** Wird ein Werkzeug ausführbar oder findet
@@ -3229,7 +3244,16 @@ die Prüfung neue Fehler, ändert sich die Kopfzeile – der Block bleibt zu.
 Selbsttätiges Aufklappen wäre genau die Unruhe, gegen die der feste Kopfblock
 gebaut wurde. Der Auf-/Zu-Wunsch steht in `localStorage`
 (`webMapEditor.inspectorTransformOpen`, `webMapEditor.inspectorValidationOpen`),
-damit man ihn einmal einstellt.
+damit man ihn einmal einstellt. Seit dem 06.10.2026 stehen in
+`INSPECTOR_FOLDS` der Auswahlblock im Kopf (`webMapEditor.inspectorHeadOpen`),
+der Bestand und die Kartenprüfung; der Schlüssel von „Umformen“ wird nicht
+mehr gelesen.
+
+**Belegt wird die Regel seitdem am Auswahlblock im Kopf:** er bekommt beim
+Zeichnen einen neuen Titel und bleibt dabei zu (`tools/test-inspector.mjs`,
+„Bestand, Auswahlblock und Kartenprüfung sind eingeklappt, nicht weg“). Bis
+dahin stand dort „Umformen“, dessen Kurzform zwei ausführbare Werkzeuge
+nannte.
 
 **„Von selbst" heißt: aus einer ABGELEITETEN Änderung heraus – nicht auf
 Verlangen.** Die Regel richtet sich gegen einen Block, der aufspringt, weil
@@ -3237,7 +3261,8 @@ sich der Zustand geändert hat; sie richtet sich nicht gegen eine Handlung, die
 den Block ausdrücklich meint. „Karte prüfen" klappt die Kartenprüfung deshalb
 auf (`runMapValidation()` über `openInspectorFold()`), während „Umformen"
 unverändert zubleibt, wenn zwei Werkzeuge ausführbar werden. Der Unterschied
-ist gemessen und in `tools/test-inspector.mjs` nebeneinander zugesichert.
+ist gemessen und in `tools/test-inspector.mjs` nebeneinander zugesichert
+(seit dem 06.10.2026 am Auswahlblock statt an „Umformen“).
 
 **Ein so erzwungenes Aufklappen wird NICHT gemerkt.** `openInspectorFold()`
 überspringt das Sichern; gespeichert bleibt allein, was der Nutzer am Griff
@@ -3276,7 +3301,7 @@ sind zwei, und sie stehen in `INSPECTOR_RESULT_BLOCKS`:
 | Block | Handlung | was dort steht |
 |---|---|---|
 | KARTENPRÜFUNG | „Karte prüfen" | Zusammenfassung und Befundliste – nirgends sonst |
-| UMFORMEN | Begradigen, Reduzieren, Rechtwinklig | beim Reduzieren die Flächenänderung, bei Reduzieren und Rechtwinklig der Ablehnungsgrund |
+| UMFORMEN | Begradigen, Reduzieren, Rechtwinklig | beim Reduzieren die Flächenänderung, bei Reduzieren und Rechtwinklig der Ablehnungsgrund – **entfallen am 06.10.2026**: der Block des gewählten Werkzeugs steht ohnehin gleich unter dem Kopf, `INSPECTOR_RESULT_BLOCKS` trägt nur noch die Kartenprüfung |
 
 **Die übrigen antworten anderswo, und deshalb ändert sich für sie nichts:**
 
@@ -3896,6 +3921,148 @@ die Symbole; was ein Klick zurücknimmt, sagt der Tooltip. Beide Leisten
 stehen in **einer** Rasterzeile (`.map-top-row`), die Zurück/Vor aus der
 Mitte rücken lässt, wenn die Karte zu schmal ist. Befund, Messung und
 Zusicherungen stehen in Abschnitt 7, „Zurück und Vor stehen über der Karte“.
+
+### Die Umformwerkzeuge stehen in der Werkzeugleiste
+
+**Entschieden vom Projektinhaber am 06.10.2026: der Block UMFORMEN im
+Inspektor entfällt. Jedes Umformwerkzeug – Begradigen, Reduzieren,
+Rechtwinklig, Glätten – ist ein eigener Eintrag der linken Werkzeugleiste, mit
+eigener Glyphe. Wählt man eines, erscheinen seine Einstellungen rechts im
+Inspektor, sonst nicht. Das Verhalten der Werkzeuge bleibt unverändert, auch
+die sichtbaren Ablehnungsgründe.**
+
+| Frage | Antwort |
+|---|---|
+| wo in der Leiste | dritte Gruppe „Umformen“ (`#toolGroupTransform`), nach „Zeichnen“; die Gruppenüberschrift war als Übersetzung schon da |
+| was der Leistenknopf tut | er **wählt** das Werkzeug; ein zweiter Klick nimmt die Wahl zurück, ein anderes Werkzeug löst sie ab. Ausgeführt wird im Inspektor, mit demselben Knopf wie bisher (`#straightenSelectionBtn`, `#reduceApplyBtn`, `#rectifyApplyBtn`, `#smoothApplyBtn`) |
+| wo der Block steht | gleich unter dem Kopf des Inspektors, vor den Zustandsblöcken; je Werkzeug einer (`#inspectorStraighten`, `#inspectorReduce`, `#inspectorRectify`, `#inspectorSmooth`), und nur der des gewählten steht da |
+| was im Block steht | die Teile des alten Faltblocks, **verschoben, nicht kopiert** – ids unverändert: Knopf, `.tool-reason`, Einstellungen. Die Einstellungen stehen **offen**; die eingeklappten `.tool-settings` („Toleranz und Hinweise“, „Vorzugsrichtung und Toleranz“, „Bögen und Grenzen“) sind entfallen, samt Regeln und Wörterbucheinträgen – der Block gehört allein dem gewählten Werkzeug, und „seine Einstellungen erscheinen“ heißt: sichtbar |
+| woran die Wahl hängt | `activeTransformTool`, gesetzt in `setTransformTool()`, geschrieben in `updateTransformTools()` – das läuft mit jedem `updateInspector()` und schaltet Leistenknopf (`.active`, `aria-pressed`) und Block |
+| sperren die Leistenknöpfe? | **nie.** Man wählt das Werkzeug vor oder nach der Auswahl; der Grund, warum es gerade nicht geht, steht sichtbar unter seinem Knopf im Inspektor. Ein gesperrter Leistenknopf nähme den Weg zu genau diesem Grund |
+| Erklärung | `setTransformToolTitles()` setzt beim Start den `title` aus `TRANSFORM_TOOL_HELP` – derselbe Satz wie am Knopf im Inspektor, eine Quelle |
+
+**Die Wahl ist eine Ansicht, kein Modus.** Die Werkzeuge hängen an der
+Auswahl, und Punkte wählt man vorher oder nachher, mit Zeiger, Rahmen, Lasso
+oder der Feature-Navigation. Ein gewähltes Umformwerkzeug lässt deshalb
+Auswahl und Auswahlwerkzeug stehen, und `endActiveToolModes()` fasst es nicht
+an – sonst beendete jeder Sprung aus der Feature-Navigation das Werkzeug, für
+das man gerade ein Feature wählt.
+
+| Begegnung | Verhalten |
+|---|---|
+| Zeichnen startet | nimmt dem Umformwerkzeug den Platz (`startFeatureDrawing()`); beide heben ohnehin die Auswahl auf |
+| Messen startet | ebenso (`setMeasurementMode(true)`) |
+| ein Umformwerkzeug wird gewählt | beendet ein laufendes Zeichnen oder Messen (`endActiveToolModes()`) – der Inspektor hat einen Platz unter dem Kopf |
+| „Karte prüfen“ | lässt das Werkzeug stehen; der Bericht steht oben, darunter der Block des Werkzeugs |
+| ein Werkzeug wird gewählt, während der Bericht oben steht | gibt den Platz frei: `inspectorStateSignature()` zählt das gewählte Werkzeug mit, `releaseInspectorResult()` erkennt die neue Handlung |
+| Glätten wird abgewählt, eine Vorschau wartet | `cancelSmoothing()` – Anwenden und Abbrechen stehen in dem Block, der gerade verschwindet; eine Vorschau, die man nicht mehr übernehmen oder verwerfen kann, wäre eine Falle. Die Statuszeile sagt „Glätten abgebrochen – die Karte ist unverändert.“ |
+| Escape | **unverändert**: hebt die Auswahl auf und lässt das Werkzeug stehen. Ein Abwählen über Escape wäre ein neuer Rang in der Escape-Rangfolge; nicht gebaut, weil nicht verlangt |
+
+**Und die Spalte rollt an den Anfang**, wenn ein Werkzeug gewählt wird –
+dieselbe Lehre wie beim Ergebnis einer Handlung: der Block steht oben, aber
+eine Spalte, die weiter unten stand, zeigte ihn nicht.
+
+**`runTransformTool()` und der Ergebnisplatz für UMFORMEN sind entfallen.** Der
+Block des gewählten Werkzeugs steht ohnehin unter dem Kopf; die vier Knöpfe
+rufen ihre Werkzeuge unmittelbar. `INSPECTOR_RESULT_BLOCKS` trägt nur noch die
+Kartenprüfung.
+
+**Die Glyphen**, im 24er Raster der übrigen, nur Striche in `currentColor`:
+Begradigen – zwei feste Endpunkte, dazwischen die Gerade, darüber gestrichelt
+der alte Verlauf; Reduzieren – vier Punkte werden zwei; Rechtwinklig – der
+rechte Winkel mit seinem Quadrat; Glätten – die Ecke als Bogen. Für das
+Glätten stand hier der Entwurf des nie gebauten „Abrunden“; er ist bei 18 px
+gescheitert, siehe dort.
+
+**Tests gehen über einen Helfer:** `createUmformwerkzeug(page, check)` in
+`tools/browser-harness.mjs` wählt ein Werkzeug (klickt nur, wenn es noch nicht
+gewählt ist – ein zweiter Klick wählte ab), sichert zu, dass sein Block
+gezeichnet wird, und bricht sonst ab wie `createMenueBefehl()`. Welcher Block
+dazugehört, liest er aus `TRANSFORM_TOOLS` im Bestand. Aus `openAllFolds()` ist
+`.tool-settings` entfernt: der Selektor könnte nichts mehr treffen.
+
+**Wege statt Bezeichner, wieder:** acht Testdateien und `tools/scan-i18n.mjs`
+öffneten den Faltblock über `openAllFolds()` und klickten dann die Knöpfe. Die
+ids sind geblieben, der Weg führt jetzt über die Leiste. **Drei Zusicherungen
+belegten ihr Ding an „Umformen“ und sind auf das umgestellt, was es heute
+gibt:** „der Inspektor ist gezeichnet“ in `tools/test-auswahlangaben.mjs` (jetzt
+am Bestand), die Faltmechanik in `tools/test-inspector.mjs` (jetzt an Bestand
+und Auswahlblock) und der Abstand der Kurzform-Marken (jetzt gegen ein im
+selben Kasten gemessenes „ · “ statt gegen die Kurzform „Umformen“).
+
+**Zugesichert in `tools/test-inspector.mjs`** („Das gewaehlte Umformwerkzeug
+steht oben im Inspektor“), nach der Wirkung: ohne Wahl kein Block; nach der
+Wahl ist „Reduzieren“ der erste gezeichnete Block unter dem Kopf, liegt ohne
+Rollen im Blick (vorher stand die Spalte nachweislich weiter unten), sein
+Toleranzfeld wird getroffen, kein anderer Block steht da, der Leistenknopf
+nennt sich gewählt; eine Auswahl lässt ihn stehen, das Reduzieren ebenso;
+„Rechtwinklig“ löst ab, ein zweiter Klick wählt ab; Zeichnen und Messen
+nehmen den Platz, die Wahl beendet das Messen; nach „Karte prüfen“ gibt die
+Wahl den Platz oben frei; eine wartende Glättungsvorschau fällt beim Abwählen
+weg; Überschrift, Leistenbeschriftung und Grund in beiden Sprachrichtungen,
+der Grund je einmal in der anderen Sprache erzeugt. Dazu „Umformen ist immer
+da, mit Grund“ bei gemischter Auswahl: die vier Leistenknöpfe werden
+getroffen, und gewählt nennt jedes Werkzeug seinen Grund. In
+`tools/test-toolbar.mjs`: drei Gruppen, „Umformen“ trägt die vier, jeder
+getroffen, jede Glyphe im 24er Raster, in der Textfarbe, ohne Fläche und
+verschieden. In `tools/test-menu.mjs`: der Hilfesatz „Werkzeuge“ nennt die
+Umformwerkzeuge in der Leiste, beide Sprachen.
+
+**Fünfzehn Mutationen, je eine Schreibstelle; alle reißen, 0 Timeouts.** Fünf
+Arbeitskopien außerhalb des Repositorys, je Probe aus der Sicherungskopie
+zurückgespielt, Prüfsumme vorher und nachher `96020ced…`; gemessen je Probe
+die statische Stufe, `tools/test-inspector.mjs` und `tools/test-toolbar.mjs`
+(bei U10 dazu `tools/test-glaettung.mjs`, bei U13 nur `tools/test-menu.mjs`).
+Die statische Stufe reißt bei keiner.
+
+| Probe | Schreibstelle | gerissen |
+|---|---|---|
+| U1 | `updateTransformTools()` nicht aus `updateInspector()` gerufen | **1** – „Umformwerkzeug „straighten“ gewaehlt: sein Block steht im Inspektor“; danach bricht der Helfer den Lauf **beabsichtigt** ab, wie `createMenueBefehl()`, statt in einen Timeout zu laufen |
+| U2 | alle vier Blöcke stehen immer | **29** + **24**, darunter „Zustand ein Punkt passt ohne Scrollen“ (1565 in 859) und, in `tools/test-toolbar.mjs`, „es wird wirklich gemessen“ |
+| U3 | Leistenknopf ohne `.active` und `aria-pressed` | **2**, „der Leistenknopf nennt sich gewaehlt“ und „„Rechtwinklig“ loest „Reduzieren“ ab“ |
+| U4 | ein zweiter Klick wählt nicht ab | **3**, darunter „ein zweiter Klick nimmt die Wahl zurueck“ |
+| U5 | die Spalte rollt nicht an den Anfang | **2**, „und liegt ohne Rollen im Blick“ (Rollstand 1331) und „das Toleranzfeld wird getroffen“ |
+| U6 | die Wahl beendet kein laufendes Werkzeug | **2**, „die Wahl eines Umformwerkzeugs beendet das Messen“ und „das Messen nimmt dem Umformwerkzeug den Platz“ |
+| U7 | das Zeichnen lässt das Werkzeug stehen | **1**, „das Zeichnen nimmt dem Umformwerkzeug den Platz“ |
+| U8 | das Messen lässt das Werkzeug stehen | **1**, „das Messen nimmt dem Umformwerkzeug den Platz“ |
+| U9 | die Glättungsvorschau bleibt beim Abwählen stehen | **2**, „abgewaehlt ist die Vorschau weg“ |
+| U10 | `setTransformToolTitles()` nicht gerufen | **3** + **3** (`tools/test-glaettung.mjs`), „die Leistenknoepfe erklaeren sich mit denselben Saetzen“ |
+| U11 | die Signatur zählt das Werkzeug nicht mit | **1**, „die Wahl eines Werkzeugs gibt den Platz oben frei“ – Detail `inspectorValidation` |
+| U12 | Glätten trägt die Glyphe von Rechtwinklig | **1** in `tools/test-toolbar.mjs`, „und jede Glyphe ist eine eigene“ |
+| U13 | der Wörterbucheintrag des neuen Hilfesatzes fehlt | **3** in `tools/test-menu.mjs`, darunter „englisch: auch dort stehen die Umformwerkzeuge in der Leiste“ |
+| U14 | der Wörterbucheintrag „Umformen“ fehlt | **1** + **9**, darunter „auch die Überschrift der Umformgruppe in der Leiste“ |
+| U15 | die vier Blöcke unten statt unter dem Kopf | **4**, darunter „nach der Wahl steht „Reduzieren“ oben im Inspektor“ – Detail `inspectorEmpty` |
+
+Die Zahl vor dem „+“ zählt in `tools/test-inspector.mjs`, die dahinter in
+`tools/test-toolbar.mjs`, wo nicht anders genannt.
+
+**Zwei Schreibstellen waren im ersten Entwurf des Tests nicht abgedeckt** und
+sind es seit dem Durchsehen der Probenliste: „das Messen nimmt dem
+Umformwerkzeug den Platz“ (U8) und „die Wahl eines Werkzeugs gibt den Platz
+oben frei“ (U11) hatten keine Zusicherung – beide Proben wären ohne Befund
+geblieben. **Und eine Vorbedingung riss beim ersten Lauf zu Recht:** das
+40-m-Quadrat der Datei gibt beim Glätten keine Vorschau, jede Ecke wird als
+„enger Bogen“ ausgelassen. Die Probe der wegfallenden Vorschau läuft deshalb
+an dem Fünfeck aus `tools/test-glaettung.mjs`.
+
+**Nebenbefunde, gemeldet und nicht behoben:**
+
+- **Bei Reduzieren und Rechtwinklig steht der Ablehnungsgrund jetzt zweimal
+  da.** Ohne gültiges Ziel schreibt die Statusfunktion des Werkzeugs
+  (`#reduceStatus`, `#rectifyStatus`) denselben Satz wie sein `.tool-reason`
+  – gemessen: „Reduzieren: einen Punkt auswählen (ganzes Feature) oder zwei
+  Punkte (Abschnitt).“ und „Ecken rechtwinklig: einen Punkt des Features
+  auswählen.“ je zweimal untereinander. Bisher fiel das nicht auf, weil das
+  Statusfeld in den eingeklappten Einstellungen lag. Mit Ziel unterscheiden
+  sich beide (Grund: was das Werkzeug tut; Status: die Analyse). Das
+  Verhalten ist unverändert übernommen, wie verlangt; ob das Statusfeld ohne
+  Ziel leer bleiben soll, ist eine Entscheidung.
+- **Die Vorschauen von Begradigen, Reduzieren und Rechtwinklig hängen weiter
+  an der Auswahl, nicht am gewählten Werkzeug.** Bei einem ganz gewählten
+  Feature stehen Reduzieren- und Rechtwinklig-Vorschau gleichzeitig auf der
+  Karte, auch wenn keines der beiden gewählt ist. Unverändert gelassen, weil
+  das Verhalten der Werkzeuge bleiben sollte; seit es ein gewähltes Werkzeug
+  gibt, läge es nahe, nur dessen Vorschau zu zeigen.
 
 ### Die Angaben zur Auswahl stehen über der Karte
 
@@ -4953,7 +5120,10 @@ zwei ausgewählten Punkten oder auf einem ganzen Feature. Die Auswahl kommt aus
 
 **Scharfe Ecken werden durch Bögen ersetzt, Baumringe durch Kreise.** Das
 Werkzeug steht im Faltblock „Umformen“ neben Begradigen, Reduzieren und
-Rechtwinklig. Der Knopf „Glätten“ rechnet erst nur: das Ergebnis erscheint als
+Rechtwinklig. **Seit dem 06.10.2026 steht es als eigener Eintrag in der
+Werkzeugleiste (Gruppe „Umformen“)**; gewählt, erscheinen Knopf, Vorschau und
+Einstellungen im Inspektor – die Einstellungen offen, nicht mehr unter
+„Bögen und Grenzen“ eingeklappt. Der Knopf „Glätten“ rechnet erst nur: das Ergebnis erscheint als
 **Vorschau** auf der Karte (neue Linien gestrichelt, neue Punkte als Marker,
 beides im Entwurfston) und darunter in Zahlen. Übernommen wird es mit
 „Anwenden“, verworfen mit „Abbrechen“. Ein Anwenden ist ein Undo-Schritt.
@@ -5131,6 +5301,9 @@ abweichen, misst er mit eigenem Code, alle 1 mm abgetastet. Belegt sind:
   herstellbar), Beschriftungen, die festen Werte, die Erklärung im `title`,
   der Hinweis im Mäherfenster, die Felder und die Meldungen.
 
+**ÜBERHOLT am 06.10.2026, die Kurzform ist mit ihrem Faltblock entfallen.
+`tools/test-glaettung.mjs` sichert an ihrer Stelle zu, dass sich der
+Leistenknopf mit demselben Satz erklärt wie der Knopf im Inspektor.**
 **Die Kurzform „Umformen“ nennt das Glätten auch ohne Auswahl** – es wirkt
 dann auf die ganze Karte. Die Zusicherung „ohne Auswahl sagt die Kopfzeile,
 dass nichts geht“ in `tools/test-inspector.mjs` bleibt trotzdem richtig, und
@@ -6867,7 +7040,7 @@ damit in die Gruppe „Namen von Symbolknöpfen", die ausdrücklich **nicht** zu
 das ist der Punkt dieser Nachschau: die Liste war nicht zu lang, sondern zu
 kurz.
 
-**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->44 Fundstellen –
+**RICHTIGSTELLUNG, fortgeschrieben: es sind <!-- bestand: title-fundstellen -->45 Fundstellen –
 und ein genannter Wortlaut steht zur Laufzeit nirgends.** Beides fiel bei der
 Bestandsaufnahme zur Kontext-Knopfleiste an; es ist ein Beifang und wird hier
 richtiggestellt, nicht gelöscht.
@@ -6883,11 +7056,14 @@ deshalb durch:
 | `updateMultiSelectionUi()`, `snapToggle.title =` | den Ablehnungsgrund des Rasterfangs bei unbekanntem Maßstab |
 | `updateMultiSelectionUi()`, `straightenButton.title =` | `TRANSFORM_TOOL_HELP.straightenSelectionBtn` |
 
-**Es sind damit <!-- bestand: title-markup -->27 im Markup und <!-- bestand: title-js -->17 per JS.** Zwei der Markup-Titel sind mit dem
+**Es sind damit <!-- bestand: title-markup -->27 im Markup und <!-- bestand: title-js -->18 per JS.** Zwei der Markup-Titel sind mit dem
 zweiundzwanzigsten Durchgang dazugekommen – die Erklärungen von „Davor
 einfügen" und „Danach einfügen", die vorher gar keine hatten. Der siebzehnte
 per JS ist die Erklärung des Knopfes „Glätten“ aus `TRANSFORM_TOOL_HELP`,
-dazugekommen mit der Kartenglättung. Der fünfundzwanzigste im Markup ist der
+dazugekommen mit der Kartenglättung. Der achtzehnte ist eine Zuweisung in
+einer Schleife: `setTransformToolTitles()` gibt den vier Umformwerkzeugen der
+Werkzeugleiste (06.10.2026) dieselben Sätze aus `TRANSFORM_TOOL_HELP` – vier
+Knöpfe, eine Fundstelle. Der fünfundzwanzigste im Markup ist der
 NAME des Griffs der Angaben zur Auswahl („Auswahlangaben ein- und
 ausklappen“) – ein Knopf ohne Text, derselbe Fall wie der Griff der
 Auswahlleiste und kein Fall für Etappe 8b. Der sechsundzwanzigste und
@@ -8120,6 +8296,17 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   deutschen Markup zurückgenommen reißt drei benannte Zusicherungen, ein
   verändertes Wort in der englischen Fassung reißt eine.
 
+  **Fortgeschrieben am 06.10.2026, mit den Umformwerkzeugen in der Leiste:**
+  der Satz „Werkzeuge:“ nannte „„Linie begradigen“ im Faltblock „Umformen““ –
+  einen Ort, den es nicht mehr gibt. Er sagt jetzt, dass Begradigen,
+  Reduzieren, Rechtwinklig und Glätten unter „Umformen“ in der Werkzeugleiste
+  stehen und ihre Einstellungen im Inspektor erscheinen, wenn man eines wählt;
+  der Wörterbuchschlüssel ist getauscht, nicht geändert, der alte ist mit weg.
+  Zugesichert in `tools/test-menu.mjs`, deutsch und englisch, samt der
+  Gegenprobe, dass der Faltblock nicht mehr genannt wird. Die Zeile „Messen &
+  Prüfen“ nennt keinen Ort und ist unverändert richtig, obwohl Messen und
+  „Karte prüfen“ am selben Tag umgezogen sind.
+
   **Ein Hilfesatz besteht aus ZWEI Textknoten, und beide brauchen einen
   Eintrag** – die `<strong>`-Beschriftung und der Rumpf. Das steht schon
   weiter unten als Lehre aus 7g („Fließtexte statt Beschriftungen"); hier ist
@@ -9085,6 +9272,15 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Kürzungen aus dem Eintrag darüber sind behoben, und zwar auf demselben Weg:
   reicht die Zeile nicht, nimmt der Text eine zweite, statt per Ellipse
   gekürzt zu werden.
+
+  **Seit dem 06.10.2026 gibt es die Kurzform „Umformen“ nicht mehr** – sie ist
+  mit ihrem Faltblock entfallen, die Werkzeuge stehen in der Leiste. Die Regel
+  und ihre CSS (Überschrift `flex:none`, Trennzeichen hinter der Marke, Umbruch
+  zwischen Marken) gelten weiter für die Kurzform des Bestands; der Abschnitt
+  in `tools/test-inspector.mjs` misst seitdem sie allein, und den Abstand
+  zwischen zwei Marken gegen ein im selben Kasten gemessenes „ · “ statt gegen
+  „Umformen“. Die Messwerte und Proben darunter beschreiben den Stand vom
+  05.10.2026.
 
   **Gewählt ist Höhe statt Breite.** Beide Stellen liegen in einer Spalte
   fester Breite, die in der Höhe Platz hat:
@@ -10890,6 +11086,15 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   **Rückfallebene, falls es bei 18 px zu unruhig wirkt:** der erste Pfad
   allein; dann trägt das Wort „Abrunden" am Knopf die Bedeutung.
 
+  **Seit dem 06.10.2026 haben die Umformwerkzeuge Symbole – alle vier
+  gemeinsam, wie oben verlangt –, und der Entwurf ist dabei gemessen
+  worden.** Er diente dem Glätten, dem nächsten Verwandten des Abrundens. Bei
+  18 px deckte der zweite Pfad, der weggenommene Scheitel, den Bogen zu; das
+  Symbol las sich als eckige Ecke und war vom rechten Winkel kaum zu
+  unterscheiden. **Die Rückfallebene ist eingetreten**, mit einem größeren
+  Radius: `M4 20v-8a8 8 0 0 1 8-8h8`. Wer das Abrunden später baut, braucht ein
+  eigenes Symbol – dieses trägt das Glätten.
+
   **4. Umlaufsinn als Voraussetzung für 2 und 3.** Ohne Kenntnis der
   Umlaufrichtung ist „nach innen" nicht definiert: beim Perimeter liegt der
   Mähbereich innerhalb, bei einer Exclusion außerhalb.
@@ -12034,7 +12239,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
 
   | Datei | prüfend | nur herstellend |
   |---|---|---|
-  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**55** | 18 |
+  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**55** | 19 |
   | `tools/test-auswahlangaben.mjs` | 2 | 22 |
   | `tools/browser-harness.mjs` | – | 1 |
   | `tools/test-merge.mjs` | 5 | 5 |
@@ -12048,7 +12253,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-ghosting.mjs` | – | 3 |
   | `tools/test-scale.mjs` | – | 2 |
   | `tools/test-glaettung.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**65** | <!-- bestand: zusicherungen-herstellend -->**67** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**65** | <!-- bestand: zusicherungen-herstellend -->**68** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -12126,6 +12331,12 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Auswahlblock zu“ steht hinter dem Messhelfer `auswahlblock()`, der
   `#inspectorTitle` und `#inspectorSubtitle` liest – der Bezeichner steht damit
   im Vorlauf, nicht im Aufruf.
+
+  **Die Umformwerkzeuge in der Leiste (06.10.2026) haben eine weitere
+  herstellende hinzugefügt**, ebenfalls in `tools/test-inspector.mjs`: der
+  Abschnitt über die Faltblöcke belegt „klappt nie von selbst auf“ seitdem am
+  Auswahlblock statt an „Umformen“, und „Vorbedingung: der Titel des
+  Auswahlblocks hat sich geaendert“ liest `#inspectorTitle` im Vorlauf.
 
   **Dazu sind drei Namen in die Bezeichnerliste gekommen**: `selectionOverlay`,
   `selectionTitle` und `selectionSubtitle`. Der Kopf der Auswahl steht seitdem
@@ -12702,13 +12913,13 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Anhaltebedingung greift deshalb nicht; die Wahl steht unten mit ihrem Grund.
 
   **Mechanik A – natives `<details>`/`<summary>`.** Im Markup stehen
-  <!-- bestand: details-instanzen -->13 Instanzen in fünf Rollen; dazu kommen
+  <!-- bestand: details-instanzen -->9 Instanzen in vier Rollen; dazu kommen
   die Karten der Feature-Navigation, deren Zahl von der geladenen Karte abhängt.
 
   | Rolle | Instanzen | Bezeichner | Zustand in | über die Sitzung hinaus |
   |---|---|---|---|---|
-  | `.inspector-fold` | <!-- bestand: details-inspector-fold -->6 | `#inspectorHeadText` (seit dem 06.10.2026), `#featureNavigationSection`, `#inspectorStock`, `#inspectorTransform`, `#inspectorValidation`, `#originSection` | `details.open` | **vier davon** über `INSPECTOR_FOLDS` im `localStorage`; Navigation und Bezugspunkt **nicht** |
-  | `.tool-settings` | <!-- bestand: details-tool-settings -->3 | ohne `id`, in `#inspectorTransform` – Reduzieren, Rechtwinklig, Glätten | `details.open` | nein |
+  | `.inspector-fold` | <!-- bestand: details-inspector-fold -->5 | `#inspectorHeadText` (seit dem 06.10.2026), `#featureNavigationSection`, `#inspectorStock`, `#inspectorValidation`, `#originSection` – `#inspectorTransform` ist am 06.10.2026 entfallen | `details.open` | **drei davon** über `INSPECTOR_FOLDS` im `localStorage`; Navigation und Bezugspunkt **nicht** |
+  | `.tool-settings` | **entfallen am 06.10.2026** – die Einstellungen der Umformwerkzeuge stehen offen in deren eigenem Block; Marke und Messbefehl sind mit der Rolle gegangen | – | – | – |
   | `.inspector-note` | <!-- bestand: details-inspector-note -->2 | ohne `id`, in den Abmessungen und – seit dem Umzug über der Karte – in den Angaben zur Auswahl („Geschlossene Polygone“) | `details.open` | nein |
   | `.selection-actions` | <!-- bestand: details-selection-actions -->1 | `#selectionActions` | `details.open` | nein |
   | `.selection-overlay` | <!-- bestand: details-selection-overlay -->1 | `#selectionOverlay`, die Angaben zur Auswahl über der Karte | `details.open` | nein – dieselbe Mechanik wie die Auswahlleiste |

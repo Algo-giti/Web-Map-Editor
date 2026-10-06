@@ -453,8 +453,14 @@ export async function openAllFolds(page, menue = null) {
      * Genau der Fall, vor dem der Absatz oben warnt: der Selektor hat nicht
      * geworfen, er hat nur nichts mehr getan.
      */
+    /*
+     * ".tool-settings" stand hier bis zum 06.10.2026: die Einstellungen der
+     * Umformwerkzeuge lagen eingeklappt unter ihrem Knopf. Sie stehen seitdem
+     * offen im Block des gewaehlten Werkzeugs, und der Selektor koennte nichts
+     * mehr treffen - er ist entfernt, wie "#sidebar details" vor ihm.
+     */
     document.querySelectorAll(
-      ".inspector-fold, .tool-settings, #featureNavigator details"
+      ".inspector-fold, #featureNavigator details"
     ).forEach((d) => d.setAttribute("open", ""));
   });
 
@@ -463,6 +469,57 @@ export async function openAllFolds(page, menue = null) {
     await page.locator(".menu-panel:not([hidden])").first()
       .waitFor({ state: "visible" });
   }
+}
+
+/**
+ * Waehlt ein Umformwerkzeug in der Werkzeugleiste - seit dem 06.10.2026 der
+ * Weg zu Begradigen, Reduzieren, Rechtwinklig und Glaetten. Ihre Knoepfe und
+ * Einstellungen stehen nur im Inspektor, solange das Werkzeug gewaehlt ist;
+ * vorher lagen sie im Faltblock "Umformen", den openAllFolds() oeffnete.
+ *
+ * Geklickt wird nur, wenn das Werkzeug noch nicht gewaehlt ist - ein zweiter
+ * Klick waehlte es wieder ab. Danach wird zugesichert, dass sein Block
+ * wirklich gezeichnet wird; steht er nicht da, bricht der Helfer den Lauf ab
+ * wie createMenueBefehl(): der naechste Klick ginge auf einen Knopf, der nicht
+ * gezeichnet wird, und wartete dreissig Sekunden.
+ *
+ * `name` ist der Name aus TRANSFORM_TOOLS ("straighten", "reduce", "rectify",
+ * "smooth"); welcher Block dazugehoert, liest der Helfer aus derselben Liste
+ * im Bestand und fuehrt ihn nicht ein zweites Mal.
+ */
+export function createUmformwerkzeug(page, check) {
+  return async (name) => {
+    const lage = await page.evaluate((n) => {
+      const eintrag = typeof TRANSFORM_TOOLS === "undefined"
+        ? null
+        : TRANSFORM_TOOLS.find((t) => t.name === n);
+      const knopf = eintrag ? document.getElementById(eintrag.button) : null;
+
+      return {
+        block: eintrag?.block ?? null,
+        knopf: eintrag?.button ?? null,
+        da: !!knopf,
+        gewaehlt: knopf?.getAttribute("aria-pressed") === "true",
+      };
+    }, name);
+
+    if (lage.da && !lage.gewaehlt) {
+      await page.locator(`#${lage.knopf}`).click();
+      await page.waitForTimeout(200);
+    }
+
+    const steht = lage.da && await page.evaluate(
+      (id) => !!document.getElementById(id)?.checkVisibility(), lage.block);
+
+    check(`Umformwerkzeug „${name}“ gewaehlt: sein Block steht im Inspektor`, steht,
+      lage.da ? `#${lage.block} wird nicht gezeichnet` : "kein solches Werkzeug in der Leiste");
+
+    if (!steht) {
+      throw new Error(`Umformwerkzeug „${name}“: sein Block steht nicht da, Lauf abgebrochen.`);
+    }
+
+    return true;
+  };
 }
 
 /**

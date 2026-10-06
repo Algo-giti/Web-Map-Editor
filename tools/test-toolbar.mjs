@@ -68,13 +68,14 @@ try {
 
   const groups = await page.locator("#toolRail .tool-group-title").allTextContents();
   /*
-   * Seit dem 06.10.2026 zwei Gruppen: die Gruppe „Prüfen“ ist samt
-   * Ueberschrift entfallen, „Karte prüfen“ steht im Menü „Karte“ (zugesichert
-   * in tools/test-menu.mjs), Messen bei den Zeichenwerkzeugen.
+   * Seit dem 06.10.2026: die Gruppe „Prüfen“ ist samt Ueberschrift entfallen,
+   * „Karte prüfen“ steht im Menü „Karte“ (zugesichert in tools/test-menu.mjs),
+   * Messen bei den Zeichenwerkzeugen - und die Umformwerkzeuge haben eine
+   * eigene Gruppe.
    */
-  check("zwei Gruppen in der geplanten Reihenfolge",
+  check("drei Gruppen in der geplanten Reihenfolge",
     JSON.stringify(groups.map((t) => t.trim())) ===
-      JSON.stringify(["Auswählen", "Zeichnen"]),
+      JSON.stringify(["Auswählen", "Zeichnen", "Umformen"]),
     JSON.stringify(groups));
 
   /*
@@ -106,9 +107,43 @@ try {
         !document.getElementById("toolRail").contains(document.getElementById("validateMapBtn"))));
   }
 
-  /* Die Umformwerkzeuge gehören nicht hierher - sie hängen an der Auswahl. */
-  for (const id of ["straightenSelectionBtn", "reduceApplyBtn", "rectifyApplyBtn"]) {
-    check(`#${id} steht nicht in der Leiste`,
+  /*
+   * Die Umformwerkzeuge stehen seit dem 06.10.2026 als eigene Gruppe in der
+   * Leiste - je ein Eintrag mit eigener Glyphe, gezeichnet und getroffen. Ihre
+   * Ausfuehrknoepfe bleiben im Inspektor: die Leiste waehlt nur das Werkzeug
+   * (zugesichert in tools/test-inspector.mjs, „Das gewaehlte Umformwerkzeug
+   * steht oben im Inspektor“).
+   */
+  {
+    const g = await gruppeVon("straightenToolBtn");
+    check("„Umformen“ traegt Begradigen, Reduzieren, Rechtwinklig und Glätten",
+      g?.titel === "Umformen" &&
+      g.knoepfe.join() === "straightenToolBtn,reduceToolBtn,rectifyToolBtn,smoothToolBtn",
+      JSON.stringify(g));
+    const glyphen = await page.evaluate(() =>
+      [...document.querySelectorAll("#toolGroupTransform .tool-button")].map((b) => {
+        const svg = b.querySelector("svg");
+        const r = b.getBoundingClientRect();
+        const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return {
+          id: b.id,
+          getroffen: !!t && b.contains(t),
+          /* Im Stil der uebrigen: 24er Raster, Striche in der Textfarbe, keine Flaeche. */
+          raster: svg?.getAttribute("viewBox") === "0 0 24 24",
+          strich: svg ? getComputedStyle(svg).stroke === getComputedStyle(b).color : false,
+          flaeche: svg ? getComputedStyle(svg).fill : null,
+          form: svg ? svg.innerHTML.replace(/\s+/g, " ").trim() : "",
+        };
+      }));
+    check("jeder Eintrag wird getroffen",
+      glyphen.length === 4 && glyphen.every((x) => x.getroffen), JSON.stringify(glyphen));
+    check("jeder traegt eine Glyphe im 24er Raster, in der Textfarbe, ohne Flaeche",
+      glyphen.every((x) => x.raster && x.strich && x.flaeche === "none"), JSON.stringify(glyphen));
+    check("und jede Glyphe ist eine eigene",
+      new Set(glyphen.map((x) => x.form)).size === glyphen.length, JSON.stringify(glyphen.map((x) => x.form)));
+  }
+  for (const id of ["straightenSelectionBtn", "reduceApplyBtn", "rectifyApplyBtn", "smoothApplyBtn"]) {
+    check(`#${id} steht weiterhin nicht in der Leiste`,
       await page.evaluate((x) =>
         !document.getElementById("toolRail").contains(document.getElementById(x)), id));
   }
@@ -500,7 +535,7 @@ try {
   const english = await page.locator("#toolRail").textContent();
 
   check("die Gruppennamen sind übersetzt",
-    english.includes("Select") && english.includes("Draw"),
+    english.includes("Select") && english.includes("Draw") && english.includes("Reshape"),
     english.slice(0, 120));
   check("kein deutscher Rest in der Leiste",
     !english.includes("Auswählen") && !english.includes("Zeichnen"),
@@ -525,8 +560,8 @@ try {
    * wieder da, ganz und getroffen.
    */
   const UEBERSCHRIFTEN = {
-    de: ["Auswählen", "Zeichnen"],
-    en: ["Select", "Draw"],
+    de: ["Auswählen", "Zeichnen", "Umformen"],
+    en: ["Select", "Draw", "Reshape"],
   };
 
   const leistenText = (seite) => seite.evaluate(() => {

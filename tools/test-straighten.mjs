@@ -21,6 +21,7 @@ import {
   createChecker,
   createMarkerKlicker,
   createMenueBefehl,
+  createUmformwerkzeug,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -75,6 +76,7 @@ try {
    */
   const markerKlicken = createMarkerKlicker(page, check);
   const menueBefehl = createMenueBefehl(page, check);
+  const umformwerkzeug = createUmformwerkzeug(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -107,6 +109,13 @@ try {
     buffer: Buffer.from(syntheticMap()),
   });
   await page.waitForTimeout(400);
+
+  /*
+   * Begradigen steht seit dem 06.10.2026 als Werkzeug in der Leiste; sein
+   * Knopf und sein Grund stehen im Inspektor, solange es gewaehlt ist. Die
+   * Wahl ueberlebt das Laden einer weiteren Karte.
+   */
+  await umformwerkzeug("straighten");
 
   /** Alle editierbaren Punktmarker in der Reihenfolge des Linienzugs. */
   const markers = page.locator("#vertexGroup circle");

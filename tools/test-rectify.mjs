@@ -16,6 +16,7 @@
 import {
   createChecker,
   createMenueBefehl,
+  createUmformwerkzeug,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -64,6 +65,7 @@ const consoleErrors = [];
 try {
   const page = await browser.newPage();
   const menueBefehl = createMenueBefehl(page, check);
+  const umformwerkzeug = createUmformwerkzeug(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -91,6 +93,12 @@ try {
     });
     await page.waitForTimeout(400);
     await openAllFolds(page);
+
+    /*
+     * Rechtwinklig steht seit dem 06.10.2026 als Werkzeug in der Leiste; Knopf,
+     * Grund und Einstellungen stehen im Inspektor, solange es gewaehlt ist.
+     */
+    await umformwerkzeug("rectify");
   };
 
   const marks = page.locator('#vertexGroup circle[data-layer="exclusion"]');
@@ -374,6 +382,7 @@ try {
   await page.locator("#languageToggle").click();
   await page.waitForTimeout(300);
   await openAllFolds(page);
+  await umformwerkzeug("rectify");
 
   check("der Abschnitt ist übersetzt",
     (await page.locator("#rectifyApplyBtn").textContent())

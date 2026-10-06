@@ -21,6 +21,7 @@ import {
   createChecker,
   createMarkerKlicker,
   createMenueBefehl,
+  createUmformwerkzeug,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -74,6 +75,7 @@ try {
    */
   const markerKlicken = createMarkerKlicker(page, check);
   const menueBefehl = createMenueBefehl(page, check);
+  const umformwerkzeug = createUmformwerkzeug(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -281,6 +283,8 @@ try {
   await markerKlicken(marks.nth(4), { modifiers: ["Control"] });
   await page.waitForTimeout(200);
 
+  /* Der Knopf steht seit dem 06.10.2026 nur da, wenn das Werkzeug gewaehlt ist. */
+  await umformwerkzeug("straighten");
   check("Begradigen ist nicht mehr gesperrt",
     await page.locator("#straightenSelectionBtn").isEnabled(),
     await page.locator("#straightenSelectionBtn").getAttribute("title"));

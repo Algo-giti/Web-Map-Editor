@@ -23,6 +23,7 @@
 import {
   createChecker,
   createMenueBefehl,
+  createUmformwerkzeug,
   elementGetroffen,
   indexUrl,
   launchBrowser,
@@ -62,6 +63,7 @@ const consoleErrors = [];
 try {
   const page = await browser.newPage();
   const menueBefehl = createMenueBefehl(page, check);
+  const umformwerkzeug = createUmformwerkzeug(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -825,10 +827,18 @@ try {
     { name: "Rechteck", zeigen: () => page.locator("#drawRectangleBtn").click(),
       felder: [["rectWidthInput", "3,25", "4,75"], ["rectHeightInput", "1,75", "2,25"],
                ["rectAngleInput", "12,5", "33,25"]] },
-    { name: "Umformen", zeigen: () => openAllFolds(page),
-      felder: [["reduceToleranceInput", "0,03", "0,05"], ["rectifyAngleInput", "12,5", "7,25"],
-               ["rectifyToleranceInput", "7,5", "11,5"], ["smoothSpacingInput", "0,25", "0,35"],
-               ["smoothKnickInput", "12,5", "17,5"], ["smoothPerimeterLimitInput", "0,03", "0,01"],
+    /*
+     * Bis zum 06.10.2026 eine Gruppe „Umformen“, gezeigt durch das Oeffnen des
+     * Faltblocks. Seitdem steht jedes Werkzeug fuer sich in der Leiste, und
+     * seine Felder stehen nur da, solange es gewaehlt ist - drei Gruppen.
+     */
+    { name: "Reduzieren", zeigen: () => umformwerkzeug("reduce"),
+      felder: [["reduceToleranceInput", "0,03", "0,05"]] },
+    { name: "Rechtwinklig", zeigen: () => umformwerkzeug("rectify"),
+      felder: [["rectifyAngleInput", "12,5", "7,25"], ["rectifyToleranceInput", "7,5", "11,5"]] },
+    { name: "Glaetten", zeigen: () => umformwerkzeug("smooth"),
+      felder: [["smoothSpacingInput", "0,25", "0,35"], ["smoothKnickInput", "12,5", "17,5"],
+               ["smoothPerimeterLimitInput", "0,03", "0,01"],
                ["smoothExclusionLimitInput", "0,04", "0,06"]] },
   ];
 
@@ -929,21 +939,26 @@ try {
    * behaelt den Text unter den Fingern. Gemessen ueber setLanguage(), weil ein
    * Klick auf den Schalter dem Feld vorher den Fokus naehme. Die Gegenprobe
    * steht im selben Zug: das Nachbarfeld ohne Fokus wechselt sehr wohl.
+   *
+   * Beide Felder stehen seit dem 06.10.2026 im Block von Rechtwinklig: ein
+   * Nachbarfeld, das nicht gezeichnet wird, kann nichts belegen. Bis dahin
+   * waren es die Toleranzen von Reduzieren und Rechtwinklig, die damals im
+   * selben Faltblock standen.
    */
-  await openAllFolds(page);
-  await page.locator("#reduceToleranceInput").fill("0,09");
+  await umformwerkzeug("rectify");
   await page.locator("#rectifyToleranceInput").fill("9,5");
+  await page.locator("#rectifyAngleInput").fill("12,5");
   await page.evaluate(() => {
-    document.getElementById("reduceToleranceInput").focus();
+    document.getElementById("rectifyToleranceInput").focus();
     setLanguage("en");
   });
 
   check("im fokussierten Feld bleibt der getippte Text stehen",
-    (await page.locator("#reduceToleranceInput").inputValue()) === "0,09",
-    await page.locator("#reduceToleranceInput").inputValue());
+    (await page.locator("#rectifyToleranceInput").inputValue()) === "9,5",
+    await page.locator("#rectifyToleranceInput").inputValue());
   check("Gegenprobe: das Nachbarfeld ohne Fokus zeigt den Punkt",
-    (await feldText("rectifyToleranceInput")) === "9.5",
-    String(await feldText("rectifyToleranceInput")));
+    (await feldText("rectifyAngleInput")) === "12.5",
+    String(await feldText("rectifyAngleInput")));
 
   /* Verlassen und erneut gewechselt: jetzt folgt auch es. */
   await page.evaluate(() => {
@@ -953,8 +968,8 @@ try {
   await page.evaluate(() => setLanguage("en"));
 
   check("ohne Fokus folgt das Feld beim naechsten Wechsel",
-    (await feldText("reduceToleranceInput")) === "0.09",
-    String(await feldText("reduceToleranceInput")));
+    (await feldText("rectifyToleranceInput")) === "9.5",
+    String(await feldText("rectifyToleranceInput")));
 
   await sprache("de");
 

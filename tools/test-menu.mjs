@@ -265,6 +265,16 @@ try {
   check("deutsch: die Hilfe nennt den Loeschknopf bei seinem heutigen Namen",
     hilfeDe.includes("„Punkt löschen“") && !hilfeDe.includes("„Auswahl löschen“"),
     hilfeDe.slice(0, 200));
+  /*
+   * Seit dem 06.10.2026 stehen die Umformwerkzeuge in der Werkzeugleiste; der
+   * Satz nannte vorher „Linie begradigen“ im Faltblock „Umformen“ - einen
+   * Ort, den es nicht mehr gibt.
+   */
+  check("deutsch: die Hilfe nennt die Umformwerkzeuge in der Leiste, nicht im Faltblock",
+    hilfeDe.includes("Begradigen, Reduzieren, Rechtwinklig und Glätten unter „Umformen“") &&
+    hilfeDe.includes("erscheinen seine Einstellungen im Inspektor") &&
+    !hilfeDe.includes("Faltblock „Umformen“"),
+    hilfeDe.slice(0, 200));
 
   await page.evaluate(() => setLanguage("en"));
   await page.waitForTimeout(400);
@@ -275,6 +285,11 @@ try {
     hilfeEn.includes("the target devices are desktop and tablet.") &&
     hilfeEn.includes("a second gesture therefore replaces the first") &&
     hilfeEn.includes("it can be collapsed using the handle at its head"),
+    hilfeEn.slice(0, 200));
+  check("englisch: auch dort stehen die Umformwerkzeuge in der Leiste",
+    hilfeEn.includes("straighten, reduce, square up and smooth under “Reshape”") &&
+    hilfeEn.includes("its settings appear in the inspector") &&
+    !hilfeEn.includes("“Reshape” fold"),
     hilfeEn.slice(0, 200));
   check("englisch: auch dort heisst er „Delete point“",
     hilfeEn.includes("“Delete point”") && !hilfeEn.includes("“Delete selection”"),
