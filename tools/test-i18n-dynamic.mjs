@@ -103,7 +103,7 @@ try {
   /* ---------------------------------------------------------------- */
   console.log("Prüfbericht: auf Deutsch erzeugt, dann umgeschaltet");
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(400);
 
   check("der Bericht ist zunächst deutsch",
@@ -151,7 +151,7 @@ try {
    * hat eine englische Fassung, kann also nicht veralten. Verworfen wird nur,
    * was veralten kann - diese Zusicherung hält genau diese Grenze fest.
    */
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(400);
 
   const germanStatus = await editStatus();
@@ -1102,7 +1102,7 @@ try {
    * Ohne sie bestuende „steht nicht da“ auch dann, wenn der Block gar nicht
    * mehr existierte.
    */
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(400);
 
   {

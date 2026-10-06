@@ -336,7 +336,7 @@ try {
    * durchgeführt.", danach eine der drei Formen mit Fehler- und Warnungszahl.
    * Ein offener Ring ist ein FEHLER, die Zusicherung fiele also um.
    */
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(300);
 
   const summary = (await page.locator("#validationSummary").textContent()).trim();

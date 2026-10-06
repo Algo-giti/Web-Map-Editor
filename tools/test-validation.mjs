@@ -17,6 +17,7 @@
 
 import {
   createChecker,
+  createMenueBefehl,
   elementGetroffen,
   indexUrl,
   launchBrowser,
@@ -67,6 +68,7 @@ const consoleErrors = [];
 
 try {
   const page = await browser.newPage();
+  const menueBefehl = createMenueBefehl(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -98,7 +100,8 @@ try {
 
     await openAllFolds(page);
 
-    await page.locator("#validateMapBtn").click();
+    await menueBefehl(options.englisch ? "Map" : "Karte",
+      options.englisch ? "Validate map" : "Karte prüfen");
     await page.waitForTimeout(400);
 
     return {
@@ -614,7 +617,7 @@ try {
 
   await openAllFolds(page);
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Map", "Validate map");
   await page.waitForTimeout(400);
 
   const english = await page.locator("#validationReport").textContent();

@@ -195,7 +195,7 @@ try {
   /* ---------------------------------------------------------------- */
   console.log("Prüfergebnis als Kurzform");
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(400);
 
   const short = (await text("validationShort")).trim();
@@ -296,7 +296,7 @@ try {
    * bis jemand erneut prüft. Ein Hin und Her zwischen "2 Warnungen" und
    * "nicht geprüft" waere in einer dauerhaft sichtbaren Zeile unruhig.
    */
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(350);
 
   check("nach dem Prüfen steht ein Ergebnis",
@@ -814,7 +814,9 @@ try {
     });
 
     await openAllFolds(page);
-    await klickeFreienKnopf("#validateMapBtn", "die Kartenprüfung ist frei");
+    /* „Karte prüfen“ steht seit dem 06.10.2026 im Menü „Karte“; menueBefehl()
+       sichert die Freigabe ebenso zu wie vorher klickeFreienKnopf(). */
+    await menueBefehl("Karte", "Karte prüfen");
     await page.waitForTimeout(1400);
 
     await menueBefehl("Ansicht", "Raster…");

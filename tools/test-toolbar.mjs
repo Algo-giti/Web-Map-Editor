@@ -67,9 +67,14 @@ try {
   check("die Leiste ist da", await rail.isVisible());
 
   const groups = await page.locator("#toolRail .tool-group-title").allTextContents();
-  check("drei Gruppen in der geplanten Reihenfolge",
+  /*
+   * Seit dem 06.10.2026 zwei Gruppen: die Gruppe „Prüfen“ ist samt
+   * Ueberschrift entfallen, „Karte prüfen“ steht im Menü „Karte“ (zugesichert
+   * in tools/test-menu.mjs), Messen bei den Zeichenwerkzeugen.
+   */
+  check("zwei Gruppen in der geplanten Reihenfolge",
     JSON.stringify(groups.map((t) => t.trim())) ===
-      JSON.stringify(["Auswählen", "Zeichnen", "Prüfen"]),
+      JSON.stringify(["Auswählen", "Zeichnen"]),
     JSON.stringify(groups));
 
   /*
@@ -96,10 +101,9 @@ try {
       JSON.stringify(g?.knoepfe));
     const messen = await elementGetroffen(page, "#measureBtn", { dy: 10 });
     check("und es wird dort getroffen", messen.ok, messen.grund);
-    const pruefen = await gruppeVon("validateMapBtn");
-    check("„Prüfen“ traegt nur noch „Karte prüfen“",
-      pruefen?.titel === "Prüfen" && pruefen.knoepfe.join() === "validateMapBtn",
-      JSON.stringify(pruefen));
+    check("„Karte prüfen“ steht nicht mehr in der Leiste",
+      await page.evaluate(() =>
+        !document.getElementById("toolRail").contains(document.getElementById("validateMapBtn"))));
   }
 
   /* Die Umformwerkzeuge gehören nicht hierher - sie hängen an der Auswahl. */
@@ -167,10 +171,10 @@ try {
   await page.locator("#cancelDrawBtn").click();
   await page.waitForTimeout(250);
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(400);
 
-  check("die Kartenprüfung läuft von der Leiste aus",
+  check("die Kartenprüfung läuft aus dem Menü „Karte“",
     (await page.locator("#validationShort").textContent()).trim() !== "nicht geprüft",
     await page.locator("#validationShort").textContent());
 
@@ -338,22 +342,32 @@ try {
       const labels = (scope) =>
         [...document.querySelectorAll(`${scope} .tool-label`)].filter(visible).length;
 
+      /*
+       * Wie viele Beschriftungen die uebrigen Gruppen HABEN, gelesen aus dem
+       * Bestand statt als Zahl gefuehrt - sie wechselt, sobald ein Werkzeug
+       * die Leiste betritt oder verlaesst (bis zum 06.10.2026 stand hier 7).
+       */
+      const alle = (scope) => document.querySelectorAll(`${scope} .tool-label`).length;
+
       return {
         breite: Math.round(document.getElementById("toolRail").getBoundingClientRect().width),
         auswahl: labels("#toolGroupSelect"),
         uebrige: labels("#toolRail") - labels("#toolGroupSelect"),
+        uebrigeGesamt: alle("#toolRail") - alle("#toolGroupSelect"),
       };
     });
   };
 
   const weit = await measure(1440);
   check("breit: alle Beschriftungen sichtbar",
-    weit.auswahl === 3 && weit.uebrige === 7, JSON.stringify(weit));
+    weit.auswahl === 3 && weit.uebrige === weit.uebrigeGesamt && weit.uebrige > 0,
+    JSON.stringify(weit));
   check("breit: 168 px", weit.breite === 168, JSON.stringify(weit));
 
   const mittel = await measure(1050);
   check("mittel: die Auswahlwerkzeuge verlieren den Text zuerst",
-    mittel.auswahl === 0 && mittel.uebrige === 7, JSON.stringify(mittel));
+    mittel.auswahl === 0 && mittel.uebrige === mittel.uebrigeGesamt && mittel.uebrige > 0,
+    JSON.stringify(mittel));
   check("mittel: die Breite bleibt - sie hängt an der längsten Beschriftung",
     mittel.breite === weit.breite, JSON.stringify(mittel));
 
@@ -363,7 +377,7 @@ try {
   check("eng: die Leiste ist schmal", eng.breite === 56, JSON.stringify(eng));
 
   /* Die Erklärung darf dabei nicht verschwinden, nur ihr Platz. */
-  for (const id of ["drawCircleBtn", "measureBtn", "validateMapBtn"]) {
+  for (const id of ["drawCircleBtn", "measureBtn"]) {
     const title = await page.locator(`#${id}`).getAttribute("title");
     check(`#${id} behält eingeklappt seinen Tooltip`,
       !!title && title.length > 20, `${id}: ${title}`);
@@ -387,13 +401,24 @@ try {
 
   check("ausgeklappt 168 px", (await railWidth()) === 168, String(await railWidth()));
 
+  /*
+   * Wie viele Werkzeuge die Leiste traegt, wird gezaehlt und nicht als Zahl
+   * gefuehrt: bis zum 06.10.2026 stand hier 10, und die Zahl riss, als
+   * „Karte pruefen“ ins Menue zog - ohne dass am Einklappen etwas falsch war.
+   * Zugesichert ist die Beziehung: eingeklappt sind es dieselben, gezeichnet.
+   */
+  const gezeichneteWerkzeuge = () => page.evaluate(() =>
+    [...document.querySelectorAll("#toolRail .tool-button")]
+      .filter((b) => b.checkVisibility()).length);
+  const ausgeklapptWerkzeuge = await gezeichneteWerkzeuge();
+
   await page.locator("#toolRailToggle").click();
   await page.waitForTimeout(250);
 
   check("eingeklappt 56 px", (await railWidth()) === 56, String(await railWidth()));
   check("die Werkzeuge sind weiterhin da",
-    (await page.locator("#toolRail .tool-button").count()) === 10,
-    String(await page.locator("#toolRail .tool-button").count()));
+    ausgeklapptWerkzeuge > 0 && (await gezeichneteWerkzeuge()) === ausgeklapptWerkzeuge,
+    `${await gezeichneteWerkzeuge()} gegen ${ausgeklapptWerkzeuge}`);
   check("und behalten ihren Tooltip",
     (await page.locator("#drawCircleBtn").getAttribute("title")).includes("Mittelpunkt"));
 
@@ -475,7 +500,7 @@ try {
   const english = await page.locator("#toolRail").textContent();
 
   check("die Gruppennamen sind übersetzt",
-    english.includes("Select") && english.includes("Draw") && english.includes("Validate"),
+    english.includes("Select") && english.includes("Draw"),
     english.slice(0, 120));
   check("kein deutscher Rest in der Leiste",
     !english.includes("Auswählen") && !english.includes("Zeichnen"),
@@ -500,8 +525,8 @@ try {
    * wieder da, ganz und getroffen.
    */
   const UEBERSCHRIFTEN = {
-    de: ["Auswählen", "Zeichnen", "Prüfen"],
-    en: ["Select", "Draw", "Validate"],
+    de: ["Auswählen", "Zeichnen"],
+    en: ["Select", "Draw"],
   };
 
   const leistenText = (seite) => seite.evaluate(() => {
@@ -717,8 +742,26 @@ try {
               m.messText === MESSEN_LAEUFT[sprache], String(m.messText));
             const knopf = await elementGetroffen(seite, "#measureBtn .tool-label", { dy: 4 });
             check(`${wie}: und seine Beschriftung wird getroffen`, knopf.ok, knopf.grund);
-            const naechster = await elementGetroffen(seite, "#validateMapBtn", { dy: 10 });
-            check(`${wie}: der Knopf darunter bleibt erreichbar`, naechster.ok, naechster.grund);
+            /*
+             * Die zweite Zeile bleibt im eigenen Knopf. Bis zum 06.10.2026
+             * stand hier nur „der Knopf darunter bleibt erreichbar“ mit
+             * „Karte prüfen“ als festem Nachbarn; seitdem ist Messen der letzte
+             * Knopf seiner Gruppe, und der Nachbar wird gesucht statt gesetzt.
+             */
+            const inSich = await seite.evaluate(() => {
+              const k = document.getElementById("measureBtn").getBoundingClientRect();
+              const l = document.querySelector("#measureBtn .tool-label").getBoundingClientRect();
+              return l.top >= k.top - 0.5 && l.bottom <= k.bottom + 0.5;
+            });
+            check(`${wie}: die Beschriftung bleibt in ihrem Knopf`, inSich);
+            const naechsterId = await seite.evaluate(() => {
+              const alle = [...document.querySelectorAll("#toolRail .tool-button")];
+              return alle[alle.indexOf(document.getElementById("measureBtn")) + 1]?.id || null;
+            });
+            if (naechsterId) {
+              const naechster = await elementGetroffen(seite, `#${naechsterId}`, { dy: 10 });
+              check(`${wie}: der Knopf darunter bleibt erreichbar`, naechster.ok, naechster.grund);
+            }
           }
         }
         await seite.close();

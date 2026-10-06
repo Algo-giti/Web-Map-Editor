@@ -215,7 +215,7 @@ try {
   await openAllFolds(page);
   await openMergeWindow();
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(300);
   const reportA = await page.locator("#validationReport").textContent();
 
@@ -279,7 +279,7 @@ try {
       countByName(merged, "search wire") === 1, String(countByName(merged, "search wire")));
   }
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(300);
   const reportMerged = await page.locator("#validationReport").textContent();
 

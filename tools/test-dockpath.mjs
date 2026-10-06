@@ -296,7 +296,7 @@ try {
    * auch bei leerem Bericht und damit auch dann, wenn der Klick nichts
    * ausgelöst hätte. Die Zusammenfassung entsteht erst durch einen Lauf.
    */
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(300);
 
   const summary = (await page.locator("#validationSummary").textContent()).trim();

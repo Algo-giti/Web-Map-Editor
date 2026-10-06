@@ -324,7 +324,7 @@ try {
    */
   const TEXTE = {
     de: {
-      menue: "Karte", datei: "Datei",
+      menue: "Karte", datei: "Datei", pruefen: "Karte prüfen",
       a: "Karte A", b: "Karte B", aktivA: "Karte A · aktiv", aktivB: "Karte B · aktiv",
       nichtA: "Karte A · nicht geladen", nichtB: "Karte B · nicht geladen",
       zeichenA: "Karte A schließen", zeichenB: "Karte B schließen",
@@ -334,7 +334,7 @@ try {
       leer: "Keine Karte geladen", pruefung: "nicht geprüft",
     },
     en: {
-      menue: "Map", datei: "File",
+      menue: "Map", datei: "File", pruefen: "Validate map",
       a: "Map A", b: "Map B", aktivA: "Map A · active", aktivB: "Map B · active",
       nichtA: "Map A · not loaded", nichtB: "Map B · not loaded",
       zeichenA: "Close map A", zeichenB: "Close map B",
@@ -633,7 +633,7 @@ try {
        * weg sein. Ohne die Pruefung bestuende die Zusicherung darunter auch
        * dann, wenn das Schliessen das Pruefergebnis gar nicht verwirft.
        */
-      await seite.locator("#validateMapBtn").click();
+      await befehl(t.menue, t.pruefen);
       await seite.waitForTimeout(300);
       const geprueft = await elementGetroffen(seite, "#inspectorValidation > summary", { dy: 5 });
       check(`${wie}: vor dem Schliessen ist die Karte geprueft, der Block steht da`,
@@ -644,7 +644,17 @@ try {
        * Zeichen nach seinem Eintrag und ueberspringt, was nicht geladen ist;
        * Enter schliesst.
        */
+      /*
+       * Seit dem 06.10.2026 steht „Karte pruefen“ als oberster Eintrag im
+       * Menue; die Pfeiltaste erreicht ihn zuerst, danach gilt der Vertrag
+       * wie bisher.
+       */
       await seite.locator("#menuMapBtn").focus();
+      await seite.keyboard.press("ArrowDown");
+      await seite.waitForTimeout(150);
+      const pruefen = await seite.evaluate(() => document.activeElement?.id);
+      check(`${wie}: die Pfeiltaste erreicht zuerst „Karte pruefen“`,
+        pruefen === "validateMapBtn", pruefen);
       await seite.keyboard.press("ArrowDown");
       await seite.waitForTimeout(150);
       const erster = await seite.evaluate(() => document.activeElement?.id);

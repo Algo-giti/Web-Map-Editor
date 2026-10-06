@@ -310,7 +310,7 @@ try {
     String(await page.locator('#geometryGroup path[data-layer="other"]').count()));
 
   console.log("Kartenprüfung trennt die beiden Fälle");
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(300);
 
   const report = await page.locator("#validationReport").textContent();

@@ -157,7 +157,7 @@ try {
     await page.locator("#editStatus").textContent());
 
   /* Die Kartenprüfung darf keine Fläche behaupten. */
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(300);
   await openAllFolds(page);
   const report = await page.locator("#validationReport").textContent();

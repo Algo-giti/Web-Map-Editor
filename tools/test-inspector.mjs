@@ -1075,7 +1075,7 @@ try {
   check("mit geladener Karte steht vor der Prüfung kein Prüfblock da",
     !(await visible("inspectorValidation")));
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(400);
 
   /*
@@ -2054,7 +2054,7 @@ try {
   check("und der Block bleibt trotzdem zu",
     !(await offen("inspectorTransform")));
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(500);
 
   const kurz = () =>
@@ -2127,7 +2127,7 @@ try {
       (await pruefstatus()) === "nicht geprüft", await pruefstatus());
   }
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(400);
 
   {
@@ -2238,7 +2238,7 @@ try {
   check("Vorbedingung: der Pruefblock ist zu",
     !(await offen("inspectorValidation")));
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(500);
 
   const messNachher = await messKnopf();
@@ -2283,7 +2283,7 @@ try {
     (await page.evaluate(() =>
       document.getElementById("drawExclusionBtn").classList.contains("active"))));
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(500);
 
   check("\"Karte pruefen\" beendet auch das Zeichnen",
@@ -2325,7 +2325,7 @@ try {
 
   await load([MIT_LOCH]);
   await openAllFolds(page);
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(400);
   await messenStarten();
 
@@ -2361,7 +2361,7 @@ try {
 
   await load([MIT_LOCH]);
   await messenStarten();
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(450);
 
   check("auf deutsch erzeugt: der Knopf steht auf der Ruhebeschriftung",
@@ -2386,7 +2386,7 @@ try {
     (await messKnopf()).aktiv && (await visible("inspectorMeasure")),
     (await messKnopf()).text);
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Map", "Validate map");
   await page.waitForTimeout(450);
 
   check("auf englisch erzeugt: der Knopf steht englisch auf Ruhe",
@@ -2507,7 +2507,7 @@ try {
 
   check("Zustand ein Punkt passt ohne Scrollen", await passt(), await hoehen());
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(500);
 
   /*
@@ -3714,7 +3714,7 @@ try {
   check("vor der Pruefung steht die Kartenpruefung nicht oben",
     vorPruefung !== "inspectorValidation", String(vorPruefung));
 
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(400);
 
   const nachPruefung = await obenImInspektor();
@@ -3784,7 +3784,7 @@ try {
     /warning/i.test(summeEn) && !/Warnung/.test(summeEn), summeEn);
 
   /* Und die Gegenrichtung: auf englisch erzeugt, auf deutsch gemessen. */
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Map", "Validate map");
   await page.waitForTimeout(350);
 
   const obenEnErzeugt = await obenImInspektor();

@@ -3627,6 +3627,21 @@
                 aria-haspopup="true" aria-expanded="false" aria-controls="menuMap">Karte</button>
         <div id="menuMap" class="menu-panel" role="menu" aria-labelledby="menuMapBtn" hidden>
           <!--
+            KARTE PRÜFEN ist seit dem 06.10.2026 der oberste Eintrag dieses
+            Menüs - entschieden vom Projektinhaber. Bis dahin stand der Befehl
+            in der Gruppe "Prüfen" der Werkzeugleiste; die Gruppe ist mit ihm
+            entfallen. Ein echter Eintrag und kein Platzhalter: er löst den
+            Befehl selbst aus, wie vorher der Knopf. Die id ist dieselbe.
+          -->
+          <button id="validateMapBtn" class="menu-item" type="button" role="menuitem"
+                  tabindex="-1"
+                  title="Karte prüfen: Geometrie und Struktur kontrollieren. Verändert die Karte nicht.">
+            <span class="menu-item-text">Karte prüfen</span>
+          </button>
+
+          <div class="menu-separator" role="separator"></div>
+
+          <!--
             Genau einer der beiden Slots ist aktiv - das ist eine Auswahl aus
             zwei Möglichkeiten, keine zwei unabhängigen Befehle. Deshalb
             menuitemradio und aria-checked, gepflegt in updateMapSlotUi().
@@ -3773,10 +3788,11 @@
     <!--
       Werkzeugleiste.
 
-      Drei Gruppen, und die Trennung trug ursprünglich die Information, was
-      die Karte verändert und was nicht. Seit dem 06.10.2026 steht Messen bei
-      den Zeichenwerkzeugen (entschieden vom Projektinhaber); "Prüfen" trägt
-      damit nur noch "Karte prüfen".
+      Zwei Gruppen. Bis zum 06.10.2026 waren es drei, und die Trennung trug
+      die Information, was die Karte verändert und was nicht. Seitdem steht
+      Messen bei den Zeichenwerkzeugen, und "Karte prüfen" ist der oberste
+      Eintrag im Menü "Karte" - die Gruppe "Prüfen" ist samt Überschrift
+      entfallen. Entschieden vom Projektinhaber.
 
       Die Beschriftungen sind kurz, weil die Gruppenüberschrift das Verb schon
       trägt: unter "Zeichnen" heißt der Knopf "Exclusion", nicht "Exclusion
@@ -3865,15 +3881,6 @@
         </button>
       </div>
 
-      <div class="tool-group">
-        <div class="tool-group-title">Prüfen</div>
-
-        <button id="validateMapBtn" class="tool-button" type="button"
-                title="Karte prüfen: Geometrie und Struktur kontrollieren. Verändert die Karte nicht.">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l5 5L20 6"></path></svg>
-          <span class="tool-label">Karte prüfen</span>
-        </button>
-      </div>
     </nav>
 
     <section class="viewer" id="viewer">

@@ -328,13 +328,30 @@ export function freieKartenstelle(page, { schritt = 8, luft = 12 } = {}) {
  */
 export function createMenueBefehl(page, check) {
   return async (menue, eintrag) => {
+    /*
+     * Erst zaehlen, dann klicken: ein Titel oder Eintrag, den es unter diesem
+     * Text nicht gibt, liess click() und isEnabled() dreissig Sekunden warten.
+     * Gemessen an der Mutation, die den Woerterbucheintrag von „Karte pruefen“
+     * entfernt - in der englischen Oberflaeche heisst der Eintrag dann nicht
+     * „Validate map“, und aus einer fehlenden Uebersetzung wurde ein stummer
+     * Timeout. Jetzt reisst dieselbe benannte Zusicherung wie bei einem
+     * gesperrten Eintrag, mit dem Grund daneben.
+     */
     const titel = page.locator(".menu-title", { hasText: menue }).first();
-    await titel.click();
+    const titelDa = (await page.locator(".menu-title", { hasText: menue }).count()) > 0;
 
-    const panel = page.locator(".menu-panel:not([hidden])").first();
-    await panel.waitFor({ state: "visible" });
+    let item = null;
+    let vorhanden = false;
 
-    const item = panel.locator(".menu-item", { hasText: eintrag }).first();
+    if (titelDa) {
+      await titel.click();
+
+      const panel = page.locator(".menu-panel:not([hidden])").first();
+      await panel.waitFor({ state: "visible" });
+
+      item = panel.locator(".menu-item", { hasText: eintrag }).first();
+      vorhanden = (await panel.locator(".menu-item", { hasText: eintrag }).count()) > 0;
+    }
 
     /*
      * isEnabled() erfasst beide Sperrformen dieser Datei - das native
@@ -342,9 +359,13 @@ export function createMenueBefehl(page, check) {
      * angenommen. Ein <label> (Kontrollkästchen, Dateiauswahl) ist kein
      * Formularelement und gilt darum immer als frei.
      */
-    const frei = await item.isEnabled();
-    check(`Menüeintrag "${menue} \u2192 ${eintrag}" ist frei`, frei,
-      "der Eintrag ist gesperrt - nicht geklickt");
+    const frei = vorhanden && await item.isEnabled();
+    const grund = !titelDa
+      ? `es gibt kein Menü "${menue}" - nicht geklickt`
+      : !vorhanden
+        ? "es gibt keinen Eintrag mit diesem Text - nicht geklickt"
+        : "der Eintrag ist gesperrt - nicht geklickt";
+    check(`Menüeintrag "${menue} \u2192 ${eintrag}" ist frei`, frei, grund);
 
     if (frei) await item.click();
 
@@ -363,8 +384,7 @@ export function createMenueBefehl(page, check) {
 
     if (!frei) {
       throw new Error(
-        `Menüeintrag "${menue} \u2192 ${eintrag}" ist gesperrt - ` +
-        "nicht geklickt, Lauf abgebrochen."
+        `Menüeintrag "${menue} \u2192 ${eintrag}": ${grund}, Lauf abgebrochen.`
       );
     }
 

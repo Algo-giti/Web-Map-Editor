@@ -203,7 +203,7 @@ try {
    * Und die Gegenprobe zur Kartenpruefung: eine Beispielkarte, die der Editor
    * selbst erzeugt, darf seine eigene Pruefung nicht verletzen.
    */
-  await page.locator("#validateMapBtn").click();
+  await menueBefehl("Karte", "Karte prüfen");
   await page.waitForTimeout(400);
   await openAllFolds(page);
 
@@ -544,6 +544,103 @@ try {
     marktA === 4, String(marktA));
   check("und das Kreuz sitzt wieder bei A",
     (await angekreuzt()) === "A:true B:false", await angekreuzt());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Karte prüfen ist der oberste Eintrag im Menü „Karte“");
+
+  /*
+   * Seit dem 06.10.2026 - entschieden vom Projektinhaber. Bis dahin stand der
+   * Befehl in der Gruppe „Prüfen“ der Werkzeugleiste, die mit ihm entfallen
+   * ist. Gemessen wird, was der Nutzer sieht: der oberste GEZEICHNETE Eintrag
+   * des offenen Panels (nach seiner Lage, nicht nach der Stelle im Markup),
+   * sein Text, dass er getroffen wird und dass ein Trenner ihn von den
+   * Kartenplaetzen absetzt - dazu die Wirkung, mit der Tastatur ausgeloest.
+   */
+  const obersterEintrag = () => page.evaluate(() => {
+    const panel = document.getElementById("menuMap");
+    const eintraege = [...panel.querySelectorAll('[role^="menuitem"]')]
+      .filter((e) => e.checkVisibility())
+      .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+    const e = eintraege[0];
+    if (!e) return { id: null };
+    const r = e.getBoundingClientRect();
+    const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    const darunter = eintraege.find((x) => x.getBoundingClientRect().top >= r.bottom - 0.5);
+    const unten = darunter ? darunter.getBoundingClientRect().top : Infinity;
+    const trenner = [...panel.querySelectorAll('[role="separator"]')].some((s) => {
+      const q = s.getBoundingClientRect();
+      return s.checkVisibility() && q.top >= r.bottom - 0.5 && q.bottom <= unten + 0.5;
+    });
+
+    return {
+      id: e.id,
+      text: e.textContent.trim(),
+      titel: e.getAttribute("title"),
+      getroffen: !!t && e.contains(t),
+      trenner,
+      frei: !e.disabled && e.getAttribute("aria-disabled") !== "true",
+    };
+  });
+
+  await page.locator("#menuMapBtn").click();
+  await page.waitForTimeout(200);
+
+  {
+    const e = await obersterEintrag();
+    check("der oberste Eintrag ist „Karte prüfen“",
+      e.id === "validateMapBtn" && e.text === "Karte prüfen", JSON.stringify(e));
+    check("er wird getroffen und ist frei", e.getroffen && e.frei, JSON.stringify(e));
+    check("ein Trenner setzt ihn von den Kartenplätzen ab", e.trenner, JSON.stringify(e));
+  }
+
+  /* Uebersetzt, in beiden Richtungen - der Eintrag stammt aus dem Markup. */
+  await page.evaluate(() => setLanguage("en"));
+  {
+    const e = await obersterEintrag();
+    check("deutsch erzeugt, dann englisch: „Validate map“, mit erklärendem Tooltip",
+      e.text === "Validate map" && /^Validate map: /.test(e.titel ?? ""), JSON.stringify(e));
+  }
+  await page.evaluate(() => setLanguage("de"));
+  {
+    const e = await obersterEintrag();
+    check("zurückgeschaltet: wieder „Karte prüfen“",
+      e.text === "Karte prüfen" && /^Karte prüfen: /.test(e.titel ?? ""), JSON.stringify(e));
+  }
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+
+  /*
+   * Die Wirkung, ueber die Tastatur: die Pfeiltaste vom Menuetitel erreicht
+   * ihn zuerst, Enter prueft die Karte und schliesst das Menue. Vorher ist
+   * sie nachweislich ungeprueft - sonst bestuende „danach geprueft“ auch
+   * ohne Wirkung.
+   */
+  check("Vorbedingung: die Karte ist noch nicht geprüft",
+    (await page.locator("#validationShort").innerText()).trim() === "nicht geprüft",
+    await page.locator("#validationShort").innerText());
+
+  await page.locator("#menuMapBtn").focus();
+  await page.keyboard.press("ArrowDown");
+  await page.waitForTimeout(150);
+
+  const fokusPruefen = await page.evaluate(() => document.activeElement?.id);
+  check("die Pfeiltaste erreicht „Karte prüfen“ als ersten Eintrag",
+    fokusPruefen === "validateMapBtn", String(fokusPruefen));
+
+  if (fokusPruefen === "validateMapBtn") {
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(400);
+  }
+
+  check("Enter prüft die Karte: die Statuszeile nennt das Ergebnis",
+    (await page.locator("#validationShort").innerText()).trim() !== "nicht geprüft",
+    await page.locator("#validationShort").innerText());
+  {
+    const block = await elementGetroffen(page, "#inspectorValidation > summary", { dy: 5 });
+    check("und der Block „Kartenprüfung“ steht im Inspektor", block.ok, block.grund);
+  }
+  check("und das Menü ist danach zu", !(await sichtbar("#menuMap")));
 
   /* ---------------------------------------------------------------- */
   console.log("Sprachwechsel: die Menüs und die abgeleiteten Slot-Texte");

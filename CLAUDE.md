@@ -363,7 +363,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen, eingeklappt ohne Gruppenüberschriften, beim Messen ungekürzt; Zurück und Vor über der Karte |
 | `test-placeholders.mjs` | was als leerer Platzhalter gilt |
 | `test-inspector.mjs` | Inspektor: alle sieben Zustände, der einklappbare Auswahlblock im Kopf, Behälter, Tastatur, ungekürzte Kurzformen |
-| `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster |
+| `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster, „Karte prüfen“ oben im Menü „Karte“ |
 | `test-ghosting.mjs` | Ghosting: wem ein Vorher-Umriss gehört |
 | `test-glaettung.mjs` | Kartenglättung: Vorschau, Anwenden, Abbrechen, Grenzwerte, Auswahl |
 | `test-auswahlangaben.mjs` | Angaben zur Auswahl über der Karte: Ort, Felder, Griff, Überdeckung – auch mit dem Maßstabshinweis –, beide Sprachen |
@@ -1195,13 +1195,19 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->65 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->93 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
 in `page.fill("#gridStepInput", …)`, also doch in dem Timeout, den der Wächter
 gerade verhindern soll. Der geworfene Fehler nennt den Eintrag, und die
 gerissene Zusicherung steht unmittelbar darüber.
+
+**Seit dem 06.10.2026 zählt der Helfer außerdem, bevor er klickt.** Ein Titel
+oder Eintrag, den es unter dem übergebenen Text nicht gibt, ließ `click()` bzw.
+`isEnabled()` dreißig Sekunden warten – gemessen an einer fehlenden
+Übersetzung. Er reißt jetzt dieselbe benannte Zusicherung wie ein gesperrter
+Eintrag, mit dem Grund daneben, und bricht ab.
 
 **`tools/scan-i18n.mjs` führt kein `check()`** – es sichert nichts zu, sondern
 sucht. Es bekommt deshalb einen eigenen Melder, der die Zeile
@@ -2342,6 +2348,10 @@ Sinn, als er zu haben schien:
   Seitenleiste funktionierte. **Diese Regel gilt unverändert** und hält
   weiterhin Zoom, Einpassen und „Karte prüfen" aus den Menüs heraus; sie
   verbietet auch einen Platzhalter für die noch ungebaute Mähbahnen-Vorschau.
+  **„Karte prüfen“ steht seit dem 06.10.2026 trotzdem im Menü „Karte“** – als
+  oberster Eintrag, entschieden vom Projektinhaber. Das bricht die Regel nicht:
+  sie richtete sich gegen eine zweite, graue Stelle neben der funktionierenden;
+  der Eintrag ist jetzt die **einzige** Stelle und löst den Befehl selbst aus.
   Ein Eintrag, der das Fenster öffnet, **in dem der Befehl liegt**, behauptet
   dagegen nichts Falsches.
 - **Verbinden ist heute kein Modus.** Es besteht aus zwei Statuszeilen
@@ -2841,13 +2851,14 @@ Taste gedrückt ist, kann nach Alt+Tab hängenbleiben.
 **Werkzeugleiste:** Senkrecht links neben der Karte, Icon **und** Text. Drei
 Gruppen, und die Trennung trägt die nützlichste Information, die eine
 Werkzeugleiste überhaupt transportieren kann: **was die Karte verändert und was
-nicht.**
+nicht.** (So bis zum 06.10.2026; seitdem zwei Gruppen ohne diese Trennung –
+siehe die beiden Absätze „GEÄNDERT“ unter der Tabelle.)
 
 | Gruppe | Inhalt |
 |---|---|
 | Auswählen | Zeiger, Rahmen, Lasso |
 | Zeichnen | Exclusion, Kreis, Rechteck, Search Wire, Dockpfad, **Messen** |
-| Prüfen | Karte prüfen |
+| ~~Prüfen~~ | **entfallen am 06.10.2026** – „Karte prüfen“ ist der oberste Eintrag im Menü „Karte“ |
 
 „Prüfen" bleibt eine eigene Gruppe, auch mit nur zwei Einträgen – Messen gehört
 nicht zu „Zeichnen", weil es die Karte nicht anfasst. Die Gruppe füllt sich,
@@ -2861,6 +2872,61 @@ Leiste damit nicht mehr. Der `title` sagt weiterhin „Verändert die Karte
 nicht.“ Zugesichert in `tools/test-toolbar.mjs` („Gliederung“): Messen steht
 in der Gruppe, deren Überschrift „Zeichnen“ heißt, als ihr letzter Eintrag,
 und wird dort getroffen; englisch steht es unter „Draw“.
+
+**GEÄNDERT am 06.10.2026, im Commit danach: die Gruppe „Prüfen“ ist samt
+Überschrift entfallen**, „Karte prüfen“ ist der oberste Eintrag im Menü
+„Karte“, durch einen Trenner von den Kartenplätzen abgesetzt – entschieden vom
+Projektinhaber. Ein echter `menuitem` mit derselben id `#validateMapBtn` und
+demselben Behandler; der Mausklick schließt das Menü über den Behandler der
+Leiste, Enter über `activateMenuItem()`. Ohne Karte ist er frei wie vorher der
+Knopf und meldet „Keine Karte geladen.“ als Befund. Messen musste dafür
+vorher in die Zeichengruppe – deshalb steht dieser Schritt nach jenem.
+
+**Wege statt Bezeichner:** 28 Aufrufstellen in zwölf Testdateien klickten
+`#validateMapBtn` als Knopf der Leiste. Die id ist geblieben, der Weg nicht –
+im geschlossenen Menü ist der Eintrag nicht zu klicken. Sie gehen seitdem über
+`menueBefehl("Karte", "Karte prüfen")`, an den drei englischen Stellen über
+`menueBefehl("Map", "Validate map")`, an einer je nach Sprachlauf über eines
+von beiden, in `tools/test-map-switch.mjs` über die Texttabelle der Sprache;
+`klickeFreienKnopf()` in
+`tools/test-statusbar.mjs` ebenso, `menueBefehl()` sichert die Freigabe selbst
+zu. **Dabei gefunden:** `tools/test-toolbar.mjs` führte die Zahl der
+Leistenwerkzeuge zweimal als Literal (`=== 7`, `=== 10`); sie rissen, ohne dass
+am Einklappen oder an den Breitenstufen etwas falsch war. Beide sind jetzt
+Beziehungen – gezählt, nicht geführt.
+
+**Zugesichert in `tools/test-menu.mjs`** („Karte prüfen ist der oberste
+Eintrag im Menü „Karte““): der oberste gezeichnete Eintrag des offenen Panels
+– nach seiner Lage, nicht nach der Stelle im Markup – ist „Karte prüfen“, wird
+getroffen und ist frei, ein Trenner steht darunter; „Validate map“ samt
+erklärendem Tooltip in beiden Richtungen über `setLanguage()`; die Pfeiltaste
+vom Menütitel erreicht ihn zuerst, Enter prüft die Karte (Statuszeile und
+Block, vorher nachweislich ungeprüft) und schließt das Menü. In
+`tools/test-toolbar.mjs`: zwei Gruppen, „Karte prüfen“ nicht mehr in der
+Leiste. In `tools/test-map-switch.mjs` erreicht die Pfeiltaste zuerst „Karte
+prüfen“, danach gilt der Vertrag wie bisher.
+
+**Sechs Mutationen, je eine Schreibstelle; alle reißen, 0 Timeouts.** Drei
+Arbeitskopien außerhalb des Repositorys, Prüfsumme vorher und nachher
+`858061e1…`; gemessen je Probe die statische Stufe, `tools/test-menu.mjs`,
+`tools/test-toolbar.mjs` und `tools/test-map-switch.mjs`.
+
+| Probe | Schreibstelle | gerissen |
+|---|---|---|
+| Q1 | der Eintrag unten im Menü statt oben | **8** + **26** (test-menu, test-map-switch), darunter „der oberste Eintrag ist „Karte prüfen““ und „die Pfeiltaste erreicht zuerst „Karte pruefen““ |
+| Q2 | der Trenner darunter entfernt | **1**, „ein Trenner setzt ihn von den Kartenplätzen ab“ |
+| Q3 | ohne `role="menuitem"` | **8** + **26**, dieselben – ohne Rolle ist er für die Tastatur und die Lagemessung kein Eintrag |
+| Q4 | der Behandler `runMapValidation` nicht gebunden | **2** + **1** + **2**, darunter „Enter prüft die Karte: die Statuszeile nennt das Ergebnis“; dazu die statische Stufe: `funktionen-ohne-aufrufer` 0 → 1 |
+| Q5 | eine leere Gruppe „Prüfen“ wieder in der Leiste | **17** in `tools/test-toolbar.mjs`, darunter „zwei Gruppen in der geplanten Reihenfolge“ |
+| Q6 | der Wörterbucheintrag „Karte prüfen“ entfernt | **1** + **1**, „deutsch erzeugt, dann englisch: „Validate map““ und „Menüeintrag "Map → Validate map" ist frei“ |
+
+**Q6 endete im ersten Lauf in drei Timeouts**, in `tools/test-map-switch.mjs`:
+`menueBefehl()` wartete in `isEnabled()` dreißig Sekunden auf einen Eintrag,
+den es unter dem englischen Text nicht gab. **Behoben im Harness**, für alle
+Aufrufer: der Helfer zählt Titel und Eintrag, bevor er klickt, und meldet
+einen fehlenden mit derselben benannten Zusicherung wie einen gesperrten –
+nur mit anderem Grund („es gibt keinen Eintrag mit diesem Text“). Danach:
+benannt, 0 Timeouts.
 
 **Drei Mutationen, alle reißen, 0 Timeouts** (Arbeitskopien außerhalb des
 Repositorys, Prüfsumme vorher und nachher `a949efaa…`, gemessen mit der
