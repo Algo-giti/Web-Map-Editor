@@ -15,11 +15,14 @@
 
 import {
   createChecker,
+  createGrundEinmal,
   createMenueBefehl,
   createUmformwerkzeug,
+  elementGetroffen,
   indexUrl,
   launchBrowser,
   openAllFolds,
+  zugaenglicheBeschreibung,
 } from "./browser-harness.mjs";
 
 const TOOL = "test-reduce";
@@ -167,8 +170,46 @@ try {
   };
 
   check("ohne Auswahl ist Reduzieren gesperrt", await applyButton.isDisabled());
-  check("Statuszeile erklärt die Auswahl",
-    (await status()).includes("Punkt auswählen"), await status());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Der Grund steht einmal da - unter dem Knopf");
+
+  /*
+   * Bis zum 06.10.2026 stand der Satz zweimal untereinander: im Feld unter
+   * dem Knopf und im Statusfeld darunter. Beide Sprachrichtungen: deutsch
+   * erzeugt und englisch gelesen, dann englisch erzeugt und deutsch gelesen -
+   * jeweils unmittelbar nach setLanguage().
+   */
+  const grundEinmal = createGrundEinmal(page, check);
+  const REDUZIEREN = {block: "inspectorReduce", grund: "reduceReason", status: "reduceStatus"};
+  const freiesAufheben = async () => {
+    const knopf = page.locator("#clearMultiSelectionBtn");
+    const frei = await knopf.isEnabled();
+    check("„Auswahl aufheben“ ist frei", frei);
+    if (frei) {
+      await knopf.click();
+      await page.waitForTimeout(250);
+    }
+  };
+
+  await grundEinmal("deutsch", REDUZIEREN, "Punkt auswählen");
+
+  await page.evaluate(() => setLanguage("en"));
+  await grundEinmal("deutsch erzeugt, dann englisch", REDUZIEREN,
+    "select one point", "Punkt auswählen");
+
+  /* Auf Englisch neu erzeugen: ein Ziel und wieder keines. */
+  await wireMarks.nth(0).click();
+  await page.waitForTimeout(250);
+  const zielEn = await elementGetroffen(page, "#reduceStatus", { dy: 5 });
+  check("englisch, mit Ziel: das Statusfeld steht da",
+    zielEn.ok && (await status()).includes("Whole feature"),
+    `${zielEn.grund}: ${await status()}`);
+  await freiesAufheben();
+
+  await page.evaluate(() => setLanguage("de"));
+  await grundEinmal("englisch erzeugt, dann deutsch", REDUZIEREN,
+    "Punkt auswählen", "select one point");
 
   /* ---------------------------------------------------------------- */
   console.log("Ganzes Feature: offene Linie");
@@ -184,6 +225,35 @@ try {
   check("Statuszeile nennt vorher und nachher",
     /9 → \d+ Punkte/.test(await status()), await status());
   check("Reduzieren ist freigegeben", await applyButton.isEnabled());
+
+  const zielDe = await elementGetroffen(page, "#reduceStatus", { dy: 5 });
+  check("mit Ziel steht das Statusfeld da", zielDe.ok, zielDe.grund);
+
+  /*
+   * Ziel weg und dasselbe Ziel wieder: das Statusfeld nennt dieselbe Analyse
+   * noch einmal. Ohne die Marke beim Ausblenden mitzuraeumen kehrte
+   * setLocalizedText() frueh zurueck, und das Feld stuende leer da.
+   */
+  const ersteAnalyse = (await status()).trim();
+  /*
+   * Das Statusfeld beschreibt das Toleranzfeld (aria-describedby), und eine
+   * Beschreibung liest auch ausgeblendeten Text: ohne Ziel darf dort keine
+   * Analyse mehr stehen. Daneben die Gegenprobe, dass die Messung greift.
+   */
+  check("mit Ziel beschreibt die Analyse das Toleranzfeld",
+    (await zugaenglicheBeschreibung(page, "#reduceToleranceInput")) === (await status()).trim(),
+    await zugaenglicheBeschreibung(page, "#reduceToleranceInput"));
+  await freiesAufheben();
+  check("ohne Ziel beschreibt keine veraltete Analyse das Toleranzfeld",
+    (await zugaenglicheBeschreibung(page, "#reduceToleranceInput")) === "",
+    await zugaenglicheBeschreibung(page, "#reduceToleranceInput"));
+  await grundEinmal("Auswahl aufgehoben", REDUZIEREN, "Punkt auswählen");
+  await wireMarks.nth(0).click();
+  await page.waitForTimeout(250);
+  const wieder = await elementGetroffen(page, "#reduceStatus", { dy: 5 });
+  check("nach erneuter Auswahl nennt das Statusfeld wieder dieselbe Analyse",
+    wieder.ok && (await status()).trim() === ersteAnalyse && ersteAnalyse !== "",
+    `${wieder.grund}: „${(await status()).trim()}“ gegen „${ersteAnalyse}“`);
 
   /*
    * Etappe 7f: die Vorschau kommt erst beim GANZEN Feature.

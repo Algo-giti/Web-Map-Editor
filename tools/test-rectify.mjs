@@ -15,11 +15,14 @@
 
 import {
   createChecker,
+  createGrundEinmal,
   createMenueBefehl,
   createUmformwerkzeug,
+  elementGetroffen,
   indexUrl,
   launchBrowser,
   openAllFolds,
+  zugaenglicheBeschreibung,
 } from "./browser-harness.mjs";
 
 const TOOL = "test-rectify";
@@ -131,8 +134,42 @@ try {
   await load(mapWith(wonky));
 
   check("Button ist gesperrt", await applyButton.isDisabled());
-  check("Statuszeile erklärt die Auswahl",
-    (await status()).includes("Punkt des Features auswählen"), await status());
+
+  /*
+   * Der Grund steht einmal da - unter dem Knopf. Bis zum 06.10.2026 stand
+   * derselbe Satz ein zweites Mal im Statusfeld darunter. Beide
+   * Sprachrichtungen, jeweils unmittelbar nach setLanguage().
+   */
+  const grundEinmal = createGrundEinmal(page, check);
+  const RECHTWINKLIG = {block: "inspectorRectify", grund: "rectifyReason", status: "rectifyStatus"};
+  const freiesAufheben = async () => {
+    const knopf = page.locator("#clearMultiSelectionBtn");
+    const frei = await knopf.isEnabled();
+    check("„Auswahl aufheben“ ist frei", frei);
+    if (frei) {
+      await knopf.click();
+      await page.waitForTimeout(250);
+    }
+  };
+
+  await grundEinmal("deutsch", RECHTWINKLIG, "Punkt des Features auswählen");
+
+  await page.evaluate(() => setLanguage("en"));
+  await grundEinmal("deutsch erzeugt, dann englisch", RECHTWINKLIG,
+    "select a point of the feature", "Punkt des Features auswählen");
+
+  /* Auf Englisch neu erzeugen: ein Ziel und wieder keines. */
+  await marks.nth(0).click();
+  await page.waitForTimeout(300);
+  const zielEn = await elementGetroffen(page, "#rectifyStatus", { dy: 5 });
+  check("englisch, mit Ziel: das Statusfeld steht da",
+    zielEn.ok && (await status()).includes("Preferred direction"),
+    `${zielEn.grund}: ${await status()}`);
+  await freiesAufheben();
+
+  await page.evaluate(() => setLanguage("de"));
+  await grundEinmal("englisch erzeugt, dann deutsch", RECHTWINKLIG,
+    "Punkt des Features auswählen", "select a point of the feature");
 
   /*
    * Seit Etappe 7f traegt auch der Perimeter den Knopf "Ganzes Feature
@@ -166,6 +203,33 @@ try {
   check("die größte Verschiebung steht dabei",
     /größte Verschiebung [\d.,]+ m/.test(before), before);
   check("Button ist freigegeben", await applyButton.isEnabled());
+
+  const zielDe = await elementGetroffen(page, "#rectifyStatus", { dy: 5 });
+  check("mit Ziel steht das Statusfeld da", zielDe.ok, zielDe.grund);
+
+  /*
+   * Ziel weg und dasselbe Ziel wieder: das Statusfeld nennt dieselbe Analyse
+   * noch einmal - siehe hideToolStatus() zur Marke.
+   */
+  /*
+   * Das Statusfeld beschreibt das Toleranzfeld (aria-describedby), und eine
+   * Beschreibung liest auch ausgeblendeten Text: ohne Ziel darf dort keine
+   * Analyse mehr stehen. Daneben die Gegenprobe, dass die Messung greift.
+   */
+  check("mit Ziel beschreibt die Analyse das Toleranzfeld",
+    (await zugaenglicheBeschreibung(page, "#rectifyToleranceInput")) === (await status()).trim(),
+    await zugaenglicheBeschreibung(page, "#rectifyToleranceInput"));
+  await freiesAufheben();
+  check("ohne Ziel beschreibt keine veraltete Analyse das Toleranzfeld",
+    (await zugaenglicheBeschreibung(page, "#rectifyToleranceInput")) === "",
+    await zugaenglicheBeschreibung(page, "#rectifyToleranceInput"));
+  await grundEinmal("Auswahl aufgehoben", RECHTWINKLIG, "Punkt des Features auswählen");
+  await marks.nth(0).click();
+  await page.waitForTimeout(300);
+  const wieder = await elementGetroffen(page, "#rectifyStatus", { dy: 5 });
+  check("nach erneuter Auswahl nennt das Statusfeld wieder dieselbe Analyse",
+    wieder.ok && (await status()) === before && before !== "",
+    `${wieder.grund}: „${await status()}“ gegen „${before}“`);
 
   /*
    * Etappe 7f: die Vorschau erscheint erst beim GANZEN Feature.
@@ -388,8 +452,10 @@ try {
     (await page.locator("#rectifyApplyBtn").textContent())
       .includes("right-angled"),
     await page.locator("#rectifyApplyBtn").textContent());
-  check("die Statuszeile ist übersetzt",
-    (await status()).includes("select a point of the feature"), await status());
+  check("der Grund ist übersetzt",
+    (await page.locator("#rectifyReason").innerText())
+      .includes("select a point of the feature"),
+    await page.locator("#rectifyReason").innerText());
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

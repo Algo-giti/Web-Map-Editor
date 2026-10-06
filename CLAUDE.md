@@ -38,7 +38,7 @@ Abschnitt 5 (Domänenregeln) und `DISCLAIMER.md`.
 ## 2. Architektur
 
 Das gesamte Projekt ist **eine einzige Datei**: [`index.html`](index.html)
-(rund <!-- bestand: zeilen-index-html +-500 -->25 500 Zeilen: HTML, `<style>`-CSS, ein einziger inline
+(rund <!-- bestand: zeilen-index-html +-500 -->26 000 Zeilen: HTML, `<style>`-CSS, ein einziger inline
 `<script>`-Block). Es gibt bewusst **keine** weiteren Build-Artefakte, kein
 `package.json` für die App selbst, keine externen `<script src>`/`<link>`-
 Referenzen und keine `fetch()`/`XMLHttpRequest`-Aufrufe – die Datei ist
@@ -351,12 +351,12 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-origin-conflict.mjs` | widersprüchliche RTK-Bezugspunkte (Abschnitt 5b) |
 | `test-straighten.mjs` | Linie begradigen |
 | `test-dockpath.mjs` | Docking-Pfad mit freier Punktzahl |
-| `test-reduce.mjs` | Punkte reduzieren, beide Betriebsarten |
+| `test-reduce.mjs` | Punkte reduzieren, beide Betriebsarten, der Ablehnungsgrund nur einmal |
 | `test-scale.mjs` | Maßstabserkennung, Sperren, Rundlauf, Maßstab von Hand, Maßstab aus der Datei bei absoluten Koordinaten, der Maßstabshinweis im Sprachwechsel |
 | `test-merge.mjs` | Verbinden, Singletons, Slot-Trennung |
 | `test-shapes.mjs` | Kreis- und Rechteck-Exclusions |
 | `test-validation.mjs` | erweiterte Geometrieprüfung |
-| `test-rectify.mjs` | Ecken rechtwinklig |
+| `test-rectify.mjs` | Ecken rechtwinklig, der Ablehnungsgrund nur einmal |
 | `test-map-switch.mjs` | Wechsel zwischen Karte A und B, Karte schließen |
 | `test-i18n-dynamic.mjs` | Sprachwechsel bei Laufzeitinhalten und den Zahlenfeldern |
 | `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
@@ -1596,7 +1596,7 @@ deshalb steht die Regel oben so scharf da.
 
 ```
    ...die Prüfung hat <!-- bestand: pruefstellen -->49 Fundstellen...
-   ...rund <!-- bestand: zeilen-index-html +-500 -->25 500 Zeilen...
+   ...rund <!-- bestand: zeilen-index-html +-500 -->26 000 Zeilen...
 ```
 
 **Das Beispiel trägt die echten Namen, und das ist eine Zusicherung, keine
@@ -4047,22 +4047,74 @@ an dem Fünfeck aus `tools/test-glaettung.mjs`.
 
 **Nebenbefunde, gemeldet und nicht behoben:**
 
-- **Bei Reduzieren und Rechtwinklig steht der Ablehnungsgrund jetzt zweimal
-  da.** Ohne gültiges Ziel schreibt die Statusfunktion des Werkzeugs
-  (`#reduceStatus`, `#rectifyStatus`) denselben Satz wie sein `.tool-reason`
-  – gemessen: „Reduzieren: einen Punkt auswählen (ganzes Feature) oder zwei
-  Punkte (Abschnitt).“ und „Ecken rechtwinklig: einen Punkt des Features
-  auswählen.“ je zweimal untereinander. Bisher fiel das nicht auf, weil das
-  Statusfeld in den eingeklappten Einstellungen lag. Mit Ziel unterscheiden
-  sich beide (Grund: was das Werkzeug tut; Status: die Analyse). Das
-  Verhalten ist unverändert übernommen, wie verlangt; ob das Statusfeld ohne
-  Ziel leer bleiben soll, ist eine Entscheidung.
+- **ERLEDIGT im Commit danach – bei Reduzieren und Rechtwinklig stand der
+  Ablehnungsgrund zweimal da.** Ohne gültiges Ziel schrieb die
+  Statusfunktion des Werkzeugs (`#reduceStatus`, `#rectifyStatus`) denselben
+  Satz wie sein `.tool-reason` – gemessen: „Reduzieren: einen Punkt auswählen
+  (ganzes Feature) oder zwei Punkte (Abschnitt).“ und „Ecken rechtwinklig:
+  einen Punkt des Features auswählen.“ je zweimal untereinander. Bisher fiel
+  das nicht auf, weil das Statusfeld in den eingeklappten Einstellungen lag.
+  Behoben, siehe „Der Ablehnungsgrund steht einmal da“ unten.
 - **Die Vorschauen von Begradigen, Reduzieren und Rechtwinklig hängen weiter
   an der Auswahl, nicht am gewählten Werkzeug.** Bei einem ganz gewählten
   Feature stehen Reduzieren- und Rechtwinklig-Vorschau gleichzeitig auf der
   Karte, auch wenn keines der beiden gewählt ist. Unverändert gelassen, weil
   das Verhalten der Werkzeuge bleiben sollte; seit es ein gewähltes Werkzeug
   gibt, läge es nahe, nur dessen Vorschau zu zeigen.
+
+### Der Ablehnungsgrund steht einmal da
+
+**Entschieden vom Projektinhaber am 06.10.2026: der doppelte Ablehnungsgrund
+bei Reduzieren und Rechtwinklig steht nur noch einmal da.** Er steht unter
+dem Knopf, im `.tool-reason`-Feld – das ist seit Etappe 5 der Ort des Grundes
+für jedes Umformwerkzeug. Das Statusfeld darunter steht ohne Ziel **nicht
+da**; mit Ziel erscheint es und sagt, was nur es sagen kann: die Analyse
+(„ganzes Feature: 9 → 5 Punkte (4 entfallen).“, „Vorzugsrichtung … ·
+größte Verschiebung …“) und nach dem Anwenden das Ergebnis.
+
+| Frage | Antwort |
+|---|---|
+| welcher der beiden fällt | das Statusfeld, nicht der Grund: der Grund gehört nach der Hausregel unter den Knopf, und Begradigen und Glätten haben ohnehin nur dieses eine Feld |
+| ausgeblendet oder geleert | **beides**, an einer Stelle: `hideToolStatus()`. Ausgeblendet, weil `.grid-status` eine Mindesthöhe trägt und ein leeres Feld als leerer Kasten dastünde; geleert, weil das Feld über `aria-describedby` die Eingabefelder des Werkzeugs beschreibt und eine Beschreibung auch ausgeblendeten Text liest – gemessen über den Barrierefreiheitsbaum: das Toleranzfeld trug sonst die Analyse eines Ziels, das es nicht mehr gibt |
+| die Marke | fällt beim Ausblenden mit, wie in `setPointRoleText()`: ohne das kehrte `setLocalizedText()` bei derselben Analyse früh zurück, und das Feld stünde leer da |
+| Einblenden | `setReduceStatus()` und `setRectifyStatus()` – wer eine Meldung schreibt, zeigt das Feld. Auch die Ergebnismeldung nach dem Anwenden geht diesen Weg |
+| Markup | beide Felder starten leer und mit `hidden`; der frühere Ausgangstext war schon vor dem ersten Zeichnen überschrieben. Sein Wörterbucheintrag „Einen Punkt auswählen (ganzes Feature) oder zwei Punkte (Abschnitt).“ hatte keinen anderen Verwender und ist mit entfallen |
+
+**Zugesichert in `tools/test-reduce.mjs` und `tools/test-rectify.mjs`**,
+über `createGrundEinmal()` im Harness: ohne Ziel steht der Grund unter dem
+Knopf und wird getroffen, er steht **genau einmal** im sichtbaren Text des
+Blocks (`innerText` – `textContent` trüge durch das ausgeblendete Feld
+hindurch), und das Statusfeld wird nicht getroffen. In beiden
+Sprachrichtungen über `setLanguage()`, mit der Gegenprobe, dass kein Rest
+der anderen Sprache im Block steht. Daneben die Wirkung, die es nur mit
+Ziel gibt: das Statusfeld steht da, es beschreibt das Toleranzfeld, nach dem
+Aufheben beschreibt es nichts mehr (`zugaenglicheBeschreibung()` im Harness,
+über CDP), und nach erneuter Auswahl desselben Ziels nennt es dieselbe
+Analyse wieder.
+
+**Neun Mutationen, je eine Schreibstelle; sieben reißen, zwei sind
+nachgemessen ohne Wirkung; 0 Timeouts.** Vier Arbeitskopien außerhalb des
+Repositorys, je Probe aus der Sicherungskopie zurückgespielt, Prüfsumme
+vorher und nachher `60fb44b5…`; gemessen je Probe Syntaxprüfung,
+Bestandsprüfer, `tools/test-reduce.mjs` und `tools/test-rectify.mjs`. Die
+statische Stufe reißt bei keiner – der Bestandsprüfer meldete in diesem Lauf
+allein die beiden neuen herstellenden Zusicherungen, die hier nachgetragen
+sind.
+
+| Probe | Schreibstelle | gerissen |
+|---|---|---|
+| E1 | `updateReduceUi()` schreibt den Grund ohne Ziel wieder ins Statusfeld | **9** in `tools/test-reduce.mjs`, darunter „deutsch: und genau einmal im sichtbaren Text des Blocks“, Detail `2` |
+| E2 | dasselbe in `updateRectifyUi()` | **9** in `tools/test-rectify.mjs`, dieselben |
+| E3 | `hideToolStatus()` blendet nicht aus | **2** + **2**, „Auswahl aufgehoben: das Statusfeld steht ohne Ziel nicht da“ – ein leerer Kasten |
+| E4 | `hideToolStatus()` räumt die Marke nicht | **3** + **1**, „nach erneuter Auswahl nennt das Statusfeld wieder dieselbe Analyse“, Detail „“ |
+| E5 | `hideToolStatus()` leert nicht | **1** + **1**, „ohne Ziel beschreibt keine veraltete Analyse das Toleranzfeld“, Detail die alte Analyse |
+| E6 | `setReduceStatus()` blendet nicht ein | **3**, „mit Ziel steht das Statusfeld da“, Detail „keine Ausdehnung“ |
+| E7 | dasselbe in `setRectifyStatus()` | **3**, dieselben |
+| E8 | Markup: `#reduceStatus` wieder mit Text und ohne `hidden` | **keine – ohne Wirkung**, nachgemessen: schon bei `readyState` „interactive“ ist das Feld ausgeblendet und leer |
+| E9 | dasselbe für `#rectifyStatus` | **keine – ohne Wirkung**, aus demselben Grund |
+
+Die Zahl vor dem „+“ zählt in `tools/test-reduce.mjs`, die dahinter in
+`tools/test-rectify.mjs`.
 
 ### Die Angaben zur Auswahl stehen über der Karte
 
@@ -7788,7 +7840,7 @@ dokumentiert, aber im Code konsistent sichtbar):
   Schlüssel in einem Objektliteral (`I18N_EN`).
 
   In `index.html` ist das **wahrscheinlich, nicht unwahrscheinlich**: rund
-  <!-- bestand: zeilen-index-html +-500 -->25 500 Zeilen und rund
+  <!-- bestand: zeilen-index-html +-500 -->26 000 Zeilen und rund
   <!-- bestand: globale-funktionen +-20 -->450 globale Funktionen liegen in einem einzigen
   Gültigkeitsbereich, ohne Module, ohne Namensräume. Wer eine Hilfsfunktion
   schreibt, sieht die 9 000 Zeilen weiter unten nicht, und naheliegende Namen
@@ -12246,14 +12298,15 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-map-switch.mjs` | 2 | 2 |
   | `tools/test-dockpath.mjs` | – | 2 |
   | `tools/test-menu.mjs` | – | 3 |
-  | `tools/test-reduce.mjs` | – | 1 |
+  | `tools/test-reduce.mjs` | – | 2 |
+  | `tools/test-rectify.mjs` | – | 1 |
   | `tools/test-toolbar.mjs` | 1 | 3 |
   | `tools/test-validation.mjs` | – | 3 |
   | `tools/test-i18n-dynamic.mjs` | – | 1 |
   | `tools/test-ghosting.mjs` | – | 3 |
   | `tools/test-scale.mjs` | – | 2 |
   | `tools/test-glaettung.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**65** | <!-- bestand: zusicherungen-herstellend -->**68** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**65** | <!-- bestand: zusicherungen-herstellend -->**70** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -12337,6 +12390,13 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Abschnitt über die Faltblöcke belegt „klappt nie von selbst auf“ seitdem am
   Auswahlblock statt an „Umformen“, und „Vorbedingung: der Titel des
   Auswahlblocks hat sich geaendert“ liest `#inspectorTitle` im Vorlauf.
+
+  **Der einfache Ablehnungsgrund (06.10.2026) hat zwei herstellende
+  hinzugefügt**, je eine in `tools/test-reduce.mjs` und
+  `tools/test-rectify.mjs`: „„Auswahl aufheben“ ist frei“ steht hinter einem
+  Klick auf `#clearMultiSelectionBtn` – das Ziel muss einmal weg und wieder
+  da sein. `tools/test-rectify.mjs` ist damit die fünfzehnte Datei der
+  Tabelle.
 
   **Dazu sind drei Namen in die Bezeichnerliste gekommen**: `selectionOverlay`,
   `selectionTitle` und `selectionSubtitle`. Der Kopf der Auswahl steht seitdem

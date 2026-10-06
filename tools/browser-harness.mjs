@@ -523,6 +523,81 @@ export function createUmformwerkzeug(page, check) {
 }
 
 /**
+ * Die zugängliche Beschreibung eines Elements, wie Chrome sie berechnet -
+ * oder "" ohne eine.
+ *
+ * aria-describedby liest auch den Text eines AUSGEBLENDETEN Elements; was ein
+ * Feld einer Vorlesehilfe sagt, ist deshalb am sichtbaren Text nicht
+ * abzulesen. Gefragt wird der Barrierefreiheitsbaum selbst, über CDP.
+ */
+export async function zugaenglicheBeschreibung(page, selector) {
+  const cdp = await page.context().newCDPSession(page);
+
+  try {
+    const { root } = await cdp.send("DOM.getDocument");
+    const { nodeId } = await cdp.send("DOM.querySelector",
+      { nodeId: root.nodeId, selector });
+    if (!nodeId) return "";
+
+    const { nodes } = await cdp.send("Accessibility.getPartialAXTree",
+      { nodeId, fetchRelatives: false });
+
+    return String(nodes?.[0]?.description?.value ?? "").trim();
+  } finally {
+    await cdp.detach();
+  }
+}
+
+/**
+ * Steht der Ablehnungsgrund eines Umformwerkzeugs GENAU EINMAL da - unter
+ * seinem Knopf, und das Statusfeld darunter nicht?
+ *
+ * Bis zum 06.10.2026 schrieben Reduzieren und Rechtwinklig ohne Ziel
+ * denselben Satz zweimal untereinander: ins .tool-reason-Feld und ins
+ * Statusfeld. Gezählt wird im SICHTBAREN Text des Blocks (innerText) -
+ * textContent truege durch ein ausgeblendetes Feld hindurch und zaehlte einen
+ * Satz mit, den niemand sieht. Dass das Statusfeld nicht gezeichnet wird,
+ * prueft die Trefferpruefung: ein leeres, aber gezeichnetes Feld fiele dem
+ * Zaehlen nicht auf.
+ *
+ * `werkzeug` traegt die drei ids {block, grund, status}; `erwartet` ist ein
+ * Stueck des Grundes in der laufenden Sprache, `fremd` eines in der anderen -
+ * es darf nirgends im Block stehen.
+ */
+export function createGrundEinmal(page, check) {
+  return async (wie, werkzeug, erwartet, fremd = null) => {
+    const lage = await page.evaluate(({block, grund, fremdText}) => {
+      const kasten = document.getElementById(block);
+      const feld = document.getElementById(grund);
+      const text = (feld?.innerText ?? "").trim();
+      const sichtbar = kasten?.innerText ?? "";
+
+      return {
+        text,
+        anzahl: text ? sichtbar.split(text).length - 1 : 0,
+        rest: fremdText ? sichtbar.split(fremdText).length - 1 : 0,
+      };
+    }, {...werkzeug, fremdText: fremd});
+
+    const grundGetroffen = await elementGetroffen(page, `#${werkzeug.grund}`, { dy: 5 });
+    check(`${wie}: der Grund steht unter dem Knopf`,
+      grundGetroffen.ok && lage.text.includes(erwartet),
+      `${grundGetroffen.grund}: ${lage.text}`);
+    check(`${wie}: und genau einmal im sichtbaren Text des Blocks`,
+      lage.anzahl === 1, String(lage.anzahl));
+
+    const statusGetroffen = await elementGetroffen(page, `#${werkzeug.status}`, { dy: 5 });
+    check(`${wie}: das Statusfeld steht ohne Ziel nicht da`,
+      !statusGetroffen.ok, statusGetroffen.grund);
+
+    if (fremd) {
+      check(`${wie}: kein Rest der anderen Sprache`, lage.rest === 0,
+        `${lage.rest} mal „${fremd}“`);
+    }
+  };
+}
+
+/**
  * Klickt einen Knopf, der gesperrt sein KANN - und klickt ihn nicht, wenn er
  * gesperrt ist.
  *
