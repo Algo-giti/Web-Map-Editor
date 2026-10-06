@@ -312,10 +312,45 @@ try {
    * Angaben zur Auswahl nur noch ohne Auswahl - im leeren Zustand, beim
    * Zeichnen und beim Messen. Gelesen wird deshalb nur, was GEZEICHNET wird:
    * ein Text, der nicht dasteht, liefert "" statt seines alten Inhalts.
+   *
+   * Seit dem 06.10.2026 ist dieser Text ein Faltblock und beim ersten Start
+   * zu. Wer ihn lesen will, klappt ihn auf - am Griff, wie ein Nutzer. Steht
+   * der Block gar nicht da (bei einer Auswahl), gibt es keinen Griff, und es
+   * wird nichts geklickt.
+   *
+   * "Gezeichnet" heisst checkVisibility() und NICHT getClientRects(): ein Kind
+   * eines geschlossenen <details> meldet weiterhin ein Rechteck - der vierte
+   * Fall der Regel in CLAUDE.md, Abschnitt 4.2. Mit getClientRects() las
+   * diese Funktion den Titel auch bei zugeklapptem Block.
    */
-  const head = () =>
-    page.evaluate(() => {
-      const gezeichnet = (el) => el.getClientRects().length > 0;
+  /*
+   * Ohne Griff wird nicht geklickt: ein click() auf ein <summary>, das es
+   * nicht gibt, wartete dreissig Sekunden - gemessen an der Mutation, die den
+   * Block wieder zu einem festen <div> macht. Daraus wird eine benannte
+   * Zusicherung, dieselbe Regel wie bei klickeFreienKnopf().
+   */
+  const kopfAufklappen = async () => {
+    const lage = await page.evaluate(() => {
+      const block = document.getElementById("inspectorHeadText");
+      if (!block.checkVisibility() || block.open === true) return "nichts zu tun";
+      return block.querySelector(":scope > summary") ? "zu" : "kein Griff";
+    });
+
+    if (lage === "nichts zu tun") return;
+
+    check("der zugeklappte Auswahlblock im Kopf hat einen Griff", lage === "zu", lage);
+
+    if (lage !== "zu") return;
+
+    await page.locator("#inspectorHeadText > summary").click();
+    await page.waitForTimeout(150);
+  };
+
+  const head = async () => {
+    await kopfAufklappen();
+
+    return page.evaluate(() => {
+      const gezeichnet = (el) => el.checkVisibility();
       const zeile = (id) => {
         const el = document.getElementById(id);
         return gezeichnet(el) ? el.textContent.trim() : "";
@@ -343,6 +378,7 @@ try {
         darunter: Math.round(kopf.bottom - zuunterst.bottom),
       };
     });
+  };
 
   /*
    * Der Kopf der AUSWAHL - "Punkt 3 von 4", "Perimeter · Polygon". Er steht
@@ -428,6 +464,156 @@ try {
     punktInspektor.darunter === geladen.darunter && punktInspektor.hoehe < geladen.hoehe,
     `darunter ${punktInspektor.darunter} gegen ${geladen.darunter}, ` +
     `Hoehe ${punktInspektor.hoehe} gegen ${geladen.hoehe}`);
+
+  /* ---------------------------------------------------------------- */
+  console.log("Der Auswahlblock im Kopf klappt ein wie die uebrigen Bloecke");
+
+  /*
+   * Entschieden vom Projektinhaber am 06.10.2026: „AUSWAHL / Nichts
+   * ausgewaehlt / Punkt auf der Karte anklicken“ ist einklappbar wie die
+   * anderen Bloecke und beim ersten Start ZU. Gemessen wird, was gezeichnet
+   * wird - elementFromPoint und checkVisibility(), nie getClientRects(): ein
+   * Kind eines geschlossenen <details> meldet weiterhin ein Rechteck.
+   *
+   * Der Griff traegt seinen Text in Grossbuchstaben (text-transform), innerText
+   * gibt ihn so zurueck. Verglichen wird deshalb textContent - die Sichtbarkeit
+   * belegt der Treffer daneben.
+   */
+  const auswahlblock = () => page.evaluate(() => {
+    const block = document.getElementById("inspectorHeadText");
+    const griff = block.querySelector(":scope > summary");
+    const titel = document.getElementById("inspectorTitle");
+    const unter = document.getElementById("inspectorSubtitle");
+    const kopf = document.querySelector(".inspector-head");
+    const umschalter = document.getElementById("inspectorToggle");
+    const getroffen = (el) => {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return false;
+      const t = document.elementFromPoint(r.left + Math.min(r.width / 2, 30), r.top + r.height / 2);
+      return !!t && el.contains(t);
+    };
+    const k = kopf.getBoundingClientRect();
+    const u = umschalter.getBoundingClientRect();
+    /* Ohne Griff (der Block waere dann nicht einklappbar) liefert er null. */
+    const g = griff ? griff.getBoundingClientRect() : u;
+    const unterkante = Math.max(u.bottom, block.open !== false ? unter.getBoundingClientRect().bottom : g.bottom);
+
+    return {
+      offen: block.open,
+      griff: griff ? griff.textContent.trim() : null,
+      griffGetroffen: griff ? getroffen(griff) : false,
+      titel: titel.checkVisibility() ? titel.textContent.trim() : "",
+      unter: unter.checkVisibility() ? unter.textContent.trim() : "",
+      titelGetroffen: getroffen(titel),
+      spalte: document.getElementById("inspector").innerText,
+      /* Wie weit liegt die Unterkante des Kopfes unter dem, was er zeigt? */
+      leer: Math.round(k.bottom - unterkante),
+      polster: Math.round(parseFloat(getComputedStyle(kopf).paddingBottom) +
+        parseFloat(getComputedStyle(kopf).borderBottomWidth)),
+      umschalterRechtsOben:
+        Math.abs(u.right - (k.right - parseFloat(getComputedStyle(kopf).paddingRight))) <= 1 &&
+        Math.abs(u.top - (k.top + parseFloat(getComputedStyle(kopf).paddingTop))) <= 1,
+    };
+  });
+
+  await page.goto(indexUrl(), { waitUntil: "load" });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "load" });
+
+  {
+    const a = await auswahlblock();
+
+    check("beim ersten Start ist der Auswahlblock zu", a.offen === false);
+    check("sein Griff steht da und wird getroffen",
+      a.griffGetroffen && a.griff === "Auswahl", JSON.stringify(a.griff));
+    check("sein Inhalt wird nicht gezeichnet",
+      !a.titelGetroffen && a.titel === "" && !a.spalte.includes("Nichts ausgewählt"),
+      `${a.titel} | getroffen ${a.titelGetroffen}`);
+    check("zugeklappt haelt der Kopf keinen leeren Streifen",
+      Math.abs(a.leer - a.polster) <= 1, `${a.leer} gegen ${a.polster}`);
+    check("der Umschalter steht oben rechts im Kopf", a.umschalterRechtsOben);
+  }
+
+  /* Uebersetzt wird der Griff wie jede Beschriftung - in beiden Richtungen. */
+  await page.evaluate(() => setLanguage("en"));
+  check("deutsch erzeugt, dann englisch: der Griff heisst „Selection“",
+    (await auswahlblock()).griff === "Selection" && (await auswahlblock()).griffGetroffen,
+    (await auswahlblock()).griff);
+
+  /*
+   * Mit der Tastatur erreichbar wie jeder Faltblock: Enter klappt auf.
+   * Ohne Griff wird nicht fokussiert - sonst ein stummer Timeout statt der
+   * Zusicherung darunter.
+   */
+  if ((await auswahlblock()).griff !== null) {
+    await page.locator("#inspectorHeadText > summary").focus();
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(200);
+  }
+
+  {
+    const a = await auswahlblock();
+
+    check("Enter am Griff klappt ihn auf", a.offen === true);
+    check("aufgeklappt, englisch: der Titel steht da und wird getroffen",
+      a.titelGetroffen && a.titel === "Nothing selected", a.titel);
+    check("und der Untertitel ebenso", a.unter === "No map loaded", a.unter);
+    check("aufgeklappt haelt der Kopf ebenfalls keinen leeren Streifen",
+      Math.abs(a.leer - a.polster) <= 1, `${a.leer} gegen ${a.polster}`);
+  }
+
+  /*
+   * Der Untertitel ist ABGELEITET: er entsteht neu, sobald eine Karte da ist.
+   * Hier entsteht er auf Englisch - die Karte wird in der englischen
+   * Oberflaeche geladen -, dann wird umgeschaltet.
+   */
+  const karteLaden = async () => {
+    await page.locator("#fileInput").setInputFiles({
+      name: "inspector.geojson",
+      mimeType: "application/geo+json",
+      buffer: Buffer.from(JSON.stringify({ type: "FeatureCollection", features: [PERIMETER] })),
+    });
+    await page.waitForTimeout(450);
+  };
+
+  await karteLaden();
+  check("englisch erzeugt: „Click a point on the map“",
+    (await auswahlblock()).unter === "Click a point on the map", (await auswahlblock()).unter);
+
+  await page.evaluate(() => setLanguage("de"));
+  check("englisch erzeugt, dann deutsch: „Punkt auf der Karte anklicken“",
+    (await auswahlblock()).unter === "Punkt auf der Karte anklicken", (await auswahlblock()).unter);
+  check("englisch erzeugt, dann deutsch: „Nichts ausgewählt“",
+    (await auswahlblock()).titel === "Nichts ausgewählt", (await auswahlblock()).titel);
+  check("und der Griff heisst wieder „Auswahl“",
+    (await auswahlblock()).griff === "Auswahl", (await auswahlblock()).griff);
+
+  /* Der Wunsch ueberlebt den Neuaufbau - wie bei Bestand und Kartenpruefung. */
+  await page.reload({ waitUntil: "load" });
+  await page.waitForTimeout(300);
+  check("nach dem Neuladen ist er noch offen",
+    (await auswahlblock()).offen === true && (await auswahlblock()).titelGetroffen);
+
+  if ((await auswahlblock()).griff !== null) {
+    await page.locator("#inspectorHeadText > summary").click();
+    await page.waitForTimeout(200);
+  }
+  await page.reload({ waitUntil: "load" });
+  await page.waitForTimeout(300);
+  check("und zugeklappt bleibt er auch nach dem Neuladen zu",
+    (await auswahlblock()).offen === false && !(await auswahlblock()).titelGetroffen);
+
+  /* Die Gegenrichtung: deutsch erzeugt, dann englisch. */
+  await kopfAufklappen();
+  await karteLaden();
+  check("deutsch erzeugt: „Punkt auf der Karte anklicken“",
+    (await auswahlblock()).unter === "Punkt auf der Karte anklicken",
+    (await auswahlblock()).unter);
+
+  await page.evaluate(() => setLanguage("en"));
+  check("deutsch erzeugt, dann englisch: „Click a point on the map“",
+    (await auswahlblock()).unter === "Click a point on the map", (await auswahlblock()).unter);
+  await page.evaluate(() => setLanguage("de"));
 
   /* ---------------------------------------------------------------- */
   console.log("Behälter werden nur benannt, wenn es mehrere gibt");

@@ -57,6 +57,15 @@ try {
   // Der Leerzustand wird am Inspektor abgelesen. Das Dateinamenfeld der
   // Statuszeile ist mit dem sechsten Durchgang entfallen - der Name steht
   // seitdem im Menue "Karte".
+  //
+  // Der Auswahlblock im Kopf des Inspektors ist seit dem 06.10.2026 ein
+  // Faltblock und beim ersten Start zu - innerText liefert dort "", weil
+  // nichts gezeichnet wird. Aufgeklappt wird er wie von einem Nutzer: am
+  // Griff.
+  if (await page.locator("#inspectorHeadText > summary").count()) {
+    await page.locator("#inspectorHeadText > summary").click();
+    await page.waitForTimeout(100);
+  }
   const initialEmptyText = await page.locator("#inspectorSubtitle").innerText();
   if (!/keine karte geladen/i.test(initialEmptyText)) {
     console.error(`smoke-test: unexpected initial #inspectorSubtitle text: "${initialEmptyText}"`);

@@ -647,6 +647,25 @@ try {
         await seite.waitForTimeout(400);
       }
 
+      /*
+       * Der Auswahlblock im Kopf des Inspektors ist seit dem 06.10.2026 ein
+       * Faltblock und beim ersten Start zu. Gelesen wird sichtbarer Text,
+       * also wird er aufgeklappt - am Griff, wie von einem Nutzer.
+       */
+      /*
+       * Gefragt wird nach dem GRIFF, nicht nach `open`: restoreInspectorFolds()
+       * setzt `.open` auch an einem Element, das kein <details> ist - als
+       * blosse Eigenschaft. Ohne Griff wird nicht geklickt; sonst wartete der
+       * Klick dreissig Sekunden auf ein <summary>, das es nicht gibt.
+       */
+      if (await seite.evaluate(() => {
+        const block = document.getElementById("inspectorHeadText");
+        return !!block.querySelector(":scope > summary") && !block.open;
+      })) {
+        await seite.locator("#inspectorHeadText > summary").click();
+        await seite.waitForTimeout(150);
+      }
+
       for (const l of [sprache, andere]) {
         if (l !== sprache) await seite.evaluate((x) => setLanguage(x), l);
         const T = TEXTE[l];

@@ -1644,25 +1644,39 @@
   }
 
   /*
-   * Der Kopfblock ist in JEDEM Zustand vorhanden und gleich hoch. Er ist der
+   * Der Kopfblock ist in JEDEM Zustand vorhanden und am selben Ort. Er ist der
    * Anker, der beim Auswählen nicht wandert - ohne ihn springt der ganze
-   * Inspektor bei jedem Klick auf die Karte.
+   * Inspektor bei jedem Klick auf die Karte. Gleich hoch ist er seit dem Umzug
+   * der Angaben zur Auswahl nicht mehr, siehe CLAUDE.md.
+   *
+   * Seit der Text des Kopfblocks einklappt, steht der Umschalter nicht mehr
+   * absolut darueber, sondern im Fluss: row-reverse legt das erste Kind - den
+   * Umschalter - an den rechten Rand, und der Kopf ist so hoch wie das
+   * hoehere von beiden. Vorher hielt eine Mindesthoehe von 58 px den Platz
+   * fuer den offenen Text frei; zugeklappt stuende darunter ein leerer
+   * Streifen.
    */
   .inspector-head {
-    position:relative;
+    display:flex;
+    flex-direction:row-reverse;
+    align-items:flex-start;
+    gap:4px;
     flex:0 0 auto;
-    min-height:58px;
     padding-bottom:10px;
-    padding-right:30px;
     border-bottom:1px solid var(--line);
   }
+
+  .inspector-head-text { flex:1 1 auto; min-width:0; }
+
+  /* Titel und Untertitel gehoeren zusammen - enger als zwei Bloecke. */
+  .inspector-head-text > .fold-body { gap:2px; padding-top:6px; }
 
   /*
    * Der Umschalter liegt im Kopfblock und behält seinen Platz, wenn der
    * Inspektor einklappt - dann rutscht der Rest weg, er nicht.
    */
   .inspector-toggle {
-    position:absolute; top:0; right:0;
+    flex:none;
     width:26px; height:26px; padding:0;
     display:flex; align-items:center; justify-content:center;
     border-radius:6px;
@@ -1692,33 +1706,21 @@
   .app.inspector-collapsed .inspector > *:not(.inspector-head) { display:none; }
 
   .app.inspector-collapsed .inspector-head {
-    min-height:0; padding:0; padding-right:0; border-bottom:0;
+    padding:0; border-bottom:0;
   }
 
   .app.inspector-collapsed .inspector-head > *:not(.inspector-toggle) {
     display:none;
   }
 
-  .app.inspector-collapsed .inspector-toggle { position:static; }
-
   /*
    * Bei einer Auswahl steht der Text des Kopfblocks in den Angaben ueber der
-   * Karte, und hier wird er weggelassen. Uebrig bleibt der Umschalter - an
-   * derselben Stelle oben rechts, nur nicht mehr ueber leerem Platz: ohne
-   * Text gibt es nichts, wofuer der Kopf seine Mindesthoehe halten muesste.
-   * Gelesen wird das hidden-Attribut des Textbehaelters, also derselbe
-   * Zustand, den updateInspector() setzt - keine zweite Klasse dafuer.
+   * Karte, und hier wird er weggelassen (hidden, gesetzt in
+   * updateInspector()). Uebrig bleibt der Umschalter an derselben Stelle
+   * oben rechts. Eine eigene Regel braucht das seit dem Fluss-Layout nicht
+   * mehr: bis dahin hielt hier eine :has()-Regel die Mindesthoehe und den
+   * absolut gesetzten Umschalter zurueck.
    */
-  .inspector-head:has(> .inspector-head-text[hidden]) {
-    display:flex;
-    justify-content:flex-end;
-    min-height:0;
-    padding-right:0;
-  }
-
-  .inspector-head:has(> .inspector-head-text[hidden]) .inspector-toggle {
-    position:static;
-  }
 
   .inspector-title {
     color:var(--text); font-size:14px; font-weight:700;
@@ -4397,12 +4399,21 @@
           in den Angaben ueber der Karte (#selectionOverlay). Hier bleibt, was
           ohne Auswahl dasteht - der leere Zustand, das Zeichnen, das Messen.
           Der Umschalter bleibt in jedem Zustand an seinem Ort.
+
+          EINKLAPPBAR wie die uebrigen Bloecke, und beim ersten Start ZU -
+          entschieden vom Projektinhaber am 06.10.2026. Dieselbe Mechanik wie
+          Bestand und Kartenpruefung: ein details-Element der Faltklasse,
+          der Auf-/Zu-Wunsch steht ueber INSPECTOR_FOLDS im localStorage.
         -->
-        <div id="inspectorHeadText" class="inspector-head-text">
-          <div class="status-label">Auswahl</div>
-          <div id="inspectorTitle" class="inspector-title">Nichts ausgewählt</div>
-          <div id="inspectorSubtitle" class="inspector-subtitle">Keine Karte geladen</div>
-        </div>
+        <details id="inspectorHeadText" class="inspector-head-text inspector-fold">
+          <summary>
+            <span class="inspector-section-title">Auswahl</span>
+          </summary>
+          <div class="fold-body">
+            <div id="inspectorTitle" class="inspector-title">Nichts ausgewählt</div>
+            <div id="inspectorSubtitle" class="inspector-subtitle">Keine Karte geladen</div>
+          </div>
+        </details>
       </div>
 
       <div id="inspectorEmpty" class="inspector-block">
@@ -5683,11 +5694,18 @@ function describeVertexContainer(descriptor) {
 /**
  * Die einklappbaren Blöcke des Inspektors und ihr localStorage-Schlüssel.
  *
- * Beide sind in JEDEM Zustand vorhanden - vorhanden zu sein und ausgeklappt zu
- * sein sind zwei verschiedene Dinge. Zusammen brauchten sie offen mehr Höhe,
- * als die Spalte bei 1000 px Fensterhöhe hat.
+ * Vorhanden zu sein und ausgeklappt zu sein sind zwei verschiedene Dinge.
+ * Zusammen brauchten sie offen mehr Höhe, als die Spalte bei 1000 px
+ * Fensterhöhe hat.
+ *
+ * Der Auswahlblock im Kopf ist seit dem 06.10.2026 dabei: einklappbar wie die
+ * übrigen und beim ersten Start zu. Er steht hier und nicht bei Navigation und
+ * Koordinatenbezug, weil er keinen ihrer beiden Gründe für einen Faltblock
+ * ohne Gedächtnis hat - er hängt nicht an der Karte und klappt nie von selbst
+ * auf.
  */
 const INSPECTOR_FOLDS = [
+  {id:"inspectorHeadText", key:"webMapEditor.inspectorHeadOpen"},
   {id:"inspectorStock", key:"webMapEditor.inspectorStockOpen"},
   {id:"inspectorTransform", key:"webMapEditor.inspectorTransformOpen"},
   {id:"inspectorValidation", key:"webMapEditor.inspectorValidationOpen"}

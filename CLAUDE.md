@@ -362,7 +362,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-statusbar.mjs` | Legende und Statuszeile am unteren Rand |
 | `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen, eingeklappt ohne Gruppenüberschriften, beim Messen ungekürzt; Zurück und Vor über der Karte |
 | `test-placeholders.mjs` | was als leerer Platzhalter gilt |
-| `test-inspector.mjs` | Inspektor: alle sieben Zustände, Behälter, Tastatur, ungekürzte Kurzformen |
+| `test-inspector.mjs` | Inspektor: alle sieben Zustände, der einklappbare Auswahlblock im Kopf, Behälter, Tastatur, ungekürzte Kurzformen |
 | `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster |
 | `test-ghosting.mjs` | Ghosting: wem ein Vorher-Umriss gehört |
 | `test-glaettung.mjs` | Kartenglättung: Vorschau, Anwenden, Abbrechen, Grenzwerte, Auswahl |
@@ -372,7 +372,8 @@ Zwei davon lohnen eine genauere Beschreibung, weil sie nicht an einem einzelnen
 Werkzeug hängen:
 
 **`tools/smoke-test.mjs`** – der breite Grundcheck: Titel, Sichtbarkeit von
-`#svg`, Initial-Text von `#filename` ("Keine Karte geladen"), dass der
+`#svg`, Initial-Text von `#inspectorSubtitle` ("Keine Karte geladen" – gelesen
+nach einem Klick auf den Griff des Auswahlblocks, der beim Start zu ist), dass der
 Sprachumschalter (`#languageToggle`) den Text tatsächlich übersetzt, und dass
 keine `console.error`/uncaught page errors auftreten. Zusätzlich lädt er eine
 **synthetische** absolute WGS84-Karte über `#fileInput` und prüft, dass sie
@@ -2994,6 +2995,65 @@ dass der Kopf ohne Text keinen leeren Streifen hält. Die Zusicherung „und ist
 gleich hoch" ist entfallen, weil sie nach der Entscheidung des Projektinhabers
 nicht mehr wahr sein soll, nicht weil sie falsch gemessen hätte. Siehe „Die
 Angaben zur Auswahl stehen über der Karte“.
+
+**Seit dem 06.10.2026 ist der Text des Kopfblocks ein Faltblock – einklappbar
+wie die übrigen Blöcke und beim ersten Start ZU.** Entschieden vom
+Projektinhaber. „AUSWAHL / Nichts ausgewählt / Punkt auf der Karte anklicken“
+ist seitdem ein `<details id="inspectorHeadText" class="inspector-fold">`: der
+Griff trägt „Auswahl“, aufgeklappt stehen Titel und Untertitel darunter. Bei
+einer Auswahl fällt der ganze Block weiterhin weg (`hidden`, wie bisher), und
+der Kopf trägt dann allein den Umschalter.
+
+| Frage | Antwort |
+|---|---|
+| welche Mechanik | dieselbe wie Bestand und Kartenprüfung: `.inspector-fold`, Eintrag in `INSPECTOR_FOLDS`, Wunsch im `localStorage` (`webMapEditor.inspectorHeadOpen`) |
+| warum mit Gedächtnis | „wie die anderen Blöcke“ – und keiner der beiden Gründe, aus denen Navigation und Koordinatenbezug **keines** haben, trifft zu: der Block hängt nicht an der Karte und klappt nie von selbst auf |
+| wo der Umschalter steht | unverändert oben rechts, aber **im Fluss** statt absolut: `.inspector-head` ist ein Flex-Container mit `row-reverse`, der Kopf ist so hoch wie das Höhere von Umschalter und Text. Vorher hielt eine Mindesthöhe von 58 px den Platz für den offenen Text frei – zugeklappt stünde darunter ein leerer Streifen. Die `:has()`-Regel für den Kopf ohne Text ist damit entfallen; sie hielt nur diese Mindesthöhe und den absolut gesetzten Umschalter zurück |
+
+**Wer den Kopftext liest, klappt ihn auf.** `head()` in `tools/test-inspector.mjs`
+öffnet den Block am Griff, bevor es liest, und liest über `checkVisibility()`
+statt über `getClientRects()` – mit `getClientRects()` las es den Titel auch bei
+zugeklapptem Block, der vierte Fall der Regel in Abschnitt 4.2.
+`tools/smoke-test.mjs` und `tools/test-map-switch.mjs` klappen ihn ebenso auf,
+bevor sie `#inspectorSubtitle` lesen; `innerText` liefert dort sonst `""`.
+
+**Zugesichert in `tools/test-inspector.mjs`** („Der Auswahlblock im Kopf klappt
+ein wie die uebrigen Bloecke“), über `elementFromPoint` und `checkVisibility()`:
+beim ersten Start zu, der Griff getroffen, der Inhalt nicht gezeichnet; Enter
+am Griff klappt auf; zu wie offen hält der Kopf keinen leeren Streifen (der
+Abstand unter dem Gezeigten ist Polsterung plus Rand, aus dem berechneten Stil
+gelesen); der Umschalter steht oben rechts; der Wunsch überlebt das Neuladen in
+beide Richtungen; Griff, Titel und Untertitel in beiden Sprachrichtungen über
+`setLanguage()`, der Untertitel je einmal in der anderen Sprache erzeugt.
+
+**Sechs Mutationen, je eine Schreibstelle; alle reißen, 0 Timeouts.** Drei
+Arbeitskopien außerhalb des Repositorys, je Probe aus der Sicherungskopie
+zurückgespielt, Prüfsumme vorher und nachher `0e1fec56…`; gemessen je Probe
+die statische Stufe und `tools/test-inspector.mjs`.
+
+| Probe | Schreibstelle | gerissen |
+|---|---|---|
+| K1 | der Eintrag in `INSPECTOR_FOLDS` entfernt | **1**, „nach dem Neuladen ist er noch offen“ |
+| K2 | `restoreInspectorFolds()`: Vorgabe offen statt zu | **20**, darunter „beim ersten Start ist der Auswahlblock zu“ und „sein Inhalt wird nicht gezeichnet“ |
+| K3 | Markup: wieder ein festes `<div>` statt eines Faltblocks | **30**, darunter „der zugeklappte Auswahlblock im Kopf hat einen Griff“; dazu reißt die statische Stufe die beiden `details`-Bestandszahlen |
+| K4 | `.inspector-head` wieder mit `min-height:58px` | **2**, „zugeklappt haelt der Kopf keinen leeren Streifen“ (32 gegen 11 px) und „ohne Text ist der Kopfblock nur so hoch wie sein Umschalter“ |
+| K5 | `.inspector-head` als `row` statt `row-reverse` | **1**, „der Umschalter steht oben rechts im Kopf“ |
+| K6 | der Wörterbucheintrag „Auswahl“ entfernt | **1**, „deutsch erzeugt, dann englisch: der Griff heisst „Selection““ |
+
+**K3 endete im ersten Lauf in drei Timeouts statt in einer benannten
+Zusicherung**, in `tools/test-inspector.mjs` und `tools/test-map-switch.mjs`:
+beide klickten ein `<summary>`, das es unter der Mutation nicht gibt. Beide
+fragen seitdem nach dem Griff, bevor sie klicken. **Dabei gemessen:**
+`restoreInspectorFolds()` setzt `.open` auch an einem Element, das kein
+`<details>` ist – als bloße Eigenschaft. Eine Abfrage `open === false` hätte
+den festen Block deshalb für einen zugeklappten gehalten; gefragt wird nach dem
+Griff.
+
+**Nebenbefund, mit dem Umbau erledigt:** das alte Etikett „Auswahl“ trug die
+Klasse `.status-label`, und die Regel `@media(max-width:1180px){.status-label
+{display:none}}`, gedacht für die Beschriftungen der Statuszeile, blendete es
+unter 1180 px Fensterbreite mit aus. Der Griff trägt die Klasse der
+Faltblöcke und hängt an dieser Regel nicht mehr.
 
 **Die Punktnummer ist behälterlokal.** `getVertexContainerInfo()` zählt
 innerhalb eines Rings bzw. einer Linie, nicht über das ganze Feature. Deshalb
@@ -11803,7 +11863,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
 
   | Datei | prüfend | nur herstellend |
   |---|---|---|
-  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**55** | 17 |
+  | `tools/test-inspector.mjs` | <!-- bestand: zusicherungen-inspector -->**55** | 18 |
   | `tools/test-auswahlangaben.mjs` | 2 | 22 |
   | `tools/browser-harness.mjs` | – | 1 |
   | `tools/test-merge.mjs` | 5 | 5 |
@@ -11817,7 +11877,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-ghosting.mjs` | – | 3 |
   | `tools/test-scale.mjs` | – | 2 |
   | `tools/test-glaettung.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**65** | <!-- bestand: zusicherungen-herstellend -->**66** |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**65** | <!-- bestand: zusicherungen-herstellend -->**67** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -11889,6 +11949,12 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   **Karte schließen hat `tools/test-map-switch.mjs` auf 2 / 2 gebracht**: „der
   Inspektor sagt es ebenso“ liest im Leerzustand `#inspectorSubtitle` im
   Aufruf selbst.
+
+  **Der einklappbare Auswahlblock im Kopf (06.10.2026) hat eine herstellende
+  hinzugefügt**, in `tools/test-inspector.mjs`: „beim ersten Start ist der
+  Auswahlblock zu“ steht hinter dem Messhelfer `auswahlblock()`, der
+  `#inspectorTitle` und `#inspectorSubtitle` liest – der Bezeichner steht damit
+  im Vorlauf, nicht im Aufruf.
 
   **Dazu sind drei Namen in die Bezeichnerliste gekommen**: `selectionOverlay`,
   `selectionTitle` und `selectionSubtitle`. Der Kopf der Auswahl steht seitdem
@@ -12465,12 +12531,12 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Anhaltebedingung greift deshalb nicht; die Wahl steht unten mit ihrem Grund.
 
   **Mechanik A – natives `<details>`/`<summary>`.** Im Markup stehen
-  <!-- bestand: details-instanzen -->12 Instanzen in fünf Rollen; dazu kommen
+  <!-- bestand: details-instanzen -->13 Instanzen in fünf Rollen; dazu kommen
   die Karten der Feature-Navigation, deren Zahl von der geladenen Karte abhängt.
 
   | Rolle | Instanzen | Bezeichner | Zustand in | über die Sitzung hinaus |
   |---|---|---|---|---|
-  | `.inspector-fold` | <!-- bestand: details-inspector-fold -->5 | `#featureNavigationSection`, `#inspectorStock`, `#inspectorTransform`, `#inspectorValidation`, `#originSection` | `details.open` | **drei davon** über `INSPECTOR_FOLDS` im `localStorage`; Navigation und Bezugspunkt **nicht** |
+  | `.inspector-fold` | <!-- bestand: details-inspector-fold -->6 | `#inspectorHeadText` (seit dem 06.10.2026), `#featureNavigationSection`, `#inspectorStock`, `#inspectorTransform`, `#inspectorValidation`, `#originSection` | `details.open` | **vier davon** über `INSPECTOR_FOLDS` im `localStorage`; Navigation und Bezugspunkt **nicht** |
   | `.tool-settings` | <!-- bestand: details-tool-settings -->3 | ohne `id`, in `#inspectorTransform` – Reduzieren, Rechtwinklig, Glätten | `details.open` | nein |
   | `.inspector-note` | <!-- bestand: details-inspector-note -->2 | ohne `id`, in den Abmessungen und – seit dem Umzug über der Karte – in den Angaben zur Auswahl („Geschlossene Polygone“) | `details.open` | nein |
   | `.selection-actions` | <!-- bestand: details-selection-actions -->1 | `#selectionActions` | `details.open` | nein |
