@@ -2846,12 +2846,38 @@ nicht.**
 | Gruppe | Inhalt |
 |---|---|
 | Auswählen | Zeiger, Rahmen, Lasso |
-| Zeichnen | Exclusion, Kreis, Rechteck, Search Wire, Dockpfad |
-| Prüfen | Messen, Karte prüfen |
+| Zeichnen | Exclusion, Kreis, Rechteck, Search Wire, Dockpfad, **Messen** |
+| Prüfen | Karte prüfen |
 
 „Prüfen" bleibt eine eigene Gruppe, auch mit nur zwei Einträgen – Messen gehört
 nicht zu „Zeichnen", weil es die Karte nicht anfasst. Die Gruppe füllt sich,
 sobald die Mähbahnen-Vorschau kommt.
+
+**GEÄNDERT am 06.10.2026: Messen steht bei den Zeichenwerkzeugen**, als
+letzter Eintrag nach dem Dockpfad – entschieden vom Projektinhaber. Der Satz
+darüber begründete die frühere Anordnung und bleibt als ihre Begründung
+stehen; die Trennung „verändert die Karte / verändert sie nicht“ trägt die
+Leiste damit nicht mehr. Der `title` sagt weiterhin „Verändert die Karte
+nicht.“ Zugesichert in `tools/test-toolbar.mjs` („Gliederung“): Messen steht
+in der Gruppe, deren Überschrift „Zeichnen“ heißt, als ihr letzter Eintrag,
+und wird dort getroffen; englisch steht es unter „Draw“.
+
+**Drei Mutationen, alle reißen, 0 Timeouts** (Arbeitskopien außerhalb des
+Repositorys, Prüfsumme vorher und nachher `a949efaa…`, gemessen mit der
+statischen Stufe und `tools/test-toolbar.mjs`):
+
+| Probe | Schreibstelle | gerissen |
+|---|---|---|
+| N1 | Messen wieder unter „Prüfen“ | **4**, darunter „Messen steht in der Gruppe „Zeichnen““ und „englisch steht Messen unter „Draw““ |
+| N2 | Messen als erster statt letzter Eintrag von „Zeichnen“ | **1**, „als ihr letzter Eintrag, nach dem Dockpfad“ |
+| N3 | der Wörterbucheintrag „Zeichnen“ entfernt | **11**, darunter „englisch steht Messen unter „Draw““ |
+
+**Bei N2 und N3 endete die statische Stufe im ersten Lauf mit Exit 1 ohne
+benannten Befund** – „SyntaxError“ und `ENOENT` aus `tools/check-syntax.mjs`.
+Das ist der benannte Nebenbefund aus Abschnitt 5 (Zwischendatei nach
+`Date.now()`, zwei parallele Läufe in derselben Millisekunde), nicht die
+Mutation: sequentiell nachgefahren endet sie bei beiden mit Exit 0. Das
+Probengerüst lässt die statische Stufe seitdem nur noch nacheinander laufen.
 
 **Die Beschriftungen sind kurz, weil die Gruppenüberschrift das Verb trägt:**
 unter „Zeichnen" heißt der Knopf „Exclusion", nicht „Exclusion zeichnen". Der

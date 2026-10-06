@@ -3773,10 +3773,10 @@
     <!--
       Werkzeugleiste.
 
-      Drei Gruppen, und die Trennung trägt die nützlichste Information, die
-      eine Werkzeugleiste überhaupt transportieren kann: was die Karte
-      verändert und was nicht. "Prüfen" bleibt deshalb eine eigene Gruppe,
-      auch mit nur zwei Einträgen.
+      Drei Gruppen, und die Trennung trug ursprünglich die Information, was
+      die Karte verändert und was nicht. Seit dem 06.10.2026 steht Messen bei
+      den Zeichenwerkzeugen (entschieden vom Projektinhaber); "Prüfen" trägt
+      damit nur noch "Karte prüfen".
 
       Die Beschriftungen sind kurz, weil die Gruppenüberschrift das Verb schon
       trägt: unter "Zeichnen" heißt der Knopf "Exclusion", nicht "Exclusion
@@ -3848,11 +3848,13 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10M8 13l4 5 4-5M5 20h14"></path></svg>
           <span class="tool-label">Dockpfad</span>
         </button>
-      </div>
 
-      <div class="tool-group">
-        <div class="tool-group-title">Prüfen</div>
-
+        <!--
+          Messen steht seit dem 06.10.2026 bei den Zeichenwerkzeugen -
+          entschieden vom Projektinhaber. Bis dahin stand es unter "Prüfen",
+          weil es die Karte nicht anfasst; diese Trennung ist aufgegeben.
+          Der title sagt weiterhin, dass die Karte unverändert bleibt.
+        -->
         <button id="measureBtn" class="tool-button" type="button"
                 title="Distanz messen: zwei Positionen auf der Karte wählen. Verändert die Karte nicht.">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -3861,6 +3863,10 @@
           </svg>
           <span class="tool-label">Messen</span>
         </button>
+      </div>
+
+      <div class="tool-group">
+        <div class="tool-group-title">Prüfen</div>
 
         <button id="validateMapBtn" class="tool-button" type="button"
                 title="Karte prüfen: Geometrie und Struktur kontrollieren. Verändert die Karte nicht.">

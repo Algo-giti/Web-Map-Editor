@@ -72,9 +72,35 @@ try {
       JSON.stringify(["Auswählen", "Zeichnen", "Prüfen"]),
     JSON.stringify(groups));
 
-  check("Prüfen bleibt eigene Gruppe mit zwei Einträgen",
-    (await page.locator("#toolRail .tool-group").nth(2).locator("button").count()) === 2,
-    String(await page.locator("#toolRail .tool-group").nth(2).locator("button").count()));
+  /*
+   * Seit dem 06.10.2026 steht Messen bei den Zeichenwerkzeugen - entschieden
+   * vom Projektinhaber. Bis dahin stand hier „Prüfen bleibt eigene Gruppe mit
+   * zwei Einträgen“. Zugesichert nach der Wirkung: der Knopf steht in der
+   * Gruppe, deren Ueberschrift „Zeichnen“ heisst, als ihr letzter Eintrag, und
+   * er wird dort getroffen.
+   */
+  const gruppeVon = (id) => page.evaluate((x) => {
+    const g = document.getElementById(x)?.closest(".tool-group");
+    if (!g) return null;
+    return {
+      titel: g.querySelector(".tool-group-title")?.textContent.trim() ?? null,
+      knoepfe: [...g.querySelectorAll(".tool-button")].map((b) => b.id || b.dataset.selectionTool),
+    };
+  }, id);
+
+  {
+    const g = await gruppeVon("measureBtn");
+    check("Messen steht in der Gruppe „Zeichnen“", g?.titel === "Zeichnen", JSON.stringify(g));
+    check("als ihr letzter Eintrag, nach dem Dockpfad",
+      g?.knoepfe.at(-1) === "measureBtn" && g?.knoepfe.at(-2) === "createDockBtn",
+      JSON.stringify(g?.knoepfe));
+    const messen = await elementGetroffen(page, "#measureBtn", { dy: 10 });
+    check("und es wird dort getroffen", messen.ok, messen.grund);
+    const pruefen = await gruppeVon("validateMapBtn");
+    check("„Prüfen“ traegt nur noch „Karte prüfen“",
+      pruefen?.titel === "Prüfen" && pruefen.knoepfe.join() === "validateMapBtn",
+      JSON.stringify(pruefen));
+  }
 
   /* Die Umformwerkzeuge gehören nicht hierher - sie hängen an der Auswahl. */
   for (const id of ["straightenSelectionBtn", "reduceApplyBtn", "rectifyApplyBtn"]) {
@@ -454,6 +480,9 @@ try {
   check("kein deutscher Rest in der Leiste",
     !english.includes("Auswählen") && !english.includes("Zeichnen"),
     english.slice(0, 120));
+  check("englisch steht Messen unter „Draw“",
+    (await gruppeVon("measureBtn"))?.titel === "Draw",
+    JSON.stringify(await gruppeVon("measureBtn")));
 
   /* ---------------------------------------------------------------- */
   console.log("Eingeklappt entfallen die Gruppenueberschriften");
