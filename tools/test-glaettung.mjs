@@ -332,9 +332,15 @@ try {
       p: [Number(c.getAttribute("cx")), -Number(c.getAttribute("cy"))],
     })));
 
+  /*
+   * Ueber „Auswahl aufheben“ und nicht ueber Escape: seit dem 06.10.2026
+   * waehlt der erste Escape ein gewaehltes Umformwerkzeug ab, bevor er die
+   * Auswahl aufhebt - und Glaetten soll hier gewaehlt bleiben. Ohne Auswahl
+   * ist der Knopf gesperrt; dann gibt es nichts aufzuheben.
+   */
   const auswahlAufheben = async () => {
-    await page.locator("#svg").focus().catch(() => {});
-    await page.keyboard.press("Escape");
+    const knopf = page.locator("#clearMultiSelectionBtn");
+    if (await knopf.isEnabled()) await knopf.click();
     await page.waitForTimeout(250);
   };
 

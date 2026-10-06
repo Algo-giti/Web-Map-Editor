@@ -25,6 +25,7 @@
 import {
   createChecker,
   createMenueBefehl,
+  createUmformwerkzeug,
   elementGetroffen,
   freieKartenstelle,
   indexUrl,
@@ -51,6 +52,7 @@ const consoleErrors = [];
 try {
   const page = await browser.newPage();
   const menueBefehl = createMenueBefehl(page, check);
+  const umformwerkzeug = createUmformwerkzeug(page, check);
   page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text()); });
   page.on("pageerror", (e) => consoleErrors.push(String(e)));
 
@@ -276,8 +278,24 @@ try {
     !hilfeDe.includes("Faltblock „Umformen“"),
     hilfeDe.slice(0, 200));
 
+  /*
+   * Seit dem 06.10.2026 waehlt Escape ein gewaehltes Umformwerkzeug ab, bevor
+   * es die Auswahl aufhebt - der Satz zu „Esc“ sagt das. Gelesen am
+   * SICHTBAREN Text des offenen Overlays.
+   */
+  const ESC_DE = "Ist ein Werkzeug unter „Umformen“ gewählt, wählt der erste Druck es ab, der zweite hebt die Auswahl auf.";
+  const ESC_EN = "If a tool under “Reshape” is chosen, the first press deselects it and the second clears the selection.";
+  const hilfeSichtbar = () => page.locator("#helpOverlay").innerText();
+
+  check("deutsch: der Satz zu Esc nennt das Umformwerkzeug vor der Auswahl",
+    (await hilfeSichtbar()).includes(ESC_DE), (await hilfeSichtbar()).slice(0, 200));
+
   await page.evaluate(() => setLanguage("en"));
   await page.waitForTimeout(400);
+
+  check("deutsch erzeugt, dann englisch: der Satz zu Esc ist uebersetzt",
+    (await hilfeSichtbar()).includes(ESC_EN) && !(await hilfeSichtbar()).includes(ESC_DE),
+    (await hilfeSichtbar()).slice(0, 200));
 
   const hilfeEn = await hilfetext();
 
@@ -305,6 +323,21 @@ try {
 
   check("und zurueckgeschaltet steht wieder derselbe deutsche Text da",
     (await hilfetext()) === hilfeDe);
+
+  /* Die Gegenrichtung: auf Englisch geoeffnet, dann deutsch gelesen. */
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  await page.evaluate(() => setLanguage("en"));
+  await page.waitForTimeout(300);
+  await menueBefehl("Help", "Quick overview");
+  await page.waitForTimeout(250);
+  check("englisch geoeffnet: der Satz zu Esc steht englisch da",
+    (await hilfeSichtbar()).includes(ESC_EN), (await hilfeSichtbar()).slice(0, 200));
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(400);
+  check("englisch erzeugt, dann deutsch: der Satz zu Esc steht deutsch da",
+    (await hilfeSichtbar()).includes(ESC_DE) && !(await hilfeSichtbar()).includes(ESC_EN),
+    (await hilfeSichtbar()).slice(0, 200));
 
   await page.keyboard.press("Escape");
   await page.waitForTimeout(250);
@@ -838,6 +871,161 @@ try {
   await page.waitForTimeout(250);
   check("der zweite Escape nimmt dann das Fenster",
     !(await sichtbar("#gridWindow")));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Escape-Rangfolge mit Umformwerkzeug: erst das Werkzeug, dann die Auswahl");
+
+  /*
+   * Seit dem 06.10.2026: ist ein Umformwerkzeug gewaehlt, waehlt der erste
+   * Escape es ab, der zweite hebt die Auswahl auf. Gemessen wird, was
+   * gezeichnet ist: der Block des Werkzeugs im Inspektor und der Kopf der
+   * Angaben zur Auswahl ueber der Karte, beide ueber die Trefferpruefung.
+   */
+  await load();
+
+  const punktmarker = page.locator('#vertexGroup circle[data-layer="perimeter"]');
+  const lage = async () => {
+    const block = await elementGetroffen(page, "#inspectorReduce", { dy: 5 });
+    const kopf = await elementGetroffen(page, "#selectionTitle", { dy: 5 });
+    return {
+      werkzeug: block.ok,
+      knopf: await page.locator("#reduceToolBtn").getAttribute("aria-pressed"),
+      auswahl: kopf.ok,
+      kopf: kopf.ok ? (await page.locator("#selectionTitle").innerText()).trim() : "",
+    };
+  };
+  const waehlePunktUndWerkzeug = async () => {
+    await punktmarker.nth(1).click();
+    await page.waitForTimeout(300);
+    await umformwerkzeug("reduce");
+  };
+
+  await waehlePunktUndWerkzeug();
+  let vor = await lage();
+  check("Vorbedingung: Reduzieren ist gewaehlt und ein Punkt ausgewaehlt",
+    vor.werkzeug && vor.knopf === "true" && vor.auswahl && vor.kopf !== "",
+    JSON.stringify(vor));
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  let nach = await lage();
+  check("der erste Escape waehlt das Werkzeug ab",
+    !nach.werkzeug && nach.knopf === "false", JSON.stringify(nach));
+  check("und laesst die Auswahl stehen",
+    nach.auswahl && nach.kopf === vor.kopf, JSON.stringify(nach));
+
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  nach = await lage();
+  check("der zweite Escape hebt die Auswahl auf",
+    !nach.auswahl && (await page.locator(
+      "#vertexGroup circle.selected, #vertexGroup circle.multi-selected").count()) === 0,
+    JSON.stringify(nach));
+  check("und das Werkzeug bleibt abgewaehlt",
+    !nach.werkzeug && nach.knopf === "false", JSON.stringify(nach));
+
+  /* Gegenprobe: ohne gewaehltes Werkzeug hebt schon der erste die Auswahl auf. */
+  await punktmarker.nth(1).click();
+  await page.waitForTimeout(300);
+  check("ohne Werkzeug: ein Punkt ist ausgewaehlt", (await lage()).auswahl);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  check("ohne Werkzeug hebt schon der erste Escape die Auswahl auf",
+    !(await lage()).auswahl, JSON.stringify(await lage()));
+
+  /* Ein offenes Menue geht weiterhin vor. */
+  await waehlePunktUndWerkzeug();
+  await druckeAlt("menuFileBtn");
+  await page.waitForTimeout(150);
+  check("mit Werkzeug, Auswahl und offenem Menue",
+    (await offeneMenues()).join(",") === "menuFile");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  nach = await lage();
+  check("der erste Escape schliesst nur das Menue, das Werkzeug bleibt gewaehlt",
+    (await offeneMenues()).length === 0 && nach.werkzeug && nach.auswahl,
+    JSON.stringify(nach));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  nach = await lage();
+  check("der zweite waehlt das Werkzeug ab, die Auswahl bleibt",
+    !nach.werkzeug && nach.auswahl, JSON.stringify(nach));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  check("der dritte hebt die Auswahl auf", !(await lage()).auswahl,
+    JSON.stringify(await lage()));
+
+  /* Ein laufender Auswahlrahmen geht ebenfalls vor: er ist die fluechtigste Geste. */
+  await waehlePunktUndWerkzeug();
+  await page.locator('[data-selection-tool="rectangle"]').click();
+  await page.waitForTimeout(200);
+  /* freieKartenstelle() liefert die Stelle relativ zum svg, die Maus will das Fenster. */
+  const stelle = await freieKartenstelle(page);
+  const karte = await page.locator("#svg").boundingBox();
+  check("eine freie Kartenstelle fuer den Rahmen", !!stelle && !!karte, "keine gefunden");
+  if (stelle && karte) {
+    const start = { x: karte.x + stelle.x, y: karte.y + stelle.y };
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x + 40, start.y + 30, { steps: 4 });
+    await page.waitForTimeout(150);
+    const rahmen = () => page.locator("#areaSelectionGroup rect").count();
+    check("der Rahmen wird aufgezogen", (await rahmen()) === 1, String(await rahmen()));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+    nach = await lage();
+    check("der erste Escape bricht den Rahmen ab, das Werkzeug bleibt gewaehlt",
+      (await rahmen()) === 0 && nach.werkzeug && nach.auswahl, JSON.stringify(nach));
+    await page.mouse.up();
+    await page.waitForTimeout(200);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(250);
+    nach = await lage();
+    check("danach waehlt Escape das Werkzeug ab", !nach.werkzeug && nach.auswahl,
+      JSON.stringify(nach));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(250);
+  }
+  await page.locator('[data-selection-tool="pointer"]').click();
+  await page.waitForTimeout(200);
+
+  /* Aus einem Eingabefeld des Werkzeugs heraus wirkt Escape ebenso. */
+  await waehlePunktUndWerkzeug();
+  await page.locator("#reduceToleranceInput").click();
+  check("der Cursor steht im Toleranzfeld",
+    (await fokus()) === "reduceToleranceInput", await fokus());
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  nach = await lage();
+  check("Escape aus dem Toleranzfeld waehlt das Werkzeug ab, die Auswahl bleibt",
+    !nach.werkzeug && nach.auswahl && (await fokus()) !== "reduceToleranceInput",
+    `${JSON.stringify(nach)} Fokus ${await fokus()}`);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
+  /*
+   * Beide Sprachrichtungen: gewaehlt in der einen Sprache, umgeschaltet,
+   * dann Escape - die Auswahl steht in der neuen Sprache weiter da.
+   */
+  for (const [von, nachSprache] of [["de", "en"], ["en", "de"]]) {
+    await page.evaluate((l) => setLanguage(l), von);
+    await page.waitForTimeout(300);
+    await waehlePunktUndWerkzeug();
+    await page.evaluate((l) => setLanguage(l), nachSprache);
+    await page.waitForTimeout(300);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(250);
+    nach = await lage();
+    const kopfErwartet = nachSprache === "en" ? /^Point \d+ of \d+$/ : /^Punkt \d+ von \d+$/;
+    check(`${von} gewaehlt, dann ${nachSprache}: Escape waehlt das Werkzeug ab, die Auswahl steht in dieser Sprache da`,
+      !nach.werkzeug && nach.auswahl && kopfErwartet.test(nach.kopf), JSON.stringify(nach));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(250);
+    check(`${von} gewaehlt, dann ${nachSprache}: der zweite Escape hebt die Auswahl auf`,
+      !(await lage()).auswahl, JSON.stringify(await lage()));
+  }
+  await page.evaluate(() => setLanguage("de"));
+  await page.waitForTimeout(300);
 
   /* ---------------------------------------------------------------- */
   console.log("Der Vergleichspunkt verschwindet, wenn der Punkt zurückkehrt");

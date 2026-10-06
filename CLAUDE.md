@@ -363,7 +363,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-toolbar.mjs` | Werkzeugleiste: Gruppen und Breitenstufen, Messen bei „Zeichnen“, die Umformwerkzeuge mit eigenen Glyphen, eingeklappt ohne Gruppenüberschriften, beim Messen ungekürzt; Zurück und Vor über der Karte |
 | `test-placeholders.mjs` | was als leerer Platzhalter gilt |
 | `test-inspector.mjs` | Inspektor: alle sieben Zustände, der einklappbare Auswahlblock im Kopf, die Kartenprüfung erst nach einer Prüfung, das gewählte Umformwerkzeug oben, Behälter, Tastatur, ungekürzte Kurzformen |
-| `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge, die beiden Fenster, „Karte prüfen“ oben im Menü „Karte“ |
+| `test-menu.mjs` | Menüleiste: Tastaturvertrag, Escape-Rangfolge – auch mit gewähltem Umformwerkzeug –, die beiden Fenster, „Karte prüfen“ oben im Menü „Karte“ |
 | `test-ghosting.mjs` | Ghosting: wem ein Vorher-Umriss gehört |
 | `test-glaettung.mjs` | Kartenglättung: Vorschau, Anwenden, Abbrechen, Grenzwerte, Auswahl |
 | `test-auswahlangaben.mjs` | Angaben zur Auswahl über der Karte: Ort, Felder, Griff, Überdeckung – auch mit dem Maßstabshinweis –, beide Sprachen |
@@ -1195,7 +1195,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->94 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->95 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -4003,11 +4003,71 @@ das man gerade ein Feature wählt.
 | „Karte prüfen“ | lässt das Werkzeug stehen; der Bericht steht oben, darunter der Block des Werkzeugs |
 | ein Werkzeug wird gewählt, während der Bericht oben steht | gibt den Platz frei: `inspectorStateSignature()` zählt das gewählte Werkzeug mit, `releaseInspectorResult()` erkennt die neue Handlung |
 | Glätten wird abgewählt, eine Vorschau wartet | `cancelSmoothing()` – Anwenden und Abbrechen stehen in dem Block, der gerade verschwindet; eine Vorschau, die man nicht mehr übernehmen oder verwerfen kann, wäre eine Falle. Die Statuszeile sagt „Glätten abgebrochen – die Karte ist unverändert.“ |
-| Escape | **unverändert**: hebt die Auswahl auf und lässt das Werkzeug stehen. Ein Abwählen über Escape wäre ein neuer Rang in der Escape-Rangfolge; nicht gebaut, weil nicht verlangt |
+| Escape | **GEÄNDERT am 06.10.2026**: der erste Druck wählt das Werkzeug ab, der zweite hebt die Auswahl auf – siehe „Escape wählt zuerst das Umformwerkzeug ab“ unten. Bis dahin hob Escape die Auswahl auf und ließ das Werkzeug stehen |
 
 **Und die Spalte rollt an den Anfang**, wenn ein Werkzeug gewählt wird –
 dieselbe Lehre wie beim Ergebnis einer Handlung: der Block steht oben, aber
 eine Spalte, die weiter unten stand, zeigte ihn nicht.
+
+#### Escape wählt zuerst das Umformwerkzeug ab
+
+**Entschieden vom Projektinhaber am 06.10.2026: ist ein Umformwerkzeug
+gewählt, wählt der erste Escape es ab, der zweite hebt die Auswahl auf.** Die
+Auswahl ist das Ziel des Werkzeugs; wer das Werkzeug abwählt, will sie meist
+behalten, und wer sie aufheben will, drückt noch einmal.
+
+**Die Rangfolge, von oben nach unten – je Druck genau eine Stufe:**
+
+| Rang | Ebene | warum dort |
+|---|---|---|
+| 1 | offenes Menü, offenes Fenster (`closeTopLayer()`) | die oberste flüchtige Ebene gewinnt, wie bisher |
+| 2 | Hilfe-Overlay | wie bisher |
+| 3 | Messen, Zeichnen | wie bisher; beide schließen ein gewähltes Umformwerkzeug ohnehin aus |
+| 4 | ein laufender Auswahlrahmen oder ein Lasso | die flüchtigste Geste: sie dauert, solange die Maus gedrückt ist. Er geht dem Werkzeug vor – sonst nähme ein Druck während des Ziehens das Werkzeug weg und ließe den Rahmen stehen |
+| 5 | **das gewählte Umformwerkzeug** | neu; `setTransformTool(null)`, also derselbe Weg wie der zweite Klick in der Leiste – eine wartende Glättungsvorschau fällt mit |
+| 6 | die Auswahl | wie bisher |
+
+**Aus einem Eingabefeld heraus gilt dieselbe Folge**, weil Escape die eine
+Taste ist, die dort wirkt (Abschnitt 5, „Escape wirkt auch aus einem
+Eingabefeld heraus“): wer im Toleranzfeld steht und Escape drückt, verlässt
+das Feld und wählt das Werkzeug ab; die Auswahl bleibt.
+
+**Der Satz zu „Esc“ im Hilfe-Overlay nennt das**, ein getauschter
+Wörterbuchschlüssel – der alte ist mit weg.
+
+**Zugesichert in `tools/test-menu.mjs`** („Escape-Rangfolge mit
+Umformwerkzeug“), über die Trefferprüfung am Block des Werkzeugs und am Kopf
+der Angaben zur Auswahl: der erste Escape wählt ab und lässt die Auswahl mit
+ihrem Kopf stehen, der zweite hebt sie auf; ohne Werkzeug hebt schon der erste
+sie auf; ein offenes Menü geht vor (drei Drücke, drei Stufen); ein laufender
+Auswahlrahmen geht vor; aus dem Toleranzfeld heraus wählt Escape ab; beide
+Sprachrichtungen – gewählt in der einen Sprache, über `setLanguage()`
+umgeschaltet, dann Escape, und der Kopf der Auswahl steht in der neuen Sprache
+da. Der Satz im Overlay in beiden Richtungen, am sichtbaren Text.
+
+**Sechs Mutationen, je eine Schreibstelle; alle reißen, 0 Timeouts.** Drei
+Arbeitskopien außerhalb des Repositorys, je Probe aus der Sicherungskopie
+zurückgespielt, Prüfsumme vorher und nachher `c6ee5dfc…`; gemessen je Probe
+Syntaxprüfung, Bestandsprüfer und `tools/test-menu.mjs`. Die statische Stufe
+reißt bei keiner.
+
+| Probe | Schreibstelle | gerissen |
+|---|---|---|
+| S1 | der Zweig für das Umformwerkzeug entfernt – Escape hebt sofort die Auswahl auf | **8**, darunter „der erste Escape waehlt das Werkzeug ab“, Detail `werkzeug:true, auswahl:false` |
+| S2 | der Zweig hebt zusätzlich die Auswahl auf | **6**, darunter „und laesst die Auswahl stehen“ |
+| S3 | der Zweig steht vor `closeTopLayer()` | **3**, darunter „der erste Escape schliesst nur das Menue, das Werkzeug bleibt gewaehlt“ |
+| S4 | nach dem Abbrechen des Auswahlrahmens kein `return` – ein Druck nimmt Rahmen und Werkzeug | **2**, „der erste Escape bricht den Rahmen ab, das Werkzeug bleibt gewaehlt“ |
+| S5 | der Satz im Overlay wieder in der alten Fassung | **4**, beide Sprachrichtungen |
+| S6 | sein Wörterbucheintrag entfernt | **2**, „deutsch erzeugt, dann englisch: der Satz zu Esc ist uebersetzt“ und „englisch geoeffnet: …“ |
+
+**Gefunden hat die neue Regel einen Test, der Escape als Werkzeug benutzte:**
+`auswahlAufheben()` in `tools/test-glaettung.mjs` drückte Escape, während
+Glätten gewählt war, und nahm damit seit diesem Schritt das Werkzeug statt
+der Auswahl weg – zwei benannte Zusicherungen, danach ein Abbruch nach
+Timeout in `scrollIntoViewIfNeeded()` auf den verschwundenen Block. Der
+Helfer hebt die Auswahl seitdem über „Auswahl aufheben“ auf, wie es ein
+Nutzer mit gewähltem Werkzeug täte. Die übrigen 19 Browsertests blieben im
+selben Lauf grün.
 
 **`runTransformTool()` und der Ergebnisplatz für UMFORMEN sind entfallen.** Der
 Block des gewählten Werkzeugs steht ohnehin unter dem Kopf; die vier Knöpfe
@@ -12351,7 +12411,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-merge.mjs` | 5 | 5 |
   | `tools/test-map-switch.mjs` | 2 | 2 |
   | `tools/test-dockpath.mjs` | – | 2 |
-  | `tools/test-menu.mjs` | – | 3 |
+  | `tools/test-menu.mjs` | – | 4 |
   | `tools/test-reduce.mjs` | – | 2 |
   | `tools/test-rectify.mjs` | – | 1 |
   | `tools/test-toolbar.mjs` | 1 | 3 |
@@ -12359,8 +12419,8 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | `tools/test-i18n-dynamic.mjs` | – | 1 |
   | `tools/test-ghosting.mjs` | – | 3 |
   | `tools/test-scale.mjs` | – | 2 |
-  | `tools/test-glaettung.mjs` | – | 1 |
-  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**65** | <!-- bestand: zusicherungen-herstellend -->**70** |
+  | `tools/test-glaettung.mjs` | – | 2 |
+  | **zusammen** | <!-- bestand: zusicherungen-pruefend -->**65** | <!-- bestand: zusicherungen-herstellend -->**72** |
 
   **Die Zahlen sind mit dem sechzehnten Durchgang nachgemessen und seither
   zweimal fortgeschrieben.** Der neunte hatte 52 / 22 / 46 gezählt, am
@@ -12451,6 +12511,12 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   Klick auf `#clearMultiSelectionBtn` – das Ziel muss einmal weg und wieder
   da sein. `tools/test-rectify.mjs` ist damit die fünfzehnte Datei der
   Tabelle.
+
+  **Escape vor der Auswahl (06.10.2026) hat zwei herstellende
+  hinzugefügt**: in `tools/test-menu.mjs` liest der Messhelfer `lage()`
+  `#selectionTitle` im Vorlauf, und in `tools/test-glaettung.mjs` hebt
+  `auswahlAufheben()` die Auswahl seitdem über `#clearMultiSelectionBtn` auf
+  statt über Escape – Escape hätte das gewählte Glätten weggenommen.
 
   **Dazu sind drei Namen in die Bezeichnerliste gekommen**: `selectionOverlay`,
   `selectionTitle` und `selectionSubtitle`. Der Kopf der Auswahl steht seitdem
