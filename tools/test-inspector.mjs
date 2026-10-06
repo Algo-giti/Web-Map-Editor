@@ -21,7 +21,7 @@
 // Aufruf aus dem Repository-Wurzelverzeichnis:
 //   PLAYWRIGHT_CORE_PATH=/pfad/zur/installation node tools/test-inspector.mjs
 
-import { createChecker, createKlicker, createMarkerKlicker, elementGetroffen, freieKartenstelle, indexUrl, launchBrowser, openAllFolds } from "./browser-harness.mjs";
+import { createChecker, createKlicker, createMarkerKlicker, createMenueBefehl, elementGetroffen, freieKartenstelle, indexUrl, launchBrowser, openAllFolds } from "./browser-harness.mjs";
 
 const TOOL = "test-inspector";
 
@@ -216,6 +216,7 @@ try {
    * klaren Ablehnung ein stummer Timeout.
    */
   const klickeFreienKnopf = createKlicker(page, check);
+  const menueBefehl = createMenueBefehl(page, check);
 
   /*
    * Marker werden ueber den gemeinsamen Helfer geklickt: die Angaben zur
@@ -1064,13 +1065,15 @@ try {
   await load([MIT_LOCH]);
 
   /*
-   * Der Prueftext vom Seitenaufbau blieb stehen, bis jemand pruefte - im
-   * eingeklappten Seitenleistenabschnitt fiel das nicht auf, im Inspektor
-   * steht es dauerhaft im Blick.
+   * Hier stand bis zum 06.10.2026 „mit geladener Karte fordert die Pruefung
+   * nicht mehr zum Laden auf“ - der Prueftext vom Seitenaufbau („Zuerst eine
+   * Karte laden.“) blieb stehen, bis jemand pruefte. Seitdem steht der Block
+   * vor der ersten Pruefung gar nicht da, und den Platzhalter gibt es nicht
+   * mehr; was davon uebrig ist, misst der Abschnitt „Die Kartenpruefung
+   * erscheint erst nach einer Pruefung“. Hier die Vorbedingung des Folgenden.
    */
-  check("mit geladener Karte fordert die Prüfung nicht mehr zum Laden auf",
-    (await text("validationSummary")) === "Noch keine Prüfung durchgeführt.",
-    await text("validationSummary"));
+  check("mit geladener Karte steht vor der Prüfung kein Prüfblock da",
+    !(await visible("inspectorValidation")));
 
   await page.locator("#validateMapBtn").click();
   await page.waitForTimeout(400);
@@ -1109,13 +1112,26 @@ try {
    */
   await openAllFolds(page);
 
-  await page.locator("#validationReport button[data-validation-target]")
-    .first().click();
-  await page.waitForTimeout(300);
+  /*
+   * Seit der Block erst nach einer Pruefung erscheint, kann er auch dann
+   * fehlen, wenn die Pruefung gelaufen ist - gemessen an der Mutation, die
+   * sein `hidden` nie zuruecknimmt: der Klick auf den Befund wartete dreissig
+   * Sekunden auf einen Knopf, der nicht gezeichnet wird. Deshalb erst die
+   * Trefferpruefung, und nur dann der Klick.
+   */
+  const berichtDa = await elementGetroffen(page, "#inspectorValidation > summary", { dy: 5 });
 
-  check("der Klick wählt das genannte Feature vollständig aus",
-    (await sichtbareBloecke()).includes("inspectorFeature"),
-    (await sichtbareBloecke()).join(","));
+  check("nach „Karte prüfen“ steht der Prüfblock da", berichtDa.ok, berichtDa.grund);
+
+  if (berichtDa.ok) {
+    await page.locator("#validationReport button[data-validation-target]")
+      .first().click();
+    await page.waitForTimeout(300);
+
+    check("der Klick wählt das genannte Feature vollständig aus",
+      (await sichtbareBloecke()).includes("inspectorFeature"),
+      (await sichtbareBloecke()).join(","));
+  }
 
   /* ---------------------------------------------------------------- */
   console.log("Die Auswahlleiste wechselt den Ort, statt zweimal dazustehen");
@@ -1979,7 +1995,14 @@ try {
   /* Sichtbar im Sinne von "der Block steht da" - auch zugeklappt. */
   check("der Bestandsblock steht", await visible("inspectorStock"));
   check("der Umformblock steht", await visible("inspectorTransform"));
-  check("der Prüfblock steht", await visible("inspectorValidation"));
+  /*
+   * Seit dem 06.10.2026 steht der Pruefblock erst nach einer Pruefung da -
+   * siehe den Abschnitt „Die Kartenpruefung erscheint erst nach einer
+   * Pruefung“. Zu ist er trotzdem, und zwar auch beim ersten Erscheinen,
+   * solange niemand ihn ueber „Karte pruefen“ verlangt.
+   */
+  check("der Prüfblock steht vor der ersten Prüfung nicht da",
+    !(await visible("inspectorValidation")));
   check("beide sind beim ersten Start zu",
     !(await offen("inspectorTransform")) && !(await offen("inspectorValidation")));
 
@@ -2079,6 +2102,96 @@ try {
    */
   check("und der Prüfblock weiterhin zu",
     !(await offen("inspectorValidation")));
+
+  /* ---------------------------------------------------------------- */
+  console.log("Die Kartenpruefung erscheint erst nach einer Pruefung");
+
+  /*
+   * Entschieden vom Projektinhaber am 06.10.2026: der Block KARTENPRUEFUNG
+   * erscheint nur, wenn die Karte tatsaechlich geprueft wurde - vorher gar
+   * nicht -, und „nicht geprueft“ steht allein in der Statuszeile. Gemessen
+   * wird, ob der Griff des Blocks GETROFFEN wird; openAllFolds() vorher
+   * belegt, dass ein Oeffnen ihn nicht hervorholt.
+   */
+  await load([MIT_LOCH]);
+  await openAllFolds(page);
+
+  const pruefblock = () => elementGetroffen(page, "#inspectorValidation > summary", { dy: 5 });
+  const pruefstatus = async () => (await page.locator("#validationShort").innerText()).trim();
+
+  {
+    const b = await pruefblock();
+    check("mit Karte, vor der Pruefung: der Block steht nicht da, auch mit allen Faltbloecken offen",
+      !b.ok && !(await visible("inspectorValidation")), b.grund);
+    check("die Statuszeile sagt „nicht geprüft“",
+      (await pruefstatus()) === "nicht geprüft", await pruefstatus());
+  }
+
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(400);
+
+  {
+    const b = await pruefblock();
+    check("nach „Karte prüfen“ steht er da und wird getroffen", b.ok, b.grund);
+    check("und die Statuszeile nennt das Ergebnis",
+      (await pruefstatus()) !== "nicht geprüft", await pruefstatus());
+  }
+
+  /*
+   * Eine Aenderung an der Karte verwirft das Ergebnis - und mit ihm den
+   * Block. Die Pfeiltaste schiebt den gewaehlten Punkt um eine Rasterweite.
+   */
+  await markerKlicken(marks.nth(0));
+  await page.waitForTimeout(250);
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(350);
+
+  {
+    const b = await pruefblock();
+    check("nach einer Aenderung ist der Block wieder weg", !b.ok, b.grund);
+    check("und die Statuszeile sagt wieder „nicht geprüft“",
+      (await pruefstatus()) === "nicht geprüft", await pruefstatus());
+  }
+
+  /*
+   * Auch das Speichern prueft die Karte - still, ohne Meldung, aber mit
+   * Ergebnis: es steht danach in der Statuszeile, und mit ihm der Block. Das
+   * ist „tatsaechlich geprueft“, und die Statuszeile und der Block sagen
+   * dasselbe.
+   */
+  {
+    page.once("dialog", (d) => d.accept());
+    const wartend = page.waitForEvent("download", { timeout: 5000 }).catch(() => null);
+    await menueBefehl("Datei", "GeoJSON speichern");
+    await wartend;
+    await page.waitForTimeout(300);
+
+    const b = await pruefblock();
+    /* Der Block steht nach dem Speichern an seinem Platz, nicht oben -
+       er muss dafuer in den Blick gerollt werden. */
+    /* Ueber das DOM gerollt, nicht ueber Playwright: dessen scrollIntoView
+       wartet auf Sichtbarkeit, und genau die ist hier die Frage. */
+    await page.evaluate(() =>
+      document.getElementById("inspectorValidation").scrollIntoView({ block: "nearest" }));
+    const c = await pruefblock();
+    check("nach dem Speichern steht der Block da", c.ok, `${b.grund} / ${c.grund}`);
+    check("und die Statuszeile nennt das Ergebnis des Speicherns",
+      (await pruefstatus()) !== "nicht geprüft", await pruefstatus());
+  }
+
+  /* Beide Sprachrichtungen, gemessen an der Statuszeile nach einer Aenderung. */
+  await markerKlicken(marks.nth(0));
+  await page.keyboard.press("ArrowLeft");
+  await page.waitForTimeout(350);
+  await page.evaluate(() => setLanguage("en"));
+  check("deutsch erzeugt, dann englisch: „not validated“, der Block bleibt weg",
+    (await pruefstatus()) === "not validated" && !(await pruefblock()).ok, await pruefstatus());
+
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(350);
+  await page.evaluate(() => setLanguage("de"));
+  check("englisch erzeugt, dann deutsch: „nicht geprüft“, der Block bleibt weg",
+    (await pruefstatus()) === "nicht geprüft" && !(await pruefblock()).ok, await pruefstatus());
 
   /* ---------------------------------------------------------------- */
   console.log("Eine Handlung, die den Inspektor uebernimmt, beendet den Modus");
@@ -2217,16 +2330,25 @@ try {
   await messenStarten();
 
   const befund = page.locator("#validationReport button.validation-item");
-  check("Vorbedingung: es gibt einen anspringbaren Befund",
-    (await befund.count()) > 0, String(await befund.count()));
+  /*
+   * Gezaehlt UND gezeichnet: count() traegt durch einen ausgeblendeten Block
+   * hindurch, und ein Klick auf einen Befund, der nicht dasteht, wartete
+   * dreissig Sekunden - gemessen an der Mutation, die den Pruefblock nie
+   * erscheinen laesst.
+   */
+  const befundDa = (await befund.count()) > 0 && (await befund.first().isVisible());
+  check("Vorbedingung: es gibt einen anspringbaren Befund, und er steht da",
+    befundDa, String(await befund.count()));
 
-  await befund.first().click();
-  await page.waitForTimeout(400);
+  if (befundDa) {
+    await befund.first().click();
+    await page.waitForTimeout(400);
 
-  check("auch der Sprung aus einem Befund beendet den Messmodus",
-    (await messKnopf()).text === "Messen" && !(await visible("inspectorMeasure")));
-  check("und das angesprungene Feature ist sichtbar ausgewaehlt",
-    /ausgewählt/.test((await auswahlKopf()).titel), (await auswahlKopf()).titel);
+    check("auch der Sprung aus einem Befund beendet den Messmodus",
+      (await messKnopf()).text === "Messen" && !(await visible("inspectorMeasure")));
+    check("und das angesprungene Feature ist sichtbar ausgewaehlt",
+      /ausgewählt/.test((await auswahlKopf()).titel), (await auswahlKopf()).titel);
+  }
 
   /* ---- beide Sprachrichtungen ---- */
 
@@ -2401,13 +2523,23 @@ try {
    * blosse VORHANDENSEIN eines Pruefergebnisses keine Hoehe kostet. Dafuer
    * wird der Block wieder geschlossen - genau wie ein Nutzer es taete.
    */
-  const standOffen = await page.evaluate(() =>
-    document.getElementById("inspectorValidation").open);
+  /*
+   * Aufgeklappt UND gezeichnet: seit der Block erst nach einer Pruefung
+   * erscheint, koennte er offen und trotzdem ausgeblendet sein - und der Klick
+   * auf seinen Griff wartete dann dreissig Sekunden. Geklickt wird nur, wenn
+   * die Vorbedingung haelt.
+   */
+  const standOffen = await page.evaluate(() => {
+    const block = document.getElementById("inspectorValidation");
+    return block.open && block.checkVisibility();
+  });
 
   check("Vorbedingung: die Pruefung hat den Block aufgeklappt", standOffen);
 
-  await page.locator("#inspectorValidation > summary").click();
-  await page.waitForTimeout(300);
+  if (standOffen) {
+    await page.locator("#inspectorValidation > summary").click();
+    await page.waitForTimeout(300);
+  }
 
   check("mit Prüfergebnis ebenfalls", await passt(), await hoehen());
 

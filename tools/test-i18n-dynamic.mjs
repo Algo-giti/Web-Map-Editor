@@ -1046,22 +1046,24 @@ try {
   await sprache("de");
 
   /* ---------------------------------------------------------------- */
-  console.log("Die Zusammenfassung vor der ersten Pruefung, beide Richtungen");
+  console.log("Vor der ersten Pruefung steht die Kartenpruefung nicht da, beide Richtungen");
 
   /*
-   * resetValidationUi() schrieb „Noch keine Prüfung durchgeführt.“ einmal hin,
-   * und nach dem Laden einer Karte blieb der Satz in der Sprache stehen, in
-   * der er entstanden war - der Schnappschuss vom Seitenaufbau kennt den
-   * neuen Textknoten nicht. Der Satz entsteht hier je Richtung neu, durch das
-   * Laden einer Karte, und wird sichtbar gelesen: der Prueffaltblock ist offen.
+   * Bis zum 06.10.2026 stand hier der Platzhalter der Zusammenfassung -
+   * „Noch keine Prüfung durchgeführt.“ / „Zuerst eine Karte laden.“ - mit
+   * seinen beiden Sprachrichtungen. Entschieden vom Projektinhaber: der Block
+   * KARTENPRÜFUNG erscheint nur, wenn die Karte tatsächlich geprüft wurde,
+   * vorher gar nicht, und „nicht geprüft“ steht allein in der Statuszeile. Der
+   * Platzhalter ist damit entfallen. Gemessen wird, was an seiner Stelle gilt:
+   * der Block wird nicht gezeichnet - auch nicht, nachdem openAllFolds() alle
+   * Faltbloecke geoeffnet hat -, und die Statuszeile sagt es, sichtbar und in
+   * der Sprache, die gerade gilt.
    */
-  const summaryText = () => page.locator("#validationSummary").innerText();
-  const summarySteht = async (wo) => {
-    await page.locator("#validationSummary").scrollIntoViewIfNeeded();
-    const getroffen = await elementGetroffen(page, "#validationSummary", { dy: 5 });
-    check(`${wo}: die Zusammenfassung steht sichtbar da`,
-      getroffen.ok === true, getroffen.grund);
-  };
+  const pruefblock = () => elementGetroffen(page, "#inspectorValidation > summary", { dy: 5 });
+  const statuszeile = async () => ({
+    getroffen: (await elementGetroffen(page, "#validationShort", { dy: 5 })).ok,
+    text: (await page.locator("#validationShort").innerText()).trim(),
+  });
   const ladeKarte = async () => {
     await page.locator("#fileInput").setInputFiles({
       name: "i18n.geojson",
@@ -1071,58 +1073,56 @@ try {
     await page.waitForTimeout(400);
     await openAllFolds(page);
   };
+  const ohnePruefung = async (wo, erwartet) => {
+    const block = await pruefblock();
+    check(`${wo}: der Block „Kartenprüfung“ steht nicht da`, !block.ok, block.grund);
+    const status = await statuszeile();
+    check(`${wo}: die Statuszeile sagt „${erwartet}“, sichtbar`,
+      status.getroffen && status.text === erwartet, JSON.stringify(status));
+  };
 
   await ladeKarte();
-  await summarySteht("deutsch erzeugt");
-
-  check("deutsch erzeugt: „Noch keine Prüfung durchgeführt.“",
-    (await summaryText()) === "Noch keine Prüfung durchgeführt.", await summaryText());
+  await ohnePruefung("deutsch erzeugt", "nicht geprüft");
 
   await page.evaluate(() => setLanguage("en"));
-
-  check("dann englisch, unmittelbar: übersetzt",
-    (await summaryText()) === "No validation performed yet.", await summaryText());
+  await ohnePruefung("dann englisch, unmittelbar", "not validated");
 
   await page.evaluate(() => setLanguage("de"));
-
-  check("zurückgeschaltet wieder deutsch",
-    (await summaryText()) === "Noch keine Prüfung durchgeführt.", await summaryText());
+  await ohnePruefung("zurückgeschaltet", "nicht geprüft");
 
   await page.evaluate(() => setLanguage("en"));
   await ladeKarte();
-  await summarySteht("englisch erzeugt");
-
-  check("englisch erzeugt: „No validation performed yet.“",
-    (await summaryText()) === "No validation performed yet.", await summaryText());
+  await ohnePruefung("englisch erzeugt", "not validated");
 
   await page.evaluate(() => setLanguage("de"));
-
-  check("dann deutsch, unmittelbar: zurückübersetzt",
-    (await summaryText()) === "Noch keine Prüfung durchgeführt.", await summaryText());
+  await ohnePruefung("dann deutsch, unmittelbar", "nicht geprüft");
 
   /*
-   * Der zweite Satz desselben Platzhalters, ohne Karte. Im Markup steht der
-   * erste - schriebe der Platzhalter nichts, stuende ohne Karte „Noch keine
-   * Prüfung durchgeführt.“ da, und der Wechsel sähe trotzdem richtig aus,
-   * weil der Schnappschuss den Markuptext kennt. Deshalb neu geladen, als
-   * letzter Abschnitt.
+   * Die Gegenprobe: dieselbe Messung findet den Block, sobald geprüft ist.
+   * Ohne sie bestuende „steht nicht da“ auch dann, wenn der Block gar nicht
+   * mehr existierte.
    */
+  await page.locator("#validateMapBtn").click();
+  await page.waitForTimeout(400);
+
+  {
+    const block = await pruefblock();
+    check("nach „Karte prüfen“ steht der Block da und wird getroffen", block.ok, block.grund);
+    const status = await statuszeile();
+    check("und die Statuszeile nennt das Ergebnis statt „nicht geprüft“",
+      status.getroffen && status.text !== "nicht geprüft", JSON.stringify(status));
+  }
+
+  /* Ohne Karte ebenso - neu geladen, als letzter Abschnitt. */
   await page.reload({ waitUntil: "load" });
   await openAllFolds(page);
-  await summarySteht("ohne Karte");
-
-  check("ohne Karte: „Zuerst eine Karte laden.“",
-    (await summaryText()) === "Zuerst eine Karte laden.", await summaryText());
+  await ohnePruefung("ohne Karte", "nicht geprüft");
 
   await page.evaluate(() => setLanguage("en"));
-
-  check("ohne Karte, dann englisch: übersetzt",
-    (await summaryText()) === "Load a map first.", await summaryText());
+  await ohnePruefung("ohne Karte, dann englisch", "not validated");
 
   await page.evaluate(() => setLanguage("de"));
-
-  check("ohne Karte, zurückgeschaltet wieder deutsch",
-    (await summaryText()) === "Zuerst eine Karte laden.", await summaryText());
+  await ohnePruefung("ohne Karte, zurückgeschaltet", "nicht geprüft");
 
   check("keine Konsolen-/Seitenfehler", consoleErrors.length === 0,
     consoleErrors.join(" | "));

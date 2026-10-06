@@ -731,6 +731,12 @@ laufen lässt: **beide Tests reißen**, und zwar mit dem Detail „Noch keine
 Prüfung durchgeführt." – genau der Zustand, in dem die alten Fassungen
 bestanden hätten.
 
+**Seit dem 06.10.2026 steht vor dem Lauf nichts mehr in der Zusammenfassung** –
+der Block „Kartenprüfung“ erscheint erst nach einer Prüfung, der Platzhalter
+ist entfallen (Abschnitt 5, „Die Kartenprüfung erscheint erst nach einer
+Prüfung“). Die Wirkung bleibt dieselbe: ohne Lauf ist die Zusammenfassung leer,
+und die Zusicherung „beginnt mit Prüfung OK oder Keine Fehler“ fällt um.
+
 **Nebenbefund, und er gehört dazu, weil er eine Grenze der Methode zeigt.** Die
 alte Zusicherung lässt sich auch heute nicht zum Reißen bringen, indem man den
 Ringschluss im Reduzieren entfernt (`kept.push([...kept[0]])` weggelassen):
@@ -1189,7 +1195,7 @@ Formularelement und gilt darum immer als frei. Nachgemessen, nicht angenommen.
 **Ein Unterschied zu `createKlicker()` ist erzwungen, nicht gewählt: der
 Helfer bricht den Lauf selbst ab, statt `false` zurückzugeben.** Dort genügt
 der Rückgabewert, weil der Abschnitt in einer Funktion liegt und mit `return`
-enden kann. Die <!-- bestand: menuebefehl-aufrufe -->64 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
+enden kann. Die <!-- bestand: menuebefehl-aufrufe -->65 Menübefehle der Browsertests stehen dagegen im obersten `try`-Block ihrer
 Datei, und `return` ist dort kein gültiges JavaScript – der Rückgabewert wäre
 an den meisten Aufrufstellen gar nicht zu befolgen. Gemessen: mit bloßem
 Rückgabewert riss die Zusicherung zwar, das Skript lief aber weiter und endete
@@ -3104,6 +3110,11 @@ stehen in **jedem** Zustand. Das ist Absicht: wer die drei Umformwerkzeuge nur
 sähe, wenn sie schon gehen, erführe nie, was er dafür tun müsste. Jedes trägt
 deshalb seinen Grund in einem eigenen `.tool-reason`-Feld unter sich.
 
+**GEÄNDERT am 06.10.2026 für die Kartenprüfung:** sie steht nicht mehr in
+jedem Zustand, sondern erst, wenn die Karte tatsächlich geprüft wurde –
+entschieden vom Projektinhaber. Für die Umformwerkzeuge gilt der Satz
+unverändert. Siehe „Die Kartenprüfung erscheint erst nach einer Prüfung“.
+
 **Vorhanden zu sein und ausgeklappt zu sein sind zwei verschiedene Dinge.**
 Beide Blöcke sind `<details>` und **standardmäßig zu**. Dauerhaft offen
 brauchten sie zusammen mehr Höhe, als die 320-px-Spalte bei 1000 px
@@ -3595,6 +3606,72 @@ Mehrfachauswahl bewusst geleert und gesperrt – das ist richtig, sah aber wie
 ein Fehler aus, weil der Grund nur weiter unten in `#pointMeta` stand. Sie
 tragen jetzt einen `placeholder` („mehrere Punkte ausgewählt", „kein Punkt
 ausgewählt"), der beim Auswählen eines einzelnen Punktes wieder verschwindet.
+
+### Die Kartenprüfung erscheint erst nach einer Prüfung
+
+**Entschieden vom Projektinhaber am 06.10.2026: der Block KARTENPRÜFUNG im
+Inspektor erscheint nur, wenn die Karte tatsächlich geprüft wurde. Vorher gar
+nicht.** Der Hinweis „nicht geprüft“ steht allein in der Statuszeile
+(`#validationShort`, unverändert aus `validationShortText()`).
+
+**Geschrieben wird das an genau einer Stelle:** `updateValidationShortText()`
+setzt `hidden` aus `lastValidationResult`. Beide Wege, auf denen sich das
+Prüfergebnis ändert, kommen dort vorbei – `renderValidationResult()` mit einem
+Ergebnis, `resetValidationUi()` ohne –, und dazu jede Aktualisierung des
+Inspektors über `updateInspectorBlocks()`. Im Markup trägt der Block `hidden`.
+
+**„Tatsächlich geprüft“ heißt jeder Lauf von `validateActiveMap()`** – „Karte
+prüfen“ ebenso wie das stille Prüfen vor dem Speichern. Nach dem Speichern
+steht der Block deshalb da, zugeklappt (das Speichern verlangt die Ausgabe
+nicht, es klappt also nichts auf), und die Statuszeile nennt dasselbe
+Ergebnis. Eine Änderung an der Karte verwirft das Ergebnis wie bisher, und mit
+ihm verschwindet der Block wieder.
+
+**Der Platzhalter ist entfallen.** `renderValidationPlaceholder()` schrieb
+„Noch keine Prüfung durchgeführt.“ bzw. „Zuerst eine Karte laden.“ in die
+Zusammenfassung, und zwar genau dann, wenn keine Prüfung vorlag – also genau
+dann, wenn der Block jetzt nicht dasteht. Ein Satz, den niemand zu sehen
+bekommt, ist totes Markup; Funktion, Aufrufe, Markuptext und der
+Wörterbucheintrag „Noch keine Prüfung durchgeführt.“ sind entfernt.
+„Zuerst eine Karte laden.“ bleibt im Wörterbuch, es wird an anderen Stellen
+gebraucht.
+
+**Zugesichert in `tools/test-inspector.mjs`** („Die Kartenpruefung erscheint
+erst nach einer Pruefung“), über die Trefferprüfung am Griff des Blocks: vor
+der Prüfung nicht da – auch nachdem `openAllFolds()` alle Faltblöcke geöffnet
+hat –, die Statuszeile sagt „nicht geprüft“; nach „Karte prüfen“ da und
+getroffen; nach einer Änderung wieder weg; nach dem Speichern wieder da; beide
+Sprachrichtungen über `setLanguage()`. In `tools/test-i18n-dynamic.mjs` ersetzt
+derselbe Befund den Abschnitt über den Platzhalter (mit und ohne Karte, beide
+Richtungen, dazu die Gegenprobe nach „Karte prüfen“); in
+`tools/test-map-switch.mjs` ist vor dem Schließen der letzten Karte geprüft, und
+danach muss der Block weg sein.
+
+**Fünf Mutationen, je eine Schreibstelle; vier reißen, eine ist nachgemessen
+ohne Wirkung; 0 Timeouts.** Drei Arbeitskopien außerhalb des Repositorys, je
+Probe aus der Sicherungskopie zurückgespielt, Prüfsumme vorher und nachher
+`ec5e100b…`; gemessen je Probe die statische Stufe,
+`tools/test-inspector.mjs`, `tools/test-i18n-dynamic.mjs` und
+`tools/test-map-switch.mjs`.
+
+| Probe | Schreibstelle | gerissen |
+|---|---|---|
+| V1 | die Zeile in `updateValidationShortText()` entfernt – der Block bleibt ausgeblendet | **14** + **1** + **2**, darunter „nach „Karte prüfen“ steht er da und wird getroffen“, Detail „keine Ausdehnung“ |
+| V2 | das `hidden` im Markup entfernt | **keine – ohne Wirkung**, nachgemessen: schon bei `readyState` „interactive“, vor dem ersten Bild, steht der Block auf `display:none`, weil das Skript ihn beim Start setzt. Nicht umformuliert; das `hidden` im Markup bleibt als Ausgangszustand stehen |
+| V3 | dieselbe Zeile setzt `hidden = false` – der Block steht immer | **5** + **5** + **4**, darunter „der Prüfblock steht vor der ersten Prüfung nicht da“ |
+| V4 | `resetValidationUi()` ruft den Schreiber nicht | **2** in `tools/test-map-switch.mjs`, „der Block „Kartenpruefung“ ist wieder weg“ – nach dem Schließen der letzten Karte folgt keine weitere Aktualisierung des Inspektors, die ihn nachzöge |
+| V5 | `renderValidationResult()` ruft den Schreiber nicht | **10** + **1** + **2**, darunter „die Prüfung schreibt ihre Kurzform in die Kopfzeile“ |
+
+Die Zahlen zählen in dieser Reihenfolge `tools/test-inspector.mjs`,
+`tools/test-i18n-dynamic.mjs` und `tools/test-map-switch.mjs`.
+
+**V1 und V5 endeten im ersten Lauf in je drei Timeouts statt in benannten
+Zusicherungen**, alle in `tools/test-inspector.mjs`: ein Klick auf einen
+Befund, ein Klick auf den Griff des Prüfblocks und ein
+`scrollIntoViewIfNeeded()` von Playwright – alle drei warten auf
+Sichtbarkeit, und genau die nahm die Mutation. Die beiden Klicks hängen
+seitdem an einer Trefferprüfung bzw. an `checkVisibility()`, das Rollen läuft
+über das DOM. Danach: 0 Timeouts.
 
 **Der Prüfbericht liegt im Inspektor, die Kurzform in der Statuszeile** – und
 nach „Karte prüfen" steht er **oben** in der Spalte, siehe „Das Ergebnis der
@@ -8277,7 +8354,7 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   | Ausgabe | stand so bis zur nächsten | behoben durch |
   |---|---|---|
   | `#scaleNotice`, der Maßstabshinweis | Auswahl oder Bearbeitung | `updateScaleNotice()` in `refreshDerivedUi()` |
-  | `#validationSummary`, „Noch keine Prüfung durchgeführt.“ | Kartenprüfung – sichtbar in jedem Zustand nach dem Laden einer Karte, solange nicht geprüft ist | `renderValidationPlaceholder()`, in `refreshDerivedUi()` neben dem Bericht |
+  | `#validationSummary`, „Noch keine Prüfung durchgeführt.“ | Kartenprüfung – sichtbar in jedem Zustand nach dem Laden einer Karte, solange nicht geprüft ist | `renderValidationPlaceholder()`, in `refreshDerivedUi()` neben dem Bericht – **entfallen am 06.10.2026**: ohne Prüfung steht der Block nicht mehr da, siehe Abschnitt 5 |
   | `#hud`, die Cursor-Koordinaten der Statuszeile | Mausbewegung über der Karte | `renderHud()` aus der zuletzt gemessenen Stelle, in `refreshDerivedUi()` |
 
   **Beim Sprachwechsel neu geschrieben, nicht neu gerechnet**, wie bei den
@@ -8643,7 +8720,9 @@ Durchgang ihn von den dreien oben unterscheiden kann.
   **Der Leerzustand ist derselbe wie beim Start** – `showEmptyEditor()`, und
   dazu `resetValidationUi()`: ohne sie stünde in der Kartenprüfung weiter
   „Noch keine Prüfung durchgeführt.“ der geschlossenen Karte statt „Zuerst
-  eine Karte laden.“
+  eine Karte laden.“ **Seit dem 06.10.2026** steht ohne Prüfung gar kein
+  Block mehr da; ohne `resetValidationUi()` bliebe dann das Ergebnis einer
+  Prüfung der geschlossenen Karte stehen – Block und Statuszeile.
 
   **Zugesichert in `tools/test-map-switch.mjs`**, je deutsch und englisch
   erzeugt und an jeder Stelle mit Text über `setLanguage()` in der anderen

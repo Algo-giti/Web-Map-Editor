@@ -331,7 +331,7 @@ try {
       frage: "Die Karte hat ungespeicherte Änderungen.",
       knoepfe: ["Speichern", "Verwerfen", "Abbrechen"],
       geschlossenA: "Karte A wurde aus dem Arbeitsbereich geschlossen.",
-      leer: "Keine Karte geladen", pruefung: "Zuerst eine Karte laden.",
+      leer: "Keine Karte geladen", pruefung: "nicht geprüft",
     },
     en: {
       menue: "Map", datei: "File",
@@ -341,7 +341,7 @@ try {
       frage: "The map has unsaved changes.",
       knoepfe: ["Save", "Discard", "Cancel"],
       geschlossenA: "Map A was closed and removed from the workspace.",
-      leer: "No map loaded", pruefung: "Load a map first.",
+      leer: "No map loaded", pruefung: "not validated",
     },
   };
 
@@ -628,6 +628,18 @@ try {
       await seite.evaluate((x) => setLanguage(x), sprache);
 
       /*
+       * Vor dem Schliessen der letzten Karte wird geprueft: danach steht der
+       * Block „Kartenpruefung“ da, und nach dem Schliessen muss er wieder
+       * weg sein. Ohne die Pruefung bestuende die Zusicherung darunter auch
+       * dann, wenn das Schliessen das Pruefergebnis gar nicht verwirft.
+       */
+      await seite.locator("#validateMapBtn").click();
+      await seite.waitForTimeout(300);
+      const geprueft = await elementGetroffen(seite, "#inspectorValidation > summary", { dy: 5 });
+      check(`${wie}: vor dem Schliessen ist die Karte geprueft, der Block steht da`,
+        geprueft.ok, geprueft.grund);
+
+      /*
        * Die letzte Karte, ueber die Tastatur: die Pfeiltaste erreicht das
        * Zeichen nach seinem Eintrag und ueberspringt, was nicht geladen ist;
        * Enter schliesst.
@@ -679,9 +691,16 @@ try {
         check(`${wo}: der Inspektor sagt es ebenso`,
           (await seite.locator("#inspectorSubtitle").innerText()).trim() === T.leer,
           await seite.locator("#inspectorSubtitle").innerText());
-        check(`${wo}: und die Kartenpruefung verlangt wieder eine Karte`,
-          (await seite.locator("#validationSummary").textContent()).trim() === T.pruefung,
-          await seite.locator("#validationSummary").textContent());
+        /*
+         * Bis zum 06.10.2026 stand hier der Platzhalter „Zuerst eine Karte
+         * laden.“ im Pruefblock. Seitdem steht der Block ohne Pruefung gar
+         * nicht da, und „nicht geprueft“ sagt allein die Statuszeile.
+         */
+        const block = await elementGetroffen(seite, "#inspectorValidation > summary", { dy: 5 });
+        check(`${wo}: der Block „Kartenpruefung“ ist wieder weg`, !block.ok, block.grund);
+        check(`${wo}: und die Statuszeile sagt „${T.pruefung}“`,
+          (await seite.locator("#validationShort").innerText()).trim() === T.pruefung,
+          await seite.locator("#validationShort").innerText());
         m = await menueStand();
         check(`${wo}: im Menue sind beide Plaetze leer, kein Zeichen steht da`,
           m.zeilen[0]?.[0] === T.nichtA && m.zeilen[1]?.[0] === T.nichtB && !m.A && !m.B,
