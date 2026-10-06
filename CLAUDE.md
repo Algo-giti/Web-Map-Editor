@@ -2526,6 +2526,19 @@ Gegenstandslosigkeit** – mit einer Ausnahme, die ohnehin überholt war:
 Versäumnis** – und beantwortet vorher die Fragen 1 bis 3, die unverändert
 darunter stehen.
 
+**Vorentscheidung vom 06.10.2026, falls „Beide" wieder aufkommt – der Status
+bleibt VERWORFEN.** Der Zustand wurde erneut beauftragt und auf Rückfrage
+wieder nicht gebaut. Der Auftrag beantwortete Frage 1 selbst (ein neu
+gezeichnetes Element fragt vor dem Zeichnen nach seiner Karte); drei weitere
+Antworten des Projektinhabers stehen hier, damit sie nicht noch einmal
+gestellt werden:
+
+| Frage | Vorentscheidung |
+|---|---|
+| 2. Umformwerkzeuge bei einer Auswahl aus beiden Karten | **mit sichtbarem Grund ablehnen** – Begradigen, Reduzieren, Rechtwinklig und Glätten; eine Auswahl innerhalb eines Features einer Karte wirkt wie gewohnt |
+| 3. verschiedene Maßstäbe oder widersprüchlicher Bezugspunkt | **sperren wie das Verbinden** – der Eintrag „Beide" ist dann gesperrt, mit Grund; entsteht der Widerspruch im Zustand „Beide", schaltet der Editor auf eine Karte zurück und sagt es |
+| Speichern und „Karte prüfen" ohne eine aktive Karte | **nachfragen, welche Karte** – dieselbe Frage wie vor dem Zeichnen; gespeichert und geprüft wird genau diese eine, je Karte eine eigene Datei |
+
 **Der Eintrag stand ursprünglich unter 7d und ist mit 7d-1 herausgelöst
 worden.** Drei Gründe, und jeder trägt für sich:
 
