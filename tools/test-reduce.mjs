@@ -19,6 +19,7 @@ import {
   createMenueBefehl,
   createUmformwerkzeug,
   elementGetroffen,
+  gezeichneteVorschauen,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -256,22 +257,21 @@ try {
     `${wieder.grund}: „${(await status()).trim()}“ gegen „${ersteAnalyse}“`);
 
   /*
-   * Etappe 7f: die Vorschau kommt erst beim GANZEN Feature.
-   *
-   * Die drei Zusicherungen daneben sind der Grund, warum das Ausbleiben hier
-   * etwas beweist: der Punkt traegt sichtbar den Auswahlring, die Statuszeile
-   * rechnet bereits mit dem ganzen Feature, und der Knopf ist freigegeben. Die
-   * Verarbeitung findet also statt - nur die Vorschau haelt sich zurueck.
+   * Seit dem 06.10.2026 haengt die Vorschau am GEWAEHLTEN Werkzeug, nicht an
+   * der Auswahl. Bis dahin (Etappe 7f) erschien sie beim ganzen Feature erst,
+   * wenn es ganz ausgewaehlt war - jetzt zeigt schon ein Punkt, was der Knopf
+   * mit dem ganzen Feature taete, denn nach dem Werkzeug ist gefragt.
    */
   check("genau ein Punkt ist ausgewählt",
     (await page.locator("#vertexGroup circle.selected").count()) === 1,
     String(await page.locator("#vertexGroup circle.selected").count()));
-  check("bei einem Punkt gibt es noch keine Vorschaulinie",
-    (await page.locator("#toolPreviewGroup .reduce-preview-line").count()) === 0,
-    String(await page.locator("#toolPreviewGroup .reduce-preview-line").count()));
-  check("und keine wegfallenden Punkte",
-    (await page.locator("#toolPreviewGroup .reduce-preview-node").count()) === 0,
+  check("bei einem Punkt zeigt die Vorschau, was der Knopf tut: das ganze Feature",
+    (await page.locator("#toolPreviewGroup .reduce-preview-line").count()) >= 1 &&
+    (await page.locator("#toolPreviewGroup .reduce-preview-node").count()) >= 1,
     String(await page.locator("#toolPreviewGroup .reduce-preview-node").count()));
+  check("und es ist die einzige Vorschau auf der Karte",
+    JSON.stringify(await gezeichneteVorschauen(page)) === '["reduce"]',
+    JSON.stringify(await gezeichneteVorschauen(page)));
 
   /* Search Wire ist Feature 2; der Perimeter hat seit 7f ebenfalls einen Knopf. */
   await openAllFolds(page);
@@ -342,6 +342,51 @@ try {
 
   check("Abschnitt wird erkannt",
     (await status()).includes("Abschnitt"), await status());
+
+  /* ---------------------------------------------------------------- */
+  console.log("Höchstens eine Vorschau - die des gewählten Werkzeugs");
+
+  /*
+   * Zwei nicht benachbarte Punkte der Zickzacklinie sind fuer ALLE DREI
+   * Werkzeuge ein Ziel mit Wirkung: Begradigen zieht die Punkte dazwischen
+   * auf die Gerade, Reduzieren duennt den Abschnitt aus, Rechtwinklig richtet
+   * das ganze Feature aus. Bis zum 06.10.2026 standen hier zwei Vorschauen
+   * gleichzeitig - Begradigen und Reduzieren, beide an der Auswahl. Jetzt
+   * steht genau die des gewaehlten Werkzeugs da, und jede Wahl bringt ihre
+   * eigene; ohne Wahl keine.
+   */
+  const vorschauIst = async (wie, erwartet) => {
+    const ist = await gezeichneteVorschauen(page);
+    check(`${wie}: ${erwartet.length ? `nur die Vorschau „${erwartet[0]}“` : "keine Vorschau"}`,
+      JSON.stringify(ist) === JSON.stringify(erwartet), JSON.stringify(ist));
+  };
+
+  await vorschauIst("Reduzieren gewaehlt", ["reduce"]);
+  await umformwerkzeug("rectify");
+  await vorschauIst("Rechtwinklig gewaehlt", ["rectify"]);
+  await umformwerkzeug("straighten");
+  await vorschauIst("Begradigen gewaehlt", ["straighten"]);
+
+  /* Beide Sprachrichtungen: die Wahl und ihre Vorschau ueberleben den Wechsel. */
+  await page.evaluate(() => setLanguage("en"));
+  await vorschauIst("deutsch gewaehlt, dann englisch", ["straighten"]);
+  await umformwerkzeug("rectify");
+  await page.evaluate(() => setLanguage("de"));
+  await vorschauIst("englisch gewaehlt, dann deutsch", ["rectify"]);
+
+  /* Ein zweiter Klick auf den Leistenknopf nimmt die Wahl zurueck. */
+  const rechtwinkligKnopf = page.locator("#rectifyToolBtn");
+  await rechtwinkligKnopf.click();
+  await page.waitForTimeout(250);
+  check("abgewaehlt: der Leistenknopf nennt sich nicht mehr gewaehlt",
+    (await rechtwinkligKnopf.getAttribute("aria-pressed")) === "false",
+    await rechtwinkligKnopf.getAttribute("aria-pressed"));
+  await vorschauIst("ohne gewaehltes Werkzeug", []);
+  check("die Auswahl bleibt dabei stehen",
+    (await markiert()) === 2, String(await markiert()));
+
+  await umformwerkzeug("reduce");
+  await vorschauIst("wieder Reduzieren", ["reduce"]);
 
   await applyButton.click();
   await page.waitForTimeout(350);

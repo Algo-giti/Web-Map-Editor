@@ -31,6 +31,7 @@
 import {
   createChecker,
   createMenueBefehl,
+  createUmformwerkzeug,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -103,6 +104,7 @@ const consoleErrors = [];
 try {
   const page = await browser.newPage();
   const menueBefehl = createMenueBefehl(page, check);
+  const umformwerkzeug = createUmformwerkzeug(page, check);
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -573,8 +575,11 @@ try {
   /*
    * Ein Auswahlwechsel baut die Gruppe neu auf - der Schaltzustand darf das
    * nicht vergessen. Gewählt werden zwei Punkte desselben Rings: damit steht
-   * zugleich die Vorschau des Begradigens da, und die ist KEIN Ghost.
+   * zugleich die Vorschau des Begradigens da, und die ist KEIN Ghost. Seit dem
+   * 06.10.2026 gehoert die Vorschau dem gewaehlten Werkzeug - Begradigen wird
+   * dafuer in der Leiste gewaehlt.
    */
+  await umformwerkzeug("straighten");
   await page.evaluate(() => {
     setVertexSelection([
       { featureIndex: 2, containerPath: [0], pointIndex: 0 },

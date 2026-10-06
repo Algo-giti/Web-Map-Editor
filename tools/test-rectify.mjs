@@ -19,6 +19,7 @@ import {
   createMenueBefehl,
   createUmformwerkzeug,
   elementGetroffen,
+  gezeichneteVorschauen,
   indexUrl,
   launchBrowser,
   openAllFolds,
@@ -232,23 +233,21 @@ try {
     `${wieder.grund}: „${await status()}“ gegen „${before}“`);
 
   /*
-   * Etappe 7f: die Vorschau erscheint erst beim GANZEN Feature.
-   *
-   * Ein Ausbleiben allein bewiese nichts - es bestuende auch, wenn die Vorschau
-   * gar nicht mehr gebaut wuerde. Deshalb steht daneben eine Zusicherung, die
-   * nur bei tatsaechlich vorhandener Auswahl gelingt: genau ein Punktmarker
-   * traegt den Auswahlring, und die Statuszeile des Werkzeugs rechnet bereits
-   * mit diesem Feature.
+   * Seit dem 06.10.2026 haengt die Vorschau am GEWAEHLTEN Werkzeug, nicht an
+   * der Auswahl. Bis dahin (Etappe 7f) erschien sie erst beim ganz gewaehlten
+   * Feature; jetzt zeigt schon ein Punkt, was der Knopf mit dem ganzen
+   * Feature taete - nach dem Werkzeug ist gefragt.
    */
   check("genau ein Punkt ist ausgewählt",
     (await page.locator("#vertexGroup circle.selected").count()) === 1,
     String(await page.locator("#vertexGroup circle.selected").count()));
-  check("bei einem Punkt gibt es noch keine Vorschaulinie",
-    (await page.locator("#toolPreviewGroup .rectify-preview-line").count()) === 0,
-    String(await page.locator("#toolPreviewGroup .rectify-preview-line").count()));
-  check("und keine markierten Punkte",
-    (await page.locator("#toolPreviewGroup .rectify-preview-node").count()) === 0,
+  check("bei einem Punkt zeigt die Vorschau, was der Knopf tut: das ganze Feature",
+    (await page.locator("#toolPreviewGroup .rectify-preview-line").count()) >= 1 &&
+    (await page.locator("#toolPreviewGroup .rectify-preview-node").count()) >= 1,
     String(await page.locator("#toolPreviewGroup .rectify-preview-node").count()));
+  check("und es ist die einzige Vorschau auf der Karte",
+    JSON.stringify(await gezeichneteVorschauen(page)) === '["rectify"]',
+    JSON.stringify(await gezeichneteVorschauen(page)));
 
   /*
    * Ganzes Feature waehlen - der Knopf steht in der Feature-Navigation.

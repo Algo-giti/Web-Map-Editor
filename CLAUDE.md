@@ -351,7 +351,7 @@ Die Skripte der folgenden Tabelle öffnen `index.html` in einem echten Browser
 | `test-origin-conflict.mjs` | widersprüchliche RTK-Bezugspunkte (Abschnitt 5b) |
 | `test-straighten.mjs` | Linie begradigen |
 | `test-dockpath.mjs` | Docking-Pfad mit freier Punktzahl |
-| `test-reduce.mjs` | Punkte reduzieren, beide Betriebsarten, der Ablehnungsgrund nur einmal |
+| `test-reduce.mjs` | Punkte reduzieren, beide Betriebsarten, der Ablehnungsgrund nur einmal, höchstens eine Vorschau – die des gewählten Werkzeugs |
 | `test-scale.mjs` | Maßstabserkennung, Sperren, Rundlauf, Maßstab von Hand, Maßstab aus der Datei bei absoluten Koordinaten, der Maßstabshinweis im Sprachwechsel |
 | `test-merge.mjs` | Verbinden, Singletons, Slot-Trennung |
 | `test-shapes.mjs` | Kreis- und Rechteck-Exclusions |
@@ -2107,6 +2107,53 @@ passiert also nichts. Ihn zu streichen hieße, den Knopf bei einem gewählten
 Punkt schlicht zu sperren; der Nutzer erführe dann erst nach dem Auswählen
 aller Punkte, was er hätte tun können – das Gegenteil der Hausregel, nach der
 die Umformwerkzeuge auch dann dastehen, wenn sie gerade nicht gehen.
+
+**GEÄNDERT am 06.10.2026: die Vorschau hängt am GEWÄHLTEN Werkzeug, nicht
+an der Auswahl** – entschieden vom Projektinhaber. Die Tabelle, die Regel
+`previewSelectionAllows()` und die Absätze darüber beschreiben den Stand von
+7f bis dahin und bleiben als Begründung stehen; gilt heute:
+
+| Frage | Antwort |
+|---|---|
+| wann erscheint eine Vorschau | wenn ihr Werkzeug in der Leiste gewählt ist **und** es ein Ziel mit Wirkung hat – dasselbe Ziel, auf das der Knopf wirkt. Die Bedingungen der Tabelle oben zur Wirkung (Punkte fallen weg, `maxShift > 0`) gelten unverändert |
+| wie viele | **höchstens eine** – die des gewählten Werkzeugs. Bis dahin standen bei einem ganz gewählten Feature Reduzieren und Rechtwinklig zugleich da, bei zwei Punkten desselben Rings Begradigen und Reduzieren |
+| wo steht die Regel | an genau einer Stelle, `toolPreviewAllowed(name)`; die drei Vorschauen rufen sie zuerst auf. `previewSelectionAllows()` ist entfallen |
+| ein einzelner Punkt | zeigt jetzt die Vorschau des ganzen Features, wenn das Werkzeug gewählt ist – der Grund, aus dem 7f sie dort weggenommen hatte („ungefragt die Vorschau eines Werkzeugs, nach dem er nicht gefragt hat“), ist mit der Wahl weg: nach ihm ist gefragt. Vorschau und Knopf sagen damit dasselbe |
+| Glätten | war schon so gebunden: seine Rechnung entsteht nur über den Knopf im eigenen Block und fällt beim Abwählen weg (`setTransformTool()`) |
+| neu gezeichnet | `setTransformTool()` zeichnet die Karte neu, sonst stünde bis zur nächsten Auswahländerung die Vorschau des vorigen Werkzeugs da |
+| nicht betroffen | die Vorschau der Brücken beim Verbinden (`#showMergePreview`): sie gehört keinem Umformwerkzeug, sondern dem Verbinden-Fenster, und hängt an ihrem eigenen Kontrollkästchen |
+
+**Zugesichert in `tools/test-reduce.mjs`** („Höchstens eine Vorschau – die
+des gewählten Werkzeugs“), an zwei nicht benachbarten Punkten der
+Zickzacklinie, die für alle drei Werkzeuge ein Ziel mit Wirkung sind: je
+gewähltem Werkzeug steht genau dessen Vorschau gezeichnet auf der Karte,
+nach dem Abwählen keine, die Auswahl bleibt; beide Sprachrichtungen über
+`setLanguage()` – die Wahl und ihre Vorschau überleben den Wechsel. Dazu in
+`tools/test-reduce.mjs` und `tools/test-rectify.mjs`: ein einzelner Punkt
+zeigt die Vorschau des ganzen Features, und sie ist die einzige. Gemessen über
+`gezeichneteVorschauen()` im Harness – Rechteck und Lage auf der Karte, denn
+`elementGetroffen()` kann eine Vorschau mit `pointer-events:none` nie treffen.
+`tools/test-ghosting.mjs` wählt Begradigen, bevor es dessen Vorschau neben
+abgeschaltetem Ghosting erwartet.
+
+**Sieben Mutationen, je eine Schreibstelle; alle reißen, 0 Timeouts.** Vier
+Arbeitskopien außerhalb des Repositorys, je Probe aus der Sicherungskopie
+zurückgespielt, Prüfsumme vorher und nachher `7dc338c4…`; gemessen je Probe
+die statische Stufe (Syntax, ids, Bestand), `tools/test-reduce.mjs`,
+`tools/test-rectify.mjs`, `tools/test-ghosting.mjs` und
+`tools/test-straighten.mjs`. Die statische Stufe reißt bei keiner.
+
+| Probe | Schreibstelle | gerissen |
+|---|---|---|
+| P1 | Begradigen ohne `toolPreviewAllowed()` | **5** in `tools/test-reduce.mjs`, darunter „Reduzieren gewaehlt: nur die Vorschau „reduce““, Detail `["reduce","straighten"]` |
+| P2 | Reduzieren ohne `toolPreviewAllowed()` | **5**, darunter „Begradigen gewaehlt: …“, Detail `["reduce","straighten"]` |
+| P3 | Rechtwinklig ohne `toolPreviewAllowed()` | **6**, darunter „und es ist die einzige Vorschau auf der Karte“, Detail `["rectify","reduce"]` |
+| P4 | `setTransformTool()` zeichnet nicht neu | **4**, darunter „Rechtwinklig gewaehlt: …“, Detail `["reduce"]` – die Vorschau des vorigen Werkzeugs |
+| P5 | `toolPreviewAllowed()` gibt bei jedem gewählten Werkzeug frei | **7**, Detail `["rectify","reduce","straighten"]` |
+| P6 | Reduzieren wieder mit der 7f-Bedingung „ganz ausgewählt“ | **2**, „bei einem Punkt zeigt die Vorschau, was der Knopf tut“ |
+| P7 | Rechtwinklig ebenso | **2** + **2** (`tools/test-reduce.mjs`, `tools/test-rectify.mjs`) |
+
+Ohne Angabe zählt die Zahl in `tools/test-reduce.mjs`.
 
 **Der Knopf „Ganzes Feature auswählen" hängt nicht mehr an
 `canMoveWholeFeature()`**, sondern an `descriptors.length > 0 &&
@@ -4047,7 +4094,7 @@ an dem Fünfeck aus `tools/test-glaettung.mjs`.
 
 **Nebenbefunde, gemeldet und nicht behoben:**
 
-- **ERLEDIGT im Commit danach – bei Reduzieren und Rechtwinklig stand der
+- **ERLEDIGT am 06.10.2026 – bei Reduzieren und Rechtwinklig stand der
   Ablehnungsgrund zweimal da.** Ohne gültiges Ziel schrieb die
   Statusfunktion des Werkzeugs (`#reduceStatus`, `#rectifyStatus`) denselben
   Satz wie sein `.tool-reason` – gemessen: „Reduzieren: einen Punkt auswählen
@@ -4055,12 +4102,11 @@ an dem Fünfeck aus `tools/test-glaettung.mjs`.
   einen Punkt des Features auswählen.“ je zweimal untereinander. Bisher fiel
   das nicht auf, weil das Statusfeld in den eingeklappten Einstellungen lag.
   Behoben, siehe „Der Ablehnungsgrund steht einmal da“ unten.
-- **Die Vorschauen von Begradigen, Reduzieren und Rechtwinklig hängen weiter
-  an der Auswahl, nicht am gewählten Werkzeug.** Bei einem ganz gewählten
-  Feature stehen Reduzieren- und Rechtwinklig-Vorschau gleichzeitig auf der
-  Karte, auch wenn keines der beiden gewählt ist. Unverändert gelassen, weil
-  das Verhalten der Werkzeuge bleiben sollte; seit es ein gewähltes Werkzeug
-  gibt, läge es nahe, nur dessen Vorschau zu zeigen.
+- **ERLEDIGT am 06.10.2026 – die Vorschauen von Begradigen, Reduzieren und
+  Rechtwinklig hingen an der Auswahl, nicht am gewählten Werkzeug.** Bei
+  einem ganz gewählten Feature standen Reduzieren- und Rechtwinklig-Vorschau
+  gleichzeitig auf der Karte, auch wenn keines der beiden gewählt war.
+  Behoben, siehe „Zeitpunkt der Werkzeugvorschauen“ in diesem Abschnitt.
 
 ### Der Ablehnungsgrund steht einmal da
 
@@ -4654,7 +4700,9 @@ Schalter greift nach den drei Werkzeugvorschauen und vor der Schleife über die
 Vergleichszustände: Begradigen, Reduzieren und Rechtwinklig zeigen einen
 Vorschlag für die Zukunft, liegen seit dem einundzwanzigsten Durchgang in
 `#toolPreviewGroup` und bleiben stehen. Die Entscheidung ist zugesichert – mit
-abgeschaltetem Ghosting steht die Linie des Begradigens weiterhin da.
+abgeschaltetem Ghosting steht die Linie des Begradigens weiterhin da (seit dem
+06.10.2026 mit Begradigen in der Leiste gewählt, denn die Vorschau gehört dem
+gewählten Werkzeug).
 
 **Zugesichert in `tools/test-ghosting.mjs`** nach der Wirkung: kein Ghost und
 keine Vergleichslinie mehr, der Schaltzustand überlebt einen Auswahlwechsel,
@@ -11077,6 +11125,12 @@ Durchgang ihn von den dreien oben unterscheiden kann.
     einzigen über den Rückfall auf `getWholeFeatureTarget()`.
   - Der **Zwei-Punkte-Fall** deckt sich mit dem Begradigen, das unverändert bei
     genau zwei Punkten desselben Rings bleibt (`getSelectedSection()`).
+
+  **Überholt am 06.10.2026, was die Vorschau betrifft:** sie hängt seitdem am
+  gewählten Werkzeug und nicht mehr an der Auswahl (Abschnitt 5, „Zeitpunkt
+  der Werkzeugvorschauen“). Für ein künftiges Abrunden hieße das: seine
+  Vorschau steht, sobald es gewählt ist und ein Ziel hat. Die beiden
+  Auswahlbedingungen oben gelten für das **Ziel** unverändert.
 
   **ENTSCHIEDEN: treffen Lasso oder Rechteck mehrere Features vollständig,
   lehnt das Werkzeug ab – mit Grund im `.tool-reason`-Feld.** Alle zugleich

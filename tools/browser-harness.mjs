@@ -523,6 +523,48 @@ export function createUmformwerkzeug(page, check) {
 }
 
 /**
+ * Welche Werkzeugvorschauen stehen gerade GEZEICHNET auf der Karte?
+ *
+ * Liefert die Namen der Werkzeuge ("straighten", "reduce", "rectify",
+ * "smooth"), sortiert und ohne Doppelte - gelesen aus den Klassen
+ * „<werkzeug>-preview-…“ in #toolPreviewGroup. Gezeichnet heisst: das Element
+ * hat ein Rechteck, und seine Mitte liegt auf der Karte.
+ *
+ * elementGetroffen() geht hier nicht, und das ist eine Grenze der Methode,
+ * keine Nachlaessigkeit: die Vorschau traegt pointer-events:none, damit sie
+ * Kartenklicks nicht schluckt, und elementFromPoint() liefert an ihrer Stelle
+ * bauartbedingt das svg darunter (CLAUDE.md, Abschnitt 5, Kreis-Exclusions).
+ */
+export function gezeichneteVorschauen(page) {
+  return page.evaluate(() => {
+    const karte = document.getElementById("svg")?.getBoundingClientRect();
+    const gruppe = document.getElementById("toolPreviewGroup");
+    if (!karte || !gruppe) return [];
+
+    const namen = new Set();
+
+    for (const el of gruppe.querySelectorAll("*")) {
+      const name = [...el.classList]
+        .map((klasse) => klasse.match(/^([a-z]+)-preview-/)?.[1])
+        .find(Boolean);
+      if (!name) continue;
+
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+
+      if ((r.width || r.height) &&
+          x >= karte.left && x <= karte.right &&
+          y >= karte.top && y <= karte.bottom) {
+        namen.add(name);
+      }
+    }
+
+    return [...namen].sort();
+  });
+}
+
+/**
  * Die zugängliche Beschreibung eines Elements, wie Chrome sie berechnet -
  * oder "" ohne eine.
  *

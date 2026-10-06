@@ -6036,6 +6036,13 @@ function setTransformTool(name) {
   updateInspector();
 
   /*
+   * Die Vorschau gehört dem gewählten Werkzeug (toolPreviewAllowed()) - eine
+   * neue Wahl zeichnet die Karte deshalb neu, sonst stünde bis zur nächsten
+   * Auswahländerung die Vorschau des vorigen Werkzeugs da.
+   */
+  renderGeometry();
+
+  /*
    * Und die Spalte an den Anfang: der Block steht gleich unter dem Kopf, aber
    * eine Spalte, die gerade weiter unten stand, zeigte ihn nicht. Dieselbe
    * Lehre wie beim Ergebnis einer Handlung, siehe showInspectorResult().
@@ -13396,40 +13403,39 @@ function renderMergePreview() {
 
 
 /**
- * Darf die Vorschau eines Umformwerkzeugs jetzt erscheinen?
+ * Darf die Vorschau dieses Umformwerkzeugs erscheinen?
  *
- * Etappe 7f, eine Regel fuer alle Vorschauen statt drei Zeitpunkte: ein
- * Abschnitt (zwei Punkte desselben Rings) zeigt wie bisher sofort; das ganze
- * Feature erst, wenn es auch wirklich GANZ ausgewaehlt ist.
+ * Seit dem 06.10.2026: genau dann, wenn es in der Leiste GEWAEHLT ist -
+ * entschieden vom Projektinhaber. Damit steht immer hoechstens eine Vorschau
+ * auf der Karte, und es ist die des Werkzeugs, dessen Block im Inspektor
+ * steht. Die Glaettung war schon vorher so gebunden: ihre Rechnung entsteht
+ * nur ueber den Knopf im eigenen Block und faellt beim Abwaehlen weg.
  *
- * Vorher genuegte ein einziger Punkt, weil getWholeFeatureTarget() auf das
- * ganze Feature zurueckfaellt, sobald die Auswahl eindeutig zu einem gehoert.
- * Wer einen Punkt verschieben wollte, bekam damit ungefragt die Vorschau eines
- * Werkzeugs, nach dem er nicht gefragt hat.
- *
- * Die Regel betrifft NUR den Zeitpunkt der Vorschau. Worauf die Werkzeuge
- * selbst wirken, aendert sie nicht - das entscheiden weiterhin
- * getReduceTarget() und getWholeFeatureTarget().
+ * Bis dahin hing die Vorschau an der AUSWAHL (Etappe 7f,
+ * previewSelectionAllows()): ein Abschnitt zeigte sofort, ein ganzes Feature
+ * erst, wenn es ganz ausgewaehlt war - damit nicht jeder einzelne Punkt
+ * ungefragt die Vorschau eines Werkzeugs trug, nach dem niemand gefragt
+ * hatte. Bei einem ganz gewaehlten Feature standen Reduzieren und
+ * Rechtwinklig trotzdem gleichzeitig da. Seit es eine Wahl gibt, ist sie die
+ * Frage; die Auswahl liefert nur noch das ZIEL - dasselbe, auf das der Knopf
+ * wirkt. Ein einzelner Punkt zeigt deshalb, was der Knopf mit dem ganzen
+ * Feature taete.
  */
-function previewSelectionAllows(target) {
-  if (!target.ok) return false;
-  if (target.mode !== "feature") return true;
-
-  return isWholeFeatureSelected(target.featureIndex);
+function toolPreviewAllowed(name) {
+  return activeTransformTool === name;
 }
 
 
 /**
- * Zeichnet die Vorschau der Begradigung in die vorhandene Ghost-Gruppe.
- *
- * Bewusst kein eigenes Overlay-System und keine eigene SVG-Gruppe: die
- * Ghost-Gruppe liegt ohnehin hinter der aktiven Geometrie, was für eine
- * Unterlegung genau richtig ist. Der Zustand wird aus getSelectedSection()
- * abgeleitet, es gibt also nichts zurückzusetzen.
+ * Zeichnet die Vorschau des Reduzierens: die verbleibende Linie und die
+ * wegfallenden Punkte. Vorschau und Anwendung holen ihre Punkte aus derselben
+ * Analyse.
  */
 function renderReducePreview(worldUnitsPerPixel) {
+  if (!toolPreviewAllowed("reduce")) return;
+
   const target = getReduceTarget();
-  if (!previewSelectionAllows(target)) return;
+  if (!target.ok) return;
 
   const analysis = analyzeReduction(target, reduceTolerance);
   if (!analysis.removed.length || analysis.belowMinimum) return;
@@ -13479,8 +13485,10 @@ function renderReducePreview(worldUnitsPerPixel) {
  * nicht auseinanderlaufen.
  */
 function renderRectifyPreview(worldUnitsPerPixel) {
+  if (!toolPreviewAllowed("rectify")) return;
+
   const target = getWholeFeatureTarget();
-  if (!previewSelectionAllows(target)) return;
+  if (!target.ok) return;
 
   const analysis = analyzeRectify(target);
   if (!analysis || !analysis.snapped || analysis.maxShift === 0) return;
@@ -13517,7 +13525,18 @@ function renderRectifyPreview(worldUnitsPerPixel) {
 }
 
 
+/**
+ * Zeichnet die Vorschau der Begradigung.
+ *
+ * Sie liegt in #toolPreviewGroup, unmittelbar über den Ghosts und vor der
+ * aktiven Geometrie - bis zum einundzwanzigsten Durchgang hing sie in der
+ * Ghost-Gruppe und erbte deren Dämpfung (Abschnitt „Farbrunde 2“ in
+ * CLAUDE.md). Der Zustand wird aus getSelectedSection() abgeleitet, es gibt
+ * also nichts zurückzusetzen.
+ */
 function renderStraightenPreview(worldUnitsPerPixel) {
+  if (!toolPreviewAllowed("straighten")) return;
+
   const target = getSelectedSection();
   if (!target.ok) return;
 
